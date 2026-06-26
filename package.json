@@ -1,0 +1,39 @@
+{
+  "name": "eslint-plugin-resilient",
+  "version": "0.1.0",
+  "description": "ESLint rules for explicit, runtime-resilient JavaScript patterns",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "rules",
+    "docs",
+    "README.md"
+  ],
+  "keywords": [
+    "eslint",
+    "eslint-plugin",
+    "javascript",
+    "runtime-safety",
+    "destructuring",
+    "defensive-programming"
+  ],
+  "scripts": {
+    "lint": "eslint .",
+    "test": "node tests/prefer-signature-destructuring.test.js"
+  },
+  "peerDependencies": {
+    "eslint": ">=8.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-react": "^7.37.0",
+    "globals": "^15.0.0"
+  },
+  "license": "MIT"
+}
