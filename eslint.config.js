@@ -1,28 +1,23 @@
 import js from '@eslint/js';
 import * as importPlugin from 'eslint-plugin-import';
-import react from 'eslint-plugin-react';
 import globals from 'globals';
+
+// eslint-disable-next-line import/no-useless-path-segments
+import resilient from './index.js';
 
 export default [
     js.configs.recommended,
-    react.configs.flat.recommended,
+    resilient.configs.recommended,
     {
-        files: ['**/*.{js,jsx}'],
+        files: ['**/*.js'],
         ignores: ['node_modules/**'],
         languageOptions: {
             ecmaVersion: 'latest',
             sourceType: 'module',
-            globals: { ...globals.node },
-            parserOptions: {
-                ecmaFeatures: { jsx: true }
-            }
+            globals: { ...globals.node }
         },
         plugins: {
-            import: importPlugin,
-            react
-        },
-        settings: {
-            react: { version: 'detect' }
+            import: importPlugin
         },
         rules: {
             'no-unused-vars': ['error', { ignoreRestSiblings: true }],
@@ -52,16 +47,14 @@ export default [
             'object-curly-spacing': ['error', 'always'],
             'operator-linebreak': ['error', 'before', { overrides: { '&&': 'after', '||': 'after' } }],
             'no-use-before-define': ['error', { functions: true }],
-            'no-lonely-if': 'error',
             'consistent-return': 'error',
-            'no-undefined': 'error',
             'lines-between-class-members': ['error'],
             'constructor-super': 'off',
             'class-methods-use-this': 'off',
             'max-classes-per-file': 'off',
             'no-param-reassign': 'off',
             'no-restricted-globals': 'off',
-            'no-undef': 'off',
+            'no-undef': 'error',
             'import/no-cycle': 'off',
             'import/order': [
                 'error',
@@ -86,12 +79,6 @@ export default [
                     packageDir: './'
                 }
             ],
-            'react/jsx-uses-vars': 'error',
-            'react/jsx-uses-react': 'error',
-            'react/jsx-closing-bracket-location': ['error', { selfClosing: 'after-props', nonEmpty: 'after-props' }],
-            'react/jsx-max-props-per-line': ['error', { maximum: 1, when: 'multiline' }],
-            'react/jsx-tag-spacing': ['error', { beforeSelfClosing: 'always' }],
-            'react/prop-types': 'off',
             'no-restricted-syntax': [
                 'error',
                 {

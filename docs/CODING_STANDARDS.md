@@ -13,9 +13,9 @@ This document is written for both people and AI assistants.
 If you only remember a few things, remember these:
 
 1. Prefer explicit data contracts through destructuring.
-2. Return the expected type instead of `null` or `undefined`.
+2. Return the expected type instead of explicitly returning or assigning `null` or `undefined`; bare `return;` is valid control flow when no value is returned.
 3. Use array methods to show intent: `map`, `reduce`, `filter`, `some`, `find`.
-4. Prefer early returns over `else` blocks.
+4. Use early returns; `else`, `else if`, and nested `if` statements are forbidden.
 5. Avoid optional chaining `?.` in project code.
 6. Never use `||` as a destructuring fallback (`const { x } = obj || {}`); prefer destructuring defaults over property-access `||`.
 7. Use truthy/falsy checks for empty collections: `if (items.length)` and `if (!items.length)`.
@@ -27,19 +27,22 @@ If you only remember a few things, remember these:
 When an AI assistant edits code in this project, follow these rules strictly:
 
 1. Do not use optional chaining `?.`.
-2. Do not use `||` as a destructuring fallback (`const { x } = obj || {}`); objects must have defaults upstream in the function signature.
-3. Do not use `.length > 0` or `.length === 0` for emptiness checks.
-4. Destructure nested properties in function parameters when practical.
-5. Prefer computed property destructuring for dynamic property access.
-6. Prefer `map`, `reduce`, `filter`, `some`, and `find` over `for` and `while`.
-7. Prefer early returns over `else` blocks.
-8. Add defensive defaults at each destructuring level where data may be missing.
+2. If a function returns a value, return that value or the expected falsey shape such as `{}`, `[]`, `''`, `0`, or `false`. Bare `return;` is allowed only for side-effect functions and logical exits that do not return a value. Do not explicitly assign or return `undefined`.
+3. Do not use `else`, `else if`, or nested `if` statements.
+4. Do not use `||` as a destructuring fallback (`const { x } = obj || {}`); objects must have defaults upstream in the function signature.
+5. Use `!items.length` for an empty collection check. `items.length` and `items.length > 0` are valid non-empty checks; exact cardinality checks such as `items.length === 1` are valid.
+6. Destructure nested properties in function parameters when practical.
+7. Prefer computed property destructuring for dynamic property access.
+8. Prefer collection prototype methods—`map`, `reduce`, `filter`, `some`, `find`, and `forEach`—over imperative loops.
+9. Add defensive defaults at each destructuring level where data may be missing.
 
 Before completing a code change:
 
 - Search the file for `?.`.
+- Search return expressions for `null` and `undefined`; keep bare `return;` only for control flow in functions that do not return values.
+- Search the file for `else`, `else if`, and nested `if` statements.
 - Search for `||` used as a destructuring fallback (`} = something ||`).
-- Search for `.length > 0` and `.length === 0`.
+- Search for `.length === 0`; use `!items.length` for emptiness checks.
 - Check whether function signatures can express the data contract more clearly.
 - Check whether loops are actually transformations or accumulations better expressed with array methods.
 - Check whether `else` blocks can become guard clauses.
@@ -66,12 +69,18 @@ This style is opinionated by design. The goal is consistency, not novelty.
 
 ### 1. Return expected types
 
-Functions should return the type their callers expect. In general, avoid returning `null` or `undefined`.
+Functions should return the type their callers expect. If a function returns a value, return that value or the expected falsey value: `{}` for objects, `[]` for arrays, `''` for strings, `0` for numbers, and `false` for booleans. Flexible input may naturally produce `undefined` while being read, but do not explicitly assign it or return it as a value. A bare `return;` is allowed when the function performs a side effect or exits without producing a value.
 
 ```javascript
 // Avoid
 const getUser = (id) => users[id] || null;
 const getItems = () => found ? items : undefined;
+const stop = (value) => value ? value : null;
+const getName = (value) => value ? value.name : undefined;
+const mixed = (value) => {
+    if (!value) return;
+    return value;
+};
 
 // Prefer
 const getUser = (id) => users[id] || {};
@@ -79,6 +88,15 @@ const getName = () => data ? data.name : '';
 const getItems = () => found ? items : [];
 const getCount = () => found ? count : 0;
 const isValid = () => test ? result : false;
+
+// Bare return is valid control flow when the function does not return a value
+const send = (payload) => {
+    if (!payload) return;
+    sendPayload(payload);
+};
+
+// Normalize flexible input before returning a value
+const getSafeName = ({ name = '' } = {}) => name;
 ```
 
 Why:
@@ -112,6 +130,11 @@ Why:
 - Dependencies are visible at the boundary
 - Defaults are harder to forget
 - Reviewers can understand the contract without reading the whole function body
+
+Exception: if the original parameter must be forwarded to another function
+later in the same scope, it may remain intact while local values are
+destructured in the body. This preserves the downstream contract without
+forcing duplicate reconstruction of the input object.
 
 ### 3. Destructure defensively
 
@@ -218,13 +241,13 @@ Prefer:
 ```javascript
 if (items.length) { }
 if (!items.length) { }
+if (items.length > 0) { }
 if (count) { }
 ```
 
 Instead of:
 
 ```javascript
-if (items.length > 0) { }
 if (items.length === 0) { }
 if (count !== 0) { }
 ```
@@ -238,9 +261,10 @@ if (count >= 10) { }
 
 Why:
 
-- It removes noise when the intent is simply empty vs non-empty
+- It removes noise when the intent is simply empty vs non-empty, while explicit
+  length comparisons remain valid when numeric length is the point of the test
 
-### 8. Prefer early returns
+### 8. Use early returns; never use `else`
 
 Use guard clauses so the main path remains easy to scan.
 
@@ -262,9 +286,29 @@ Why:
 - The happy path stays visible
 - Nesting stays shallow
 
-### 9. Prefer functional transformations over loops
+The `no-else` rule rejects both `else` and `else if`, including branches that do not return immediately. Convert the branch into a guard clause or a separate `if` statement.
 
-Choose the method that communicates the job:
+### 9. Do not nest `if` statements
+
+Nested conditionals obscure the execution path and make graceful degradation harder to inspect. Flatten them into guard clauses:
+
+```javascript
+// Avoid
+if (isReady) {
+    if (hasContent) return content;
+}
+
+// Prefer
+if (!isReady) return '';
+if (!hasContent) return '';
+return content;
+```
+
+The `no-nested-if` rule reports an `if` nested anywhere inside another `if` in the same function. An `if` inside a separate callback or nested function is a new function boundary and is allowed.
+
+### 10. Prefer prototype methods over imperative loops
+
+Choose the collection prototype method that communicates the job:
 
 - `map`: every item becomes another item
 - `filter`: keep some items
@@ -285,12 +329,17 @@ const flags = args.reduce((acc, arg) => {
 }, {});
 ```
 
+The `prefer-prototype-methods` rule reports `for`, `for...of`, `for...in`,
+`while`, and `do...while`. Use recursion only when the problem is genuinely
+structural—such as tree traversal or pagination—not when a collection method
+states the transformation clearly.
+
 Why:
 
 - The reader sees intent immediately
 - Mutation and bookkeeping are reduced
 
-### 10. Prefer destructuring for dynamic access
+### 11. Prefer destructuring for dynamic access
 
 When property access is dynamic, computed destructuring makes the dependency explicit.
 
@@ -307,7 +356,7 @@ Why:
 - Dynamic access is declared up front
 - It stays consistent with the rest of the style
 
-### 11. Prefer `Object.entries()` for object iteration
+### 12. Prefer `Object.entries()` for object iteration
 
 ```javascript
 // Less clear
@@ -343,11 +392,11 @@ That repetition is there to help both humans and AI assistants apply the same pa
 
 ### “Prefer” vs “always”
 
-Most of this guide reflects strong preferences. In practice:
+Some rules are enforced hard errors; the remaining guidance reflects strong preferences. In practice:
 
 - Prefer consistency over clever exceptions
 - Prefer explicitness over terseness
-- Prefer readability over dogma
+- If an enforced rule creates a necessary exceptional case, disable that rule inline and make the exception visible
 
 If a rule creates worse code in a very specific case, call that out in review and make the exception deliberate.
 
@@ -403,6 +452,8 @@ Before merging code, ask:
 - Are return types predictable?
 - Is the code using transformations instead of manual accumulation where appropriate?
 - Can any `else` blocks become early returns?
+- Are there any `else`, `else if`, or nested `if` statements?
+- Are falsey return values replaced with the expected empty type instead of `null` or `undefined`? Are bare returns used only for control flow?
 - Are emptiness checks written in the project style?
 - Is there a simpler, more explicit version of the same logic?
 

@@ -12,30 +12,38 @@ const ruleTester = new RuleTester({
 ruleTester.run('prefer-signature-destructuring', rule, {
     valid: [
         {
-            code: 'const processUser = ({ name = "", age = 0 } = {}) => `${name} (${age})`;'
+            code: 'const inspect = (node) => { const { type = "" } = node; sendNode(node); return type; };'
         },
         {
-            code: 'const passThrough = (user) => user;'
+            code: 'const inspect = (node) => { const { type = "" } = node; sendNode({ node }); return type; };'
         },
         {
-            code: 'const handler = ({ data = {} } = {}) => { const { items = [] } = data; return items; };'
+            code: 'const inspect = (node) => { const inspectType = () => { const { type = "" } = node; return type; }; return inspectType; };'
         }
+
     ],
     invalid: [
         {
             code: 'const processUser = (user) => { const { name, age } = user; return `${name} (${age})`; };',
-            errors: [
-                {
-                    messageId: 'preferSignature'
-                }
-            ]
+            errors: [{ messageId: 'preferSignature' }]
         },
         {
-            code: 'function getItems(response) { if (!response) return []; const { data: { items = [] } = {} } = response; return items; }',
+            code: 'const getTitle = (article = {}) => { const { title } = article; return title; };',
+            errors: [{ messageId: 'preferSignature' }]
+        },
+        {
+            code: 'function getMode(settings) { const { mode = "" } = settings; return mode; }',
+            errors: [{ messageId: 'preferSignature' }]
+        },
+        {
+            code: 'const getName = (user) => { sendUser(user); const { name = "" } = user; return name; };',
+            errors: [{ messageId: 'preferSignature' }]
+        },
+        {
+            code: 'const getSettings = (config) => { const { theme = "" } = config; const { mode = "" } = config; return `${theme}:${mode}`; };',
             errors: [
-                {
-                    messageId: 'preferSignature'
-                }
+                { messageId: 'preferSignature' },
+                { messageId: 'preferSignature' }
             ]
         }
     ]

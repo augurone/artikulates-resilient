@@ -1,70 +1,33 @@
 # eslint-plugin-resilient
 
-ESLint rules for explicit, runtime-resilient JavaScript.
+Resilient is an opinionated, ECMAScript-native standard for functional-first, data-driven JavaScript. It uses explicit contracts, predictable shapes, declarative transformations, and graceful runtime degradation while reserving hard failures for the build.
 
-Resilient is part of the Artikulates brand of opinionated JavaScript tooling.
+The standard is organized into three enforceable buckets:
 
-This package turns a team style guide into enforceable rules. It is designed for two audiences:
+- **Contracts** — destructured signatures, safe defaults, and no fallback
+  destructuring.
+- **Values** — returned values preserve their expected type, including stable
+  falsey shapes for flexible or missing data.
+- **Intent** — early returns, shallow control flow, and prototype methods make
+  transformations and decisions visible.
 
-- People who need a readable, review-friendly coding standard
-- AI assistants that produce better code when the rules are explicit
+* Data flow: Inspired by Flux and functional approaches, with clear movement from input to transformation to output.
+* Contracts: Destructured signatures declare required data, defaults handle absence, and malformed shapes remain visible contract violations.
+* Runtime behavior: Missing content degrades pragmatically into stable empty values instead of taking down the site.
+* Control flow: No classes, nested conditionals, else branches, or imperative loops; native functions and prototype methods state intent directly.
+* Enforcement: ESLint turns the model into build-time rules so invalid code fails before publication while valid runtime variation remains survivable.
 
-Today, the package ships one custom rule and a broader standards document that the rule set will continue to grow toward.
+**These rules are based on:** docs/CODING_STANDARDS.md
 
-## Project Structure
-
-```
-index.js                          # Plugin entry point
-eslint.config.js                  # Reference ESLint config (used by this project and as a base)
-rules/
-    prefer-signature-destructuring.js   # Custom rule implementation
-docs/
-    CODING_STANDARDS.md           # Full coding standards (source of truth)
-    rules/
-        prefer-signature-destructuring.md   # Rule documentation
-```
-
-The [coding standards](docs/CODING_STANDARDS.md) document is the authoritative reference. Here is how the pieces connect:
-
-| Layer | File | Purpose |
-|---|---|---|
-| Standards | [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md) | Source of truth — full rules with rationale |
-| Lint enforcement | [eslint.config.js](eslint.config.js) | Shows the opinionated style this project uses internally |
-| Custom rules | [rules/](rules/) | Patterns ESLint cannot enforce natively |
-| AI guidance | [.github/copilot-instructions.md](.github/copilot-instructions.md) | Quick-reference version for AI assistants |
-
-## TL;DR
-
-This plugin currently favors:
-
-- explicit function contracts
-- predictable return shapes
-- defensive destructuring
-- transformation-oriented code
-- readable guard-clause control flow
-
-## Philosophy
-
-The core idea is simple: code should make its assumptions visible.
-
-In practice, that usually means:
-
-- function signatures show what data they expect
-- missing data is handled deliberately
-- callers receive predictable types
-- transformations are expressed with array methods that reveal intent
-
-This is not about being clever or minimal. It is about making code easier to review, safer to change, and easier for both humans and tools to follow consistently.
-
-## Installation
+## Install
 
 ```bash
 npm install --save-dev eslint-plugin-resilient
 ```
 
-## Usage
+## Configure
 
-### Flat config
+For ESLint flat config, add the recommended configuration:
 
 ```javascript
 import resilient from 'eslint-plugin-resilient';
@@ -74,11 +37,62 @@ export default [
 ];
 ```
 
-This enables the currently shipped custom rule:
+The recommended configuration enables the nine custom resilient rules plus
+the native ESLint rules used by the standard.
+
+Resilient uses ESLint flat config and supports ESLint 9 or later. Node.js
+18.18 or later is supported.
+
+## IDE integration
+
+Resilient does not require an editor-specific plugin. Editors use the local
+ESLint installation and the project's `eslint.config.js`.
+
+### VS Code
+
+Install the [ESLint extension](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
+and open the project folder. If workspace settings define `eslint.validate`,
+include JavaScript:
+
+```json
+{
+    "eslint.validate": ["javascript"],
+    "eslint.useFlatConfig": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "explicit"
+    }
+}
+```
+
+ESLint 9 uses flat config by default. The extension resolves ESLint from the
+opened workspace, so install ESLint and Resilient locally rather than relying
+on a global installation.
+
+### JetBrains IDEs
+
+In WebStorm or another JetBrains IDE, open **Settings | Languages & Frameworks
+| JavaScript | Code Quality Tools | ESLint** and select **Automatic ESLint
+configuration**. The IDE will use the local ESLint package and
+`eslint.config.js`. For monorepos, set the working directory to the package
+that contains the relevant configuration.
+
+The Resilient rules currently report problems but do not automatically rewrite
+code. Editor highlighting works immediately; save-time fixes apply only to
+other ESLint rules that provide fixes.
+
+## Custom rules
 
 - `resilient/prefer-signature-destructuring`
+- `resilient/no-destructuring-fallback`
+- `resilient/no-else`
+- `resilient/no-length-comparison`
+- `resilient/no-nested-if`
+- `resilient/no-undefined-assignment`
+- `resilient/prefer-falsey-returns`
+- `resilient/prefer-prototype-methods`
+- `resilient/prefer-safe-destructuring-defaults`
 
-### Manual configuration
+To enable rules selectively:
 
 ```javascript
 import resilient from 'eslint-plugin-resilient';
@@ -95,52 +109,16 @@ export default [
 ];
 ```
 
-## Current Rules
+Rule details and examples are in [docs/rules](docs/rules/). The complete
+standard, including rationale and exceptions, is in
+[docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md).
 
-### `prefer-signature-destructuring`
+## Development
 
-Encourages destructuring object parameters in the function signature instead of inside the function body.
-
-```javascript
-// Avoid
-const processUser = (user) => {
-    const { name, age } = user;
-    return `${name} (${age})`;
-};
-
-// Prefer
-const processUser = ({
-    name = '',
-    age = 0
-} = {}) => `${name} (${age})`;
+```bash
+npm test
+npm run lint
 ```
-
-Why it helps:
-
-- makes the function contract visible at the boundary
-- applies safe defaults earlier
-- reduces repeated shape-reading inside the body
-
-Full rule documentation: [docs/rules/prefer-signature-destructuring.md](docs/rules/prefer-signature-destructuring.md)
-
-## Status
-
-This is an early focused release:
-
-- one custom rule is implemented and published
-- the style guide documents the larger system it belongs to
-- additional rules will be added incrementally instead of bundled all at once
-
-## Roadmap
-
-Planned rules that align with the broader style system:
-
-- `prefer-safe-destructuring-defaults`
-- `prefer-truthy-emptiness-checks`
-- `prefer-functional-iteration`
-- `prefer-early-returns`
-- `prefer-predictable-empty-returns`
-
 
 ## License
 

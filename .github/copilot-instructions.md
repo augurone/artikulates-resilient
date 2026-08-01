@@ -26,10 +26,10 @@ const { count = 0 } = data || {};
 const process = ({ data: { count = 0 } = {} } = {}) => count;
 ```
 
-**3. `.length > 0` or `.length === 0`** — Use truthy/falsy.
+**3. `.length === 0`** — Use `!items.length` for an empty collection. `items.length`, `items.length > 0`, and exact cardinality checks remain valid.
 ```javascript
-// ❌  if (items.length > 0)   if (items.length === 0)
-// ✅  if (items.length)       if (!items.length)
+// ❌  if (items.length === 0)
+// ✅  if (items.length)       if (!items.length)       if (items.length > 0)
 ```
 
 **4. `for` / `while` loops** — Use `map`, `reduce`, `filter`, `find`, `some`.
@@ -121,9 +121,9 @@ Object.keys(obj).forEach(k => { const v = obj[k]; });
 Object.entries(obj).forEach(([key, value]) => { });
 ```
 
-**Return the expected type — never `null` or `undefined`.**
+**Return the expected type — never explicitly return or assign `null` or `undefined`.**
 ```javascript
-// ❌  return null;   return undefined;
+// ❌  return null;   return undefined;   const value = undefined;
 // ✅  return {};     return [];     return '';     return false;
 ```
 
@@ -136,7 +136,7 @@ const config = getConfig(name);
 // ❌ — config is {}, this never triggers
 if (!config) throw new Error('missing');
 
-// ❌ — violates truthy check rule
+// ✅ — an explicit numeric length comparison is valid
 if (Object.keys(config).length > 0) { }
 
 // ✅
@@ -196,13 +196,13 @@ When you see `||`, ask one question: is this `} = something ||`?
 ```bash
 grep -n "\?\." file.js           # must return 0 matches
 grep -n "} = .* ||" file.js      # must return 0 matches
-grep -n "\.length > 0" file.js   # must return 0 matches
+grep -n "\.length === 0" file.js   # must return 0 matches
 nvm use stable && npm run lint   # must pass with 0 errors
 ```
 
 - [ ] No `?.` in the file
 - [ ] No `} = something ||` in the file
-- [ ] No `.length > 0` or `.length === 0` in the file
+- [ ] No `.length === 0` in the file; use `!items.length` for emptiness
 - [ ] All function parameters use deep destructuring
 - [ ] No `for`/`while` loops
 - [ ] No `else` blocks
@@ -220,4 +220,3 @@ Require explicit user approval and a `// EXCEPTION: reason` comment in the code.
 
 - [Full Standards](../docs/CODING_STANDARDS.md)
 - [ESLint Config](../eslint.config.js)
-
