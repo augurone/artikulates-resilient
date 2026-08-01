@@ -2,15 +2,6 @@
 
 Resilient is an opinionated, ECMAScript-native standard for functional-first, data-driven JavaScript. It uses explicit contracts, predictable shapes, declarative transformations, and graceful runtime degradation while reserving hard failures for the build.
 
-The standard is organized into three enforceable buckets:
-
-- **Contracts** — destructured signatures, safe defaults, and no fallback
-  destructuring.
-- **Values** — returned values preserve their expected type, including stable
-  falsey shapes for flexible or missing data.
-- **Intent** — early returns, shallow control flow, and prototype methods make
-  transformations and decisions visible.
-
 * Data flow: Inspired by Flux and functional approaches, with clear movement from input to transformation to output.
 * Contracts: Destructured signatures declare required data, defaults handle absence, and malformed shapes remain visible contract violations.
 * Runtime behavior: Missing content degrades pragmatically into stable empty values instead of taking down the site.
