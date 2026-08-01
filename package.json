@@ -7,11 +7,20 @@
   "exports": {
     ".": "./index.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/augurone/artikulates-resilient.git"
+  },
+  "homepage": "https://github.com/augurone/artikulates-resilient#readme",
+  "bugs": {
+    "url": "https://github.com/augurone/artikulates-resilient/issues"
+  },
   "files": [
     "index.js",
     "rules",
     "docs",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "keywords": [
     "eslint",
@@ -23,16 +32,18 @@
   ],
   "scripts": {
     "lint": "eslint .",
-    "test": "node tests/prefer-signature-destructuring.test.js"
+    "test": "node tests/run.js"
+  },
+  "engines": {
+    "node": ">=18.18.0"
   },
   "peerDependencies": {
-    "eslint": ">=8.0.0"
+    "eslint": ">=9.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
     "eslint": "^9.0.0",
     "eslint-plugin-import": "^2.31.0",
-    "eslint-plugin-react": "^7.37.0",
     "globals": "^15.0.0"
   },
   "license": "MIT"
