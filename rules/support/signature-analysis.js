@@ -95,21 +95,25 @@ const getStaticMemberProperties = ({
 } = {}) => {
     const properties = new Set();
     const memberNodes = [];
+    const wholeObjectNodes = [];
     let hasUnsafeReference = false;
     const visit = (currentNode = {}) => {
         if (!currentNode || typeof currentNode !== 'object') return;
         if (excludedNodes.includes(currentNode)) return;
+        const directMemberRead = isDirectMemberRead({ node: currentNode, name });
+        const staticMemberName = getStaticMemberName({ node: currentNode });
 
         if (
-            isDirectMemberRead({ node: currentNode, name }) &&
-            (!getStaticMemberName({ node: currentNode }) || isUnsafeMemberUse({ node: currentNode }))
+            directMemberRead &&
+            (!staticMemberName || isUnsafeMemberUse({ node: currentNode }))
         ) {
             hasUnsafeReference = true;
+            wholeObjectNodes.push(...(!staticMemberName ? [currentNode] : []));
             return;
         }
 
-        if (isDirectMemberRead({ node: currentNode, name })) {
-            properties.add(getStaticMemberName({ node: currentNode }));
+        if (directMemberRead) {
+            properties.add(staticMemberName);
             memberNodes.push(currentNode);
             return;
         }
@@ -125,6 +129,7 @@ const getStaticMemberProperties = ({
             !isNonReferenceIdentifier({ node: currentNode })
         ) {
             hasUnsafeReference = true;
+            wholeObjectNodes.push(currentNode);
             return;
         }
 
@@ -144,8 +149,44 @@ const getStaticMemberProperties = ({
     return {
         properties: [...properties],
         memberNodes,
-        hasUnsafeReference
+        hasUnsafeReference,
+        wholeObjectNodes
     };
+};
+
+const hasWholeObjectReference = ({
+    node = {},
+    name = '',
+    excludedNodes = [],
+    afterNode = {}
+} = {}) => {
+    const { range: afterRange = [] } = afterNode;
+    const afterEnd = afterRange[1] ?? 0;
+    const { wholeObjectNodes = [] } = getStaticMemberProperties({
+        node,
+        name,
+        excludedNodes
+    });
+
+    return wholeObjectNodes.some((referenceNode = {}) => {
+        const {
+            parent = {},
+            type = '',
+            computed = false,
+            range = []
+        } = referenceNode;
+        const { id = {} } = parent;
+        const isDestructuringInitializer = (
+            parent.type === 'VariableDeclarator' &&
+            parent.init === referenceNode &&
+            id.type === 'ObjectPattern'
+        );
+        const isDynamicMemberReference = type === 'MemberExpression' && computed;
+
+        return !isDestructuringInitializer && (
+            isDynamicMemberReference || range[0] > afterEnd
+        );
+    });
 };
 
 const containsIdentifier = ({ node = {}, name = '' } = {}) => {
@@ -181,5 +222,6 @@ export {
     getSourceText,
     getStaticMemberName,
     getStaticMemberProperties,
+    hasWholeObjectReference,
     isDestructuringFromParam
 };
