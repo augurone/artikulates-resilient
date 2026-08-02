@@ -1,7 +1,8 @@
 # no-length-comparison
 
-Disallows strict equality against zero for a collection’s `.length`. This rule
-does not police other comparison operators or exact cardinality checks.
+Disallows strict equality or inequality against zero for a collection’s
+`.length`. This rule does not police other comparison operators or exact
+cardinality checks.
 
 ```javascript
 // Incorrect
@@ -14,5 +15,7 @@ if (items.length > 0) return items;
 if (items.length === 1) return items[0];
 ```
 
-The rule only targets `length === 0` (including `0 === length`). Exact
-cardinality checks such as `items.length === 1` remain valid.
+The rule targets `length === 0`, `0 === length`, `length !== 0`, and
+`0 !== length`. It provides suggestions for the canonical `!length` and
+`length` forms. Exact cardinality checks such as `items.length === 1` remain
+valid.

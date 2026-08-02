@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-resilient",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "ESLint rules for explicit, runtime-resilient JavaScript patterns",
   "type": "module",
   "main": "index.js",
@@ -20,7 +20,8 @@
     "rules",
     "docs",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "keywords": [
     "eslint",

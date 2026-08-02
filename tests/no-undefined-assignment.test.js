@@ -11,7 +11,8 @@ const ruleTester = new RuleTester({
 
 ruleTester.run('no-undefined-assignment', rule, {
     valid: [
-        { code: 'const hasValue = value => value === undefined;' }
+        { code: 'const hasValue = value => !value;' },
+        { code: 'const value = null;' }
     ],
     invalid: [
         {

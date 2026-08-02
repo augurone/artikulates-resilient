@@ -1,12 +1,20 @@
-const isUndefinedIdentifier = ({ type = '', name = '' } = {}) => (
-    type === 'Identifier' && name === 'undefined'
-);
+const isUndefinedIdentifier = (node = {}) => {
+    const {
+        type = '',
+        name = ''
+    } = node ?? {};
+
+    return (
+        type === 'Identifier' && name === 'undefined'
+    );
+};
 
 const reportUndefinedAssignment = ({ node = {}, report = () => {} } = {}) => {
-    if (!isUndefinedIdentifier(node)) return;
+    const safeNode = node ?? {};
+    if (!isUndefinedIdentifier(safeNode)) return;
 
     report({
-        node,
+        node: safeNode,
         messageId: 'undefinedAssignment'
     });
 };
@@ -20,7 +28,7 @@ export default {
         },
         schema: [],
         messages: {
-            undefinedAssignment: 'Do not assign undefined. Normalize flexible data before returning a value.'
+            undefinedAssignment: `Do not assign undefined, it is a state not a value. Respect contracts, set defaults '', {}, [], 0, false, or do not set`
         }
     },
     create({ report = () => {} } = {}) {

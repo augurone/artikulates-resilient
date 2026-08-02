@@ -21,11 +21,20 @@ const isZeroLengthEquality = ({
     left = {},
     right = {}
 } = {}) => (
-    operator === '===' && (
+    ['===', '!=='].includes(operator) && (
         (isLengthMember(left) && isZeroLiteral(right)) ||
         (isZeroLiteral(left) && isLengthMember(right))
     )
 );
+
+const getLengthNode = ({ left = {}, right = {} } = {}) => (
+    isLengthMember(left) ? left : right
+);
+
+const getSourceText = ({ sourceCode = {}, node = {} } = {}) => {
+    if (typeof sourceCode.getText !== 'function') return '';
+    return sourceCode.getText(node);
+};
 
 export default {
     meta: {
@@ -35,17 +44,35 @@ export default {
             url: 'https://github.com/augurone/artikulates-resilient/blob/main/docs/rules/no-length-comparison.md'
         },
         schema: [],
+        hasSuggestions: true,
         messages: {
-            lengthComparison: 'Use !collection.length for a zero-length check. Preserve exact cardinality comparisons such as length === N[1...].'
+            lengthComparison: 'Use !collection.length or collection.length for a zero/non-zero check. Preserve exact cardinality comparisons such as length === [1...].',
+            replaceWithFalseyCheck: 'Replace the zero-length comparison with !collection.length.',
+            replaceWithLength: 'Replace the non-zero comparison with collection.length.'
         }
     },
-    create({ report = () => {} } = {}) {
+    create({ report = () => {}, sourceCode = {} } = {}) {
         return {
             BinaryExpression(node = {}) {
                 if (!isZeroLengthEquality(node)) return;
+
+                const lengthNode = getLengthNode(node);
+                const lengthText = getSourceText({ sourceCode, node: lengthNode });
+                const { operator = '' } = node;
+                const isNonZeroCheck = operator === '!==';
+
                 report({
                     node,
-                    messageId: 'lengthComparison'
+                    messageId: 'lengthComparison',
+                    suggest: [{
+                        messageId: isNonZeroCheck
+                            ? 'replaceWithLength'
+                            : 'replaceWithFalseyCheck',
+                        fix: fixer => fixer.replaceText(
+                            node,
+                            isNonZeroCheck ? lengthText : `!${lengthText}`
+                        )
+                    }]
                 });
             }
         };

@@ -74,8 +74,8 @@ export default {
     },
     create({ report = () => {} } = {}) {
         return {
-            ReturnStatement(node = {}) {
-                reportFalseyNodes({ node: node.argument, report });
+            ReturnStatement({ argument = {} } = {}) {
+                reportFalseyNodes({ node: argument, report });
             },
             ArrowFunctionExpression({ body = {} } = {}) {
                 if (body.type === 'BlockStatement') return;

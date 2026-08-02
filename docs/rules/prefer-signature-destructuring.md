@@ -17,6 +17,12 @@ Benefits:
 
 This rule reports cases where a function receives a simple identifier parameter and then destructures that parameter inside the function body.
 
+When the original parameter is not referenced elsewhere, the destructuring is
+the first statement in the function body, and the declaration has a single
+declarator, the rule provides a suggestion to move it into the signature. The
+suggestion is never applied automatically because moving a binding can change
+evaluation order or scope.
+
 ### Incorrect
 
 ```javascript
