@@ -2,7 +2,10 @@ import noDestructuringFallback from './rules/no-destructuring-fallback.js';
 import noElse from './rules/no-else.js';
 import noLengthComparison from './rules/no-length-comparison.js';
 import noNestedIf from './rules/no-nested-if.js';
+import noNullAssignment from './rules/no-null-assignment.js';
 import noUndefinedAssignment from './rules/no-undefined-assignment.js';
+import noUndefinedComparison from './rules/no-undefined-comparison.js';
+import preferDestructuredMemberAccess from './rules/prefer-destructured-member-access.js';
 import preferFalseyReturns from './rules/prefer-falsey-returns.js';
 import preferPrototypeMethods from './rules/prefer-prototype-methods.js';
 import preferSafeDestructuringDefaults from './rules/prefer-safe-destructuring-defaults.js';
@@ -11,15 +14,18 @@ import preferSignatureDestructuring from './rules/prefer-signature-destructuring
 const plugin = {
     meta: {
         name: 'eslint-plugin-resilient',
-        version: '0.1.0'
+        version: '0.2.0'
     },
     rules: {
         'prefer-signature-destructuring': preferSignatureDestructuring,
         'no-destructuring-fallback': noDestructuringFallback,
         'no-else': noElse,
         'no-length-comparison': noLengthComparison,
+        'no-null-assignment': noNullAssignment,
         'no-nested-if': noNestedIf,
         'no-undefined-assignment': noUndefinedAssignment,
+        'no-undefined-comparison': noUndefinedComparison,
+        'prefer-destructured-member-access': preferDestructuredMemberAccess,
         'prefer-falsey-returns': preferFalseyReturns,
         'prefer-prototype-methods': preferPrototypeMethods,
         'prefer-safe-destructuring-defaults': preferSafeDestructuringDefaults
@@ -36,8 +42,11 @@ plugin.configs.recommended = {
         'resilient/no-destructuring-fallback': 'error',
         'resilient/no-else': 'error',
         'resilient/no-length-comparison': 'error',
+        'resilient/no-null-assignment': 'error',
         'resilient/no-nested-if': 'error',
         'resilient/no-undefined-assignment': 'error',
+        'resilient/no-undefined-comparison': 'error',
+        'resilient/prefer-destructured-member-access': 'error',
         'resilient/prefer-falsey-returns': 'error',
         'resilient/prefer-prototype-methods': 'error',
         'resilient/prefer-safe-destructuring-defaults': 'error',

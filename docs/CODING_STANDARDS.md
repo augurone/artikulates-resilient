@@ -19,6 +19,7 @@ If you only remember a few things, remember these:
 5. Avoid optional chaining `?.` in project code.
 6. Never use `||` as a destructuring fallback (`const { x } = obj || {}`); prefer destructuring defaults over property-access `||`.
 7. Use truthy/falsy checks for empty collections: `if (items.length)` and `if (!items.length)`.
+8. Use `!value` and `!!value` for absence/presence checks; never compare explicitly to `undefined`.
 
 ---
 
@@ -31,10 +32,12 @@ When an AI assistant edits code in this project, follow these rules strictly:
 3. Do not use `else`, `else if`, or nested `if` statements.
 4. Do not use `||` as a destructuring fallback (`const { x } = obj || {}`); objects must have defaults upstream in the function signature.
 5. Use `!items.length` for an empty collection check. `items.length` and `items.length > 0` are valid non-empty checks; exact cardinality checks such as `items.length === 1` are valid.
-6. Destructure nested properties in function parameters when practical.
-7. Prefer computed property destructuring for dynamic property access.
-8. Prefer collection prototype methods—`map`, `reduce`, `filter`, `some`, `find`, and `forEach`—over imperative loops.
-9. Add defensive defaults at each destructuring level where data may be missing.
+6. Use `!value` and `!!value` for absence/presence checks; never compare explicitly to `undefined`.
+7. Destructure static member data before accessing it; signature placement is a separate preference when safe.
+8. Destructure nested properties in function parameters when practical.
+9. Prefer computed property destructuring for dynamic property access.
+10. Prefer collection prototype methods—`map`, `reduce`, `filter`, `some`, `find`, and `forEach`—over imperative loops.
+11. Add defensive defaults at each destructuring level where data may be missing.
 
 Before completing a code change:
 

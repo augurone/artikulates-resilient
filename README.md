@@ -28,10 +28,10 @@ export default [
 ];
 ```
 
-The recommended configuration enables the nine custom resilient rules plus
+The recommended configuration enables the twelve custom resilient rules plus
 the native ESLint rules used by the standard.
 
-Resilient uses ESLint flat config and supports ESLint 9 or later. Node.js
+Resilient uses ESLint flat config and requires ESLint 9 or later. Node.js
 18.18 or later is supported.
 
 ## IDE integration
@@ -48,7 +48,6 @@ include JavaScript:
 ```json
 {
     "eslint.validate": ["javascript"],
-    "eslint.useFlatConfig": true,
     "editor.codeActionsOnSave": {
         "source.fixAll.eslint": "explicit"
     }
@@ -67,18 +66,34 @@ configuration**. The IDE will use the local ESLint package and
 `eslint.config.js`. For monorepos, set the working directory to the package
 that contains the relevant configuration.
 
-The Resilient rules currently report problems but do not automatically rewrite
-code. Editor highlighting works immediately; save-time fixes apply only to
-other ESLint rules that provide fixes.
+Resilient distinguishes automatic fixes from suggestions. The current rules
+provide explicit suggestions for length checks and signature destructuring,
+while contract and structural rules report problems without rewriting code.
+Suggestions require deliberate editor selection; they are not silently applied
+on save.
 
 ## Custom rules
+
+Rule behavior is intentionally explicit:
+
+- Suggestions: `prefer-signature-destructuring` and `no-length-comparison`
+- Diagnostics only: `no-destructuring-fallback`, `no-else`,
+  `no-null-assignment`, `no-nested-if`, `no-undefined-assignment`,
+  `no-undefined-comparison`, `prefer-destructured-member-access`,
+  `prefer-falsey-returns`, `prefer-prototype-methods`, and
+  `prefer-safe-destructuring-defaults`
+
+Resilient currently provides no silent automatic fixes for its custom rules.
 
 - `resilient/prefer-signature-destructuring`
 - `resilient/no-destructuring-fallback`
 - `resilient/no-else`
 - `resilient/no-length-comparison`
+- `resilient/no-null-assignment`
 - `resilient/no-nested-if`
 - `resilient/no-undefined-assignment`
+- `resilient/no-undefined-comparison`
+- `resilient/prefer-destructured-member-access`
 - `resilient/prefer-falsey-returns`
 - `resilient/prefer-prototype-methods`
 - `resilient/prefer-safe-destructuring-defaults`
