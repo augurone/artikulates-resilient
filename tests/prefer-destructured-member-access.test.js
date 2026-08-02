@@ -14,7 +14,11 @@ ruleTester.run('prefer-destructured-member-access', rule, {
         { code: 'const read = ({ id = "" } = {}) => id;' },
         { code: 'const read = (user = {}) => { const { id = "" } = user; return id; };' },
         { code: 'const count = items => items.length;' },
+        { code: 'const count = document => !document.content.length;' },
+        { code: 'const size = collection => collection.items.size;' },
         { code: 'const map = items => items.map(transform);' },
+        { code: 'const read = request => request.headers.get("origin");' },
+        { code: 'const split = value => value.split("/").filter(Boolean);' },
         { code: 'const read = (user) => user["id"];' }
     ],
     invalid: [
@@ -28,6 +32,10 @@ ruleTester.run('prefer-destructured-member-access', rule, {
                 { messageId: 'staticMember' },
                 { messageId: 'staticMember' }
             ]
+        },
+        {
+            code: 'const headers = request => request.headers;',
+            errors: [{ messageId: 'staticMember' }]
         }
     ]
 });

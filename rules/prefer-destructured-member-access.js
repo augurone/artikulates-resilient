@@ -29,9 +29,13 @@ const isLengthMember = ({ property: { name = '' } = {}, object = {} } = {}) => (
     name === 'length' && object.type === 'Identifier'
 );
 
-const isPrototypeMethodCall = ({ node = {} } = {}) => {
+const isPrototypeMemberAccess = ({ node = {} } = {}) => {
     const { parent = {} } = node;
-    return parent.type === 'CallExpression' && parent.callee === node;
+    if (parent.type === 'CallExpression' && parent.callee === node) return true;
+    if (parent.type !== 'MemberExpression' || parent.object !== node) return false;
+    const { property: { name = '' } = {} } = parent;
+    if (name === 'length' || name === 'size') return true;
+    return isPrototypeMemberAccess({ node: parent });
 };
 
 export default {
@@ -73,7 +77,7 @@ export default {
 
                 if (!isStaticMember(node)) return;
                 if (objectType !== 'Identifier' || !paramNames.includes(objectName)) return;
-                if (isLengthMember(node) || isPrototypeMethodCall({ node })) return;
+                if (isLengthMember(node) || isPrototypeMemberAccess({ node })) return;
 
                 report({
                     node,

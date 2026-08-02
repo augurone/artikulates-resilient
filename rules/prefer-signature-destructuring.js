@@ -4,6 +4,7 @@ import {
     getSimpleParams,
     getSourceEnd,
     getSourceStart,
+    hasWholeObjectReference,
     isDestructuringFromParam
 } from './support/signature-analysis.js';
 import getSuggestion from './support/signature-suggestion.js';
@@ -23,6 +24,21 @@ const isPassedLater = ({
     name === paramName && start > getSourceEnd(node)
 ));
 
+const isWholeObjectPassThrough = ({ violation = {}, functionNode = {} } = {}) => {
+    const {
+        init = {},
+        paramName = '',
+        paramNode = {}
+    } = violation;
+
+    return hasWholeObjectReference({
+        node: functionNode,
+        name: paramName,
+        excludedNodes: [paramNode, init],
+        afterNode: violation.node
+    });
+};
+
 const reportViolation = ({
     violation = {},
     calls = [],
@@ -36,6 +52,7 @@ const reportViolation = ({
     } = violation;
 
     if (isPassedLater({ node, paramName, calls })) return;
+    if (isWholeObjectPassThrough({ violation, functionNode })) return;
 
     report({
         node,

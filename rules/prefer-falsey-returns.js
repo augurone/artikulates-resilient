@@ -15,7 +15,6 @@ const getFalseyNodes = (node = {}) => {
     if (!node || typeof node !== 'object') return [];
     if (isFalseyNode({ argument: node })) return [node];
 
-    // eslint-disable-next-line resilient/prefer-signature-destructuring -- AST node is intentionally decomposed for recursive traversal.
     const {
         type = '',
         left = {},

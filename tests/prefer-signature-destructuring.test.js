@@ -19,6 +19,15 @@ ruleTester.run('prefer-signature-destructuring', rule, {
         },
         {
             code: 'const inspect = (node) => { const inspectType = () => { const { type = "" } = node; return type; }; return inspectType; };'
+        },
+        {
+            code: 'const inspect = (node) => { const { type = "" } = node; return node; };'
+        },
+        {
+            code: 'const inspect = (node) => { const { type = "" } = node; return { ...node, type }; };'
+        },
+        {
+            code: 'const inspect = (context) => { const { name = "" } = context; return context[key] || name; };'
         }
 
     ],
