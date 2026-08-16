@@ -19,7 +19,8 @@ ruleTester.run('prefer-destructured-member-access', rule, {
         { code: 'const map = items => items.map(transform);' },
         { code: 'const read = request => request.headers.get("origin");' },
         { code: 'const split = value => value.split("/").filter(Boolean);' },
-        { code: 'const read = (user) => user["id"];' }
+        { code: 'const read = (user) => user["id"];' },
+        { code: 'const merge = values => values.reduce((acc, value) => { acc.value = value; return acc; }, {});' }
     ],
     invalid: [
         {

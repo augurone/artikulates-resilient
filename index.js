@@ -10,11 +10,14 @@ import preferFalseyReturns from './rules/prefer-falsey-returns.js';
 import preferPrototypeMethods from './rules/prefer-prototype-methods.js';
 import preferSafeDestructuringDefaults from './rules/prefer-safe-destructuring-defaults.js';
 import preferSignatureDestructuring from './rules/prefer-signature-destructuring.js';
+import signatureContractCallSite from './rules/signature-contract-call-site.js';
+import signatureContractOperation from './rules/signature-contract-operation.js';
+import signatureContractReturnConsistency from './rules/signature-contract-return-consistency.js';
 
 const plugin = {
     meta: {
         name: 'eslint-plugin-resilient',
-        version: '0.2.0'
+        version: '0.3.0'
     },
     rules: {
         'prefer-signature-destructuring': preferSignatureDestructuring,
@@ -28,7 +31,10 @@ const plugin = {
         'prefer-destructured-member-access': preferDestructuredMemberAccess,
         'prefer-falsey-returns': preferFalseyReturns,
         'prefer-prototype-methods': preferPrototypeMethods,
-        'prefer-safe-destructuring-defaults': preferSafeDestructuringDefaults
+        'prefer-safe-destructuring-defaults': preferSafeDestructuringDefaults,
+        'signature-contract-call-site': signatureContractCallSite,
+        'signature-contract-operation': signatureContractOperation,
+        'signature-contract-return-consistency': signatureContractReturnConsistency
     },
     configs: {}
 };
@@ -79,9 +85,9 @@ plugin.configs.recommended = {
         'operator-linebreak': ['error', 'before', { overrides: { '&&': 'after', '||': 'after' } }],
         'no-use-before-define': ['error', { functions: true }],
         'consistent-return': 'error',
-        'constructor-super': 'off',
-        'class-methods-use-this': 'off',
-        'max-classes-per-file': 'off',
+        'constructor-super': 'error',
+        'class-methods-use-this': 'error',
+        'max-classes-per-file': 'error',
         'no-restricted-syntax': [
             'error',
             {
@@ -97,6 +103,16 @@ plugin.configs.recommended = {
                 message: 'Classes are forbidden. Use function expressions instead.'
             }
         ]
+    }
+};
+
+plugin.configs.contracts = {
+    plugins: {
+        resilient: plugin
+    },
+    rules: {
+        'resilient/signature-contract-call-site': 'error',
+        'resilient/signature-contract-operation': 'error'
     }
 };
 

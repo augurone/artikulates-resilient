@@ -11,7 +11,8 @@ const ruleTester = new RuleTester({
 
 ruleTester.run('prefer-prototype-methods', rule, {
     valid: [
-        { code: 'const enabled = items.filter(item => item.enabled);' }
+        { code: 'const enabled = items.filter(item => item.enabled);' },
+        { code: 'const poll = async () => { while (true) await wait(); };' }
     ],
     invalid: [
         {
@@ -28,6 +29,10 @@ ruleTester.run('prefer-prototype-methods', rule, {
         },
         {
             code: 'do { process(items.pop()); } while (items.length);',
+            errors: [{ messageId: 'prototypeMethod' }]
+        },
+        {
+            code: 'for (const item of items) { const process = async () => await wait(item); process(); }',
             errors: [{ messageId: 'prototypeMethod' }]
         }
     ]

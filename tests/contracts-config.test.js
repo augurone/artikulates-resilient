@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict';
+
+import { ESLint } from 'eslint';
+import resilient from 'eslint-plugin-resilient';
+import { inferPattern } from 'eslint-plugin-resilient/contracts';
+
+const inferred = inferPattern({
+    type: 'ObjectPattern',
+    properties: [{
+        type: 'Property',
+        computed: false,
+        key: { type: 'Identifier', name: 'title' },
+        value: {
+            type: 'AssignmentPattern',
+            left: { type: 'Identifier', name: 'title' },
+            right: { type: 'Literal', value: '' }
+        }
+    }]
+});
+
+assert.equal(inferred.kind, 'object');
+assert.equal(inferred.properties.title.kind, 'string');
+
+const eslint = new ESLint({
+    overrideConfigFile: true,
+    overrideConfig: [resilient.configs.contracts]
+});
+
+const [validResult = {}] = await eslint.lintText(
+    'const getTitle = ({ title = "" } = {}) => title; getTitle({ title: value });',
+    { filePath: 'contracts-valid.js' }
+);
+
+assert.equal(validResult.errorCount, 0);
+
+const [invalidResult = {}] = await eslint.lintText(
+    'const getTitle = ({ title = "" } = {}) => title; getTitle({ title: 42 });',
+    { filePath: 'contracts-invalid.js' }
+);
+
+assert.deepEqual(
+    invalidResult.messages.map(({ ruleId = '' } = {}) => ruleId),
+    ['resilient/signature-contract-call-site']
+);

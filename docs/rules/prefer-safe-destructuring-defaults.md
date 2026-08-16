@@ -13,3 +13,5 @@ const getItem = ([item = {}] = []) => item;
 ```
 
 Rest elements are exempt because they always produce an array or object value.
+`useState` tuple destructuring is also exempt: the setter is an external
+function and does not have a meaningful destructuring fallback.

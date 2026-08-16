@@ -1,24 +1,24 @@
 # eslint-plugin-resilient
 
-Resilient is an opinionated, ECMAScript-native standard for functional-first, data-driven JavaScript. It uses explicit contracts, predictable shapes, declarative transformations, and graceful runtime degradation while reserving hard failures for the build.
+Resilient is an opinionated, ECMAScript-native standard for explicit,
+functional-first JavaScript. It provides build-time diagnostics today and a
+portable contract model that can support IDE introspection without requiring
+TypeScript, annotations, or a different source language.
 
-* Data flow: Inspired by Flux and functional approaches, with clear movement from input to transformation to output.
-* Contracts: Destructured signatures declare required data, defaults handle absence, and malformed shapes remain visible contract violations.
-* Runtime behavior: Missing content degrades pragmatically into stable empty values instead of taking down the site.
-* Control flow: No classes, nested conditionals, else branches, or imperative loops; native functions and prototype methods state intent directly.
-* Enforcement: ESLint turns the model into build-time rules so invalid code fails before publication while valid runtime variation remains survivable.
-
-**These rules are based on:** docs/CODING_STANDARDS.md
+Resilient is not a runtime validator and it does not own framework concerns.
+React, Next.js, import policy, and application architecture remain project
+rules layered on top of Resilient.
 
 ## Install
 
 ```bash
-npm install --save-dev eslint-plugin-resilient
+npm install --save-dev eslint eslint-plugin-resilient
 ```
 
-## Configure
+Resilient uses ESLint flat config, requires ESLint 9 or later, and supports
+Node.js 18.18 or later.
 
-For ESLint flat config, add the recommended configuration:
+## Configure
 
 ```javascript
 import resilient from 'eslint-plugin-resilient';
@@ -28,96 +28,82 @@ export default [
 ];
 ```
 
-The recommended configuration enables the twelve custom resilient rules plus
-the native ESLint rules used by the standard.
+The recommended preset enables the standard's native ESLint rules and twelve
+Resilient rules. The rules express these core preferences:
 
-Resilient uses ESLint flat config and requires ESLint 9 or later. Node.js
-18.18 or later is supported.
+- function expressions and `const` by default; `let` is appropriate for one
+  intentionally evolving value, such as a reducer accumulator;
+- destructured signatures with explicit, type-shaped defaults;
+- stable falsey return values instead of `null` or accidental `undefined`;
+- early returns instead of `else` branches or nested conditionals;
+- prototype methods for collection transformations;
+- explicit exceptions for external callback signatures, retained objects,
+  reducers, and awaited sequential control flow.
 
-## IDE integration
+Resilient provides suggestions where a safe rewrite is clear. Structural and
+contract rules report diagnostics without silently rewriting code.
 
-Resilient does not require an editor-specific plugin. Editors use the local
-ESLint installation and the project's `eslint.config.js`.
+## Contract analysis
 
-### VS Code
-
-Install the [ESLint extension](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
-and open the project folder. If workspace settings define `eslint.validate`,
-include JavaScript:
-
-```json
-{
-    "eslint.validate": ["javascript"],
-    "editor.codeActionsOnSave": {
-        "source.fixAll.eslint": "explicit"
-    }
-}
-```
-
-ESLint 9 uses flat config by default. The extension resolves ESLint from the
-opened workspace, so install ESLint and Resilient locally rather than relying
-on a global installation.
-
-### JetBrains IDEs
-
-In WebStorm or another JetBrains IDE, open **Settings | Languages & Frameworks
-| JavaScript | Code Quality Tools | ESLint** and select **Automatic ESLint
-configuration**. The IDE will use the local ESLint package and
-`eslint.config.js`. For monorepos, set the working directory to the package
-that contains the relevant configuration.
-
-Resilient distinguishes automatic fixes from suggestions. The current rules
-provide explicit suggestions for length checks and signature destructuring,
-while contract and structural rules report problems without rewriting code.
-Suggestions require deliberate editor selection; they are not silently applied
-on save.
-
-## Custom rules
-
-Rule behavior is intentionally explicit:
-
-- Suggestions: `prefer-signature-destructuring` and `no-length-comparison`
-- Diagnostics only: `no-destructuring-fallback`, `no-else`,
-  `no-null-assignment`, `no-nested-if`, `no-undefined-assignment`,
-  `no-undefined-comparison`, `prefer-destructured-member-access`,
-  `prefer-falsey-returns`, `prefer-prototype-methods`, and
-  `prefer-safe-destructuring-defaults`
-
-Resilient currently provides no silent automatic fixes for its custom rules.
-
-- `resilient/prefer-signature-destructuring`
-- `resilient/no-destructuring-fallback`
-- `resilient/no-else`
-- `resilient/no-length-comparison`
-- `resilient/no-null-assignment`
-- `resilient/no-nested-if`
-- `resilient/no-undefined-assignment`
-- `resilient/no-undefined-comparison`
-- `resilient/prefer-destructured-member-access`
-- `resilient/prefer-falsey-returns`
-- `resilient/prefer-prototype-methods`
-- `resilient/prefer-safe-destructuring-defaults`
-
-To enable rules selectively:
+The opt-in contract preset adds static analysis for known contradictions in
+ordinary JavaScript:
 
 ```javascript
 import resilient from 'eslint-plugin-resilient';
 
 export default [
-    {
-        plugins: {
-            resilient
-        },
-        rules: {
-            'resilient/prefer-signature-destructuring': 'error'
-        }
-    }
+    resilient.configs.recommended,
+    resilient.configs.contracts
 ];
 ```
 
-Rule details and examples are in [docs/rules](docs/rules/). The complete
-standard, including rationale and exceptions, is in
-[docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md).
+```javascript
+const render = ({
+    title = ''
+} = {}) => title.trim();
+
+render({ title: 42 }); // reported by signature-contract-call-site
+```
+
+The analyzer tracks value families and selected shapes through signatures,
+defaults, aliases, guards, reassignment, property updates, bounded loops, and
+`try`/`catch`/`finally` paths. It understands known native operations such as
+string methods and collection methods.
+
+Known contradictions are reported. Unknown values remain unknown, so external
+data still belongs to runtime validation, normalization, and tests. The
+stricter `signature-contract-return-consistency` rule is available directly
+but remains outside the contracts preset because intentional return unions are
+valid JavaScript.
+
+The contract core is independent of ESLint:
+
+```javascript
+import {
+    createContractDocument
+} from 'eslint-plugin-resilient/contracts';
+
+const document = createContractDocument(program);
+const contract = document.getContractAtOffset(offset);
+const signature = document.getSignatureAtOffset(offset);
+```
+
+`createContractDocument` builds an offset index for editor or CLI adapters.
+The package does not yet ship an LSP protocol adapter or cross-module graph.
+
+## IDE use
+
+Use the ESLint extension for live diagnostics. The extension resolves the local
+ESLint and Resilient installation from the opened workspace. The contract
+document API is available to a future editor adapter without coupling the core
+to an editor or to ESLint.
+
+## Rule documentation
+
+Individual rule behavior and examples are in [docs/rules](docs/rules/).
+The concise standard is in [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md).
+The contract model is described in [docs/contracts.md](docs/contracts.md), and
+the design rationale is in [docs/the-code-is-the-contract.md](docs/the-code-is-the-contract.md).
 
 ## Development
 

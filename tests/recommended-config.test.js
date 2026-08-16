@@ -1,9 +1,7 @@
 import assert from 'node:assert/strict';
 
 import { ESLint } from 'eslint';
-
-// eslint-disable-next-line import/no-useless-path-segments -- The test imports the package entry point directly.
-import resilient from '../index.js';
+import resilient from 'eslint-plugin-resilient';
 
 const eslint = new ESLint({
     overrideConfigFile: true,

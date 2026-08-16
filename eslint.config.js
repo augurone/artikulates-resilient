@@ -1,13 +1,12 @@
 import js from '@eslint/js';
 import * as importPlugin from 'eslint-plugin-import';
+import resilient from 'eslint-plugin-resilient';
 import globals from 'globals';
-
-// eslint-disable-next-line import/no-useless-path-segments
-import resilient from './index.js';
 
 export default [
     js.configs.recommended,
     resilient.configs.recommended,
+    resilient.configs.contracts,
     {
         files: ['**/*.js'],
         ignores: ['node_modules/**'],
@@ -49,13 +48,13 @@ export default [
             'no-use-before-define': ['error', { functions: true }],
             'consistent-return': 'error',
             'lines-between-class-members': ['error'],
-            'constructor-super': 'off',
-            'class-methods-use-this': 'off',
-            'max-classes-per-file': 'off',
-            'no-param-reassign': 'off',
-            'no-restricted-globals': 'off',
+            'constructor-super': 'error',
+            'class-methods-use-this': 'error',
+            'max-classes-per-file': 'error',
+            'no-param-reassign': 'error',
+            'no-restricted-globals': 'error',
             'no-undef': 'error',
-            'import/no-cycle': 'off',
+            'import/no-cycle': 'error',
             'import/order': [
                 'error',
                 {

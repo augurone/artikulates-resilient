@@ -16,6 +16,8 @@ for (const item of items) {
 const enabled = items.filter(item => item.enabled);
 ```
 
-The rule reports `for`, `for...of`, `for...in`, `while`, and `do...while`.
-This makes collection intent visible and avoids loop state and nested-loop
-complexity.
+The rule reports `for`, `for...of`, `for...in`, `while`, and `do...while` when
+they represent ordinary collection transformation. Loops containing `await`
+are exempt because they commonly represent sequential asynchronous control
+flow, such as polling or ordered requests. This keeps collection intent
+visible without misclassifying necessary async work.
