@@ -19,6 +19,30 @@ const getParamNames = ({ params = [] } = {}) => params
 const getCurrentParamNames = (functionStack = []) => functionStack
     .flatMap(({ paramNames = [] } = {}) => paramNames);
 
+const isReduceCallback = ({ parent = {}, node = {} } = {}) => {
+    const {
+        type = '',
+        callee: {
+            type: calleeType = '',
+            property: {
+                type: propertyType = '',
+                name: propertyName = ''
+            } = {},
+            computed = false
+        } = {},
+        arguments: args = []
+    } = parent;
+
+    return (
+        type === 'CallExpression' &&
+        calleeType === 'MemberExpression' &&
+        propertyType === 'Identifier' &&
+        propertyName === 'reduce' &&
+        !computed &&
+        args[0] === node
+    );
+};
+
 const isStaticMember = ({ type = '', computed = false, property = {} } = {}) => (
     type === 'MemberExpression' &&
     !computed &&
@@ -52,19 +76,24 @@ export default {
     },
     create({ report = () => {} } = {}) {
         const functionStack = [];
+        const enterFunction = (node = {}) => {
+            const { parent = {} } = node;
+            const paramNames = getParamNames(node);
+
+            functionStack.push({
+                paramNames,
+                reducerParamNames: isReduceCallback({ parent, node })
+                    ? [paramNames[0]]
+                    : []
+            });
+        };
 
         return {
-            FunctionDeclaration: (node = {}) => functionStack.push({
-                paramNames: getParamNames(node)
-            }),
+            FunctionDeclaration: enterFunction,
             'FunctionDeclaration:exit': () => functionStack.pop(),
-            FunctionExpression: (node = {}) => functionStack.push({
-                paramNames: getParamNames(node)
-            }),
+            FunctionExpression: enterFunction,
             'FunctionExpression:exit': () => functionStack.pop(),
-            ArrowFunctionExpression: (node = {}) => functionStack.push({
-                paramNames: getParamNames(node)
-            }),
+            ArrowFunctionExpression: enterFunction,
             'ArrowFunctionExpression:exit': () => functionStack.pop(),
             MemberExpression(node = {}) {
                 const {
@@ -74,9 +103,12 @@ export default {
                     } = {}
                 } = node;
                 const paramNames = getCurrentParamNames(functionStack);
+                const currentFunction = functionStack.slice(-1)[0] || {};
+                const reducerParamNames = currentFunction.reducerParamNames || [];
 
                 if (!isStaticMember(node)) return;
                 if (objectType !== 'Identifier' || !paramNames.includes(objectName)) return;
+                if (reducerParamNames.includes(objectName)) return;
                 if (isLengthMember(node) || isPrototypeMemberAccess({ node })) return;
 
                 report({

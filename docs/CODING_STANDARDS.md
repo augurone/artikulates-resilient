@@ -1,539 +1,176 @@
-# Coding Standards & Style Guide
+# Resilient coding standards
 
-This document is written for both people and AI assistants.
+Resilient treats executable JavaScript as the contract. A function boundary
+should make its expected data visible, transformations should state their
+intent, and missing data should degrade into the falsey value appropriate to
+the surrounding contract.
 
-- Humans first: a new teammate or manager should be able to understand how we write code and why.
-- AI optimized for results: clear rules, short checklists, and strong examples help agents produce better code faster.
-- Nuance matters: some ideas repeat on purpose because they apply in slightly different situations.
+These are ECMAScript rules. React, Next.js, imports, framework conventions, and
+application architecture belong in the consuming project.
 
----
+## 1. Function boundaries
 
-## TL;DR
-
-If you only remember a few things, remember these:
-
-1. Prefer explicit data contracts through destructuring.
-2. Return the expected type instead of explicitly returning or assigning `null` or `undefined`; bare `return;` is valid control flow when no value is returned.
-3. Use array methods to show intent: `map`, `reduce`, `filter`, `some`, `find`.
-4. Use early returns; `else`, `else if`, and nested `if` statements are forbidden.
-5. Avoid optional chaining `?.` in project code.
-6. Never use `||` as a destructuring fallback (`const { x } = obj || {}`); prefer destructuring defaults over property-access `||`.
-7. Use truthy/falsy checks for empty collections: `if (items.length)` and `if (!items.length)`.
-8. Use `!value` and `!!value` for absence/presence checks; never compare explicitly to `undefined`.
-
----
-
-## AI Assistant Quick Rules
-
-When an AI assistant edits code in this project, follow these rules strictly:
-
-1. Do not use optional chaining `?.`.
-2. If a function returns a value, return that value or the expected falsey shape such as `{}`, `[]`, `''`, `0`, or `false`. Bare `return;` is allowed only for side-effect functions and logical exits that do not return a value. Do not explicitly assign or return `undefined`.
-3. Do not use `else`, `else if`, or nested `if` statements.
-4. Do not use `||` as a destructuring fallback (`const { x } = obj || {}`); objects must have defaults upstream in the function signature.
-5. Use `!items.length` for an empty collection check. `items.length` and `items.length > 0` are valid non-empty checks; exact cardinality checks such as `items.length === 1` are valid.
-6. Use `!value` and `!!value` for absence/presence checks; never compare explicitly to `undefined`.
-7. Destructure static member data before accessing it; signature placement is a separate preference when safe.
-8. Destructure nested properties in function parameters when practical.
-9. Prefer computed property destructuring for dynamic property access.
-10. Prefer collection prototype methods—`map`, `reduce`, `filter`, `some`, `find`, and `forEach`—over imperative loops.
-11. Add defensive defaults at each destructuring level where data may be missing.
-
-Before completing a code change:
-
-- Search the file for `?.`.
-- Search return expressions for `null` and `undefined`; keep bare `return;` only for control flow in functions that do not return values.
-- Search the file for `else`, `else if`, and nested `if` statements.
-- Search for `||` used as a destructuring fallback (`} = something ||`).
-- Search for `.length === 0`; use `!items.length` for emptiness checks.
-- Check whether function signatures can express the data contract more clearly.
-- Check whether loops are actually transformations or accumulations better expressed with array methods.
-- Check whether `else` blocks can become guard clauses.
-
----
-
-## Philosophy
-
-Our code style favors explicit contracts, predictable return types, and visible intent.
-
-We optimize for:
-
-- Readability under change
-- Safety around missing data
-- Low nesting
-- Functional transformations over mutation
-- Clear boundaries at function signatures
-
-This style is opinionated by design. The goal is consistency, not novelty.
-
----
-
-## Core Rules
-
-### 1. Return expected types
-
-Functions should return the type their callers expect. If a function returns a value, return that value or the expected falsey value: `{}` for objects, `[]` for arrays, `''` for strings, `0` for numbers, and `false` for booleans. Flexible input may naturally produce `undefined` while being read, but do not explicitly assign it or return it as a value. A bare `return;` is allowed when the function performs a side effect or exits without producing a value.
+Use function expressions and prefer `const`:
 
 ```javascript
-// Avoid
-const getUser = (id) => users[id] || null;
-const getItems = () => found ? items : undefined;
-const stop = (value) => value ? value : null;
-const getName = (value) => value ? value.name : undefined;
-const mixed = (value) => {
-    if (!value) return;
-    return value;
-};
-
-// Prefer
-const getUser = (id) => users[id] || {};
-const getName = () => data ? data.name : '';
-const getItems = () => found ? items : [];
-const getCount = () => found ? count : 0;
-const isValid = () => test ? result : false;
-
-// Bare return is valid control flow when the function does not return a value
-const send = (payload) => {
-    if (!payload) return;
-    sendPayload(payload);
-};
-
-// Normalize flexible input before returning a value
-const getSafeName = ({ name = '' } = {}) => name;
+const getTitle = ({ title = '' } = {}) => title;
 ```
 
-Why:
-
-- Callers get a predictable shape
-- Fewer defensive branches are needed downstream
-- Intent is easier to follow
-
-### 2. Function signatures should reveal the contract
-
-When a function depends on nested input, prefer expressing that in the parameter list.
+Destructure input at the signature when the shape is part of the function's
+contract. Give every destructured value an explicit, type-shaped default:
 
 ```javascript
-// Less clear
-const process = (data) => {
-    const { config = {} } = data;
-    const { name = 'default' } = config;
-};
-
-// Clearer
-const process = ({
-    config: {
-        name = 'default'
-    } = {}
-} = {}) => {
-};
-```
-
-Why:
-
-- Dependencies are visible at the boundary
-- Defaults are harder to forget
-- Reviewers can understand the contract without reading the whole function body
-
-Exception: if the original parameter must be forwarded to another function
-later in the same scope, it may remain intact while local values are
-destructured in the body. This preserves the downstream contract without
-forcing duplicate reconstruction of the input object.
-
-### 3. Destructure defensively
-
-If nested data may be missing, default each level deliberately.
-
-```javascript
-// Less safe
-const { data } = response;
-const { user } = data;
-const { name } = user;
-
-// Safer
-const {
+const getItems = ({
     data: {
-        user: {
-            name = 'Anonymous'
-        } = {}
+        items = []
     } = {}
-} = response;
+} = {}) => items;
 ```
 
-Why:
+Use `let` when one local value intentionally evolves, such as a reducer or a
+state machine. An external `let` is not automatically wrong, but a mutable
+value shared across function boundaries deserves review: it may be state that
+should be passed explicitly or reduced locally.
 
-- Missing data fails less often at runtime
-- The expected structure is visible in one place
+Do not force signature destructuring onto callbacks with an external API,
+functions that forward the complete object, or genuinely dynamic access.
 
-### 4. Check for empty objects explicitly
+## 2. Stable value shapes
 
-Object-returning functions should return `{}` when empty, not `null` or `undefined`. Callers check for meaningful content by inspecting keys or using truthiness.
+Choose a predictable falsey value for each return contract:
+
+| Contract | Empty value |
+| --- | --- |
+| text | `''` |
+| collection | `[]` |
+| object | `{}` |
+| number | `0` |
+| boolean | `false` |
+
+Do not assign `null` or `undefined` as application values. Do not return them
+from value-producing functions. A bare `return;` remains valid for a side
+effect or an intentional control-flow exit.
+
+This is a contract for the value being produced, not a claim that external data
+is already clean. Normalize external data at the boundary where its expected
+shape becomes known.
+
+## 3. Conditions and control flow
+
+Use truthiness for presence and emptiness:
 
 ```javascript
-const config = getConfig(name);
-
-if (!Object.keys(config).length) {
-    throw new Error('Config not found');
-}
-
-const title = getTitle();
-if (!title) throw new Error('Title required');
-
-const items = getItems();
-if (!items.length) throw new Error('No items');
+if (!items.length) return [];
+if (!!items.length) return items;
 ```
 
-Why:
+Use exact comparisons for exact values, such as `items.length === 1`.
+Avoid explicit `undefined` comparisons and `length === 0` checks.
 
-- Objects, arrays, and primitives each have a consistent validation pattern
-- We avoid null-checking and mixed guard styles across the codebase
-
-### 5. Avoid optional chaining
-
-In this project, we prefer defensive destructuring over optional chaining.
+Prefer guard clauses and early returns. Do not use `else`, `else if`, or nested
+`if` statements in one function:
 
 ```javascript
-// Avoid
-const url = image?.variants?.hero?.url;
-
-// Prefer
-const {
-    variants: {
-        hero: {
-            url = ''
-        } = {}
-    } = {}
-} = image;
-```
-
-Why:
-
-- The expected structure is explicit
-- The data contract is visible instead of implicit
-
-### 6. Prefer destructuring defaults; never use `||` as a destructuring fallback
-
-The only forbidden `||` pattern is using it as a fallback object for destructuring. Objects must have safe defaults applied upstream in the function signature, not patched at every read site.
-
-```javascript
-// Forbidden — give the object a default upstream instead
-const { count = 0 } = data || {};
-
-// Correct — default applied at the function boundary
-const process = ({ data: { count = 0 } = {} } = {}) => count;
-
-// Preferred over property-access ||
-const { name = 'default' } = data;   // instead of: const name = data.name || 'default'
-const { items = [] } = config;       // instead of: const items = config.items || []
-
-// Acceptable — || for value selection, const assignment, returns
-const displayName = preferredName || fallbackName || 'Anonymous';
-const canEdit = isAdmin || isOwner;
-const value = input || 0;
-```
-
-Why:
-
-- `||` treats `0`, `''`, and `false` as missing — destructuring defaults only trigger on `undefined`
-- Defaulting at the function boundary makes the contract visible at the signature
-- The object source should be made safe upstream, not patched at each read site
-
-### 7. Use truthy and falsy checks for emptiness
-
-Prefer:
-
-```javascript
-if (items.length) { }
-if (!items.length) { }
-if (items.length > 0) { }
-if (count) { }
-```
-
-Instead of:
-
-```javascript
-if (items.length === 0) { }
-if (count !== 0) { }
-```
-
-Exception:
-
-```javascript
-if (items.length === 1) { }
-if (count >= 10) { }
-```
-
-Why:
-
-- It removes noise when the intent is simply empty vs non-empty, while explicit
-  length comparisons remain valid when numeric length is the point of the test
-
-### 8. Use early returns; never use `else`
-
-Use guard clauses so the main path remains easy to scan.
-
-```javascript
-// Avoid
-if (condition) {
-    return valueA;
-} else {
-    return valueB;
-}
-
-// Prefer
-if (!condition) return valueA;
-return valueB;
-```
-
-Why:
-
-- The happy path stays visible
-- Nesting stays shallow
-
-The `no-else` rule rejects both `else` and `else if`, including branches that do not return immediately. Convert the branch into a guard clause or a separate `if` statement.
-
-### 9. Do not nest `if` statements
-
-Nested conditionals obscure the execution path and make graceful degradation harder to inspect. Flatten them into guard clauses:
-
-```javascript
-// Avoid
-if (isReady) {
-    if (hasContent) return content;
-}
-
-// Prefer
-if (!isReady) return '';
-if (!hasContent) return '';
-return content;
-```
-
-The `no-nested-if` rule reports an `if` nested anywhere inside another `if` in the same function. An `if` inside a separate callback or nested function is a new function boundary and is allowed.
-
-### 10. Prefer prototype methods over imperative loops
-
-Choose the collection prototype method that communicates the job:
-
-- `map`: every item becomes another item
-- `filter`: keep some items
-- `reduce`: accumulate or change type
-- `some`: check whether any item matches
-- `find`: retrieve one matching item
-- `forEach`: side effects only
-
-```javascript
-const transformed = items.map(item => ({ ...item, processed: true }));
-
-const filtered = items.filter(item => item.enabled);
-
-const flags = args.reduce((acc, arg) => {
-    if (!arg.startsWith('--')) return acc;
-    const [, value] = arg.split('=');
-    return { ...acc, [value]: true };
-}, {});
-```
-
-The `prefer-prototype-methods` rule reports `for`, `for...of`, `for...in`,
-`while`, and `do...while`. Use recursion only when the problem is genuinely
-structural—such as tree traversal or pagination—not when a collection method
-states the transformation clearly.
-
-Why:
-
-- The reader sees intent immediately
-- Mutation and bookkeeping are reduced
-
-### 11. Prefer destructuring for dynamic access
-
-When property access is dynamic, computed destructuring makes the dependency explicit.
-
-```javascript
-// Less explicit
-const variantConfig = variants[variantName];
-
-// More explicit
-const { [variantName]: variantConfig } = variants;
-```
-
-Why:
-
-- Dynamic access is declared up front
-- It stays consistent with the rest of the style
-
-### 12. Prefer `Object.entries()` for object iteration
-
-```javascript
-// Less clear
-Object.keys(obj).forEach(key => {
-    const value = obj[key];
-});
-
-// Clearer
-Object.entries(obj).forEach(([key, value]) => {
-});
-```
-
-Why:
-
-- Key-value intent is visible immediately
-
----
-
-## Nuance and Tradeoffs
-
-These rules are strong defaults, not a contest to remove judgment.
-
-### Repetition is intentional
-
-Some guidance appears more than once because the same principle shows up in different situations:
-
-- function boundaries
-- object validation
-- nested data access
-- transformations vs side effects
-
-That repetition is there to help both humans and AI assistants apply the same pattern consistently.
-
-### “Prefer” vs “always”
-
-Some rules are enforced hard errors; the remaining guidance reflects strong preferences. In practice:
-
-- Prefer consistency over clever exceptions
-- Prefer explicitness over terseness
-- If an enforced rule creates a necessary exceptional case, disable that rule inline and make the exception visible
-
-If a rule creates worse code in a very specific case, call that out in review and make the exception deliberate.
-
-### Async work deserves judgment
-
-`Promise.all(items.map(...))` is often a good fit, but not always.
-
-Use sequential async flows when:
-
-- order matters
-- the upstream service has rate limits
-- the work is stateful
-- concurrency would make debugging or recovery harder
-
-### Recursive replacements for loops
-
-Replacing loops with recursion can improve clarity in some flows, especially paginated fetches or tree traversal. It is not automatically better in every situation. Favor whichever form is clearest and safest for the runtime characteristics involved.
-
----
-
-## ESLint-Driven Conventions
-
-The codebase also follows these style constraints:
-
-### Imports
-
-- Include `.js` extensions
-- Keep imports ordered consistently
-- Avoid unnecessary path segments
-
-### Formatting
-
-- Use 4-space indentation
-- Keep line length within configured limits
-- Avoid trailing commas
-- Keep empty lines under control
-
-### General style
-
-- Prefer function expressions over declarations
-- Avoid `console`; use approved output patterns instead
-- Avoid nested ternaries
-- Use `===` and `!==`
-
----
-
-## Review Checklist
-
-Before merging code, ask:
-
-- Does the function signature clearly show what the function needs?
-- Are nested reads handled safely?
-- Are return types predictable?
-- Is the code using transformations instead of manual accumulation where appropriate?
-- Can any `else` blocks become early returns?
-- Are there any `else`, `else if`, or nested `if` statements?
-- Are falsey return values replaced with the expected empty type instead of `null` or `undefined`? Are bare returns used only for control flow?
-- Are emptiness checks written in the project style?
-- Is there a simpler, more explicit version of the same logic?
-
----
-
-## Examples
-
-### Example 1: Dynamic property access
-
-```javascript
-const { [variantName]: variantConfig } = variants;
-const {
-    [targetField]: targetImage
-} = fieldData;
-const { [variantName]: generator } = VARIANT_GENERATORS;
-```
-
-### Example 2: Accumulation with `reduce`
-
-```javascript
-const { results, failed } = await pendingItems.reduce(
-    async (accPromise, queueItem) => {
-        const acc = await accPromise;
-
-        try {
-            const result = await processQueueItem(queueItem);
-            return {
-                results: [...acc.results, result],
-                failed: acc.failed
-            };
-        } catch (error) {
-            return {
-                results: acc.results,
-                failed: [...acc.failed, { ...queueItem, error: error.message }]
-            };
-        }
-    },
-    Promise.resolve({ results: [], failed: [] })
-);
-```
-
-### Example 3: Paginated async recursion
-
-```javascript
-const fetchAllPages = async (offset = 0, accumulated = []) => {
-    const page = await fetchPage(offset);
-    const allItems = [...accumulated, ...page.items];
-
-    if (!page.hasMore) return allItems;
-    return fetchAllPages(offset + 100, allItems);
+const render = (value) => {
+    if (!value) return '';
+    if (!value.enabled) return '';
+    return value.label;
 };
-
-const items = await fetchAllPages();
 ```
 
-### Example 4: Early return shape
+An `if` inside a separate callback or nested function is a new function
+boundary. Keep conditionals readable; the standard does not reward flattening
+that makes a real domain decision harder to understand.
+
+## 4. Transformations and loops
+
+Use prototype methods when a collection is being transformed:
 
 ```javascript
-if (result.skipped) {
-    process.stdout.write('Skipped\n');
-    return { results: [...acc.results, result], failed: acc.failed };
-}
-
-process.stdout.write('Processed\n');
-return { results: [...acc.results, result], failed: acc.failed };
+const enabled = items.filter(item => item.enabled);
+const labels = enabled.map(item => item.label);
 ```
 
----
+Use `map`, `filter`, `reduce`, `some`, `find`, and `forEach` to make the
+operation visible. Avoid loop state and collection mutation when a method
+expresses the operation directly.
 
-## Final Summary
+An imperative loop is appropriate when it is not a collection transformation,
+when it must stop or continue with detailed control flow, or when it represents
+sequential asynchronous work. In particular, an awaited polling or request
+loop is not treated as a collection transformation.
 
-This style guide is meant to create consistent, explicit JavaScript that is easy to review, safe around missing data, and friendly to both human collaborators and AI-assisted workflows.
+`reduce` is also an intentional exception to “no evolving value”: its
+accumulator is local state with a declared transformation boundary.
 
-The priorities are:
+## 5. Member access and dynamic data
 
-1. clear contracts
-2. predictable return types
-3. visible intent
-4. low nesting
-5. consistent patterns under change
+Destructure static application data before use:
+
+```javascript
+const getName = ({ name = '' } = {}) => name;
+```
+
+Static member reads from function parameters should be handled by the
+signature or by body destructuring. Collection `.length` and `.size`, chained
+native methods, computed properties, and dynamic platform APIs remain explicit
+exceptions because destructuring would hide their intent.
+
+Do not destructure data merely to satisfy a rule when the full object is being
+forwarded, a callback signature is externally defined, or the property name is
+dynamic.
+
+## 6. Contract diagnostics
+
+The contract analyzer and its opt-in ESLint rules report known contradictions
+in signatures, call sites, and native operations. They do not invent facts for
+unknown values:
+
+```javascript
+const render = ({ title = '' } = {}) => title.trim();
+
+render({ title: 42 }); // known contradiction
+render({ title: externalValue }); // unknown; validate at runtime if needed
+```
+
+Use runtime validation and tests for external data, side effects, and behavior
+that static syntax cannot prove.
+
+## 7. What Resilient does not own
+
+The consuming project should add its own rules for:
+
+- React hooks, JSX, and component conventions;
+- Next.js routing, images, links, and server/client boundaries;
+- import ordering, dependency policy, and module graph policy;
+- product-specific naming, accessibility, and test conventions.
+
+Resilient supplies the ECMAScript contract layer beneath those project rules.
+
+## Enforcement map
+
+| Standard | Rule |
+| --- | --- |
+| signature destructuring | `prefer-signature-destructuring` |
+| explicit destructuring defaults | `prefer-safe-destructuring-defaults` |
+| no fallback destructuring with `\|\|` | `no-destructuring-fallback` |
+| stable falsey returns | `prefer-falsey-returns` |
+| no explicit nullish assignment | `no-null-assignment`, `no-undefined-assignment` |
+| falsey presence checks | `no-undefined-comparison`, `no-length-comparison` |
+| early-return control flow | `no-else`, `no-nested-if` |
+| static member access | `prefer-destructured-member-access` |
+| collection transformations | `prefer-prototype-methods` |
+| known contract contradictions | `signature-contract-call-site`, `signature-contract-operation` |
+
+## Review checklist
+
+- Is the function boundary's data shape visible?
+- Does every destructured value have the correct falsey default?
+- Does each return path preserve one intentional value shape?
+- Are missing values normalized where the contract becomes known?
+- Can guard clauses replace `else` or nested conditionals?
+- Is a collection operation expressed with a prototype method?
+- If `let` or a loop remains, is the evolving state or sequential control flow
+  intentional?
+- Is a rule exception tied to an actual boundary rather than used to silence
+  an inconvenient diagnostic?

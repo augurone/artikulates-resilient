@@ -1,11 +1,12 @@
 {
   "name": "eslint-plugin-resilient",
-  "version": "0.2.1",
-  "description": "ESLint rules for explicit, runtime-resilient JavaScript patterns",
+  "version": "0.3.0",
+  "description": "Build-time and IDE-time analysis for explicit, runtime-resilient JavaScript patterns",
   "type": "module",
   "main": "index.js",
   "exports": {
-    ".": "./index.js"
+    ".": "./index.js",
+    "./contracts": "./rules/contracts/index.js"
   },
   "repository": {
     "type": "git",

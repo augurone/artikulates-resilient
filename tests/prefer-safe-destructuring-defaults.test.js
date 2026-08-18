@@ -11,7 +11,8 @@ const ruleTester = new RuleTester({
 
 ruleTester.run('prefer-safe-destructuring-defaults', rule, {
     valid: [
-        { code: 'const getConfig = ({ config: { timBurton = "" } = {} } = {}) => timBurton;' }
+        { code: 'const getConfig = ({ config: { timBurton = "" } = {} } = {}) => timBurton;' },
+        { code: 'const useState = value => [value, () => {}]; const [value, setValue] = useState(false);' }
     ],
     invalid: [
         {

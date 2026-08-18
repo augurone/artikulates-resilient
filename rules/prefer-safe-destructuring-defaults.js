@@ -2,6 +2,28 @@ const isAssignmentPattern = ({ type = '' } = {}) => type === 'AssignmentPattern'
 
 const isRestElement = ({ type = '' } = {}) => type === 'RestElement';
 
+const isUseStateResult = ({ parent = {} } = {}) => {
+    const {
+        type = '',
+        id = {},
+        init: {
+            type: initType = '',
+            callee: {
+                type: calleeType = '',
+                name = ''
+            } = {}
+        } = {}
+    } = parent;
+
+    return (
+        type === 'VariableDeclarator' &&
+        id.type === 'ArrayPattern' &&
+        initType === 'CallExpression' &&
+        calleeType === 'Identifier' &&
+        name === 'useState'
+    );
+};
+
 const reportMissingDefault = ({ node = {}, report = () => {} } = {}) => {
     if (!node) return;
     if (isAssignmentPattern(node) || isRestElement(node)) return;
@@ -32,7 +54,10 @@ export default {
                     report
                 });
             },
-            ArrayPattern({ elements = [] } = {}) {
+            ArrayPattern(node = {}) {
+                const { elements = [] } = node;
+                if (isUseStateResult(node)) return;
+
                 elements
                     .filter(Boolean)
                     .forEach((element = {}) => reportMissingDefault({

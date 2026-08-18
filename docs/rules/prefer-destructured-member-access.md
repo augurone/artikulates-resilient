@@ -22,3 +22,5 @@ remain valid because they express platform intent rather than application data
 selection. For example, `request.headers.get('origin')` and
 `document.content.map(transform)` do not require destructuring the intermediate
 receiver. Computed access remains an explicit dynamic-data exception.
+Reducer accumulator parameters are also exempt because they represent
+intentionally evolving local state rather than static input data.

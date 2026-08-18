@@ -11,5 +11,10 @@ await Promise.all([
     './prefer-prototype-methods.test.js',
     './prefer-safe-destructuring-defaults.test.js',
     './prefer-signature-destructuring.test.js',
-    './recommended-config.test.js'
+    './recommended-config.test.js',
+    './signature-contract-call-site.test.js',
+    './signature-contract-operation.test.js',
+    './signature-contract-return-consistency.test.js',
+    './contracts-config.test.js',
+    './contracts-document.test.js'
 ].map(testFile => import(testFile)));
