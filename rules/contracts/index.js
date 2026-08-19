@@ -15,6 +15,23 @@ export {
 } from './document.js';
 
 export {
+    getCallSiteDiagnostics,
+    getContractDiagnostics,
+    getDestructuringDiagnostics,
+    getMismatches,
+    getOperationDiagnostics
+} from './diagnostics.js';
+
+export {
+    createContractGraph,
+    getImportBindings,
+    getModuleExports,
+    getModuleSources,
+    normalizePath,
+    resolveModule
+} from './module-graph.js';
+
+export {
     createFunctionFlow,
     createFunctionFlows,
     getFlowContext,

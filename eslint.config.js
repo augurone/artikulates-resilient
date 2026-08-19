@@ -72,9 +72,9 @@ export default [
             'import/no-extraneous-dependencies': [
                 'error',
                 {
-                    devDependencies: ['eslint.config.js', 'tests/**/*.js'],
+                    devDependencies: ['eslint.config.js', 'scripts/**/*.js', 'tests/**/*.js'],
                     optionalDependencies: false,
-                    peerDependencies: false,
+                    peerDependencies: true,
                     packageDir: './'
                 }
             ],

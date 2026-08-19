@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-resilient",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Build-time and IDE-time analysis for explicit, runtime-resilient JavaScript patterns",
   "type": "module",
   "main": "index.js",
@@ -33,8 +33,9 @@
     "defensive-programming"
   ],
   "scripts": {
-    "lint": "eslint .",
-    "test": "node tests/run.js"
+    "lint": "eslint . --ignore-pattern bad.js",
+    "test": "node tests/run.js",
+    "inspect:stack": "node scripts/inspect-stack.js"
   },
   "engines": {
     "node": ">=18.18.0"

@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased
+
+## 0.3.1 — 2026-08-19
+
+- Added static source-stack introspection through `getStackAtOffset`, exposing
+  file, enclosing-function, and expression frames with inferred contracts.
+- Added document-level contract diagnostics through `getDiagnostics` and
+  `getDiagnosticsAtOffset`; ESLint now consumes the same diagnostic core.
+- Added a parser-agnostic module graph for local relative imports and exported
+  function contracts, including returned values and returned object properties
+  used by importing modules.
+- Connected local import propagation to the live ESLint contract rules, so
+  imported signatures and returned-value operations report in the consumer
+  file.
+- Prevented missing named or default exports from becoming empty contract
+  definitions during import propagation.
+- Added destructuring-shape diagnostics for known array/object contradictions;
+  valid nested patterns such as `[ { attr = '' } = {} ] = []` remain allowed.
+- Hardened destructuring-shape analysis to allow computed object properties
+  on array-like values.
+- Added `inspect:stack` as a one-shot contract inspector for source offsets and
+  local-import diagnostics. It is not a full ESLint runner or an LSP server.
+- Added live import examples to `bad.js` and a file-based ESLint regression for
+  imported signatures, returned values, and returned properties.
+- No default-preset behavior changed; contract analysis remains opt-in through
+  `resilient.configs.contracts`.
+
 ## 0.3.0 — 2026-08-18
 
 - Added a portable contract core available from `eslint-plugin-resilient/contracts`.
