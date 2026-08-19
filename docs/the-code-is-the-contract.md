@@ -133,7 +133,7 @@ Early returns and flat guards are preferred to `else` branches and nested
 conditionals. The goal is visible control flow, not mechanically flattened
 code that hides a real decision.
 
-## The 0.3 architecture
+## The 0.3.1 architecture
 
 ```text
 ESTree program
@@ -141,10 +141,12 @@ ESTree program
       ├── contract model ── value families, shapes, compatibility
       ├── inference ─────── expressions, signatures, returns
       ├── flow ───────────── guards, aliases, updates, loops, exceptions
+      ├── module graph ───── local relative imports and returned contracts
       └── document index ─── source offsets → contract/signature facts
                 │
-                ├── ESLint contract rules
-                └── future CLI / IDE adapters
+                ├── ESLint contract rules and live import diagnostics
+                ├── inspect:stack CLI probe
+                └── future editor protocol adapter
 ```
 
 The core is exported independently from `eslint-plugin-resilient/contracts`.
@@ -154,27 +156,37 @@ CLI. ESLint is one consumer, not the owner of the model.
 
 ## What exists now
 
-Version 0.3.0 provides:
+Version 0.3.1 provides:
 
 - the portable contract model and inference core;
 - local flow-sensitive analysis for the supported cases above;
 - offset-based document introspection;
+- local module-graph propagation for named and default imports;
+- imported call-site, returned-value, and returned-property diagnostics in the
+  live ESLint rules;
 - opt-in call-site and native-operation diagnostics;
+- the `inspect:stack` one-shot contract inspector;
+- dogfood coverage in `bad.js` for local import violations;
 - existing Resilient rules hardened around `useState` tuples, reducer
   accumulators, and awaited loops;
 - build-time ESLint diagnostics and live diagnostics through an ESLint IDE
   extension.
 
+`getStackAtOffset` returns a static source stack—file, enclosing functions, and
+the expression under the cursor—so an editor or CLI adapter can show the
+relevant contract in context.
+
 ## What it does not do yet
 
-It does not provide runtime validation, arbitrary cross-module inference, a
-complete module graph, or an LSP server. It does not require TypeScript-style
-annotations, and it does not replace framework-specific analysis.
+It does not provide runtime validation, arbitrary package or dynamic-import
+resolution, a complete module graph, or an LSP server. It does not require
+TypeScript-style annotations, and it does not replace framework-specific
+analysis.
 
-The next useful layer is a module graph that carries exported contract facts
-between files, followed by a thin editor adapter for hover, signature help, and
-diagnostics. Those layers should consume the existing contract model rather
-than expand application source with annotations.
+The next useful layer is a thin editor adapter for hover, signature help, and
+diagnostics, followed by broader resolver support. Those layers should consume
+the existing contract model rather than expand application source with
+annotations.
 
 ## Design principles
 

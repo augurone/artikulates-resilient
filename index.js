@@ -11,13 +11,14 @@ import preferPrototypeMethods from './rules/prefer-prototype-methods.js';
 import preferSafeDestructuringDefaults from './rules/prefer-safe-destructuring-defaults.js';
 import preferSignatureDestructuring from './rules/prefer-signature-destructuring.js';
 import signatureContractCallSite from './rules/signature-contract-call-site.js';
+import signatureContractDestructuring from './rules/signature-contract-destructuring.js';
 import signatureContractOperation from './rules/signature-contract-operation.js';
 import signatureContractReturnConsistency from './rules/signature-contract-return-consistency.js';
 
 const plugin = {
     meta: {
         name: 'eslint-plugin-resilient',
-        version: '0.3.0'
+        version: '0.3.1'
     },
     rules: {
         'prefer-signature-destructuring': preferSignatureDestructuring,
@@ -33,6 +34,7 @@ const plugin = {
         'prefer-prototype-methods': preferPrototypeMethods,
         'prefer-safe-destructuring-defaults': preferSafeDestructuringDefaults,
         'signature-contract-call-site': signatureContractCallSite,
+        'signature-contract-destructuring': signatureContractDestructuring,
         'signature-contract-operation': signatureContractOperation,
         'signature-contract-return-consistency': signatureContractReturnConsistency
     },
@@ -112,6 +114,7 @@ plugin.configs.contracts = {
     },
     rules: {
         'resilient/signature-contract-call-site': 'error',
+        'resilient/signature-contract-destructuring': 'error',
         'resilient/signature-contract-operation': 'error'
     }
 };

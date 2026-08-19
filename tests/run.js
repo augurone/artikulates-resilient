@@ -13,6 +13,8 @@ await Promise.all([
     './prefer-signature-destructuring.test.js',
     './recommended-config.test.js',
     './signature-contract-call-site.test.js',
+    './signature-contract-destructuring.test.js',
+    './signature-contract-import.test.js',
     './signature-contract-operation.test.js',
     './signature-contract-return-consistency.test.js',
     './contracts-config.test.js',

@@ -160,7 +160,7 @@ Resilient supplies the ECMAScript contract layer beneath those project rules.
 | early-return control flow | `no-else`, `no-nested-if` |
 | static member access | `prefer-destructured-member-access` |
 | collection transformations | `prefer-prototype-methods` |
-| known contract contradictions | `signature-contract-call-site`, `signature-contract-operation` |
+| known contract contradictions | `signature-contract-call-site`, `signature-contract-destructuring`, `signature-contract-operation` |
 
 ## Review checklist
 

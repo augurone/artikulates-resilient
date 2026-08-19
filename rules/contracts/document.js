@@ -1,3 +1,4 @@
+import { getContractDiagnostics } from './diagnostics.js';
 import {
     createFunctionFlows,
     getFlowContext
@@ -28,8 +29,9 @@ const EXPRESSION_TYPES = [
     'UnaryExpression'
 ];
 
-const getRange = ({ range = [], start = -1, end = -1 } = {}) => {
+const getRange = ({ range = [], ...source } = {}) => {
     if (Array.isArray(range) && range.length === 2) return range;
+    const { start = -1, end = -1 } = source;
     if (start >= 0 && end >= start) return [start, end];
     return [];
 };
@@ -68,8 +70,34 @@ const getContainingNodes = ({ nodes = [], offset = -1 } = {}) => nodes
         return (leftEnd - leftStart) - (rightEnd - rightStart);
     });
 
-const createContractDocument = (program = {}) => {
-    const definitions = getDefinitions(program);
+const getFrameLocation = (node = {}) => {
+    const { loc = {} } = node;
+    return {
+        range: getRange(node),
+        loc
+    };
+};
+
+const createFunctionFrame = ({ node = {}, definitions = {} } = {}) => {
+    const name = getFunctionName(node);
+    const definition = definitions[name] || {};
+    return {
+        kind: 'function',
+        name,
+        ...getFrameLocation(node),
+        signature: definition.signature || {},
+        returnContract: definition.returnContract || unknown()
+    };
+};
+
+const createContractDocument = (program = {}, {
+    fileName = '',
+    externalDefinitions = {}
+} = {}) => {
+    const definitions = {
+        ...getDefinitions(program),
+        ...externalDefinitions
+    };
     const functions = getFunctionNodes(program);
     const flows = createFunctionFlows({ program, definitions });
     const expressions = getExpressionNodes(program);
@@ -97,10 +125,53 @@ const createContractDocument = (program = {}) => {
         };
     };
 
+    const getStackAtOffset = (offset = -1) => {
+        const contractResult = getContractAtOffset(offset);
+        const containingFunctions = getContainingNodes({ nodes: functions, offset }).reverse();
+        const expressionFrame = contractResult.node && contractResult.node.type
+            ? {
+                kind: 'expression',
+                ...getFrameLocation(contractResult.node),
+                contract: contractResult.contract
+            }
+            : {};
+
+        return {
+            fileName,
+            offset,
+            frames: [
+                {
+                    kind: 'file',
+                    fileName,
+                    ...getFrameLocation(program)
+                },
+                ...containingFunctions.map(node => createFunctionFrame({ node, definitions })),
+                ...(expressionFrame.kind ? [expressionFrame] : [])
+            ]
+        };
+    };
+
+    const getDiagnostics = () => getContractDiagnostics({
+        program,
+        definitions,
+        flows
+    }).map(({ node = {}, ...diagnostic } = {}) => ({
+        ...diagnostic,
+        node,
+        ...getFrameLocation(node),
+        stack: getStackAtOffset(getRange(node)[0])
+    }));
+
+    const getDiagnosticsAtOffset = (offset = -1) => getDiagnostics()
+        .filter(({ range = [] } = {}) => containsOffset({ node: { range }, offset }));
+
     return {
         definitions,
         getContractAtOffset,
+        getDiagnostics,
+        getDiagnosticsAtOffset,
         getSignatureAtOffset,
+        getStackAtOffset,
         functions
     };
 };
