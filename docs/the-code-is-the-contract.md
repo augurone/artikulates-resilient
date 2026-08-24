@@ -1,10 +1,10 @@
 # The Code Is the Contract
 
-Resilient starts with a simple premise: JavaScript already contains executable
-contracts. Function signatures, defaults, object construction, native
+Resilient starts from a simple premise: JavaScript already contains executable
+contracts, and those contracts can remain in JavaScript. Function signatures,
+defaults, object construction, native
 operations, and return paths describe what the program expects and produces.
-Static tooling should read that evidence instead of requiring a parallel type
-language.
+Static tooling should read that evidence where it already exists.
 
 ## Runtime behavior and static evidence
 
@@ -19,7 +19,7 @@ Resilient therefore separates two responsibilities:
 ```text
 source JavaScript
       │
-      ├── build-time / IDE-time inference ── known contradictions
+      ├── build-time / editor-facing inference ── known contradictions
       │                                      unknown stays unknown
       │
       └── runtime execution ─────────────── defaults, guards, normalization,
@@ -115,13 +115,16 @@ such as `string | boolean` or `object | null` are valid in some applications,
 so `signature-contract-return-consistency` is available as a standalone rule
 and is not enabled by the contracts preset.
 
-## Functional-first does not mean blind
+## Functional-first respects boundaries
 
 Resilient prefers functions as expressions and `const` because they make data
-movement easier to inspect. `let` is appropriate when one local value evolves,
-especially a reducer accumulator or state-machine value. External mutable state
-is a design signal, not an automatic error; one value may be clearer when it is
-owned by the surrounding process.
+movement easier to inspect. Reserve `let` for one value declared at the top of a
+function body when conditional control flow is necessary and no function,
+prototype method, or conditional expression states the result. Reducer
+accumulators and state-machine values belong inside a function or prototype
+operation, not in a `let` binding in the surrounding scope. External mutable
+state is a design signal, not an automatic error; one value may be clearer when
+it is owned by the surrounding process.
 
 Collection transformations should use `map`, `filter`, `reduce`, `some`,
 `find`, or `forEach` when those methods express the operation. A loop remains
@@ -133,7 +136,7 @@ Early returns and flat guards are preferred to `else` branches and nested
 conditionals. The goal is visible control flow, not mechanically flattened
 code that hides a real decision.
 
-## The 0.3.1 architecture
+## The current architecture
 
 ```text
 ESTree program
@@ -156,7 +159,7 @@ CLI. ESLint is one consumer, not the owner of the model.
 
 ## What exists now
 
-Version 0.3.1 provides:
+The current implementation provides:
 
 - the portable contract model and inference core;
 - local flow-sensitive analysis for the supported cases above;
@@ -167,8 +170,8 @@ Version 0.3.1 provides:
 - opt-in call-site and native-operation diagnostics;
 - the `inspect:stack` one-shot contract inspector;
 - dogfood coverage in `bad.js` for local import violations;
-- existing Resilient rules hardened around `useState` tuples, reducer
-  accumulators, and awaited loops;
+- existing Resilient rules hardened around `useState` tuples, reducer callbacks,
+  and awaited loops;
 - build-time ESLint diagnostics and live diagnostics through an ESLint IDE
   extension.
 
@@ -176,17 +179,12 @@ Version 0.3.1 provides:
 the expression under the cursor—so an editor or CLI adapter can show the
 relevant contract in context.
 
-## What it does not do yet
+## Current boundary
 
-It does not provide runtime validation, arbitrary package or dynamic-import
-resolution, a complete module graph, or an LSP server. It does not require
-TypeScript-style annotations, and it does not replace framework-specific
-analysis.
-
-The next useful layer is a thin editor adapter for hover, signature help, and
-diagnostics, followed by broader resolver support. Those layers should consume
-the existing contract model rather than expand application source with
-annotations.
+The core stops at source-level evidence. Runtime validation, external data, and
+framework-specific analysis remain outside it. The current adapters cover local
+relative modules; broader resolution and editor protocol support remain separate
+adapter work. See [contracts.md](contracts.md) for the implementation limits.
 
 ## Design principles
 
@@ -194,10 +192,11 @@ annotations.
 2. Report contradictions, not lack of omniscience.
 3. Preserve unknown when evidence is incomplete.
 4. Keep runtime fallback and static intent aligned.
-5. Prefer explicit shapes and stable falsey values.
-6. Prefer function expressions and `const`; permit intentional local state.
+5. Use explicit shapes and contract-specific, type-safe falsey values.
+6. Prefer function expressions and `const`; reserve `let` for top-level
+   conditional values that cannot be expressed otherwise.
 7. Use collection methods when they express the operation.
-8. Preserve legitimate external callback and asynchronous control-flow
-   boundaries.
+8. Respect legitimate external callback signatures and sequential asynchronous
+   control-flow boundaries.
 9. Keep the core independent of ESLint and editors.
 10. Use runtime validation and tests where static syntax cannot prove behavior.

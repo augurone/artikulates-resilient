@@ -1,6 +1,7 @@
 # no-destructuring-fallback
 
-Disallows using `||` to provide a fallback object for destructuring.
+Disallows using `||` to provide a fallback object in an object destructuring
+declaration.
 
 ```javascript
 // Incorrect

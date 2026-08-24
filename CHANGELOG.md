@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Clarified Resilient as a native-JavaScript discipline enforced by ESLint
+  rules and extended by contract analysis.
+
 ## 0.3.1 — 2026-08-19
 
 - Added static source-stack introspection through `getStackAtOffset`, exposing
@@ -34,8 +37,8 @@
   bounded loops, and `try`/`catch`/`finally` paths.
 - Added offset-based document queries for contract and signature introspection.
 - Added opt-in contract diagnostics for call-site values and native operations.
-- Hardened existing rules for `useState` tuples, reducer accumulators, and
-  awaited sequential loops.
+- Hardened existing rules for `useState` tuples, reducer callback signatures,
+  and awaited sequential loops.
 - Dogfooded the rules in Artikulates and removed resilient-specific suppressions
   from the application code.
 

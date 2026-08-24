@@ -1,7 +1,7 @@
 # no-length-comparison
 
-Disallows strict equality or inequality against zero for a collection’s
-`.length`. This rule does not police other comparison operators or exact
+Disallows strict equality or inequality against zero for `.length`. This rule
+does not police other comparison operators or exact
 cardinality checks.
 
 ```javascript

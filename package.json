@@ -1,7 +1,7 @@
 {
   "name": "eslint-plugin-resilient",
-  "version": "0.3.1",
-  "description": "Build-time and IDE-time analysis for explicit, runtime-resilient JavaScript patterns",
+  "version": "0.3.2",
+  "description": "Native-JavaScript discipline and contract analysis for explicit code",
   "type": "module",
   "main": "index.js",
   "exports": {
@@ -28,6 +28,9 @@
     "eslint",
     "eslint-plugin",
     "javascript",
+    "static-analysis",
+    "code-contracts",
+    "functional-javascript",
     "runtime-safety",
     "destructuring",
     "defensive-programming"

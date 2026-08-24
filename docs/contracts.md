@@ -1,9 +1,9 @@
 # Contract analysis
 
-Resilient's contract analyzer is a portable build-time and IDE-time layer over
-ESTree-compatible JavaScript. It infers value families and selected object
-shapes from executable code. It requires no annotations and no second source
-language.
+Resilient's contract analyzer is a portable build-time analysis layer over
+ESTree-compatible JavaScript with an editor-facing document API. It infers
+value families and selected object shapes from executable code. It requires no
+annotations and no second source language.
 
 The analyzer is independent of ESLint. ESLint rules consume it for diagnostics,
 while CLI and editor adapters can consume the same structured results.
@@ -115,7 +115,7 @@ debugging; it does not replace the full ESLint run and does not watch files.
 
 ## Inference and flow
 
-The first release tracks:
+Current inference tracks:
 
 - primitive and collection value families;
 - nested destructuring and defaults;
@@ -152,7 +152,8 @@ stay unknown.
 
 ## ESLint presets
 
-The standard remains available through `resilient.configs.recommended`.
+The recommended preset carries the Resilient discipline through
+`resilient.configs.recommended`.
 Contract call-site, destructuring-shape, and operation diagnostics are opt-in
 through `resilient.configs.contracts`. Return-family consistency is a standalone rule
 because functions may intentionally return unions such as `string | boolean`
@@ -165,4 +166,4 @@ dynamic imports, or provide a complete LSP server. The current graph adapter
 handles local relative `.js`, `.jsx`, and `index.js` paths; package aliases,
 filesystem-wide project discovery, and richer re-export resolution remain
 future adapter work. These layers can build on the contract model without
-adding TypeScript-style annotations to application source.
+adding a parallel type-annotation language to application source.

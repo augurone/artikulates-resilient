@@ -1,7 +1,7 @@
 # no-undefined-comparison
 
-Disallows explicit comparisons against `undefined`. Undefined is a falsey
-state, not a value to model in application flow.
+Disallows equality comparisons that use `undefined` explicitly. Use a truthiness
+check when the contract is testing presence or absence.
 
 ```javascript
 // Incorrect

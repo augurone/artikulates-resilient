@@ -1,12 +1,16 @@
-# Resilient coding standards
+# The Resilient JavaScript discipline
 
-Resilient treats executable JavaScript as the contract. A function boundary
-should make its expected data visible, transformations should state their
-intent, and missing data should degrade into the falsey value appropriate to
+Resilient is a native-JavaScript discipline built around a simple premise:
+executable code already contains the material for its own contracts. A function
+boundary should make its expected data visible, transformations should state
+their intent, and missing data should resolve to the falsey value appropriate to
 the surrounding contract.
 
-These are ECMAScript rules. React, Next.js, imports, framework conventions, and
-application architecture belong in the consuming project.
+Resilient stays within JavaScript's existing syntax so that runtime behavior,
+source-level intent, and static analysis reinforce one another.
+
+These are ECMAScript commitments. React, Next.js, imports, framework conventions,
+and application architecture belong in the consuming project.
 
 ## 1. Function boundaries
 
@@ -27,17 +31,21 @@ const getItems = ({
 } = {}) => items;
 ```
 
-Use `let` when one local value intentionally evolves, such as a reducer or a
-state machine. An external `let` is not automatically wrong, but a mutable
-value shared across function boundaries deserves review: it may be state that
-should be passed explicitly or reduced locally.
+Reserve `let` for one value declared at the top of a function body when
+conditional control flow is necessary and no function, prototype method, or
+conditional expression states the result. Do not use `let` for reducer
+accumulators or state-machine values; keep those transformations inside a
+function or prototype operation.
+
+A mutable value shared across function boundaries deserves review: it may be
+state that should be passed explicitly or reduced locally.
 
 Do not force signature destructuring onto callbacks with an external API,
 functions that forward the complete object, or genuinely dynamic access.
 
-## 2. Stable value shapes
+## 2. Contract value shapes
 
-Choose a predictable falsey value for each return contract:
+Choose a predictable, type-safe falsey value for each return contract:
 
 | Contract | Empty value |
 | --- | --- |
@@ -47,9 +55,9 @@ Choose a predictable falsey value for each return contract:
 | number | `0` |
 | boolean | `false` |
 
-Do not assign `null` or `undefined` as application values. Do not return them
-from value-producing functions. A bare `return;` remains valid for a side
-effect or an intentional control-flow exit.
+These are contract-specific values, not generic nullish fallbacks. Stack
+attributes are never set to `null` or `undefined`. A bare `return;` remains
+valid for a side effect or an intentional control-flow exit.
 
 This is a contract for the value being produced, not a claim that external data
 is already clean. Normalize external data at the boundary where its expected
@@ -79,7 +87,7 @@ const render = (value) => {
 ```
 
 An `if` inside a separate callback or nested function is a new function
-boundary. Keep conditionals readable; the standard does not reward flattening
+boundary. Keep conditionals readable; the discipline does not reward flattening
 that makes a real domain decision harder to understand.
 
 ## 4. Transformations and loops
@@ -97,11 +105,14 @@ expresses the operation directly.
 
 An imperative loop is appropriate when it is not a collection transformation,
 when it must stop or continue with detailed control flow, or when it represents
-sequential asynchronous work. In particular, an awaited polling or request
-loop is not treated as a collection transformation.
+sequential asynchronous work. In particular, a loop whose own body contains an
+awaited polling or request operation is not treated as a collection
+transformation. The loop rule is a syntactic default; necessary imperative
+loops should use a local rule override.
 
-`reduce` is also an intentional exception to “no evolving value”: its
-accumulator is local state with a declared transformation boundary.
+`reduce` is appropriate when a transformation needs an accumulator. It keeps
+the accumulator inside the prototype operation instead of introducing a `let`
+binding in the surrounding function.
 
 ## 5. Member access and dynamic data
 
@@ -149,12 +160,12 @@ Resilient supplies the ECMAScript contract layer beneath those project rules.
 
 ## Enforcement map
 
-| Standard | Rule |
+| Commitment | Rule |
 | --- | --- |
 | signature destructuring | `prefer-signature-destructuring` |
 | explicit destructuring defaults | `prefer-safe-destructuring-defaults` |
 | no fallback destructuring with `\|\|` | `no-destructuring-fallback` |
-| stable falsey returns | `prefer-falsey-returns` |
+| contract-specific falsey returns | `prefer-falsey-returns` |
 | no explicit nullish assignment | `no-null-assignment`, `no-undefined-assignment` |
 | falsey presence checks | `no-undefined-comparison`, `no-length-comparison` |
 | early-return control flow | `no-else`, `no-nested-if` |
@@ -170,7 +181,8 @@ Resilient supplies the ECMAScript contract layer beneath those project rules.
 - Are missing values normalized where the contract becomes known?
 - Can guard clauses replace `else` or nested conditionals?
 - Is a collection operation expressed with a prototype method?
-- If `let` or a loop remains, is the evolving state or sequential control flow
-  intentional?
-- Is a rule exception tied to an actual boundary rather than used to silence
+- If `let` remains, is it a top-level conditional value that cannot be stated
+  with a function, prototype method, or conditional expression?
+- If a loop remains, is its sequential or detailed control flow intentional?
+- Does each rule override correspond to an actual boundary rather than silence
   an inconvenient diagnostic?

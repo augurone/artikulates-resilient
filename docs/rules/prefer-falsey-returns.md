@@ -1,6 +1,8 @@
 # prefer-falsey-returns
 
-Disallows returning `null` or `undefined` as a function result. Bare
+Disallows `null` or `undefined` values in returns from value-producing functions.
+The surrounding contract determines whether the replacement is `''`, `[]`,
+`{}`, `0`, or `false`; this rule does not infer that replacement. Bare
 `return;` statements are allowed for side effects and logical exits.
 
 ```javascript

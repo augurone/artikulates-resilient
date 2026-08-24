@@ -1,17 +1,19 @@
 # prefer-signature-destructuring
 
-Require object destructuring to happen in the function signature instead of the function body when that signature is part of the function’s contract.
+Require object destructuring to happen in the function signature instead of
+the function body when that signature is part of the function's contract.
 
 ## Why
 
-This rule supports a style where function boundaries carry meaningful information.
+This rule expresses Resilient's boundary-first discipline: function boundaries
+should carry meaningful information.
 
 Benefits:
 
 - the reader sees the expected shape immediately
 - defaults can be applied at the boundary
 - the body contains less extraction and bookkeeping
-- review discussions shift from style policing to actual design questions
+- review can focus on the boundary and its intent
 
 ## Rule Details
 
@@ -68,12 +70,13 @@ Examples where you may want to disable or avoid it:
 - cases where dynamic property access is the real contract
 - cases where the original parameter is forwarded to another function later in the same scope; local body destructuring is allowed for this forwarding pattern
 
-## Relationship To Larger Standards
+## Relationship To The Discipline
 
-This rule works best as part of a broader style system that also prefers:
+This rule works best as part of the broader Resilient discipline, which also
+prefers:
 
 - predictable return types
 - defensive defaults
-- truthy/falsy emptiness checks
+- truthy/falsey emptiness checks
 - early returns
 - functional transformations over imperative loops
