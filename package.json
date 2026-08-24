@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-resilient",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Native-JavaScript discipline and contract analysis for explicit code",
   "type": "module",
   "main": "index.js",
@@ -37,7 +37,7 @@
   ],
   "scripts": {
     "lint": "eslint . --ignore-pattern tests/fixtures/bad.js",
-    "broken": "eslint .", 
+    "broken": "eslint .",
     "test": "node tests/run.js",
     "inspect:stack": "node scripts/inspect-stack.js"
   },
