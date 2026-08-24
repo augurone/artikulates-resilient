@@ -1,7 +1,7 @@
 # prefer-safe-destructuring-defaults
 
 Requires destructured values to declare explicit defaults. The rule does not
-choose the default value; the author chooses the expected runtime type.
+choose the default value; the author chooses the expected contract value.
 
 ```javascript
 // Incorrect

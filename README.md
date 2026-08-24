@@ -1,14 +1,18 @@
 # eslint-plugin-resilient
 
-Resilient is an opinionated, ECMAScript-native standard for explicit,
-functional-first JavaScript. It provides build-time diagnostics today and a
-portable contract model that can support IDE introspection without requiring
-TypeScript, annotations, or a different source language.
+Resilient is a native-JavaScript discipline for explicit, functional-first
+JavaScript. It treats executable JavaScript as the place where contracts live:
+signatures, defaults, operations, and return paths make the program's
+expectations visible. It provides build-time diagnostics and a portable
+contract model without requiring a parallel type language or annotation layer.
 
-Version 0.3.1 extends the opt-in contract rules across local relative imports.
-It is an incremental hardening release: the graph is useful in live ESLint
-analysis, while full project resolution and an editor protocol remain future
-layers.
+The ESLint rules are the foundation. The contract analyzer extends them by
+following evidence across expressions, control flow, and local module
+boundaries.
+
+The opt-in contract rules extend across local relative imports. The graph is
+useful in live ESLint analysis, while full project resolution and an editor
+protocol remain future layers.
 
 Resilient is not a runtime validator and it does not own framework concerns.
 React, Next.js, import policy, and application architecture remain project
@@ -33,17 +37,22 @@ export default [
 ];
 ```
 
-The recommended preset enables the standard's native ESLint rules and twelve
-Resilient rules. The rules express these core preferences:
+The recommended preset puts the discipline into ESLint. Its commitments are:
 
-- function expressions and `const` by default; `let` is appropriate for one
-  intentionally evolving value, such as a reducer accumulator;
+- function expressions and `const` by default; reserve `let` for one value at
+  the top of a function body when conditional control flow is necessary and no
+  function, prototype method, or conditional expression states the result;
 - destructured signatures with explicit, type-shaped defaults;
-- stable falsey return values instead of `null` or accidental `undefined`;
+- contract-specific falsey values: strings return `''`, collections `[]`,
+  objects `{}`, numbers `0`, and booleans `false`; stack attributes are never
+  set to `null` or `undefined`;
 - early returns instead of `else` branches or nested conditionals;
 - prototype methods for collection transformations;
-- explicit exceptions for external callback signatures, retained objects,
-  reducers, and awaited sequential control flow.
+
+Rules are boundary-aware. They do not reshape externally defined callback
+signatures, full objects being forwarded, reducer callback parameters, or
+sequential `await` loops when doing so would change their meaning or hide their
+intent.
 
 Resilient provides suggestions where a safe rewrite is clear. Structural and
 contract rules report diagnostics without silently rewriting code.
@@ -117,7 +126,7 @@ coupling the core to an editor or to ESLint.
 ## Rule documentation
 
 Individual rule behavior and examples are in [docs/rules](docs/rules/).
-The concise standard is in [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md).
+The concise discipline is in [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md).
 The contract model is described in [docs/contracts.md](docs/contracts.md), and
 the design rationale is in [docs/the-code-is-the-contract.md](docs/the-code-is-the-contract.md).
 

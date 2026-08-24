@@ -15,5 +15,3 @@ if (condition) {
 if (condition) return valueA;
 return valueB;
 ```
-
-This is an enforced error, not a preference.

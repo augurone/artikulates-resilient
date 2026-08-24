@@ -16,4 +16,4 @@ return content;
 ```
 
 An `if` inside a separate callback or nested function is a new function
-boundary and is allowed. This is an enforced error, not a preference.
+boundary and is allowed.
