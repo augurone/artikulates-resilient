@@ -1,222 +1,44 @@
 # Coding Instructions
 
-Read [docs/CODING_STANDARDS.md](../docs/CODING_STANDARDS.md) before any code work.
+Before changing code, read:
 
-**Every code change must pass `nvm use stable && npm run lint` before being presented. Fix failures yourself — never show the user lint errors.**
+- [docs/semantics.md](../docs/semantics.md)
+- [docs/CODING_STANDARDS.md](../docs/CODING_STANDARDS.md)
+- [AGENTS.md](../AGENTS.md)
 
----
+Those files define the dialect, operational examples, and agent workflow. Do
+not create a competing set of coding rules here.
 
-## Forbidden Patterns
+## Non-negotiable checks
 
-**1. Optional chaining `?.`** — Use defensive destructuring with defaults.
-```javascript
-// ❌
-const name = user?.profile?.name;
+- Do not use optional chaining; use the documented defensive boundary pattern.
+- Do not use `||` as a destructuring fallback.
+- Do not compare collection length to zero for presence checks.
+- Do not use `else`, `else if`, or nested `if` statements in one function.
+- Prefer destructured application-owned boundaries with explicit defaults.
+- Prefer returned transformations over in-place object or array mutation.
+- Use collection methods for collection transformations.
+- Use `Promise.all` for independent work and sequential `await` when ordering,
+  rate limits, retries, polling, or early termination require it.
+- Give every promise chain visible rejection ownership.
+- Keep `try`, `catch`, `finally`, and `throw` available for real error paths;
+  do not leave catch blocks empty.
 
-// ✅
-const { profile: { name = '' } = {} } = user;
-```
+Legitimate boundaries remain valid: external callback signatures, full-object
+forwarding, dynamic APIs, DOM objects, refs, caches, draft reducers, and
+meaningful sequential loops. Use the supported rule options or exception
+comments rather than inventing a new suppression form.
 
-**2. Destructuring `||` fallback** — Give objects safe defaults upstream in the function signature.
-```javascript
-// ❌
-const { count = 0 } = data || {};
-
-// ✅
-const process = ({ data: { count = 0 } = {} } = {}) => count;
-```
-
-**3. `.length === 0`** — Use `!items.length` for an empty collection. `items.length`, `items.length > 0`, and exact cardinality checks remain valid.
-```javascript
-// ❌  if (items.length === 0)
-// ✅  if (items.length)       if (!items.length)       if (items.length > 0)
-```
-
-**4. `for` / `while` loops** — Use `map`, `reduce`, `filter`, `find`, `some`.
-
-**5. `if-else` blocks** — Use early returns. Every branch adds cyclomatic complexity and cognitive load.
-
-No `else`:
-```javascript
-// ❌
-if (condition) { return a; } else { return b; }
-
-// ✅
-if (!condition) return b;
-return a;
-```
-
-No `else if` chains — use early returns for each guard:
-```javascript
-// ❌
-if (type === 'a') {
-    return handleA();
-} else if (type === 'b') {
-    return handleB();
-} else {
-    return handleDefault();
-}
-
-// ✅
-if (type === 'a') return handleA();
-if (type === 'b') return handleB();
-return handleDefault();
-```
-
-No nested `if` blocks — flatten with early returns:
-```javascript
-// ❌
-if (user) {
-    if (user.active) {
-        if (user.role === 'admin') {
-            return doAdminThing();
-        }
-    }
-}
-
-// ✅
-if (!user) return;
-if (!user.active) return;
-if (user.role !== 'admin') return;
-return doAdminThing();
-```
-
-**6. Classes** — Banned. Use function expressions.
-
-**7. Nested ternaries** — Extract to named variables.
-
----
-
-## Required Patterns
-
-**Destructure in the function signature, not the body.**
-```javascript
-// ❌
-const process = (data) => { const { name = '' } = data; };
-
-// ✅
-const process = ({ name = '' } = {}) => { };
-```
-
-**Default every destructuring level.**
-```javascript
-const { a: { b = 'default' } = {} } = obj;
-```
-
-**Use computed property destructuring for dynamic access.**
-```javascript
-// ❌
-const value = obj[key];
-
-// ✅
-const { [key]: value } = obj;
-```
-
-**Use `Object.entries()` for object iteration.**
-```javascript
-// ❌
-Object.keys(obj).forEach(k => { const v = obj[k]; });
-
-// ✅
-Object.entries(obj).forEach(([key, value]) => { });
-```
-
-**Return the expected type — never explicitly return or assign `null` or `undefined`.**
-```javascript
-// ❌  return null;   return undefined;   const value = undefined;
-// ✅  return {};     return [];     return '';     return false;
-```
-
-**Check empty objects with `Object.keys().length` — not `!obj`.**
-
-Functions return `{}` when empty, so `!obj` never triggers. Use:
-```javascript
-const config = getConfig(name);
-
-// ❌ — config is {}, this never triggers
-if (!config) throw new Error('missing');
-
-// ✅ — an explicit numeric length comparison is valid
-if (Object.keys(config).length > 0) { }
-
-// ✅
-if (!Object.keys(config).length) throw new Error('missing');
-```
-
-**Async: `Promise.all` is not always right.**
-
-Use `Promise.all(items.map(...))` for independent concurrent work.
-Use sequential `reduce` when order matters, the upstream has rate limits, or the work is stateful:
-```javascript
-// ✅ concurrent — items are independent
-const results = await Promise.all(items.map(item => process(item)));
-
-// ✅ sequential — order or rate limits matter
-const results = await items.reduce(
-    async (accPromise, item) => {
-        const acc = await accPromise;
-        const result = await process(item);
-        return [...acc, result];
-    },
-    Promise.resolve([])
-);
-```
-
----
-
-## `||` Is Only Forbidden as a Destructuring Fallback
-
-`const { x } = obj || {}` is the **only** forbidden `||` pattern.
-Everything else is valid — do not change it:
-
-```javascript
-const name = firstName || lastName;    // ✅ value selection — DO NOT CHANGE
-const value = input || 0;             // ✅ const default — DO NOT CHANGE
-if (a || b) { }                       // ✅ boolean logic — DO NOT CHANGE
-{ prop: value1 || value2 }            // ✅ object construction — DO NOT CHANGE
-const hasX = a || b;                  // ✅ boolean assignment — DO NOT CHANGE
-```
-
-**Do not convert `||` to ternary.**
-```javascript
-// ❌
-const x = value ? value : 'default';
-// ✅
-const x = value || 'default';
-```
-
-When you see `||`, ask one question: is this `} = something ||`?
-- **Yes** → violation, fix it
-- **No** → valid, leave it alone
-
----
-
-## Before Completing Any Code Change
+## Before completing a change
 
 ```bash
-grep -n "\?\." file.js           # must return 0 matches
-grep -n "} = .* ||" file.js      # must return 0 matches
-grep -n "\.length === 0" file.js   # must return 0 matches
-nvm use stable && npm run lint   # must pass with 0 errors
+npm test
+npx eslint . --ignore-pattern tests/fixtures/bad.js
 ```
 
-- [ ] No `?.` in the file
-- [ ] No `} = something ||` in the file
-- [ ] No `.length === 0` in the file; use `!items.length` for emptiness
-- [ ] All function parameters use deep destructuring
-- [ ] No `for`/`while` loops
-- [ ] No `else` blocks
-- [ ] `npm run lint` passes with 0 errors
+The intentionally invalid [bad.js](../tests/fixtures/bad.js) fixture contains
+one labeled example for every public rule. Use it to inspect diagnostics; do
+not make it pass.
 
-If lint fails — fix it immediately. Do not present failing code to the user.
-
-## Exceptions
-
-Require explicit user approval and a `// EXCEPTION: reason` comment in the code.
-
----
-
-## Reference
-
-- [Full Standards](../docs/CODING_STANDARDS.md)
-- [ESLint Config](../eslint.config.js)
+When reporting completion, separate known facts, unknowns, changes, and
+verification results.

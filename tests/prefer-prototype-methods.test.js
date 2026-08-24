@@ -12,7 +12,12 @@ const ruleTester = new RuleTester({
 ruleTester.run('prefer-prototype-methods', rule, {
     valid: [
         { code: 'const enabled = items.filter(item => item.enabled);' },
-        { code: 'const poll = async () => { while (true) await wait(); };' }
+        { code: 'const poll = async () => { while (true) await wait(); };' },
+        { code: 'for (const item of items) { if (item.done) break; process(item); }' },
+        { code: 'for (const item of items) { if (!item.enabled) continue; process(item); }' },
+        { code: 'outer: for (const item of items) { switch (item.kind) { case "done": break outer; default: process(item); } }' },
+        { code: 'const getFirstDone = () => { for (const item of items) { if (item.done) return item; process(item); } };' },
+        { code: '// resilient-allow-loop: sequential API work\nfor (const item of items) process(item);' }
     ],
     invalid: [
         {
@@ -33,6 +38,10 @@ ruleTester.run('prefer-prototype-methods', rule, {
         },
         {
             code: 'for (const item of items) { const process = async () => await wait(item); process(); }',
+            errors: [{ messageId: 'prototypeMethod' }]
+        },
+        {
+            code: 'for (const item of items) { switch (item.kind) { case "done": break; default: process(item); } }',
             errors: [{ messageId: 'prototypeMethod' }]
         }
     ]

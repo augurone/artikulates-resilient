@@ -3,6 +3,13 @@
 Require object destructuring to happen in the function signature instead of
 the function body when that signature is part of the function's contract.
 
+## Smell
+
+Extracting a parameter's shape only after entering the body hides the contract
+at the boundary and makes bookkeeping look like business logic. Signature
+destructuring puts the expected shape and defaults where callers and reviewers
+first encounter the function.
+
 ## Why
 
 This rule expresses Resilient's boundary-first discipline: function boundaries

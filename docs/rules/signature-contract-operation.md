@@ -2,6 +2,13 @@
 
 Reports known native operations that contradict an inferred value contract.
 
+## Smell
+
+Calling a string operation on a collection, or a collection operation on a
+string, is a contract contradiction hidden behind otherwise valid JavaScript
+syntax. The rule reports the incompatible operation where the evidence makes
+the mistake knowable.
+
 ```javascript
 const inspect = ({
     items = []

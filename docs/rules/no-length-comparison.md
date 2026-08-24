@@ -4,6 +4,13 @@ Disallows strict equality or inequality against zero for `.length`. This rule
 does not police other comparison operators or exact
 cardinality checks.
 
+## Smell
+
+Comparing a collection's length to zero treats a presence decision as a
+numeric special case and splits the project's emptiness vocabulary. The rule
+uses JavaScript's truthiness semantics for zero/non-zero checks while leaving
+real cardinality questions explicit.
+
 ```javascript
 // Incorrect
 if (items.length === 0) return [];

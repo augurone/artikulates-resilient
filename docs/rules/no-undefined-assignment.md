@@ -5,6 +5,13 @@ Flexible data may naturally produce `undefined` while being read, but
 value-producing functions should normalize it to the type-safe falsey value
 specified by their contract.
 
+## Smell
+
+Explicitly assigning `undefined` makes “missing,” “not produced,” and the
+contract's empty value compete as separate states. The rule keeps undefined
+available as a natural read result while preventing it from becoming an
+unintentional application value.
+
 ```javascript
 // Incorrect
 const value = undefined;

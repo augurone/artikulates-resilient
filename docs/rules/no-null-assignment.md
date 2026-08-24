@@ -4,6 +4,13 @@ Disallows explicitly assigning `null` as a generic application value. Nullish
 values may describe absence at an external boundary, but contract values use
 the type-safe falsey value appropriate to their shape instead.
 
+## Smell
+
+Assigning `null` as a generic application value introduces a second absence
+representation beside the contract's shape-specific falsey value. That makes
+callers handle an avoidable value family and can let an external boundary's
+nullish representation leak into normalized code.
+
 ```javascript
 // Incorrect
 const value = null;

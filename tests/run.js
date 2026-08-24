@@ -3,12 +3,16 @@ await Promise.all([
     './no-else.test.js',
     './no-length-comparison.test.js',
     './no-null-assignment.test.js',
+    './no-silent-catch.test.js',
+    './no-unhandled-promise-chain.test.js',
+    './prefer-async-await.test.js',
     './no-nested-if.test.js',
     './no-undefined-assignment.test.js',
     './no-undefined-comparison.test.js',
     './prefer-destructured-member-access.test.js',
     './prefer-falsey-returns.test.js',
     './prefer-prototype-methods.test.js',
+    './prefer-safe-transformations.test.js',
     './prefer-safe-destructuring-defaults.test.js',
     './prefer-signature-destructuring.test.js',
     './recommended-config.test.js',
@@ -18,5 +22,6 @@ await Promise.all([
     './signature-contract-operation.test.js',
     './signature-contract-return-consistency.test.js',
     './contracts-config.test.js',
-    './contracts-document.test.js'
+    './contracts-document.test.js',
+    './safety-config.test.js'
 ].map(testFile => import(testFile)));

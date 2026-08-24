@@ -5,6 +5,13 @@ The surrounding contract determines whether the replacement is `''`, `[]`,
 `{}`, `0`, or `false`; this rule does not infer that replacement. Bare
 `return;` statements are allowed for side effects and logical exits.
 
+## Smell
+
+Returning `null` or `undefined` from a value-producing path creates an
+unstated union between absence and the function's ordinary value family. The
+rule keeps the return contract stable while preserving bare returns for
+control-flow exits and side-effect functions.
+
 ```javascript
 // Incorrect
 const getValue = () => null;

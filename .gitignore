@@ -14,5 +14,4 @@ npm-debug.log*
 *.pem
 
 # local files
-bad.js
-bad-import-provider.js
+.resilient-contract*

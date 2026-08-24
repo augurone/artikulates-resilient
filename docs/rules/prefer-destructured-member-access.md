@@ -3,6 +3,13 @@
 Require static data from function parameters to be destructured before use.
 Signature placement is enforced separately by `prefer-signature-destructuring`.
 
+## Smell
+
+Repeated static member access leaves the data shape implicit at the point of
+use and scatters the boundary contract through the function body. Destructure
+application data once so the names, defaults, and selected shape are visible;
+platform receivers and dynamic access remain explicit exceptions.
+
 ```javascript
 // Incorrect
 const getName = user => user.name;

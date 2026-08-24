@@ -3,6 +3,12 @@
 Reports known value shapes that contradict an object or array destructuring
 pattern.
 
+## Smell
+
+Destructuring with the wrong object-or-array shape assumes a runtime contract
+that the available evidence has already disproved. The rule catches that
+boundary mismatch without treating unknown values as failures.
+
 ```javascript
 const getValue = ({ value = [] } = {}) => {
     if (!Array.isArray(value)) return {};

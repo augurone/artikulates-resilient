@@ -4,6 +4,19 @@
 
 - Clarified Resilient as a native-JavaScript discipline enforced by ESLint
   rules and extended by contract analysis.
+- Formalized the dialect semantics for value, control-flow, transformation, and
+  failure contracts, including the distinction between known, unknown, and
+  contradictory evidence.
+- Added the opt-in `safety` preset with `prefer-safe-transformations`,
+  `no-silent-catch`, `no-unhandled-promise-chain`, and warning-level
+  `prefer-async-await`.
+- Made collection loops explicit exceptions when they contain sequential
+  `await`, direct control flow, or a reasoned `resilient-allow-loop` comment;
+  documented `Promise.all` as the default for independent async work.
+- Added ownership-aware transformation checks so input, shared, and externally
+  owned values are protected while intentional boundaries can be configured.
+- Moved the intentionally invalid, per-rule agent contracts to
+  `tests/fixtures/bad.js` and `tests/fixtures/bad-import-provider.js`.
 
 ## 0.3.1 — 2026-08-19
 
