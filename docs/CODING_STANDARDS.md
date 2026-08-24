@@ -1,27 +1,13 @@
-# The Resilient JavaScript discipline
+# Applying the Resilient dialect
 
-Resilient is a native-JavaScript discipline built around a simple premise:
-executable code already contains the material for its own contracts. A function
-boundary should make its expected data visible, transformations should state
-their intent, and missing data should resolve to the falsey value appropriate to
-the surrounding contract.
+The normative definitions are in [`semantics.md`](semantics.md). This page is
+the practical reference for writing code in that dialect; individual rule
+behavior and smells are in [`rules/`](rules/).
 
-Resilient stays within JavaScript's existing syntax so that runtime behavior,
-source-level intent, and static analysis reinforce one another.
+## Function boundaries
 
-These are ECMAScript commitments. React, Next.js, imports, framework conventions,
-and application architecture belong in the consuming project.
-
-## 1. Function boundaries
-
-Use function expressions and prefer `const`:
-
-```javascript
-const getTitle = ({ title = '' } = {}) => title;
-```
-
-Destructure input at the signature when the shape is part of the function's
-contract. Give every destructured value an explicit, type-shaped default:
+Make application-owned shapes visible in signatures and give every
+destructured level an explicit contract default:
 
 ```javascript
 const getItems = ({
@@ -31,21 +17,16 @@ const getItems = ({
 } = {}) => items;
 ```
 
-Reserve `let` for one value declared at the top of a function body when
-conditional control flow is necessary and no function, prototype method, or
-conditional expression states the result. Do not use `let` for reducer
-accumulators or state-machine values; keep those transformations inside a
-function or prototype operation.
+Keep externally defined callback signatures, full-object forwarding, dynamic
+access, and platform APIs intact when destructuring would change the boundary.
 
-A mutable value shared across function boundaries deserves review: it may be
-state that should be passed explicitly or reduced locally.
+Use function expressions and `const` by default. Reserve `let` for one
+top-level conditional value when no function, prototype method, or conditional
+expression states the result more clearly.
 
-Do not force signature destructuring onto callbacks with an external API,
-functions that forward the complete object, or genuinely dynamic access.
+## Value contracts
 
-## 2. Contract value shapes
-
-Choose a predictable, type-safe falsey value for each return contract:
+Use the empty value appropriate to the contract:
 
 | Contract | Empty value |
 | --- | --- |
@@ -55,108 +36,73 @@ Choose a predictable, type-safe falsey value for each return contract:
 | number | `0` |
 | boolean | `false` |
 
-These are contract-specific values, not generic nullish fallbacks. Stack
-attributes are never set to `null` or `undefined`. A bare `return;` remains
-valid for a side effect or an intentional control-flow exit.
+Do not use `null` or `undefined` as generic internal application values. They
+remain valid when an external boundary or explicit union requires them. A bare
+`return;` remains valid for a side effect or control-flow exit.
 
-This is a contract for the value being produced, not a claim that external data
-is already clean. Normalize external data at the boundary where its expected
-shape becomes known.
+## Control flow and collections
 
-## 3. Conditions and control flow
-
-Use truthiness for presence and emptiness:
+Use guard clauses and early exits:
 
 ```javascript
-if (!items.length) return [];
-if (!!items.length) return items;
-```
-
-Use exact comparisons for exact values, such as `items.length === 1`.
-Avoid explicit `undefined` comparisons and `length === 0` checks.
-
-Prefer guard clauses and early returns. Do not use `else`, `else if`, or nested
-`if` statements in one function:
-
-```javascript
-const render = (value) => {
-    if (!value) return '';
-    if (!value.enabled) return '';
-    return value.label;
+const render = ({ enabled = false, label = '' } = {}) => {
+    if (!enabled) return '';
+    return label;
 };
 ```
 
-An `if` inside a separate callback or nested function is a new function
-boundary. Keep conditionals readable; the discipline does not reward flattening
-that makes a real domain decision harder to understand.
+Do not use `else`, `else if`, or nested `if` statements in one function. Use
+`!items.length` or `items.length` for zero/non-zero collection checks; preserve
+exact cardinality comparisons such as `items.length === 1`.
 
-## 4. Transformations and loops
-
-Use prototype methods when a collection is being transformed:
+Use prototype methods when they state the collection operation:
 
 ```javascript
-const enabled = items.filter(item => item.enabled);
-const labels = enabled.map(item => item.label);
+const enabled = items.filter(({ enabled = false } = {}) => enabled);
+const labels = enabled.map(({ label = '' } = {}) => label);
 ```
 
-Use `map`, `filter`, `reduce`, `some`, `find`, and `forEach` to make the
-operation visible. Avoid loop state and collection mutation when a method
-expresses the operation directly.
+Loops are valid for sequential API work, polling, retries, rate limiting, early
+termination, and detailed control flow. The loop rule recognizes `await`,
+direct `break`/`continue`/`return`/`throw`, and
+`// resilient-allow-loop: reason` as exceptions.
 
-An imperative loop is appropriate when it is not a collection transformation,
-when it must stop or continue with detailed control flow, or when it represents
-sequential asynchronous work. In particular, a loop whose own body contains an
-awaited polling or request operation is not treated as a collection
-transformation. The loop rule is a syntactic default; necessary imperative
-loops should use a local rule override.
+## Transformations and effects
 
-`reduce` is appropriate when a transformation needs an accumulator. It keeps
-the accumulator inside the prototype operation instead of introducing a `let`
-binding in the surrounding function.
-
-## 5. Member access and dynamic data
-
-Destructure static application data before use:
+Return transformed objects and arrays instead of mutating them:
 
 ```javascript
-const getName = ({ name = '' } = {}) => name;
+const update = (
+    { count = 0, ...state } = {},
+    { value = '' } = {}
+) => ({
+    ...state,
+    count: count + 1,
+    value
+});
 ```
 
-Static member reads from function parameters should be handled by the
-signature or by body destructuring. Collection `.length` and `.size`, chained
-native methods, computed properties, and dynamic platform APIs remain explicit
-exceptions because destructuring would hide their intent.
+The safety rule rejects direct property updates, mutating methods, and
+`Object.assign`, including on local working values. Configure narrow exceptions
+for draft reducers, caches, DOM objects, refs, and similar mutable boundaries.
 
-Do not destructure data merely to satisfy a rule when the full object is being
-forwarded, a callback signature is externally defined, or the property name is
-dynamic.
+## Async and failure
 
-## 6. Contract diagnostics
+Use `Promise.all` for independent operations, sequential `await` for ordered or
+rate-limited work, and `Promise.allSettled` when every outcome matters.
 
-The contract analyzer and its opt-in ESLint rules report known contradictions
-in signatures, call sites, and native operations. They do not invent facts for
-unknown values:
+Promise chains need visible ownership through `.catch`, `return`, assignment,
+`await`, or `void`. Prefer `async`/`await` for ordinary sequential chains, but
+keep required chains with `// resilient-allow-promise-chain: reason`.
 
-```javascript
-const render = ({ title = '' } = {}) => title.trim();
+Use `try`, `catch`, `finally`, and `throw` for API failure, cancellation,
+parsing, cleanup, and error boundaries. Do not leave a catch block empty.
 
-render({ title: 42 }); // known contradiction
-render({ title: externalValue }); // unknown; validate at runtime if needed
-```
+## Evidence and runtime boundaries
 
-Use runtime validation and tests for external data, side effects, and behavior
-that static syntax cannot prove.
-
-## 7. What Resilient does not own
-
-The consuming project should add its own rules for:
-
-- React hooks, JSX, and component conventions;
-- Next.js routing, images, links, and server/client boundaries;
-- import ordering, dependency policy, and module graph policy;
-- product-specific naming, accessibility, and test conventions.
-
-Resilient supplies the ECMAScript contract layer beneath those project rules.
+Contract diagnostics report known contradictions. Unknown values remain
+unknown. Use runtime validation, normalization, and tests for external data,
+side effects, and behavior static syntax cannot prove.
 
 ## Enforcement map
 
@@ -166,23 +112,33 @@ Resilient supplies the ECMAScript contract layer beneath those project rules.
 | explicit destructuring defaults | `prefer-safe-destructuring-defaults` |
 | no fallback destructuring with `\|\|` | `no-destructuring-fallback` |
 | contract-specific falsey returns | `prefer-falsey-returns` |
-| no explicit nullish assignment | `no-null-assignment`, `no-undefined-assignment` |
+| no explicit nullish application values | `no-null-assignment`, `no-undefined-assignment` |
 | falsey presence checks | `no-undefined-comparison`, `no-length-comparison` |
 | early-return control flow | `no-else`, `no-nested-if` |
 | static member access | `prefer-destructured-member-access` |
 | collection transformations | `prefer-prototype-methods` |
+| safe object and array transformations | `prefer-safe-transformations` in `configs.safety` |
+| empty failure handlers | `no-silent-catch` in `configs.safety` |
+| dropped promise-chain rejection | `no-unhandled-promise-chain` in `configs.safety` |
+| promise callback sequencing | `prefer-async-await` warning in `configs.safety` |
 | known contract contradictions | `signature-contract-call-site`, `signature-contract-destructuring`, `signature-contract-operation` |
 
 ## Review checklist
 
-- Is the function boundary's data shape visible?
-- Does every destructured value have the correct falsey default?
-- Does each return path preserve one intentional value shape?
-- Are missing values normalized where the contract becomes known?
-- Can guard clauses replace `else` or nested conditionals?
+- Is each owned function boundary's shape visible?
+- Does each destructured level have the correct default?
+- Does each value-producing path preserve its intended value family?
+- Can a guard clause terminate irrelevant work earlier?
 - Is a collection operation expressed with a prototype method?
-- If `let` remains, is it a top-level conditional value that cannot be stated
-  with a function, prototype method, or conditional expression?
-- If a loop remains, is its sequential or detailed control flow intentional?
-- Does each rule override correspond to an actual boundary rather than silence
-  an inconvenient diagnostic?
+- If a loop remains, is its sequential or control-flow reason visible?
+- Are independent async operations grouped with `Promise.all`?
+- Does every promise chain have an owner for rejection?
+- Does every catch handler handle, translate, rethrow, log with context, or
+  return an explicit fallback?
+- Are mutable boundaries explicitly configured?
+- Are unknown external values left for runtime validation?
+
+## What Resilient does not own
+
+React, JSX, framework routing, import policy, accessibility, product naming,
+and application architecture belong in consuming-project rules.

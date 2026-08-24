@@ -3,12 +3,16 @@ import noElse from './rules/no-else.js';
 import noLengthComparison from './rules/no-length-comparison.js';
 import noNestedIf from './rules/no-nested-if.js';
 import noNullAssignment from './rules/no-null-assignment.js';
+import noSilentCatch from './rules/no-silent-catch.js';
 import noUndefinedAssignment from './rules/no-undefined-assignment.js';
 import noUndefinedComparison from './rules/no-undefined-comparison.js';
+import noUnhandledPromiseChain from './rules/no-unhandled-promise-chain.js';
+import preferAsyncAwait from './rules/prefer-async-await.js';
 import preferDestructuredMemberAccess from './rules/prefer-destructured-member-access.js';
 import preferFalseyReturns from './rules/prefer-falsey-returns.js';
 import preferPrototypeMethods from './rules/prefer-prototype-methods.js';
 import preferSafeDestructuringDefaults from './rules/prefer-safe-destructuring-defaults.js';
+import preferSafeTransformations from './rules/prefer-safe-transformations.js';
 import preferSignatureDestructuring from './rules/prefer-signature-destructuring.js';
 import signatureContractCallSite from './rules/signature-contract-call-site.js';
 import signatureContractDestructuring from './rules/signature-contract-destructuring.js';
@@ -18,7 +22,7 @@ import signatureContractReturnConsistency from './rules/signature-contract-retur
 const plugin = {
     meta: {
         name: 'eslint-plugin-resilient',
-        version: '0.3.1'
+        version: '0.3.3'
     },
     rules: {
         'prefer-signature-destructuring': preferSignatureDestructuring,
@@ -26,12 +30,16 @@ const plugin = {
         'no-else': noElse,
         'no-length-comparison': noLengthComparison,
         'no-null-assignment': noNullAssignment,
+        'no-silent-catch': noSilentCatch,
+        'no-unhandled-promise-chain': noUnhandledPromiseChain,
+        'prefer-async-await': preferAsyncAwait,
         'no-nested-if': noNestedIf,
         'no-undefined-assignment': noUndefinedAssignment,
         'no-undefined-comparison': noUndefinedComparison,
         'prefer-destructured-member-access': preferDestructuredMemberAccess,
         'prefer-falsey-returns': preferFalseyReturns,
         'prefer-prototype-methods': preferPrototypeMethods,
+        'prefer-safe-transformations': preferSafeTransformations,
         'prefer-safe-destructuring-defaults': preferSafeDestructuringDefaults,
         'signature-contract-call-site': signatureContractCallSite,
         'signature-contract-destructuring': signatureContractDestructuring,
@@ -116,6 +124,19 @@ plugin.configs.contracts = {
         'resilient/signature-contract-call-site': 'error',
         'resilient/signature-contract-destructuring': 'error',
         'resilient/signature-contract-operation': 'error'
+    }
+};
+
+plugin.configs.safety = {
+    plugins: {
+        resilient: plugin
+    },
+    rules: {
+        'resilient/prefer-safe-transformations': 'error',
+        'resilient/no-silent-catch': 'error',
+        'resilient/no-unhandled-promise-chain': 'error',
+        'resilient/prefer-async-await': 'warn',
+        'no-empty': ['error', { allowEmptyCatch: true }]
     }
 };
 

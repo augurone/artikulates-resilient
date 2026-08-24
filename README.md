@@ -1,10 +1,11 @@
 # eslint-plugin-resilient
 
-Resilient is a native-JavaScript discipline for explicit, functional-first
-JavaScript. It treats executable JavaScript as the place where contracts live:
-signatures, defaults, operations, and return paths make the program's
-expectations visible. It provides build-time diagnostics and a portable
-contract model without requiring a parallel type language or annotation layer.
+Resilient is a native-JavaScript discipline for explicit value, control-flow,
+transformation, and failure contracts. It treats executable JavaScript as the
+place where contracts live: signatures, defaults, operations, and return paths
+make the program's expectations visible. It provides build-time diagnostics
+and a portable contract model without requiring a parallel type language or
+annotation layer.
 
 The ESLint rules are the foundation. The contract analyzer extends them by
 following evidence across expressions, control flow, and local module
@@ -84,6 +85,11 @@ defaults, aliases, guards, reassignment, property updates, bounded loops, and
 `try`/`catch`/`finally` paths. It understands known native operations such as
 string methods and collection methods.
 
+The dialect semantics behind those rules are defined in
+[`docs/semantics.md`](docs/semantics.md). The analyzer remains conservative:
+it reports contradictions supported by evidence and leaves unknown values
+unknown.
+
 When `resilient.configs.contracts` is enabled, the contract rules automatically
 load local relative imports before analyzing consumer calls and returned
 values. They can report both an imported argument mismatch and an invalid
@@ -115,6 +121,46 @@ the offset, with inferred contracts on the relevant frames. The package does
 not yet ship an LSP protocol adapter or a resolver for package aliases and
 dynamic imports.
 
+## Safety rules
+
+The safety preset adds explicit boundaries for mutation, failure handling, and
+promise sequencing. It is opt-in because these rules encode project policy and can
+require deliberate exceptions at platform boundaries:
+
+```javascript
+import resilient from 'eslint-plugin-resilient';
+
+export default [
+    resilient.configs.recommended,
+    resilient.configs.contracts,
+    resilient.configs.safety
+];
+```
+
+The preset:
+
+- prefers new values for object and array transformations through
+  `prefer-safe-transformations`, including locally created working values;
+  draft reducers, caches, DOM objects, refs, and other deliberately mutable
+  boundaries use its explicit binding or property options;
+- rejects empty `catch` blocks through `no-silent-catch`, while allowing
+  `try`, `catch`, `finally`, and `throw` when they preserve error behavior;
+- reports expression-statement promise chains using `.then` or `.finally`
+  without a `.catch` through `no-unhandled-promise-chain`;
+- warns on handled or explicitly owned `.then` chains through
+  `prefer-async-await`; an unowned expression-statement chain is owned by the
+  stronger `no-unhandled-promise-chain` error instead.
+
+Use `Promise.all` for independent work, a sequential loop when ordering,
+polling, retries, rate limits, or early termination matter, and
+`Promise.allSettled` when partial failure is part of the contract. A necessary
+loop can be documented with `// resilient-allow-loop: reason`; a required
+promise chain can be documented with
+`// resilient-allow-promise-chain: reason`.
+
+See the individual [safety rule documentation](docs/rules/) for the supported
+options and the limits of each syntactic check.
+
 ## IDE use
 
 Use the ESLint extension for live diagnostics. The extension resolves the local
@@ -128,19 +174,23 @@ coupling the core to an editor or to ESLint.
 Individual rule behavior and examples are in [docs/rules](docs/rules/).
 The concise discipline is in [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md).
 The contract model is described in [docs/contracts.md](docs/contracts.md), and
-the design rationale is in [docs/the-code-is-the-contract.md](docs/the-code-is-the-contract.md).
+the dialect semantics are in [docs/semantics.md](docs/semantics.md). The design
+rationale is in [docs/the-code-is-the-contract.md](docs/the-code-is-the-contract.md).
 
 ## Development
 
 ```bash
 npm test
 npm run lint
-npx eslint bad.js --no-warn-ignored
-npm run inspect:stack -- bad.js --find "getItems({}).toUpperCase" --diagnostics
+npx eslint tests/fixtures/bad.js --no-ignore --no-warn-ignored
+npm run inspect:stack -- tests/fixtures/bad.js --find "getItems({}).toUpperCase" --diagnostics
 ```
 
-The aggregate lint command excludes the deliberately invalid `bad.js` fixture;
-run `npx eslint bad.js` to see its diagnostics directly.
+The aggregate lint command excludes the deliberately invalid
+`tests/fixtures/bad.js` fixture; run `npx eslint tests/fixtures/bad.js --no-ignore
+--no-warn-ignored` to see its diagnostics directly. The fixture enables the standalone
+`signature-contract-return-consistency` rule so every Resilient rule is
+represented without changing the contracts preset.
 
 The stack inspector is a one-shot contract probe. It loads local relative
 imports, prints the file/function/expression stack, and adds contract findings

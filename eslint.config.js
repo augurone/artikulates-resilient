@@ -4,12 +4,26 @@ import resilient from 'eslint-plugin-resilient';
 import globals from 'globals';
 
 export default [
+    {
+        ignores: ['node_modules/**']
+    },
     js.configs.recommended,
     resilient.configs.recommended,
     resilient.configs.contracts,
     {
+        files: ['tests/fixtures/bad.js'],
+        ...resilient.configs.safety
+    },
+    {
+        files: ['tests/fixtures/bad.js'],
+        rules: {
+            // This strict rule is intentionally standalone; the fixture covers
+            // every Resilient rule without changing the contracts preset.
+            'resilient/signature-contract-return-consistency': 'error'
+        }
+    },
+    {
         files: ['**/*.js'],
-        ignores: ['node_modules/**'],
         languageOptions: {
             ecmaVersion: 'latest',
             sourceType: 'module',

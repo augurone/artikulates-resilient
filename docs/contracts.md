@@ -5,6 +5,11 @@ ESTree-compatible JavaScript with an editor-facing document API. It infers
 value families and selected object shapes from executable code. It requires no
 annotations and no second source language.
 
+The product dialect that gives those facts meaning is defined in
+[`semantics.md`](semantics.md). This document describes the analyzer's evidence
+model and implementation boundary; it does not replace the dialect's policy
+rules.
+
 The analyzer is independent of ESLint. ESLint rules consume it for diagnostics,
 while CLI and editor adapters can consume the same structured results.
 
