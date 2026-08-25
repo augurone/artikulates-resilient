@@ -22,7 +22,7 @@ import signatureContractReturnConsistency from './rules/signature-contract-retur
 const plugin = {
     meta: {
         name: 'eslint-plugin-resilient',
-        version: '0.3.3'
+        version: '0.3.5'
     },
     rules: {
         'prefer-signature-destructuring': preferSignatureDestructuring,
