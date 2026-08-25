@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.5
 
 - Clarified Resilient as a native-JavaScript discipline enforced by ESLint
   rules and extended by contract analysis.
