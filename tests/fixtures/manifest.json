@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "agentFixture": "tests/fixtures/bad.js",
+  "ruleHighlights": [
+    { "rule": "no-destructuring-fallback", "heading": "no-destructuring-fallback" },
+    { "rule": "no-else", "heading": "no-else" },
+    { "rule": "no-length-comparison", "heading": "no-length-comparison" },
+    { "rule": "no-null-assignment", "heading": "no-null-assignment" },
+    { "rule": "no-undefined-assignment", "heading": "no-undefined-assignment" },
+    { "rule": "prefer-safe-transformations", "heading": "prefer-safe-transformations" },
+    { "rule": "no-silent-catch", "heading": "no-silent-catch" },
+    { "rule": "no-unhandled-promise-chain", "heading": "no-unhandled-promise-chain" },
+    { "rule": "prefer-async-await", "heading": "prefer-async-await" },
+    { "rule": "no-undefined-comparison", "heading": "no-undefined-comparison" },
+    { "rule": "no-nested-if", "heading": "no-nested-if" },
+    { "rule": "prefer-destructured-member-access", "heading": "prefer-destructured-member-access" },
+    { "rule": "prefer-falsey-returns", "heading": "prefer-falsey-returns" },
+    { "rule": "prefer-prototype-methods", "heading": "prefer-prototype-methods" },
+    { "rule": "prefer-safe-destructuring-defaults", "heading": "prefer-safe-destructuring-defaults" },
+    { "rule": "signature-contract-destructuring", "heading": "signature-contract-destructuring" },
+    { "rule": "prefer-signature-destructuring", "heading": "prefer-signature-destructuring" },
+    { "rule": "signature-contract-call-site", "heading": "signature-contract-call-site" },
+    { "rule": "signature-contract-operation", "heading": "signature-contract-operation" },
+    { "rule": "signature-contract-return-consistency", "heading": "signature-contract-return-consistency" }
+  ],
+  "integrationFixtures": [
+    {
+      "file": "tests/fixtures/integration/engine-boundaries.valid.js",
+      "kind": "valid",
+      "covers": ["cache", "api-response", "url-search-params", "ref", "graph-accumulator", "reducer"],
+      "expectedDiagnostics": []
+    },
+    {
+      "file": "tests/fixtures/integration/engine-boundaries.invalid.js",
+      "kind": "invalid",
+      "covers": ["input-mutation", "external-response-data", "callback-accumulator", "switch-local-break"],
+      "expectedDiagnostics": [
+        { "ruleId": "resilient/prefer-safe-transformations", "count": 3 },
+        { "ruleId": "resilient/prefer-prototype-methods", "count": 1 }
+      ]
+    }
+  ]
+}

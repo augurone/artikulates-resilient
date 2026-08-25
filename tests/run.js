@@ -23,5 +23,6 @@ await Promise.all([
     './signature-contract-return-consistency.test.js',
     './contracts-config.test.js',
     './contracts-document.test.js',
-    './safety-config.test.js'
+    './safety-config.test.js',
+    './integration-fixtures.test.js'
 ].map(testFile => import(testFile)));

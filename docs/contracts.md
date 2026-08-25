@@ -164,6 +164,16 @@ through `resilient.configs.contracts`. Return-family consistency is a standalone
 because functions may intentionally return unions such as `string | boolean`
 or `object | null`.
 
+## Executable fixture contract
+
+The repository's agent-facing fixture contract is recorded in
+[`tests/fixtures/manifest.json`](../tests/fixtures/manifest.json) and checked by
+`npm run fixtures:check`. The deliberately invalid `bad.js` fixture contains
+one labeled highlight for every public rule. The integration fixtures model
+real engine boundaries and declare the diagnostics they must produce. Rule
+changes must update the relevant fixture, manifest entry, and test together;
+the manifest is part of the verification contract, not an informal inventory.
+
 ## Current limits
 
 The core does not perform runtime validation, resolve arbitrary package or

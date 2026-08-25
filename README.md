@@ -182,13 +182,18 @@ rationale is in [docs/the-code-is-the-contract.md](docs/the-code-is-the-contract
 ```bash
 npm test
 npm run lint
+npm run fixtures:check
+npm run release:check
 npx eslint tests/fixtures/bad.js --no-ignore --no-warn-ignored
 npm run inspect:stack -- tests/fixtures/bad.js --find "getItems({}).toUpperCase" --diagnostics
 ```
 
 The aggregate lint command excludes the deliberately invalid
-`tests/fixtures/bad.js` fixture; run `npx eslint tests/fixtures/bad.js --no-ignore
---no-warn-ignored` to see its diagnostics directly. The fixture enables the standalone
+`tests/fixtures` directory; run `npx eslint tests/fixtures/bad.js --no-ignore
+--no-warn-ignored` to see its diagnostics directly. `tests/fixtures/manifest.json`
+is the machine-checkable agent fixture contract: `bad.js` contains one highlighted
+case for every public rule, while `tests/fixtures/integration/` contains real engine
+boundary scenarios. The fixture enables the standalone
 `signature-contract-return-consistency` rule so every Resilient rule is
 represented without changing the contracts preset.
 
@@ -198,6 +203,14 @@ at the requested root-file position with `--diagnostics`. It does not run every
 ESLint rule, watch files, resolve package aliases or dynamic imports, or provide
 an LSP server. Use `--offset` instead of `--find` when you have a character
 position.
+
+To prepare a release, add the next changes under `## Unreleased`, then run
+`npm run release`. It automatically prepares the next patch version. Use
+`npm run release -- minor`, `npm run release -- major`, or an explicit version
+such as `npm run release -- 0.3.6` when needed. The script updates the package,
+lockfile, plugin metadata, and changelog, then verifies tests, lint, fixture
+coverage, and package contents. It only manages npm version metadata; commits
+and publishing remain separate decisions.
 
 ## License
 

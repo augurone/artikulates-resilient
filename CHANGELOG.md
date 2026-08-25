@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+## 0.3.6 — 2026-08-25
+
+- Added integration fixtures based on real engine structures, including caches,
+
+
+  API response boundaries, refs, reducers, graph accumulators, and loop control.
+- Formalized the agent-facing fixture contract in
+  `tests/fixtures/manifest.json`, with one checked highlight for every public
+  rule and declared integration diagnostics.
+- Added `npm run fixtures:check` and integrated fixture-contract verification
+  into tests, linting, and the npm-only release consistency check.
+- Documented the fixture workflow and the requirement to update fixtures,
+  manifests, tests, and rule documentation together.
+
 ## 0.3.5
 
 - Clarified Resilient as a native-JavaScript discipline enforced by ESLint

@@ -64,6 +64,14 @@ npm run inspect:stack -- tests/fixtures/bad.js --find "getItems({}).toUpperCase"
 Do not make it pass. If an example becomes ambiguous, update its label,
 corresponding test, and rule documentation together.
 
+The machine-checkable fixture contract is [`tests/fixtures/manifest.json`](tests/fixtures/manifest.json).
+It must list every public rule and its `bad.js` highlight. Integration fixtures in
+`tests/fixtures/integration/` model real engine structures such as caches, API
+responses, refs, reducers, accumulators, and boundary-owned mutable objects. Their
+tests must prove both that explicit boundary exceptions remain valid and that input,
+external-data, and ordinary-loop violations still report without duplicate findings.
+Run `npm run fixtures:check` after changing rules or fixtures.
+
 ## AI-facing behavior
 
 When changing code:
@@ -84,7 +92,8 @@ From this directory:
 
 ```bash
 npm test
-npx eslint . --ignore-pattern tests/fixtures/bad.js
+npm run fixtures:check
+npx eslint . --ignore-pattern tests/fixtures
 ```
 
 The package requires Node.js `>=18.18.0` and ESLint `>=9.0.0`.
@@ -95,9 +104,10 @@ The package requires Node.js `>=18.18.0` and ESLint `>=9.0.0`.
 - [ ] Known contradictions are distinguished from unknown values.
 - [ ] Boundary exceptions are explicit and narrow.
 - [ ] Tests cover valid, invalid, and exception cases.
-- [ ] `tests/fixtures/bad.js` coverage remains complete.
+- [ ] `tests/fixtures/manifest.json` and `tests/fixtures/bad.js` coverage remain complete.
 - [ ] `npm test` passes.
-- [ ] `npx eslint . --ignore-pattern tests/fixtures/bad.js` passes.
+- [ ] `npm run fixtures:check` passes.
+- [ ] `npx eslint . --ignore-pattern tests/fixtures` passes.
 - [ ] No unrelated files or user changes were overwritten.
 
 `RESILIENT.md` is a human-facing pointer to this file and the product
