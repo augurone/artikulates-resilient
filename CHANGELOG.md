@@ -29,15 +29,8 @@
 - Clarified the documented boundary between propagated unknown contracts and
   contradiction diagnostics, and listed return consistency in the enforcement
   map.
-- Reconciled README product, roadmap, and release-history links.
-- Added `prefer-const` to the recommended preset so the documented style is
-  enforced by the public configuration.
-- Required a non-empty reason for loop and promise-chain exception comments,
-  and documented the test runner's intentionally sequential async loop.
-- Isolated proposed work in `docs/roadmap.md` and removed the redundant
-  scaling strategy document.
-- Removed an unsupported stack-attribute claim, corrected the release example,
-  and aligned CI and Copilot verification with the release checks.
+- Removed a stale README link to a roadmap document that is not part of the
+  package.
 
 ## 0.4.2 — 2026-08-28
 
