@@ -124,9 +124,11 @@ const contradictoryReturnGraph = await createGraph({
     ].join('\n')
 });
 const contradictoryDiagnostics = contradictoryReturnGraph.getDiagnostics();
-assert.equal(contradictoryDiagnostics.length, 1);
+assert.equal(contradictoryDiagnostics.length, 2);
 assert.equal(contradictoryDiagnostics[0].ruleId, 'signature-contract-call-site');
 assert.equal(contradictoryDiagnostics[0].data.path, 'enabled');
+assert.equal(contradictoryDiagnostics[1].ruleId, 'signature-contract-operation');
+assert.equal(contradictoryDiagnostics[1].data.actual, 'null');
 assert.equal(
     contradictoryReturnGraph.moduleExports['provider.js'].getValue.returnContract.kind,
     'unknown'

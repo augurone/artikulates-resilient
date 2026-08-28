@@ -22,6 +22,10 @@ ruleTester.run('prefer-async-await', rule, {
         {
             code: 'request().then(handle).catch(report);',
             errors: [{ messageId: 'asyncAwait' }]
+        },
+        {
+            code: '// resilient-allow-promise-chain\nrequest().then(handle).catch(report);',
+            errors: [{ messageId: 'asyncAwait' }]
         }
     ]
 });

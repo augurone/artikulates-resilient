@@ -98,7 +98,7 @@ const hasAllowComment = ({ sourceCode = {}, node = {} } = {}) => {
     if (typeof sourceCode.getCommentsBefore !== 'function') return false;
 
     return sourceCode.getCommentsBefore(node)
-        .some(({ value = '' } = {}) => /^\s*resilient-allow-loop(?:\s*:|\s*$)/.test(value));
+        .some(({ value = '' } = {}) => /^\s*resilient-allow-loop\s*:\s*\S/.test(value));
 };
 
 const hasLoopException = ({ sourceCode = {}, node = {} } = {}) => (

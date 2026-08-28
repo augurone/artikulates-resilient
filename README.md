@@ -12,8 +12,8 @@ following evidence across expressions, control flow, and local module
 boundaries.
 
 The opt-in contract rules extend across local relative imports. The graph is
-useful in live ESLint analysis, while full project resolution and an editor
-protocol remain future layers.
+available in live ESLint analysis; full project resolution and an editor
+protocol are not included in this package.
 
 Resilient is not a runtime validator and it does not own framework concerns.
 React, Next.js, import policy, and application architecture remain project
@@ -45,8 +45,7 @@ The recommended preset puts the discipline into ESLint. Its commitments are:
   function, prototype method, or conditional expression states the result;
 - destructured signatures with explicit, type-shaped defaults;
 - contract-specific falsey values: strings return `''`, collections `[]`,
-  objects `{}`, numbers `0`, and booleans `false`; stack attributes are never
-  set to `null` or `undefined`;
+  objects `{}`, numbers `0`, and booleans `false`;
 - early returns instead of `else` branches or nested conditionals;
 - prototype methods for collection transformations;
 
@@ -131,8 +130,9 @@ items.toUpperCase(); // reported when items is array-like
 
 `getStackAtOffset` exposes the file, enclosing functions, and expression under
 the offset, with inferred contracts on the relevant frames. The package does
-not yet ship an LSP protocol adapter or a built-in resolver for package aliases
-or dynamic imports.
+not include an LSP protocol adapter or a built-in resolver for package aliases
+or dynamic imports. Proposed extensions are listed in the
+[`roadmap`](docs/roadmap.md).
 
 For generic import-tree correctness, Resilient also exposes an `imports`
 preset backed by `eslint-plugin-import`:
@@ -215,8 +215,8 @@ options and the limits of each syntactic check.
 Use the ESLint extension for live diagnostics. The extension resolves the local
 ESLint and Resilient installation from the opened workspace. With the contracts
 preset enabled, local relative import findings are reported in the consumer
-file. The contract document API is available to a future editor adapter without
-coupling the core to an editor or to ESLint.
+file. An editor adapter can consume the contract document API without coupling
+the core to an editor or to ESLint; no such adapter is included here.
 
 ## Rule documentation
 
@@ -225,7 +225,8 @@ The concise discipline is in [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md
 The contract model is described in [docs/contracts.md](docs/contracts.md), and
 the dialect semantics are in [docs/semantics.md](docs/semantics.md). The design
 rationale is in [docs/the-code-is-the-contract.md](docs/the-code-is-the-contract.md),
-and the pinned implementation roadmap is in [docs/roadmap.md](docs/roadmap.md).
+proposed work is isolated in [docs/roadmap.md](docs/roadmap.md), and release
+history is recorded in [CHANGELOG.md](CHANGELOG.md).
 
 ## Development
 
@@ -259,7 +260,7 @@ position.
 To prepare a release, add the next changes under `## Unreleased`, then run
 `npm run release`. It automatically prepares the next patch version. Use
 `npm run release -- minor`, `npm run release -- major`, or an explicit version
-such as `npm run release -- 0.4.0` when needed. The script updates the package,
+such as `npm run release -- 0.4.4` when needed. The script updates the package,
 lockfile, plugin metadata, and changelog, then verifies tests, lint, fixture
 coverage, and package contents. It only manages npm version metadata; commits
 and publishing remain separate decisions.

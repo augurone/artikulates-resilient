@@ -33,7 +33,8 @@ comments rather than inventing a new suppression form.
 
 ```bash
 npm test
-npx eslint . --ignore-pattern tests/fixtures/bad.js
+npm run fixtures:check
+npx eslint . --ignore-pattern tests/fixtures
 ```
 
 The intentionally invalid [bad.js](../tests/fixtures/bad.js) fixture contains

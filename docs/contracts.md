@@ -167,8 +167,9 @@ to invalidate only the default graph manager.
 
 This keeps module resolution outside the inference model. Callers can provide
 their own resolver; the default handles relative `.js`, `.jsx`, and
-`index.js` paths. Package aliases, dynamic imports, and filesystem parsing
-remain adapter work.
+`index.js` paths. Package aliases, dynamic imports, and filesystem parsing are
+not handled by this package; proposed adapter work is listed in
+[`roadmap.md`](roadmap.md).
 
 The caller supplies an ESTree-compatible program. Parsing, file watching,
 diagnostic presentation, and editor protocol integration remain separate from
@@ -193,6 +194,7 @@ Current inference tracks:
 - known `map`, `filter`, `some`, `reduce`, and `forEach` result contracts;
 - promise-shaped async returns and `await` unwrapping;
 - `Promise.resolve` and `Promise.all` element propagation;
+- native `String`, `Number`, and `Boolean` coercion results;
 - branch guards such as `Array.isArray(value)`;
 - known property updates;
 - program/module-level bindings for declarations, aliases, and destructured
@@ -210,6 +212,16 @@ contract, and `forEach` returns an explicit undefined contract. `find` and
 unsupported promise combinators remain unknown because absence and alternate
 completion paths need more evidence. Recursive cycles and unsupported effects
 remain unknown.
+
+Explicit native coercions establish their result family and are therefore the
+preferred normalization form when every input should become that family:
+
+```javascript
+const labels = values.map(value => String(value).trim());
+```
+
+A type guard remains the correct form when the branches perform different
+work, rather than merely converting the same input to one output family.
 
 Facts are narrowed only inside the branch that proves them. At a branch join,
 uncertain facts are preserved as unknown instead of being promoted to a false
@@ -274,9 +286,9 @@ contract, not an informal inventory.
 ## Current limits
 
 The core does not perform runtime validation, resolve arbitrary package or
-dynamic imports, or provide a complete LSP server. The current graph adapter
-handles local relative `.js`, `.jsx`, and `index.js` paths plus named local
-and namespace re-export edges; package aliases, filesystem-wide project
-discovery, and parser-backed resolution remain future adapter work. These
-layers can build on the contract model without adding a parallel
-type-annotation language to application source.
+dynamic imports, or provide an LSP server. The current graph adapter handles
+local relative `.js`, `.jsx`, and `index.js` paths plus named local and
+namespace re-export edges. Filesystem-wide project discovery and parser-backed
+resolution are not included. Proposed extensions are listed in
+[`roadmap.md`](roadmap.md); none requires a parallel type-annotation language
+in application source.

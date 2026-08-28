@@ -109,6 +109,8 @@ side effects, and behavior static syntax cannot prove.
 | Commitment | Rule |
 | --- | --- |
 | signature destructuring | `prefer-signature-destructuring` |
+| function expressions | `func-style` in `configs.recommended` |
+| `const` for non-reassigned bindings | `prefer-const` in `configs.recommended` |
 | explicit destructuring defaults | `prefer-safe-destructuring-defaults` |
 | no fallback destructuring with `\|\|` | `no-destructuring-fallback` |
 | contract-specific falsey returns | `prefer-falsey-returns` |
@@ -121,7 +123,7 @@ side effects, and behavior static syntax cannot prove.
 | empty failure handlers | `no-silent-catch` in `configs.safety` |
 | dropped promise-chain rejection | `no-unhandled-promise-chain` in `configs.safety` |
 | promise callback sequencing | `prefer-async-await` warning in `configs.safety` |
-| known contract contradictions | `signature-contract-call-site`, `signature-contract-destructuring`, `signature-contract-operation` |
+| known contract contradictions | `signature-contract-call-site`, `signature-contract-destructuring`, `signature-contract-operation`, `signature-contract-return-consistency` |
 
 ## Review checklist
 

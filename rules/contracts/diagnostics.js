@@ -1,6 +1,8 @@
 import {
+    createFunctionFlow,
     createFunctionFlows,
-    getFlowContext
+    getFlowContext,
+    narrowContext
 } from './flow.js';
 import {
     getDefinitions,
@@ -14,7 +16,9 @@ import {
     walk
 } from './infer.js';
 import {
+    contract,
     describe,
+    getContractVariants,
     getKind,
     isCompatible,
     isKnown,
@@ -24,6 +28,8 @@ import {
 const getMethodName = ({ property = {}, computed = false } = {}) => (
     !computed && property.type === 'Identifier' ? property.name : ''
 );
+
+const getNodeType = ({ type = '' } = {}) => type;
 
 const getReceiverName = ({ object = {} } = {}) => {
     const {
@@ -45,14 +51,44 @@ const getReceiverName = ({ object = {} } = {}) => {
     return objectName && propertyName ? `${objectName}.${propertyName}` : 'value';
 };
 
-const getMismatches = ({ expected = unknown(), actual = unknown(), node = {}, path = [] } = {}) => {
-    if (expected.kind === 'unknown' || actual.kind === 'unknown') return [];
-    if (expected.kind !== actual.kind) return [{ expected, actual, node, path }];
-    if (expected.kind === 'array') return getMismatches({
+const getArrayMismatches = ({
+    expected = {},
+    actual = {},
+    node = {},
+    path = [],
+    mismatch = () => []
+} = {}) => {
+    const expectedElements = expected.elements || [];
+    const actualElements = actual.elements || [];
+    if (!expectedElements.length || !actualElements.length) return mismatch({
         expected: expected.element,
         actual: actual.element,
         node,
         path: [...path, '[]']
+    });
+    return expectedElements.flatMap((expectedElement = unknown(), index = 0) => mismatch({
+        expected: expectedElement,
+        actual: actualElements[index] || unknown(),
+        node,
+        path: [...path, `[${index}]`]
+    }));
+};
+
+const getMismatches = ({ expected = unknown(), actual = unknown(), node = {}, path = [] } = {}) => {
+    if (expected.state === 'contradictory') return getContractVariants(expected).flatMap(expectedVariant => (
+        getMismatches({ expected: expectedVariant, actual, node, path })
+    ));
+    if (actual.state === 'contradictory') return getContractVariants(actual).flatMap(actualVariant => (
+        getMismatches({ expected, actual: actualVariant, node, path })
+    ));
+    if (expected.kind === 'unknown' || actual.kind === 'unknown') return [];
+    if (expected.kind !== actual.kind) return [{ expected, actual, node, path }];
+    if (expected.kind === 'array') return getArrayMismatches({
+        expected,
+        actual,
+        node,
+        path,
+        mismatch: getMismatches
     });
     if (expected.kind !== 'object') return [];
 
@@ -100,7 +136,9 @@ const hasComputedProperty = (node = {}) => {
 };
 
 const getSignatureParameters = ({ signature = {} } = {}) => {
-    const { parameters = [], contract = unknown() } = signature;
+    const { parameters = [], contract = unknown(), restIndex = -1 } = signature;
+    if (restIndex === 0) return [];
+    if (restIndex > 0) return parameters.slice(0, restIndex);
     return parameters.length ? parameters : [contract];
 };
 
@@ -138,10 +176,72 @@ const getCallbackCalls = ({ node = {}, callbackNames = [] } = {}) => {
 };
 
 const getArrayCallbackDefinition = ({ callback = {}, context = {} } = {}) => {
-    if (isFunction(callback)) return { signature: getSignature(callback) };
+    if (isFunction(callback)) return { node: callback, signature: getSignature(callback) };
     const { type = '', name = '' } = callback;
     if (type !== 'Identifier') return {};
     return context.functions[name] || {};
+};
+
+const getArrayCallbackOperationContexts = ({
+    program = {},
+    definitions = {},
+    flows = new Map()
+} = {}) => {
+    const contexts = new Map();
+    walk(program, (node = {}) => {
+        const { type = '', callee = {}, arguments: args = [] } = node;
+        if (type !== 'CallExpression' || callee.type !== 'MemberExpression') return;
+        const { object = {}, property = {}, computed = false } = callee;
+        const method = !computed && property.type === 'Identifier' ? property.name : '';
+        if (!['map', 'filter', 'some', 'find', 'forEach', 'reduce'].includes(method)) return;
+        const callContext = getFlowContext({ node, definitions, flows });
+        const receiver = inferExpression(object, callContext);
+        if (getKind(receiver) !== 'array') return;
+        const callback = args[0] || {};
+        const definition = getArrayCallbackDefinition({ callback, context: callContext });
+        const { node: definitionNode = {} } = definition;
+        if (!definitionNode.type) return;
+        const callbackContext = getFunctionCallContext({
+            definition,
+            functions: callContext.functions || definitions,
+            argumentContracts: method === 'reduce'
+                ? [
+                    inferExpression(args[1] || {}, callContext),
+                    receiver.element,
+                    contract({ kind: 'number' }),
+                    receiver
+                ]
+                : [
+                    receiver.element,
+                    contract({ kind: 'number' }),
+                    receiver
+                ],
+            callStack: callContext.callStack || [],
+            evaluateCalls: callContext.evaluateCalls !== false,
+            evaluationDepth: callContext.evaluationDepth || 0
+        });
+        const callbackFlow = createFunctionFlow({
+            functionNode: definitionNode,
+            definitions: callContext.functions || definitions,
+            initialBindings: callbackContext.bindings
+        });
+        walk(definitionNode.body, (callbackNode = {}) => {
+            const callbackType = getNodeType(callbackNode);
+            if (callbackType !== 'MemberExpression') return;
+            const callbackContext = callbackFlow.contexts.get(callbackNode) || callbackFlow.finalContext;
+            const nodeContexts = contexts.get(callbackNode);
+            if (nodeContexts) {
+                // This local index is intentionally mutable for O(1) diagnostic lookup.
+                // eslint-disable-next-line resilient/prefer-safe-transformations -- AST-node index accumulation is a bounded analysis boundary.
+                nodeContexts.push(callbackContext);
+                return;
+            }
+            // This local index is intentionally mutable for O(1) diagnostic lookup.
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- AST-node index insertion is a bounded analysis boundary.
+            contexts.set(callbackNode, [callbackContext]);
+        }, { skipFunctions: true });
+    });
+    return contexts;
 };
 
 const getArrayCallbackDiagnostics = ({ node = {}, context = {} } = {}) => {
@@ -244,6 +344,41 @@ const getHigherOrderCallDiagnostics = ({
     });
 };
 
+const getExpressionContracts = ({ node = {}, context = {} } = {}) => {
+    const source = getObject(node);
+    const {
+        type = '',
+        operator = '',
+        left = {},
+        right = {},
+        test = {},
+        consequent = {},
+        alternate = {}
+    } = source;
+    if (type === 'ConditionalExpression') return [
+        ...getExpressionContracts({
+            node: consequent,
+            context: narrowContext({ ...test, context, truthy: true })
+        }),
+        ...getExpressionContracts({
+            node: alternate,
+            context: narrowContext({ ...test, context, truthy: false })
+        })
+    ];
+    if (type === 'LogicalExpression') return [
+        ...getExpressionContracts({ node: left, context }),
+        ...getExpressionContracts({
+            node: right,
+            context: narrowContext({
+                ...left,
+                context,
+                truthy: operator === '&&'
+            })
+        })
+    ];
+    return [inferExpression(source, context)];
+};
+
 const getCallSiteDiagnostics = ({ program = {}, definitions = {}, flows = new Map() } = {}) => {
     const sourceDefinitions = getTopLevelFunctionAliases({
         program,
@@ -312,6 +447,11 @@ const getOperationDiagnostics = ({ program = {}, definitions = {}, flows = new M
     const sourceFlows = flows.size
         ? flows
         : createFunctionFlows({ program, definitions: sourceDefinitions });
+    const callbackContexts = getArrayCallbackOperationContexts({
+        program,
+        definitions: sourceDefinitions,
+        flows: sourceFlows
+    });
     let diagnostics = [];
     walk(program, (node = {}) => {
         const { type = '' } = node;
@@ -319,28 +459,33 @@ const getOperationDiagnostics = ({ program = {}, definitions = {}, flows = new M
         const { object = {} } = node;
         const method = getMethodName(node);
         if (!method) return;
-        const context = getFlowContext({ node, definitions: sourceDefinitions, flows: sourceFlows });
-        const receiver = inferExpression(object, context);
-        if (!isKnown(receiver)) return;
+        const contexts = callbackContexts.get(node) || [];
+        const analysisContexts = contexts.length
+            ? contexts
+            : [getFlowContext({ node, definitions: sourceDefinitions, flows: sourceFlows })];
+        analysisContexts.forEach((context = {}) => getExpressionContracts({ node: object, context })
+            .flatMap(getContractVariants)
+            .filter(isKnown)
+            .forEach((receiver = {}) => {
+                const expected = getOperationExpectation({
+                    kind: getKind(receiver),
+                    method
+                });
+                if (!expected || expected === getKind(receiver)) return;
 
-        const expected = getOperationExpectation({
-            kind: getKind(receiver),
-            method
-        });
-        if (!expected || expected === getKind(receiver)) return;
-
-        diagnostics = [...diagnostics, {
-            ruleId: 'signature-contract-operation',
-            messageId: 'mismatch',
-            message: `${getReceiverName({ object })} is ${describe(receiver)}, but .${method}() requires a ${describe({ kind: expected })}.`,
-            data: {
-                receiver: getReceiverName({ object }),
-                actual: describe(receiver),
-                method,
-                expected: describe({ kind: expected })
-            },
-            node
-        }];
+                diagnostics = [...diagnostics, {
+                    ruleId: 'signature-contract-operation',
+                    messageId: 'mismatch',
+                    message: `${getReceiverName({ object })} is ${describe(receiver)}, but .${method}() requires a ${describe({ kind: expected })}.`,
+                    data: {
+                        receiver: getReceiverName({ object }),
+                        actual: describe(receiver),
+                        method,
+                        expected: describe({ kind: expected })
+                    },
+                    node
+                }];
+            }));
     });
     return diagnostics;
 };

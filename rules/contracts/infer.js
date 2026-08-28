@@ -83,10 +83,12 @@ const inferLiteral = ({ value = '', ...node } = {}) => {
 
 const inferArrayExpression = ({ elements = [], ...node } = {}, context = {}) => {
     const sourceNode = { elements, ...node };
+    const elementContracts = elements.map((element = {}) => inferExpression(element, context));
     return contract({
         kind: 'array',
         sourceNode,
-        element: mergeContracts(elements.map((element = {}) => inferExpression(element, context)))
+        element: mergeContracts(elementContracts),
+        elements: elementContracts
     });
 };
 
@@ -176,17 +178,17 @@ const getFunctionAlias = ({ init = {}, functions = {} } = {}) => {
     return functionDefinition.signature ? functionDefinition : {};
 };
 
+const getResolvedContract = (value = unknown()) => {
+    const { kind = '', element = unknown() } = value;
+    return kind === 'promise' ? getResolvedContract(element) : value;
+};
+
 const inferAwaitExpression = ({ argument = {}, ...node } = {}, context = {}) => {
     const sourceNode = { argument, ...node };
     const awaited = inferExpression(argument, context);
     return awaited.kind === 'promise'
-        ? { ...awaited.element, sourceNode }
+        ? { ...getResolvedContract(awaited), sourceNode }
         : awaited;
-};
-
-const getResolvedContract = (value = unknown()) => {
-    const { kind = '', element = unknown() } = value;
-    return kind === 'promise' ? getResolvedContract(element) : value;
 };
 
 const getAsyncReturnContract = ({ value = unknown(), sourceNode = {} } = {}) => contract({
@@ -194,6 +196,43 @@ const getAsyncReturnContract = ({ value = unknown(), sourceNode = {} } = {}) => 
     element: getResolvedContract(value),
     sourceNode
 });
+
+const getReturnNodes = ({ body = {} } = {}) => {
+    if (body.type !== 'BlockStatement') return [{ argument: body }];
+    let returns = [];
+    walk(body, ({ type = '', ...current } = {}) => {
+        if (type === 'ReturnStatement') returns = [...returns, { type, ...current }];
+    }, { skipFunctions: true });
+    return returns;
+};
+
+const getReturnPathExpressions = (node = {}) => {
+    const source = getObject(node);
+    const {
+        type = '',
+        consequent = {},
+        alternate = {},
+        left = {},
+        right = {}
+    } = source;
+    if (type === 'ConditionalExpression') return [
+        ...getReturnPathExpressions(consequent),
+        ...getReturnPathExpressions(alternate)
+    ];
+    if (type === 'LogicalExpression') return [
+        ...getReturnPathExpressions(left),
+        ...getReturnPathExpressions(right)
+    ];
+    return [source];
+};
+
+const getInferredReturnContract = ({ node = {}, context = {} } = {}) => {
+    const values = getReturnNodes(node)
+        .flatMap(({ argument = {} } = {}) => node.async
+            ? getReturnPathExpressions(argument).map(path => inferExpression(path, context))
+            : [inferExpression(argument, context)]);
+    return mergeContracts(node.async ? values.map(getResolvedContract) : values);
+};
 
 const inferMemberExpression = ({ object = {}, property = {}, computed = false, ...node } = {}, context = {}) => {
     const sourceNode = { object, property, computed, ...node };
@@ -216,8 +255,12 @@ const inferConditionalExpression = ({ consequent = {}, alternate = {} } = {}, co
 };
 
 const inferLogicalExpression = ({ operator = '', right = {}, ...node } = {}, context = {}) => {
-    if (operator === '&&') return inferExpression(right, context);
-    return unknown({ operator, right, ...node });
+    const sourceNode = { operator, right, ...node };
+    if (!['&&', '||', '??'].includes(operator)) return unknown(sourceNode);
+    return mergeContracts([
+        inferExpression(node.left, context),
+        inferExpression(right, context)
+    ]);
 };
 
 const inferUnaryExpression = ({ operator = '', ...node } = {}) => {
@@ -264,16 +307,30 @@ const inferPattern = ({
                 getPropertyName(property),
                 inferPattern(value, {}, context)
             ])
-            .filter(([name = ''] = []) => Boolean(name)));
+            .filter((entry) => {
+                const [name = ''] = entry;
+                return Boolean(name);
+            }));
         return contract({ kind: 'object', sourceNode, properties });
     }
-    if (type === 'ArrayPattern') return contract({
-        kind: 'array',
-        sourceNode,
-        element: mergeContracts(elements
+    if (type === 'ArrayPattern') {
+        const elementContracts = elements
             .filter(Boolean)
-            .map(element => inferPattern(element, {}, context)))
-    });
+            .map(element => inferPattern(element, {}, context));
+        const elementKinds = [...new Set(elementContracts
+            .filter(({ kind = 'unknown' } = {}) => kind !== 'unknown')
+            .map(({ kind = 'unknown' } = {}) => kind))];
+        return contract({
+            kind: 'array',
+            sourceNode,
+            elements: elementContracts,
+            // Array patterns describe positions, not alternative values. A tuple
+            // such as [name, related] must not become a false homogeneous union.
+            element: elementKinds.length > 1
+                ? unknown(sourceNode)
+                : mergeContracts(elementContracts)
+        });
+    }
     if (type === 'RestElement') return contract({
         kind: 'array',
         sourceNode
@@ -292,6 +349,7 @@ const bindPattern = ({
 } = {}, valueContract = unknown(), bindings = {}) => {
     const {
         element: valueElement = unknown(),
+        elements: valueElements = [],
         properties: valueProperties = {}
     } = valueContract;
     if (type === 'AssignmentPattern') {
@@ -308,7 +366,11 @@ const bindPattern = ({
     }
     if (type === 'ArrayPattern') {
         return elements.filter(Boolean)
-            .reduce((current, pattern) => bindPattern(pattern, valueElement, current), bindings);
+            .reduce((current, pattern, index = 0) => bindPattern(
+                pattern,
+                valueElements[index] || valueElement,
+                current
+            ), bindings);
     }
     if (type !== 'ObjectPattern') return bindings;
     return properties
@@ -343,6 +405,7 @@ const getEnclosingFunction = ({ parent = {} } = {}) => {
 const getSignature = ({ params = [] } = {}) => {
     const parameters = params.map(parameter => inferPattern(parameter));
     const [rootContract = unknown()] = parameters;
+    const restIndex = params.findIndex(({ type = '' } = {}) => type === 'RestElement');
     let bindings = {};
     params.forEach((parameter = {}, index = 0) => {
         bindings = bindPattern(
@@ -354,6 +417,7 @@ const getSignature = ({ params = [] } = {}) => {
     return {
         contract: rootContract,
         parameters,
+        restIndex,
         bindings
     };
 };
@@ -364,15 +428,6 @@ const getFunctionNodes = (program = {}) => {
         if (isFunction(node)) functions = [...functions, node];
     });
     return functions;
-};
-
-const getReturnNodes = ({ body = {} } = {}) => {
-    if (body.type !== 'BlockStatement') return [{ argument: body }];
-    let returns = [];
-    walk(body, ({ type = '', ...current } = {}) => {
-        if (type === 'ReturnStatement') returns = [...returns, { type, ...current }];
-    }, { skipFunctions: true });
-    return returns;
 };
 
 const getFunctionContext = ({ body = {}, ...node } = {}, functions = {}, {
@@ -392,7 +447,15 @@ const getFunctionContext = ({ body = {}, ...node } = {}, functions = {}, {
     };
     walk(body, ({ type = '', id = {}, init = {} } = {}) => {
         const { type: idType = '', name = '' } = getObject(id);
-        if (type !== 'VariableDeclarator' || idType !== 'Identifier') return;
+        if (type !== 'VariableDeclarator') return;
+        const value = inferExpression(init, context);
+        if (idType !== 'Identifier') {
+            context = {
+                ...context,
+                bindings: bindPattern(id, value, context.bindings)
+            };
+            return;
+        }
         const functionAlias = getFunctionAlias({ init, functions: context.functions });
         if (functionAlias.signature) {
             context = {
@@ -407,7 +470,7 @@ const getFunctionContext = ({ body = {}, ...node } = {}, functions = {}, {
             ...context,
             bindings: {
                 ...context.bindings,
-                [name]: inferExpression(init, context)
+                [name]: value
             }
         };
     }, { skipFunctions: true });
@@ -419,6 +482,7 @@ const getFunctionCallContext = ({
     definition = {},
     functions = {},
     arguments: args = [],
+    argumentContracts = [],
     argumentContext = {},
     callStack = [],
     evaluateCalls = true,
@@ -433,7 +497,7 @@ const getFunctionCallContext = ({
         const { [index]: argument = {} } = args;
         const { type: argumentType = '', name: argumentName = '' } = argument;
         if (!argument || argumentType === 'SpreadElement') return;
-        const actual = mergeArgumentDefaults({
+        const actual = argumentContracts[index] || mergeArgumentDefaults({
             expected: parameters[index] || unknown(),
             actual: inferExpression(argument, argumentContext)
         });
@@ -475,8 +539,7 @@ const getFunctionReturnFromContracts = ({
         evaluationDepth: (context.evaluationDepth || 0) + 1,
         initialBindings
     });
-    const inferredReturn = mergeContracts(getReturnNodes(node)
-        .map(({ argument = {} } = {}) => inferExpression(argument, functionContext)));
+    const inferredReturn = getInferredReturnContract({ node, context: functionContext });
     if (!node.async) return inferredReturn;
     return getAsyncReturnContract({ value: inferredReturn, sourceNode: node });
 };
@@ -510,8 +573,10 @@ const getFunctionReturnContract = ({
         evaluateCalls,
         evaluationDepth: nextEvaluationDepth
     });
-    const inferredReturn = mergeContracts(getReturnNodes(functionContract.node)
-        .map(({ argument = {} } = {}) => inferExpression(argument, context)));
+    const inferredReturn = getInferredReturnContract({
+        node: functionContract.node,
+        context
+    });
     if (inferredReturn.kind === 'unknown' && functionContract.returnContract.kind !== 'unknown') {
         return functionContract.returnContract;
     }
@@ -650,9 +715,19 @@ const inferMemberCall = ({ callee = {}, ...node } = {}, context = {}) => {
     return unknown(sourceNode);
 };
 
+const getBuiltinCallContract = ({ name = '', sourceNode = {} } = {}) => {
+    const kinds = {
+        Boolean: 'boolean',
+        Number: 'number',
+        String: 'string'
+    };
+    return kinds[name] ? contract({ kind: kinds[name], sourceNode }) : unknown(sourceNode);
+};
+
 const inferCallExpression = ({ callee = {}, ...node } = {}, context = {}) => {
     const {
         functions = {},
+        bindings = {},
         callStack = [],
         evaluateCalls = true,
         evaluationDepth = 0
@@ -660,6 +735,9 @@ const inferCallExpression = ({ callee = {}, ...node } = {}, context = {}) => {
     const safeCallee = getObject(callee);
     const { type = '', name = '' } = safeCallee;
     const sourceNode = { callee, ...node };
+    if (type === 'Identifier' && !functions[name] && !Object.prototype.hasOwnProperty.call(bindings, name)) {
+        return getBuiltinCallContract({ name, sourceNode });
+    }
     if (type === 'Identifier') {
         return getFunctionReturnContract({
             functions,
@@ -706,8 +784,7 @@ const getDefinition = ({
         callStack: definitionName ? [definitionName] : [],
         evaluateCalls: false
     });
-    const inferredReturn = mergeContracts(getReturnNodes(node)
-        .map(({ argument = {} } = {}) => inferExpression(argument, context)));
+    const inferredReturn = getInferredReturnContract({ node, context });
     const returnContract = node.async
         ? getAsyncReturnContract({ value: inferredReturn, sourceNode: node })
         : inferredReturn;
