@@ -193,6 +193,7 @@ Current inference tracks:
 - known `map`, `filter`, `some`, `reduce`, and `forEach` result contracts;
 - promise-shaped async returns and `await` unwrapping;
 - `Promise.resolve` and `Promise.all` element propagation;
+- native `String`, `Number`, and `Boolean` coercion results;
 - branch guards such as `Array.isArray(value)`;
 - known property updates;
 - program/module-level bindings for declarations, aliases, and destructured
@@ -210,6 +211,16 @@ contract, and `forEach` returns an explicit undefined contract. `find` and
 unsupported promise combinators remain unknown because absence and alternate
 completion paths need more evidence. Recursive cycles and unsupported effects
 remain unknown.
+
+Explicit native coercions establish their result family and are therefore the
+preferred normalization form when every input should become that family:
+
+```javascript
+const labels = values.map(value => String(value).trim());
+```
+
+A type guard remains the correct form when the branches perform different
+work, rather than merely converting the same input to one output family.
 
 Facts are narrowed only inside the branch that proves them. At a branch join,
 uncertain facts are preserved as unknown instead of being promoted to a false

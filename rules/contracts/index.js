@@ -1,9 +1,12 @@
 export {
     contract,
+    contradictory,
     describe,
+    getContractVariants,
     getKind,
     isEqual,
     isCompatible,
+    isContradictory,
     isKnown,
     mergeContracts,
     unknown,

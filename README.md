@@ -225,7 +225,7 @@ The concise discipline is in [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md
 The contract model is described in [docs/contracts.md](docs/contracts.md), and
 the dialect semantics are in [docs/semantics.md](docs/semantics.md). The design
 rationale is in [docs/the-code-is-the-contract.md](docs/the-code-is-the-contract.md),
-and the pinned implementation roadmap is in [docs/roadmap.md](docs/roadmap.md).
+and release history is recorded in [CHANGELOG.md](CHANGELOG.md).
 
 ## Development
 

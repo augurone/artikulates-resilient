@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { ESLint } from 'eslint';
 
-// eslint-disable-next-line import/no-useless-path-segments
+// eslint-disable-next-line import/no-useless-path-segments -- The fixture checker intentionally imports the repository entry point.
 import resilient from '../index.js';
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');

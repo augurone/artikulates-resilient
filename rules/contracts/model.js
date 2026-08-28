@@ -12,6 +12,14 @@ const KINDS = Object.freeze([
 
 const unknown = (sourceNode = {}) => ({
     kind: 'unknown',
+    state: 'unknown',
+    sourceNode
+});
+
+const contradictory = ({ conflicts = [], sourceNode = {} } = {}) => ({
+    kind: 'unknown',
+    state: 'contradictory',
+    conflicts: [...new Set(conflicts)],
     sourceNode
 });
 
@@ -21,12 +29,18 @@ const contract = ({
     optional = false,
     element = unknown(),
     properties = {},
-    branches = []
+    branches = [],
+    state = '',
+    conflicts = [],
+    elements = []
 } = {}) => ({
     kind: KINDS.includes(kind) ? kind : 'unknown',
+    state: state || (KINDS.includes(kind) && kind !== 'unknown' ? 'known' : 'unknown'),
     sourceNode,
     optional,
-    ...(['array', 'promise'].includes(kind) && { element }),
+    ...(state === 'contradictory' && { conflicts: [...new Set(conflicts)] }),
+    ...(kind === 'array' && { element, ...(elements.length && { elements }) }),
+    ...(kind === 'promise' && { element }),
     ...(kind === 'object' && { properties, branches })
 });
 
@@ -39,15 +53,39 @@ const getKind = ({ kind = 'unknown' } = {}) => kind;
 
 const isKnown = ({ kind = 'unknown' } = {}) => kind !== 'unknown';
 
+const isContradictory = ({ state = '' } = {}) => state === 'contradictory';
+
+const getContractVariants = (value = unknown()) => {
+    const {
+        state = '',
+        conflicts = [],
+        sourceNode = {}
+    } = value;
+    if (state !== 'contradictory') return isKnown(value) ? [value] : [];
+    return conflicts.map(kind => contract({
+        kind,
+        sourceNode
+    }));
+};
+
 const getContractShape = ({
     kind = 'unknown',
+    state = 'unknown',
+    conflicts = [],
     optional = false,
     element = {},
+    elements = [],
     properties = {}
 } = {}) => ({
     kind,
+    state,
+    ...(state === 'contradictory' && { conflicts: [...new Set(conflicts)] }),
     optional,
-    ...(['array', 'promise'].includes(kind) && { element: getContractShape(element) }),
+    ...(kind === 'array' && {
+        element: getContractShape(element),
+        ...(elements.length && { elements: elements.map(getContractShape) })
+    }),
+    ...(kind === 'promise' && { element: getContractShape(element) }),
     ...(kind === 'object' && {
         properties: Object.fromEntries(Object.entries(properties)
             .sort(([left = ''], [right = '']) => left.localeCompare(right))
@@ -61,46 +99,60 @@ const isEqual = (left = unknown(), right = unknown()) => (
 
 let mergeContracts = () => unknown();
 
-const mergeArrayContracts = (knownValues = []) => contract({
+const mergeArrayContracts = (knownValues = [], options = {}) => contract({
     kind: 'array',
-    element: mergeContracts(knownValues.map(({ element = {} } = {}) => element))
+    element: mergeContracts(knownValues.map(({ element = {} } = {}) => element), options)
 });
 
-const mergePromiseContracts = (knownValues = []) => contract({
+const mergePromiseContracts = (knownValues = [], options = {}) => contract({
     kind: 'promise',
-    element: mergeContracts(knownValues.map(({ element = {} } = {}) => element))
+    element: mergeContracts(knownValues.map(({ element = {} } = {}) => element), options)
 });
 
-const mergeObjectContracts = (knownValues = []) => {
+const mergeObjectContracts = (knownValues = [], options = {}) => {
     const propertyNames = [...new Set(knownValues.flatMap(({ properties = {} } = {}) => Object.keys(properties)))];
     const properties = Object.fromEntries(propertyNames.map((name = '') => [
         name,
         mergeContracts(knownValues.map(({ properties: sourceProperties = {} } = {}) => (
             sourceProperties[name] || unknown()
-        )))
+        )), options)
     ]));
 
     return contract({ kind: 'object', properties });
 };
 
-const mergeSameKind = ({ kind = 'unknown', knownValues = [] } = {}) => {
-    if (kind === 'array') return mergeArrayContracts(knownValues);
-    if (kind === 'promise') return mergePromiseContracts(knownValues);
-    if (kind === 'object') return mergeObjectContracts(knownValues);
+const mergeSameKind = ({ kind = 'unknown', knownValues = [], options = {} } = {}) => {
+    if (kind === 'array') return mergeArrayContracts(knownValues, options);
+    if (kind === 'promise') return mergePromiseContracts(knownValues, options);
+    if (kind === 'object') return mergeObjectContracts(knownValues, options);
     return contract({ kind });
 };
 
-mergeContracts = (values = []) => {
+mergeContracts = (values = [], { preserveContradictions = true } = {}) => {
+    const options = { preserveContradictions };
+    const contradictoryValues = values.filter(isContradictory);
     const knownValues = values.filter(isKnown);
+    if (preserveContradictions && contradictoryValues.length) return contradictory({
+        conflicts: [
+            ...contradictoryValues.flatMap(({ conflicts: sourceConflicts = [] } = {}) => sourceConflicts),
+            ...knownValues.map(getKind)
+        ],
+        sourceNode: contradictoryValues[0].sourceNode
+    });
     if (!knownValues.length) return unknown();
 
     const kinds = [...new Set(knownValues.map(getKind))];
+    if (kinds.length !== 1 && preserveContradictions) return contradictory({
+        conflicts: kinds,
+        sourceNode: knownValues[0].sourceNode
+    });
     if (kinds.length !== 1) return unknown();
     const [kind = 'unknown'] = kinds;
-    return mergeSameKind({ kind, knownValues });
+    return mergeSameKind({ kind, knownValues, options });
 };
 
 const isCompatible = ({ expected = unknown(), actual = unknown() } = {}) => {
+    if (isContradictory(expected) || isContradictory(actual)) return false;
     if (!isKnown(expected) || !isKnown(actual)) return true;
     if (expected.kind !== actual.kind) return false;
 
@@ -135,8 +187,11 @@ export {
     getKind,
     isEqual,
     isCompatible,
+    isContradictory,
     isKnown,
     mergeContracts,
+    getContractVariants,
+    contradictory,
     unknown,
     withOptional
 };

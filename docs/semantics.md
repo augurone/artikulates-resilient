@@ -31,6 +31,11 @@ Every inferred fact has one of three semantic states:
 Only contradictions are static contract findings. Unknown data remains unknown
 and belongs to runtime validation, normalization, or behavioral tests.
 
+The current contract object represents all three states directly. A
+contradictory contract retains the known conflicting families so downstream
+boundaries can inspect them; it is never treated as a permissive union or as an
+ordinary unknown value.
+
 ## Value contracts
 
 The core value families are:
