@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.4.2 — 2026-08-28
+
+- Reconciled contract documentation with the single-family return rule and
+  clarified that absence is an explicit boundary concern, not an internal
+  union escape hatch.
+- Corrected return-family analysis for async functions by comparing resolved
+  return values and using path-sensitive flow contexts for guarded returns.
+- Added graph coverage proving contradictory provider returns remain unknown
+  rather than being guessed into a union while argument contracts propagate.
+
 ## 0.4.1 — 2026-08-28
 
 - Strengthened the contracts preset to reject known incompatible

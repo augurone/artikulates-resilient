@@ -115,6 +115,23 @@ assert.equal(asyncGraph.moduleExports['provider.js'].getItems.returnContract.kin
 assert.equal(asyncGraph.getDiagnostics().length, 1);
 assert.equal(asyncGraph.getDiagnostics()[0].ruleId, 'signature-contract-operation');
 
+const contradictoryReturnGraph = await createGraph({
+    'provider.js': 'export const getValue = ({ enabled = false } = {}) => enabled ? "" : null;',
+    'consumer.js': [
+        'import { getValue } from "./provider.js";',
+        'getValue({ enabled: 42 });',
+        'getValue({}).toUpperCase();'
+    ].join('\n')
+});
+const contradictoryDiagnostics = contradictoryReturnGraph.getDiagnostics();
+assert.equal(contradictoryDiagnostics.length, 1);
+assert.equal(contradictoryDiagnostics[0].ruleId, 'signature-contract-call-site');
+assert.equal(contradictoryDiagnostics[0].data.path, 'enabled');
+assert.equal(
+    contradictoryReturnGraph.moduleExports['provider.js'].getValue.returnContract.kind,
+    'unknown'
+);
+
 const callbackGraph = await createGraph({
     'provider.js': 'export const getTitle = ({ title = "" } = {}) => title;',
     'consumer.js': [
