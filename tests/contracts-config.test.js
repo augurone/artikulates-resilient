@@ -42,3 +42,16 @@ assert.deepEqual(
     invalidResult.messages.map(({ ruleId = '' } = {}) => ruleId),
     ['resilient/signature-contract-call-site']
 );
+
+const [inconsistentResult = {}] = await eslint.lintText(
+    "const getValue = (enabled = false) => enabled ? '' : null;",
+    { filePath: 'contracts-inconsistent.js' }
+);
+
+assert.deepEqual(
+    inconsistentResult.messages.map(({ ruleId = '' } = {}) => ruleId),
+    [
+        'resilient/signature-contract-return-consistency',
+        'resilient/signature-contract-return-consistency'
+    ]
+);

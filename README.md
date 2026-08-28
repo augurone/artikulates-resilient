@@ -101,10 +101,9 @@ value. The standalone `createContractGraph` API and inspector use the same
 propagation model.
 
 Known contradictions are reported. Unknown values remain unknown, so external
-data still belongs to runtime validation, normalization, and tests. The
-stricter `signature-contract-return-consistency` rule is available directly
-but remains outside the contracts preset because intentional return unions are
-valid JavaScript.
+data still belongs to runtime validation, normalization, and tests. Known
+return paths must agree on one value family; incompatible paths are reported by
+`signature-contract-return-consistency` rather than widened into a union.
 
 The contract core is independent of ESLint:
 

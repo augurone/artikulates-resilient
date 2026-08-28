@@ -1,11 +1,46 @@
+import { narrowContext } from './contracts/flow.js';
 import {
     getDefinitions,
-    getEnclosingFunction,
     getFunctionContext,
+    getFunctionNodes,
     getReturnNodes,
     inferExpression
 } from './contracts/infer.js';
 import { getKind, isKnown } from './contracts/model.js';
+
+const getObject = value => value && typeof value === 'object' ? value : {};
+
+const getReturnBranches = (nodeInput = {}, context = {}) => {
+    const {
+        type = '',
+        test = {},
+        consequent = {},
+        alternate = {},
+        ...node
+    } = getObject(nodeInput);
+    const sourceNode = { type, test, consequent, alternate, ...node };
+    if (type !== 'ConditionalExpression') {
+        return [{ node: sourceNode, contract: inferExpression(sourceNode, context) }];
+    }
+    return [
+        ...getReturnBranches(consequent, narrowContext({ ...test, context, truthy: true })),
+        ...getReturnBranches(alternate, narrowContext({ ...test, context, truthy: false }))
+    ];
+};
+
+const getInconsistentBranches = ({ functionNode = {}, definitions = {} } = {}) => {
+    const context = getFunctionContext(functionNode, definitions);
+    const branches = getReturnNodes(functionNode)
+        .flatMap(({ argument = {} } = {}) => getReturnBranches(argument, context))
+        .filter(({ contract = {} } = {}) => isKnown(contract));
+    const kinds = [...new Set(branches.map(({ contract = {} } = {}) => getKind(contract)))];
+    if (kinds.length < 2) return [];
+    return branches.map(({ node = {}, contract = {} } = {}) => ({
+        node,
+        actual: getKind(contract),
+        expected: kinds.find(kind => kind !== getKind(contract))
+    }));
+};
 
 export default {
     meta: {
@@ -25,30 +60,16 @@ export default {
         return {
             Program(node = {}) {
                 definitions = getDefinitions(node);
-            },
-            ReturnStatement({ argument = {}, parent = {}, ...node } = {}) {
-                const sourceNode = { argument, parent, ...node };
-                const functionNode = getEnclosingFunction(sourceNode);
-                if (!functionNode || !functionNode.body) return;
-                const context = getFunctionContext(functionNode, definitions);
-                const current = inferExpression(argument || {}, context);
-                // An unknown path cannot establish a contradictory return family.
-                if (!isKnown(current)) return;
-                const returns = getReturnNodes(functionNode)
-                    .map(({ argument = {} } = {}) => inferExpression(argument, context))
-                    .filter(isKnown);
-                const kinds = [...new Set(returns.map(getKind))];
-                if (kinds.length < 2) return;
-                const expected = kinds.find(kind => kind !== getKind(current));
-                if (!expected) return;
-
-                report({
-                    node: sourceNode,
-                    messageId: 'inconsistent',
-                    data: {
-                        actual: getKind(current),
-                        expected
-                    }
+                getFunctionNodes(node).forEach((functionNode) => {
+                    getInconsistentBranches({ functionNode, definitions }).forEach(({
+                        node: branchNode = {},
+                        actual = '',
+                        expected = ''
+                    } = {}) => report({
+                        node: branchNode,
+                        messageId: 'inconsistent',
+                        data: { actual, expected }
+                    }));
                 });
             }
         };

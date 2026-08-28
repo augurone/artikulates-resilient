@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+## 0.4.1 — 2026-08-28
+
+- Strengthened the contracts preset to reject known incompatible
+  return families, including expression-bodied conditional returns,
+  rather than widening them into unions.
+
 ## 0.4.0 — 2026-08-27
 
 - Extended contract signatures and call-site diagnostics to cover all known

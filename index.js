@@ -26,7 +26,7 @@ let configs = {};
 const plugin = {
     meta: {
         name: 'eslint-plugin-resilient',
-        version: '0.4.0'
+        version: '0.4.1'
     },
     rules: {
         'prefer-signature-destructuring': preferSignatureDestructuring,
@@ -129,7 +129,8 @@ const contracts = {
     rules: {
         'resilient/signature-contract-call-site': 'error',
         'resilient/signature-contract-destructuring': 'error',
-        'resilient/signature-contract-operation': 'error'
+        'resilient/signature-contract-operation': 'error',
+        'resilient/signature-contract-return-consistency': 'error'
     }
 };
 

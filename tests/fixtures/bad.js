@@ -378,7 +378,10 @@ const report = () => {};
         return '';
     };
 
-    void [getValue, normalizeItems];
+    // Mixed known return families are a contradiction, not an inferred union.
+    const getNullableValue = (enabled = false) => enabled ? '' : null;
+
+    void [getValue, normalizeItems, getNullableValue];
 }
 
 // combined-patterns
