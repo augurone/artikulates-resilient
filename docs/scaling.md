@@ -262,7 +262,7 @@ public evaluation and training corpus:
 
 - good/bad JavaScript pairs;
 - known contradiction cases;
-- legitimate union and exception cases;
+- legitimate boundary exceptions and unknown-value cases;
 - examples where unknown must remain unknown;
 - critique-and-revision examples;
 - tool traces showing diagnostics followed by a minimal repair;

@@ -6,8 +6,8 @@ families.
 ## Smell
 
 Returning incompatible value families from known paths forces every caller to
-guess which contract applies. The rule keeps intentional unknowns and unions
-possible while reporting contradictions visible in executable returns.
+guess which contract applies. The rule preserves unknown paths while reporting
+contradictions visible in executable returns.
 
 ```javascript
 const getValue = (enabled) => {

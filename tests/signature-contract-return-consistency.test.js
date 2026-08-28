@@ -14,7 +14,17 @@ ruleTester.run('signature-contract-return-consistency', rule, {
         { code: 'const getItems = (enabled) => { if (!enabled) return []; return []; };' },
         { code: 'const passthrough = value => value;' },
         { code: 'const getValue = (value) => { if (!value) return value; return unknownValue; };' },
-        { code: 'const getValue = (value) => { if (value) return []; return unknownValue; };' }
+        { code: 'const getValue = (value) => { if (value) return []; return unknownValue; };' },
+        { code: 'const getValue = (value = {}) => { if (typeof value === "string") return value; return ""; };' },
+        {
+            code: [
+                'const getItems = async () => [];',
+                'const getValue = async (enabled = false) => {',
+                '    if (enabled) return [];',
+                '    return getItems();',
+                '};'
+            ].join(' ')
+        }
     ],
     invalid: [
         {

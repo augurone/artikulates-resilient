@@ -37,7 +37,7 @@ Use the empty value appropriate to the contract:
 | boolean | `false` |
 
 Do not use `null` or `undefined` as generic internal application values. They
-remain valid when an external boundary or explicit union requires them. A bare
+remain valid when an external boundary explicitly permits absence. A bare
 `return;` remains valid for a side effect or control-flow exit.
 
 ## Control flow and collections

@@ -1,7 +1,10 @@
-import { narrowContext } from './contracts/flow.js';
+import {
+    createFunctionFlows,
+    getFlowContext,
+    narrowContext
+} from './contracts/flow.js';
 import {
     getDefinitions,
-    getFunctionContext,
     getFunctionNodes,
     getReturnNodes,
     inferExpression
@@ -28,10 +31,30 @@ const getReturnBranches = (nodeInput = {}, context = {}) => {
     ];
 };
 
-const getInconsistentBranches = ({ functionNode = {}, definitions = {} } = {}) => {
-    const context = getFunctionContext(functionNode, definitions);
+const getComparableContract = ({ functionNode = {}, contract = {} } = {}) => {
+    const { async = false } = functionNode;
+    if (!async) return contract;
+    const { kind = '', element = {} } = contract;
+    if (kind !== 'promise') return contract;
+    return element;
+};
+
+const getInconsistentBranches = ({ functionNode = {}, definitions = {}, flows = new Map() } = {}) => {
     const branches = getReturnNodes(functionNode)
-        .flatMap(({ argument = {} } = {}) => getReturnBranches(argument, context))
+        .flatMap(({ argument = {} } = {}) => {
+            const safeArgument = getObject(argument);
+            const context = safeArgument.type
+                ? getFlowContext({ node: safeArgument, definitions, flows })
+                : { functions: definitions };
+            return getReturnBranches(safeArgument, context);
+        })
+        .map(({ contract: branchContract = {}, ...branch } = {}) => ({
+            ...branch,
+            contract: getComparableContract({
+                functionNode,
+                contract: branchContract
+            })
+        }))
         .filter(({ contract = {} } = {}) => isKnown(contract));
     const kinds = [...new Set(branches.map(({ contract = {} } = {}) => getKind(contract)))];
     if (kinds.length < 2) return [];
@@ -56,12 +79,14 @@ export default {
     },
     create({ report = () => {} } = {}) {
         let definitions = {};
+        let flows = new Map();
 
         return {
             Program(node = {}) {
                 definitions = getDefinitions(node);
+                flows = createFunctionFlows({ program: node, definitions });
                 getFunctionNodes(node).forEach((functionNode) => {
-                    getInconsistentBranches({ functionNode, definitions }).forEach(({
+                    getInconsistentBranches({ functionNode, definitions, flows }).forEach(({
                         node: branchNode = {},
                         actual = '',
                         expected = ''

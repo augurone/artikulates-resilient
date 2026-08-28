@@ -80,7 +80,7 @@ destructuring would change the contract or hide intent.
 ## Absence semantics
 
 `null` and `undefined` are valid JavaScript values and may be meaningful at an
-external boundary or in an explicitly chosen union. Inside a normalized,
+external boundary whose contract explicitly permits absence. Inside a normalized,
 value-producing application contract, Resilient prefers one shape-specific
 empty value rather than an unannounced nullish alternative.
 

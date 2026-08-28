@@ -254,10 +254,10 @@ stay unknown.
 
 The recommended preset carries the Resilient discipline through
 `resilient.configs.recommended`.
-Contract call-site, destructuring-shape, and operation diagnostics are opt-in
-through `resilient.configs.contracts`. Return-family consistency is a standalone rule
-because functions may intentionally return unions such as `string | boolean`
-or `object | null`.
+Contract call-site, destructuring-shape, operation, and return-family
+diagnostics are opt-in through `resilient.configs.contracts`. Known return
+paths must agree on one value family; incompatible paths are reported rather
+than widened into a union.
 
 ## Executable fixture contract
 
