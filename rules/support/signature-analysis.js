@@ -103,17 +103,24 @@ const getStaticMemberProperties = ({
         const directMemberRead = isDirectMemberRead({ node: currentNode, name });
         const staticMemberName = getStaticMemberName({ node: currentNode });
 
-        if (
-            directMemberRead &&
-            (!staticMemberName || isUnsafeMemberUse({ node: currentNode }))
-        ) {
+        if (directMemberRead && !staticMemberName) {
             hasUnsafeReference = true;
-            wholeObjectNodes.push(...(!staticMemberName ? [currentNode] : []));
+            // This collection is private traversal state, not contract data.
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- Local traversal accumulator; mutation avoids O(n²) copying.
+            wholeObjectNodes.push(currentNode);
+            return;
+        }
+
+        if (directMemberRead && isUnsafeMemberUse({ node: currentNode })) {
+            hasUnsafeReference = true;
             return;
         }
 
         if (directMemberRead) {
+            // These accumulators belong exclusively to this AST traversal.
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- Local traversal accumulator; mutation avoids O(n²) copying.
             properties.add(staticMemberName);
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- Local traversal accumulator; mutation avoids O(n²) copying.
             memberNodes.push(currentNode);
             return;
         }
@@ -129,6 +136,7 @@ const getStaticMemberProperties = ({
             !isNonReferenceIdentifier({ node: currentNode })
         ) {
             hasUnsafeReference = true;
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- Local traversal accumulator; mutation avoids O(n²) copying.
             wholeObjectNodes.push(currentNode);
             return;
         }

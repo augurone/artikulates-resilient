@@ -1,3 +1,5 @@
+import * as importPlugin from 'eslint-plugin-import';
+
 import noDestructuringFallback from './rules/no-destructuring-fallback.js';
 import noElse from './rules/no-else.js';
 import noLengthComparison from './rules/no-length-comparison.js';
@@ -19,10 +21,12 @@ import signatureContractDestructuring from './rules/signature-contract-destructu
 import signatureContractOperation from './rules/signature-contract-operation.js';
 import signatureContractReturnConsistency from './rules/signature-contract-return-consistency.js';
 
+let configs = {};
+
 const plugin = {
     meta: {
         name: 'eslint-plugin-resilient',
-        version: '0.3.6'
+        version: '0.4.0'
     },
     rules: {
         'prefer-signature-destructuring': preferSignatureDestructuring,
@@ -46,10 +50,12 @@ const plugin = {
         'signature-contract-operation': signatureContractOperation,
         'signature-contract-return-consistency': signatureContractReturnConsistency
     },
-    configs: {}
+    get configs() {
+        return configs;
+    }
 };
 
-plugin.configs.recommended = {
+const recommended = {
     plugins: {
         resilient: plugin
     },
@@ -116,7 +122,7 @@ plugin.configs.recommended = {
     }
 };
 
-plugin.configs.contracts = {
+const contracts = {
     plugins: {
         resilient: plugin
     },
@@ -127,7 +133,7 @@ plugin.configs.contracts = {
     }
 };
 
-plugin.configs.safety = {
+const safety = {
     plugins: {
         resilient: plugin
     },
@@ -139,5 +145,19 @@ plugin.configs.safety = {
         'no-empty': ['error', { allowEmptyCatch: true }]
     }
 };
+
+const imports = {
+    plugins: {
+        import: importPlugin
+    },
+    rules: {
+        'import/no-unresolved': 'error',
+        'import/named': 'error',
+        'import/namespace': 'error',
+        'import/export': 'error'
+    }
+};
+
+configs = { recommended, contracts, safety, imports };
 
 export default plugin;

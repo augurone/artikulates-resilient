@@ -83,22 +83,23 @@ export default {
         }
     },
     create({ report = () => {}, sourceCode = {} } = {}) {
-        const functionStack = [];
+        let functionStack = [];
         const enterFunction = (node = {}) => {
-            functionStack.push({
+            functionStack = [...functionStack, {
                 node,
                 paramNames: getSimpleParamNames(node),
                 params: getSimpleParams(node),
                 violations: [],
                 calls: []
-            });
+            }];
         };
         const exitFunction = () => {
             const {
                 node: functionNode = {},
                 violations = [],
                 calls = []
-            } = functionStack.pop() ?? {};
+            } = functionStack.at(-1) ?? {};
+            functionStack = functionStack.slice(0, -1);
 
             violations.forEach((violation = {}) => reportViolation({
                 violation,
@@ -125,10 +126,18 @@ export default {
 
                 paramNames.forEach((name = '') => {
                     if (!nodeArguments.some((argument = {}) => containsIdentifier({ node: argument, name }))) return;
-                    calls.push({
-                        name,
-                        start: getSourceStart(node)
-                    });
+                    const currentIndex = functionStack.length - 1;
+                    functionStack = [
+                        ...functionStack.slice(0, currentIndex),
+                        {
+                            ...currentFunction,
+                            calls: [...calls, {
+                                name,
+                                start: getSourceStart(node)
+                            }]
+                        },
+                        ...functionStack.slice(currentIndex + 1)
+                    ];
                 });
             },
             VariableDeclarator: ({
@@ -147,13 +156,21 @@ export default {
                 if (!isDestructuringFromParam({ id, init: safeInit }, paramNames)) return;
                 const { name: paramName = '' } = safeInit;
                 const { node: paramNode = {} } = params.find(({ name = '' } = {}) => name === paramName) ?? {};
-                violations.push({
-                    node: id,
-                    paramName,
-                    declaration: declaration ?? {},
-                    init: safeInit,
-                    paramNode
-                });
+                const currentIndex = functionStack.length - 1;
+                functionStack = [
+                    ...functionStack.slice(0, currentIndex),
+                    {
+                        ...currentFunction,
+                        violations: [...violations, {
+                            node: id,
+                            paramName,
+                            declaration: declaration ?? {},
+                            init: safeInit,
+                            paramNode
+                        }]
+                    },
+                    ...functionStack.slice(currentIndex + 1)
+                ];
             }
         };
     }

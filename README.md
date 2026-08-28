@@ -82,8 +82,11 @@ render({ title: 42 }); // reported by signature-contract-call-site
 
 The analyzer tracks value families and selected shapes through signatures,
 defaults, aliases, guards, reassignment, property updates, bounded loops, and
-`try`/`catch`/`finally` paths. It understands known native operations such as
-string methods and collection methods.
+`try`/`catch`/`finally` paths. It checks all known formal parameters against
+corresponding known call arguments and resolves direct local function returns
+to a stable point. Program-scope declarations and destructured bindings retain
+known returned shapes for later top-level operations. It understands known
+native operations such as string methods and collection methods.
 
 The dialect semantics behind those rules are defined in
 [`docs/semantics.md`](docs/semantics.md). The analyzer remains conservative:
@@ -91,10 +94,11 @@ it reports contradictions supported by evidence and leaves unknown values
 unknown.
 
 When `resilient.configs.contracts` is enabled, the contract rules automatically
-load local relative imports before analyzing consumer calls and returned
-values. They can report both an imported argument mismatch and an invalid
-operation on the imported function's known return value. The standalone
-`createContractGraph` API and inspector use the same propagation model.
+load local relative imports and named re-export barrels before analyzing
+consumer calls and returned values. They can report both an imported argument
+mismatch and an invalid operation on the imported function's known return
+value. The standalone `createContractGraph` API and inspector use the same
+propagation model.
 
 Known contradictions are reported. Unknown values remain unknown, so external
 data still belongs to runtime validation, normalization, and tests. The
@@ -116,10 +120,56 @@ const stack = document.getStackAtOffset(offset);
 ```
 
 `createContractDocument` builds an offset index for editor or CLI adapters.
+Its flow model includes both function scopes and the module's top-level scope,
+so a returned object remains visible through declarations and destructuring:
+
+```javascript
+const page = normalizePage({});
+const { items = [] } = page;
+
+items.toUpperCase(); // reported when items is array-like
+```
+
 `getStackAtOffset` exposes the file, enclosing functions, and expression under
 the offset, with inferred contracts on the relevant frames. The package does
-not yet ship an LSP protocol adapter or a resolver for package aliases and
-dynamic imports.
+not yet ship an LSP protocol adapter or a built-in resolver for package aliases
+or dynamic imports.
+
+For generic import-tree correctness, Resilient also exposes an `imports`
+preset backed by `eslint-plugin-import`:
+
+```javascript
+import resilient from 'eslint-plugin-resilient';
+
+export default [
+    resilient.configs.recommended,
+    resilient.configs.contracts,
+    resilient.configs.imports
+];
+```
+
+That preset delegates unresolved paths, missing named exports, invalid
+namespace members, and duplicate exports to the established import rules.
+Resilient's contract graph remains responsible for propagating executable
+signatures and return shapes across the same local tree.
+
+The contracts adapter accepts a project resolver through ESLint settings. The
+resolver receives `{ source, from, context }` and returns an absolute source
+file path, or an empty string when the project cannot resolve the import:
+
+```javascript
+export default [{
+    settings: {
+        resilient: {
+            resolver: ({ source = '' } = {}) => source === '@app/pages'
+                ? '/project/src/pages.js'
+                : ''
+        }
+    }
+}, resilient.configs.contracts];
+```
+
+Resolver failures remain unknown; they do not become guessed contracts.
 
 ## Safety rules
 
@@ -175,7 +225,8 @@ Individual rule behavior and examples are in [docs/rules](docs/rules/).
 The concise discipline is in [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md).
 The contract model is described in [docs/contracts.md](docs/contracts.md), and
 the dialect semantics are in [docs/semantics.md](docs/semantics.md). The design
-rationale is in [docs/the-code-is-the-contract.md](docs/the-code-is-the-contract.md).
+rationale is in [docs/the-code-is-the-contract.md](docs/the-code-is-the-contract.md),
+and the pinned implementation roadmap is in [docs/roadmap.md](docs/roadmap.md).
 
 ## Development
 
@@ -192,7 +243,9 @@ The aggregate lint command excludes the deliberately invalid
 `tests/fixtures` directory; run `npx eslint tests/fixtures/bad.js --no-ignore
 --no-warn-ignored` to see its diagnostics directly. `tests/fixtures/manifest.json`
 is the machine-checkable agent fixture contract: `bad.js` contains one highlighted
-case for every public rule, while `tests/fixtures/integration/` contains real engine
+section for every public rule, and `npm run fixtures:check` verifies that each
+section produces its matching diagnostic against a real ESLint run.
+`tests/fixtures/integration/` contains real engine
 boundary scenarios. The fixture enables the standalone
 `signature-contract-return-consistency` rule so every Resilient rule is
 represented without changing the contracts preset.
@@ -207,7 +260,7 @@ position.
 To prepare a release, add the next changes under `## Unreleased`, then run
 `npm run release`. It automatically prepares the next patch version. Use
 `npm run release -- minor`, `npm run release -- major`, or an explicit version
-such as `npm run release -- 0.3.6` when needed. The script updates the package,
+such as `npm run release -- 0.4.0` when needed. The script updates the package,
 lockfile, plugin metadata, and changelog, then verifies tests, lint, fixture
 coverage, and package contents. It only manages npm version metadata; commits
 and publishing remain separate decisions.

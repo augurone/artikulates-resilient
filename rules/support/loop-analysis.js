@@ -59,13 +59,13 @@ const hasAwaitExpression = (node = {}, seen = new Set(), root = true) => {
     // Await in a callback does not make the surrounding collection loop sequential.
     if (!root && FUNCTION_TYPES.includes(type)) return false;
 
-    seen.add(node);
+    const nextSeen = new Set([...seen, node]);
 
     return Object.entries(properties)
         .filter(([key = '']) => !['parent', 'loc', 'range', 'tokens', 'comments'].includes(key))
         .some(([, value = {}]) => Array.isArray(value)
-            ? value.some(child => hasAwaitExpression(child, seen, false))
-            : hasAwaitExpression(value, seen, false));
+            ? value.some(child => hasAwaitExpression(child, nextSeen, false))
+            : hasAwaitExpression(value, nextSeen, false));
 };
 
 const hasLoopControl = (
@@ -84,14 +84,14 @@ const hasLoopControl = (
     }
     if (LOOP_CONTROL_TYPES.includes(type)) return true;
 
-    seen.add(node);
+    const nextSeen = new Set([...seen, node]);
     const nextSwitchDepth = switchDepth + (type === 'SwitchStatement' ? 1 : 0);
 
     return Object.entries(properties)
         .filter(([key = '']) => !['parent', 'loc', 'range', 'tokens', 'comments'].includes(key))
         .some(([, value = {}]) => Array.isArray(value)
-            ? value.some(child => hasLoopControl(child, seen, false, nextSwitchDepth, rootNode))
-            : hasLoopControl(value, seen, false, nextSwitchDepth, rootNode));
+            ? value.some(child => hasLoopControl(child, nextSeen, false, nextSwitchDepth, rootNode))
+            : hasLoopControl(value, nextSeen, false, nextSwitchDepth, rootNode));
 };
 
 const hasAllowComment = ({ sourceCode = {}, node = {} } = {}) => {

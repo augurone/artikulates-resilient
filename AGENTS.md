@@ -65,7 +65,9 @@ Do not make it pass. If an example becomes ambiguous, update its label,
 corresponding test, and rule documentation together.
 
 The machine-checkable fixture contract is [`tests/fixtures/manifest.json`](tests/fixtures/manifest.json).
-It must list every public rule and its `bad.js` highlight. Integration fixtures in
+It must list every public rule and its `bad.js` highlight; `npm run
+fixtures:check` also executes the fixture and requires a matching diagnostic
+inside each labeled section. Integration fixtures in
 `tests/fixtures/integration/` model real engine structures such as caches, API
 responses, refs, reducers, accumulators, and boundary-owned mutable objects. Their
 tests must prove both that explicit boundary exceptions remain valid and that input,

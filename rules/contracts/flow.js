@@ -1,6 +1,7 @@
 import {
     getChildren,
     getEnclosingFunction,
+    getFunctionAlias,
     getFunctionNodes,
     getPropertyName,
     getSignature,
@@ -21,10 +22,20 @@ const copyAliases = (aliases = {}) => Object.fromEntries(Object.entries(aliases)
     [...related]
 ]));
 
-const copyContext = ({ bindings = {}, functions = {}, aliases = {} } = {}) => ({
+const copyContext = ({
+    bindings = {},
+    functions = {},
+    aliases = {},
+    callStack = [],
+    evaluateCalls = true,
+    evaluationDepth = 0
+} = {}) => ({
     bindings: { ...bindings },
     functions,
-    aliases: copyAliases(aliases)
+    aliases: copyAliases(aliases),
+    callStack: [...callStack],
+    evaluateCalls,
+    evaluationDepth
 });
 
 const getPredicate = ({
@@ -95,10 +106,14 @@ const getPredicate = ({
 
 const setBinding = ({ context = {}, name = '', value = unknown() } = {}) => {
     const next = copyContext(context);
-    [name, ...(next.aliases[name] || [])].forEach((currentName) => {
-        next.bindings[currentName] = value;
-    });
-    return next;
+    const names = [name, ...(next.aliases[name] || [])];
+    return {
+        ...next,
+        bindings: {
+            ...next.bindings,
+            ...Object.fromEntries(names.map(currentName => [currentName, value]))
+        }
+    };
 };
 
 const narrowContext = ({
@@ -126,19 +141,23 @@ const narrowContext = ({
     const { kind = '', name = '' } = getPredicate(test);
     if (!kind || !name) return copyContext(context);
 
-    const next = copyContext(context);
-    const current = next.bindings[name] || unknown();
+    const current = context.bindings[name] || unknown();
     const currentKind = getKind(current);
     if (truthy) {
         return setBinding({
-            context: next,
+            context,
             name,
             value: contract({ kind, sourceNode: test })
         });
     }
 
-    if (currentKind === kind) next.bindings[name] = unknown(current.sourceNode);
-    return next;
+    return currentKind === kind
+        ? setBinding({
+            context,
+            name,
+            value: unknown(current.sourceNode)
+        })
+        : copyContext(context);
 };
 
 const mergeFlowContracts = (values = []) => {
@@ -164,22 +183,31 @@ const mergeContexts = (contexts = []) => {
             sourceBindings[name] || unknown()
         )))
     ]));
-    return { aliases, bindings, functions };
+    return {
+        aliases,
+        bindings,
+        functions,
+        callStack: [...(first.callStack || [])],
+        evaluateCalls: first.evaluateCalls !== false,
+        evaluationDepth: first.evaluationDepth || 0
+    };
 };
 
 const bindPattern = ({ context = {}, pattern = {}, value = unknown() } = {}) => {
-    const next = copyContext(context);
     const { type = '', name = '' } = pattern;
     if (type === 'Identifier') {
-        next.bindings[name] = value;
-        return next;
+        const next = copyContext(context);
+        return {
+            ...next,
+            bindings: { ...next.bindings, [name]: value }
+        };
     }
     if (type === 'AssignmentPattern') return bindPattern({
-        context: next,
+        context,
         pattern: pattern.left,
         value
     });
-    if (type !== 'ObjectPattern') return next;
+    if (type !== 'ObjectPattern') return copyContext(context);
 
     const { properties: valueProperties = {} } = value;
     return pattern.properties
@@ -192,17 +220,19 @@ const bindPattern = ({ context = {}, pattern = {}, value = unknown() } = {}) => 
                 pattern: propertyValue,
                 value: valueProperties[propertyName] || unknown(propertyValue)
             });
-        }, next);
+        }, copyContext(context));
 };
 
 const removeAliases = ({ context = {}, name = '' } = {}) => {
     const next = copyContext(context);
     const names = [name, ...(next.aliases[name] || [])];
-    names.forEach(currentName => delete next.aliases[currentName]);
-    Object.entries(next.aliases).forEach(([currentName = '', related = []] = []) => {
-        next.aliases[currentName] = related.filter(alias => !names.includes(alias));
-    });
-    return next;
+    const aliases = Object.fromEntries(Object.entries(next.aliases)
+        .filter(([currentName = '']) => !names.includes(currentName))
+        .map(([currentName = '', related = []] = []) => [
+            currentName,
+            related.filter(alias => !names.includes(alias))
+        ]));
+    return { ...next, aliases };
 };
 
 const addAliases = ({ context = {}, name = '', target = '' } = {}) => {
@@ -213,10 +243,16 @@ const addAliases = ({ context = {}, name = '', target = '' } = {}) => {
         ...(next.aliases[name] || []),
         ...(next.aliases[target] || [])
     ])];
-    group.forEach((currentName) => {
-        next.aliases[currentName] = group.filter(alias => alias !== currentName);
-    });
-    return next;
+    return {
+        ...next,
+        aliases: {
+            ...next.aliases,
+            ...Object.fromEntries(group.map(currentName => [
+                currentName,
+                group.filter(alias => alias !== currentName)
+            ]))
+        }
+    };
 };
 
 const bindDeclaration = ({ context = {}, pattern = {}, value = unknown(), init = {} } = {}) => {
@@ -226,7 +262,16 @@ const bindDeclaration = ({ context = {}, pattern = {}, value = unknown(), init =
         : context;
     const bound = bindPattern({ context: unlinked, pattern, value });
     if (patternType !== 'Identifier' || init.type !== 'Identifier') return bound;
-    return addAliases({ context: bound, name, target: init.name });
+    const aliased = addAliases({ context: bound, name, target: init.name });
+    const functionAlias = getFunctionAlias({ init, functions: aliased.functions });
+    if (!functionAlias.signature) return aliased;
+    return {
+        ...aliased,
+        functions: {
+            ...aliased.functions,
+            [name]: functionAlias
+        }
+    };
 };
 
 const getMemberPath = ({ type = '', name = '', object = {}, property = {}, computed = false } = {}) => {
@@ -243,12 +288,12 @@ const updateContractPath = ({ value = unknown(), path = [], nextValue = unknown(
     if (getKind(value) !== 'object' || !name) return value;
     const properties = { ...(value.properties || {}) };
     const current = properties[name] || unknown();
-    properties[name] = rest.length
+    const updated = rest.length
         ? updateContractPath({ value: current, path: rest, nextValue, sourceNode })
         : nextValue;
     return contract({
         kind: 'object',
-        properties,
+        properties: { ...properties, [name]: updated },
         branches: value.branches || [],
         sourceNode: sourceNode || value.sourceNode
     });
@@ -273,6 +318,9 @@ const assignExpression = ({ context = {}, left = {}, value = unknown() } = {}) =
 };
 
 const setExpressionContext = ({ state = {}, node = {}, context = {} } = {}) => {
+    // The WeakMap is an internal memoization boundary for AST identity.
+    // Its write cannot be expressed as a value transformation without losing identity lookup.
+    // eslint-disable-next-line resilient/prefer-safe-transformations
     if (node && typeof node === 'object') state.contexts.set(node, context);
 };
 
@@ -325,125 +373,6 @@ const analyzeExpression = ({ state = {}, node = {}, context = {} } = {}) => {
         }), context);
 };
 
-const analyzer = {};
-
-analyzer.statement = ({ state = {}, node = {}, context = {} } = {}) => {
-    const source = getObject(node);
-    const {
-        type = '',
-        argument = {},
-        test = {},
-        consequent = {},
-        alternate = {},
-        declarations = [],
-        expression = {},
-        body = []
-    } = source;
-    setExpressionContext({ state, node: source, context });
-
-    if (type === 'BlockStatement') return analyzer.statements({
-        state,
-        statements: body,
-        context
-    });
-
-    if (type === 'ReturnStatement') {
-        const returnContext = analyzeExpression({
-            state,
-            node: argument,
-            context
-        });
-        state.returns.push({
-            argument,
-            contract: inferExpression(argument, returnContext),
-            node: source
-        });
-        return { context: returnContext, reachable: false };
-    }
-
-    if (type === 'ThrowStatement') {
-        const throwContext = analyzeExpression({ state, node: argument, context });
-        return { context: throwContext, reachable: false };
-    }
-
-    if (type === 'IfStatement') {
-        const testContext = analyzeExpression({ state, node: test, context });
-        const consequentFlow = analyzer.statement({
-            state,
-            node: consequent,
-            context: narrowContext({ ...test, context: testContext, truthy: true })
-        });
-        const alternateFlow = alternate
-            ? analyzer.statement({
-                state,
-                node: alternate,
-                context: narrowContext({ ...test, context: testContext, truthy: false })
-            })
-            : {
-                context: narrowContext({ ...test, context: testContext, truthy: false }),
-                reachable: true
-            };
-        const reachableContexts = [consequentFlow, alternateFlow]
-            .filter(({ reachable = false } = {}) => reachable)
-            .map(({ context: branchContext = {} } = {}) => branchContext);
-        return {
-            context: reachableContexts.length ? mergeContexts(reachableContexts) : testContext,
-            reachable: consequentFlow.reachable || alternateFlow.reachable
-        };
-    }
-
-    if (['ForInStatement', 'ForOfStatement', 'ForStatement', 'WhileStatement', 'DoWhileStatement'].includes(type)) {
-        return analyzer.loop({ state, node: source, context });
-    }
-
-    if (type === 'TryStatement') return analyzer.try({ state, node: source, context });
-
-    if (type === 'VariableDeclaration') {
-        return {
-            context: declarations.reduce((current, { id = {}, init = {} } = {}) => {
-                const valueContext = analyzeExpression({
-                    state,
-                    node: init,
-                    context: current
-                });
-                const value = inferExpression(init, valueContext);
-                return bindDeclaration({
-                    context: valueContext,
-                    init,
-                    pattern: id,
-                    value
-                });
-            }, context),
-            reachable: true
-        };
-    }
-
-    if (type === 'ExpressionStatement') return {
-        context: analyzeExpression({ state, node: expression, context }),
-        reachable: true
-    };
-
-    return {
-        context: getChildren(source)
-            .filter(child => !isFunction(child))
-            .reduce((current, child) => analyzeExpression({
-                state,
-                node: child,
-                context: current
-            }), context),
-        reachable: true
-    };
-};
-
-analyzer.statements = ({ state = {}, statements = [], context = {} } = {}) => statements.reduce(
-    (current, statement = {}) => {
-        const { context: currentContext = {}, reachable = false } = current;
-        if (!reachable) return current;
-        return analyzer.statement({ state, node: statement, context: currentContext });
-    },
-    { context, reachable: true }
-);
-
 const getLoopElement = ({ type = '', right = {}, context = {} } = {}) => {
     if (type === 'ForInStatement') return contract({ kind: 'string', sourceNode: right });
     if (type !== 'ForOfStatement') return unknown();
@@ -451,94 +380,224 @@ const getLoopElement = ({ type = '', right = {}, context = {} } = {}) => {
     return getKind(source) === 'array' ? source.element : unknown();
 };
 
-analyzer.loop = ({ state = {}, node = {}, context = {} } = {}) => {
-    const {
-        type = '',
-        init = {},
-        test = {},
-        update = {},
-        left = {},
-        right = {},
-        body = {}
-    } = node;
-    const { declarations = [] } = left;
-    const [{ id: loopPattern = {} } = {}] = declarations;
-    const initResult = init.type === 'VariableDeclaration'
-        ? analyzer.statement({ state, node: init, context })
-        : {
-            context: analyzeExpression({ state, node: init, context }),
+const analyzer = {
+    statement: ({ state = {}, node = {}, context = {} } = {}) => {
+        const source = getObject(node);
+        const {
+            type = '',
+            argument = {},
+            test = {},
+            consequent = {},
+            alternate = {},
+            declarations = [],
+            expression = {},
+            body = []
+        } = source;
+        setExpressionContext({ state, node: source, context });
+
+        if (type === 'BlockStatement') return analyzer.statements({
+            state,
+            statements: body,
+            context
+        });
+
+        if (type === 'ReturnStatement') {
+            const returnContext = analyzeExpression({
+                state,
+                node: argument,
+                context
+            });
+            // Return collection is analyzer-owned evidence accumulated across paths.
+            // eslint-disable-next-line resilient/prefer-safe-transformations
+            state.returns = [...state.returns, {
+                argument,
+                contract: inferExpression(argument, returnContext),
+                node: source
+            }];
+            return { context: returnContext, reachable: false };
+        }
+
+        if (type === 'ThrowStatement') {
+            const throwContext = analyzeExpression({ state, node: argument, context });
+            return { context: throwContext, reachable: false };
+        }
+
+        if (type === 'IfStatement') {
+            const testContext = analyzeExpression({ state, node: test, context });
+            const consequentFlow = analyzer.statement({
+                state,
+                node: consequent,
+                context: narrowContext({ ...test, context: testContext, truthy: true })
+            });
+            const alternateFlow = alternate
+                ? analyzer.statement({
+                    state,
+                    node: alternate,
+                    context: narrowContext({ ...test, context: testContext, truthy: false })
+                })
+                : {
+                    context: narrowContext({ ...test, context: testContext, truthy: false }),
+                    reachable: true
+                };
+            const reachableContexts = [consequentFlow, alternateFlow]
+                .filter(({ reachable = false } = {}) => reachable)
+                .map(({ context: branchContext = {} } = {}) => branchContext);
+            return {
+                context: reachableContexts.length ? mergeContexts(reachableContexts) : testContext,
+                reachable: consequentFlow.reachable || alternateFlow.reachable
+            };
+        }
+
+        if (['ForInStatement', 'ForOfStatement', 'ForStatement', 'WhileStatement', 'DoWhileStatement'].includes(type)) {
+            return analyzer.loop({ state, node: source, context });
+        }
+
+        if (type === 'TryStatement') return analyzer.try({ state, node: source, context });
+
+        if (type === 'VariableDeclaration') {
+            return {
+                context: declarations.reduce((current, { id = {}, init = {} } = {}) => {
+                    const valueContext = analyzeExpression({
+                        state,
+                        node: init,
+                        context: current
+                    });
+                    const value = inferExpression(init, valueContext);
+                    return bindDeclaration({
+                        context: valueContext,
+                        init,
+                        pattern: id,
+                        value
+                    });
+                }, context),
+                reachable: true
+            };
+        }
+
+        if (type === 'ExpressionStatement') return {
+            context: analyzeExpression({ state, node: expression, context }),
             reachable: true
         };
-    const entryContext = initResult.context || context;
-    const testContext = test.type
-        ? analyzeExpression({ state, node: test, context: entryContext })
-        : entryContext;
-    const element = getLoopElement({ type, right, context: testContext });
-    const loopContext = type === 'ForOfStatement' || type === 'ForInStatement'
-        ? bindDeclaration({
-            context: testContext,
-            pattern: loopPattern.type ? loopPattern : left,
-            value: element,
-            init: {}
-        })
-        : narrowContext({ ...test, context: testContext, truthy: true });
-    const bodyFlow = analyzer.statement({ state, node: body, context: loopContext });
-    const updateContext = update.type && bodyFlow.reachable
-        ? analyzeExpression({ state, node: update, context: bodyFlow.context })
-        : bodyFlow.context;
-    const afterIteration = bodyFlow.reachable ? updateContext : bodyFlow.context;
-    const contexts = type === 'DoWhileStatement'
-        ? [afterIteration]
-        : [testContext, afterIteration];
-    return {
-        context: mergeContexts(contexts),
-        reachable: true
-    };
-};
 
-analyzer.try = ({ state = {}, node = {}, context = {} } = {}) => {
-    const { block = {}, handler = {}, finalizer = {} } = node;
-    const safeHandler = getObject(handler);
-    const safeFinalizer = getObject(finalizer);
-    const { param = {}, body: handlerBody = {} } = safeHandler;
-    const safeParam = getObject(param);
-    const tryFlow = analyzer.statement({ state, node: block, context });
-    const catchContext = safeParam.type
-        ? bindDeclaration({
-            context,
-            pattern: safeParam,
-            value: unknown(safeParam),
-            init: {}
-        })
-        : context;
-    const catchFlow = safeHandler.type
-        ? analyzer.statement({ state, node: handlerBody, context: catchContext })
-        : { context, reachable: false };
-    const paths = [tryFlow, catchFlow]
-        .filter(({ reachable = false } = {}) => reachable)
-        .map(({ context: pathContext = {} } = {}) => pathContext);
-    const joinedContext = paths.length ? mergeContexts(paths) : context;
-    if (!safeFinalizer.type) return {
-        context: joinedContext,
-        reachable: paths.length > 0
-    };
-    return analyzer.statement({ state, node: safeFinalizer, context: joinedContext });
+        return {
+            context: getChildren(source)
+                .filter(child => !isFunction(child))
+                .reduce((current, child) => analyzeExpression({
+                    state,
+                    node: child,
+                    context: current
+                }), context),
+            reachable: true
+        };
+    },
+
+    statements: ({ state = {}, statements = [], context = {} } = {}) => statements.reduce(
+        (current, statement = {}) => {
+            const { context: currentContext = {}, reachable = false } = current;
+            if (!reachable) return current;
+            return analyzer.statement({ state, node: statement, context: currentContext });
+        },
+        { context, reachable: true }
+    ),
+
+    loop: ({ state = {}, node = {}, context = {} } = {}) => {
+        const {
+            type = '',
+            init = {},
+            test = {},
+            update = {},
+            left = {},
+            right = {},
+            body = {}
+        } = node;
+        const { declarations = [] } = left;
+        const [{ id: loopPattern = {} } = {}] = declarations;
+        const initResult = init.type === 'VariableDeclaration'
+            ? analyzer.statement({ state, node: init, context })
+            : {
+                context: analyzeExpression({ state, node: init, context }),
+                reachable: true
+            };
+        const entryContext = initResult.context || context;
+        const testContext = test.type
+            ? analyzeExpression({ state, node: test, context: entryContext })
+            : entryContext;
+        const element = getLoopElement({ type, right, context: testContext });
+        const loopContext = type === 'ForOfStatement' || type === 'ForInStatement'
+            ? bindDeclaration({
+                context: testContext,
+                pattern: loopPattern.type ? loopPattern : left,
+                value: element,
+                init: {}
+            })
+            : narrowContext({ ...test, context: testContext, truthy: true });
+        const bodyFlow = analyzer.statement({ state, node: body, context: loopContext });
+        const updateContext = update.type && bodyFlow.reachable
+            ? analyzeExpression({ state, node: update, context: bodyFlow.context })
+            : bodyFlow.context;
+        const afterIteration = bodyFlow.reachable ? updateContext : bodyFlow.context;
+        const contexts = type === 'DoWhileStatement'
+            ? [afterIteration]
+            : [testContext, afterIteration];
+        return {
+            context: mergeContexts(contexts),
+            reachable: true
+        };
+    },
+
+    try: ({ state = {}, node = {}, context = {} } = {}) => {
+        const { block = {}, handler = {}, finalizer = {} } = node;
+        const safeHandler = getObject(handler);
+        const safeFinalizer = getObject(finalizer);
+        const { param = {}, body: handlerBody = {} } = safeHandler;
+        const safeParam = getObject(param);
+        const tryFlow = analyzer.statement({ state, node: block, context });
+        const catchContext = safeParam.type
+            ? bindDeclaration({
+                context,
+                pattern: safeParam,
+                value: unknown(safeParam),
+                init: {}
+            })
+            : context;
+        const catchFlow = safeHandler.type
+            ? analyzer.statement({ state, node: handlerBody, context: catchContext })
+            : { context, reachable: false };
+        const paths = [tryFlow, catchFlow]
+            .filter(({ reachable = false } = {}) => reachable)
+            .map(({ context: pathContext = {} } = {}) => pathContext);
+        const joinedContext = paths.length ? mergeContexts(paths) : context;
+        if (!safeFinalizer.type) return {
+            context: joinedContext,
+            reachable: paths.length > 0
+        };
+        return analyzer.statement({ state, node: safeFinalizer, context: joinedContext });
+    }
 };
 
 const createFunctionFlow = ({ functionNode = {}, definitions = {} } = {}) => {
     const signature = getSignature(functionNode);
+    const matchingDefinitions = Object.entries(definitions)
+        .filter(([, definition = {}] = []) => definition.node === functionNode)
+        .map(([name = ''] = []) => name);
+    const [functionName = ''] = matchingDefinitions;
     const state = {
         contexts: new Map(),
         returns: []
     };
     const context = {
         bindings: { ...signature.bindings },
-        functions: definitions
+        functions: definitions,
+        callStack: functionName ? [functionName] : [],
+        evaluateCalls: true,
+        evaluationDepth: 0
     };
     const { body = {} } = functionNode;
     const result = body.type === 'BlockStatement'
         ? analyzer.statement({ state, node: body, context })
         : analyzeExpression({ state, node: body, context });
+    // Return collection is analyzer-owned evidence accumulated across paths.
+    // eslint-disable-next-line resilient/prefer-safe-transformations
     if (body.type !== 'BlockStatement') state.returns.push({
         argument: body,
         contract: inferExpression(body, result),
@@ -551,16 +610,50 @@ const createFunctionFlow = ({ functionNode = {}, definitions = {} } = {}) => {
     };
 };
 
+const createProgramFlow = ({ program = {}, definitions = {} } = {}) => {
+    const state = {
+        contexts: new Map(),
+        returns: []
+    };
+    const context = {
+        bindings: {},
+        functions: definitions,
+        callStack: [],
+        evaluateCalls: true,
+        evaluationDepth: 0
+    };
+    const result = analyzer.statements({
+        state,
+        statements: program.body || [],
+        context
+    });
+    return {
+        contexts: state.contexts,
+        finalContext: result.context || context,
+        returns: state.returns
+    };
+};
+
 const createFunctionFlows = ({ program = {}, definitions = {} } = {}) => new Map(
-    getFunctionNodes(program).map(functionNode => [
-        functionNode,
-        createFunctionFlow({ functionNode, definitions })
-    ])
+    [
+        [program, createProgramFlow({ program, definitions })],
+        ...getFunctionNodes(program).map(functionNode => [
+            functionNode,
+            createFunctionFlow({ functionNode, definitions })
+        ])
+    ]
 );
+
+const getEnclosingProgram = (node = {}) => {
+    const source = getObject(node);
+    if (source.type === 'Program') return source;
+    return source.parent ? getEnclosingProgram(source.parent) : {};
+};
 
 const getFlowContext = ({ node = {}, definitions = {}, flows = new Map() } = {}) => {
     const functionNode = getEnclosingFunction(node);
-    const flow = flows.get(functionNode) || {};
+    const programNode = getEnclosingProgram(node);
+    const flow = flows.get(functionNode) || flows.get(programNode) || {};
     const contexts = flow.contexts || new Map();
     return contexts.get(node) || flow.finalContext || { functions: definitions };
 };
