@@ -90,12 +90,13 @@ That distinction produces three cases:
 2. an external `null` or `undefined` may remain at a declared boundary until
    runtime normalization handles it;
 3. an internal value-producing path should return the contract's canonical
-   empty value unless an explicit union is part of the boundary contract.
+   empty value; a known alternate family is a contract contradiction.
 
-The falsey-return and nullish-assignment rules enforce the default dialect. An
-intentional nullish union is a valid JavaScript design, but it requires a local
-policy decision and corresponding rule boundary rather than appearing
-accidentally in ordinary application flow.
+The falsey-return, nullish-assignment, and return-consistency rules enforce the
+default dialect. A known value-producing function has one return family;
+incompatible nullish and non-nullish paths are contradictions rather than an
+automatically widened union. Unknown external paths remain unknown until a
+normalization boundary establishes a contract.
 
 ## Control-flow contracts
 

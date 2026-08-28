@@ -23,6 +23,20 @@ ruleTester.run('signature-contract-return-consistency', rule, {
                 { messageId: 'inconsistent' },
                 { messageId: 'inconsistent' }
             ]
+        },
+        {
+            code: "const getValue = (enabled = false) => enabled ? '' : null;",
+            errors: [
+                { messageId: 'inconsistent' },
+                { messageId: 'inconsistent' }
+            ]
+        },
+        {
+            code: "const getValue = (enabled = false) => { return enabled ? '' : null; };",
+            errors: [
+                { messageId: 'inconsistent' },
+                { messageId: 'inconsistent' }
+            ]
         }
     ]
 });

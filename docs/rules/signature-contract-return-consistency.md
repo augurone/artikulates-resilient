@@ -16,6 +16,6 @@ const getValue = (enabled) => {
 };
 ```
 
-Return paths involving unknown values do not create a diagnostic. The rule is
-intended to catch contradictions in executable behavior, not to require every
-function to have an explicit return annotation.
+Return paths involving unknown values do not create a diagnostic. Known return
+paths must agree on one value family; the rule does not widen incompatible
+paths into a union or require a separate return annotation.
