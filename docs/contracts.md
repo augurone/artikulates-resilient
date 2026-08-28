@@ -167,8 +167,9 @@ to invalidate only the default graph manager.
 
 This keeps module resolution outside the inference model. Callers can provide
 their own resolver; the default handles relative `.js`, `.jsx`, and
-`index.js` paths. Package aliases, dynamic imports, and filesystem parsing
-remain adapter work.
+`index.js` paths. Package aliases, dynamic imports, and filesystem parsing are
+not handled by this package; proposed adapter work is listed in
+[`roadmap.md`](roadmap.md).
 
 The caller supplies an ESTree-compatible program. Parsing, file watching,
 diagnostic presentation, and editor protocol integration remain separate from
@@ -285,9 +286,9 @@ contract, not an informal inventory.
 ## Current limits
 
 The core does not perform runtime validation, resolve arbitrary package or
-dynamic imports, or provide a complete LSP server. The current graph adapter
-handles local relative `.js`, `.jsx`, and `index.js` paths plus named local
-and namespace re-export edges; package aliases, filesystem-wide project
-discovery, and parser-backed resolution remain future adapter work. These
-layers can build on the contract model without adding a parallel
-type-annotation language to application source.
+dynamic imports, or provide an LSP server. The current graph adapter handles
+local relative `.js`, `.jsx`, and `index.js` paths plus named local and
+namespace re-export edges. Filesystem-wide project discovery and parser-backed
+resolution are not included. Proposed extensions are listed in
+[`roadmap.md`](roadmap.md); none requires a parallel type-annotation language
+in application source.

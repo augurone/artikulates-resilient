@@ -36,4 +36,4 @@ Promise or thenable, and it does not replace runtime behavior tests. For a
 required third-party or platform chain, keep rejection ownership explicit
 with `.catch`, `return`, assignment, `await`, or `void`. If the chain is
 handled but must remain a chain, the warning-level `prefer-async-await`
-exception comment can suppress the style warning.
+exception comment can suppress the style warning when it includes a reason.

@@ -81,7 +81,7 @@ ESTree program
                 │
                 ├── ESLint diagnostics
                 ├── inspect:stack CLI probe
-                └── future editor protocol adapter
+                └── editor protocol adapter (not included)
 ```
 
 The core is exported independently from `eslint-plugin-resilient/contracts`.

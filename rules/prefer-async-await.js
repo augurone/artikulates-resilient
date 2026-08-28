@@ -59,7 +59,7 @@ const hasAllowComment = ({ sourceCode = {}, node = {} } = {}) => {
     if (typeof sourceCode.getCommentsBefore !== 'function') return false;
 
     return sourceCode.getCommentsBefore(node)
-        .some(({ value = '' } = {}) => /^\s*resilient-allow-promise-chain(?:\s*:|\s*$)/.test(value));
+        .some(({ value = '' } = {}) => /^\s*resilient-allow-promise-chain\s*:\s*\S/.test(value));
 };
 
 export default {

@@ -1,3 +1,4 @@
+// resilient-allow-loop: test modules must load sequentially so failures remain isolated and ordered.
 for (const testFile of [
     './no-destructuring-fallback.test.js',
     './no-else.test.js',

@@ -10,7 +10,7 @@ Read the documents in this order when the task concerns project behavior:
 2. [`docs/CODING_STANDARDS.md`](docs/CODING_STANDARDS.md) — the quick reference;
 3. [`docs/contracts.md`](docs/contracts.md) — analyzer evidence and limits;
 4. [`README.md`](README.md) — public configuration and product surface;
-5. [`docs/scaling.md`](docs/scaling.md) — strategy, audience, schemas, and AI.
+5. [`docs/roadmap.md`](docs/roadmap.md) — proposed and unimplemented work only.
 
 `.github/copilot-instructions.md` is a short adapter for Copilot-style tools.
 Individual rule pages in `docs/rules/` own rule-specific behavior, exceptions,

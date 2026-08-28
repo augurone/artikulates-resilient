@@ -3,8 +3,8 @@
 The canonical robot instructions for this repository are in
 [`AGENTS.md`](AGENTS.md). Read that file before making changes.
 
-The product and audience conclusions are in
-[`docs/scaling.md`](docs/scaling.md).
+Proposed and unimplemented work is isolated in
+[`docs/roadmap.md`](docs/roadmap.md).
 
 The product dialect semantics are defined in
 [`docs/semantics.md`](docs/semantics.md).

@@ -75,6 +75,7 @@ const recommended = {
         'no-console': 'error',
         'no-undef': 'error',
         'no-unused-vars': ['error', { ignoreRestSiblings: true }],
+        'prefer-const': 'error',
         'no-nested-ternary': 'error',
         'no-unneeded-ternary': 'error',
         'eqeqeq': ['error', 'always'],

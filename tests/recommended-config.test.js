@@ -20,6 +20,13 @@ const validResult = await lint('const getItems = ({ items = [] } = {}) => items;
 
 assert.equal(validResult.errorCount, 0);
 
+const styleResult = await lint('function getItems() { return []; }\nlet label = \'items\';\ngetItems();\nlabel;');
+
+assert.deepEqual(
+    styleResult.messages.map(({ ruleId = '' } = {}) => ruleId).sort(),
+    ['func-style', 'prefer-const']
+);
+
 const invalidResult = await lint('const getItems = (items) => {\n    if (items.length === 0) return [];\n    else return items;\n};\nexport default getItems;');
 
 assert.deepEqual(

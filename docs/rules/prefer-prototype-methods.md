@@ -31,7 +31,7 @@ one of these exceptions applies:
 - the loop has direct `break` that exits the loop, `continue`, `return`, or
   `throw` control flow; a bare `break` that exits only a nested `switch` does
   not qualify;
-- a preceding comment starts with `resilient-allow-loop`.
+- a preceding comment has the form `resilient-allow-loop: reason`.
 
 These exceptions cover sequential API work, polling, retries, rate limiting,
 early termination, and detailed control flow. The rule is intentionally

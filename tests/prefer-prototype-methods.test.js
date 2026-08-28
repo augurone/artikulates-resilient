@@ -43,6 +43,10 @@ ruleTester.run('prefer-prototype-methods', rule, {
         {
             code: 'for (const item of items) { switch (item.kind) { case "done": break; default: process(item); } }',
             errors: [{ messageId: 'prototypeMethod' }]
+        },
+        {
+            code: '// resilient-allow-loop\nfor (const item of items) process(item);',
+            errors: [{ messageId: 'prototypeMethod' }]
         }
     ]
 });
