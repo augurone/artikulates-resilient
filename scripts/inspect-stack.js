@@ -63,22 +63,31 @@ const loadWorkspace = async ({ fileName = '' } = {}) => {
     const rootFile = path.resolve(fileName);
     const rootDisplayName = getDisplayName(rootFile);
     const pending = [{ fileName: rootFile, displayName: rootDisplayName }];
+    let pendingIndex = 0;
     const visited = new Set();
     const programs = {};
     let rootCode = '';
 
-    while (pending.length) {
-        const { fileName: currentFile = '', displayName = '' } = pending.shift();
+    while (pendingIndex < pending.length) {
+        const { [pendingIndex]: current = {} } = pending;
+        const { fileName: currentFile = '', displayName = '' } = current;
+        pendingIndex += 1;
         if (visited.has(currentFile)) continue;
+        // This set is private breadth-first traversal state.
+        // eslint-disable-next-line resilient/prefer-safe-transformations -- Local traversal set; mutation avoids O(n²) copying.
         visited.add(currentFile);
         const code = await fs.readFile(currentFile, 'utf8');
         if (currentFile === rootFile) rootCode = code;
         const program = await getProgram({ code, fileName: displayName });
+        // This index is private inspection state, not contract data.
+        // eslint-disable-next-line resilient/prefer-safe-transformations -- Local program index; mutation avoids repeated object copying.
         programs[displayName] = program;
         const sources = getModuleSources(program);
         for (const source of sources) {
             const importedFile = await getLocalImportFile({ fileName: currentFile, source });
             if (!importedFile) continue;
+            // This queue is private traversal state.
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- Local traversal queue; mutation avoids O(n²) copying.
             pending.push({
                 fileName: importedFile,
                 displayName: getDisplayName(importedFile)
@@ -140,7 +149,7 @@ const run = async () => {
     const [fileName = '', ...options] = commandLine;
     if (!fileName) {
         process.stderr.write('Usage: node scripts/inspect-stack.js <file> [--find text | --offset number]\n');
-        process.exitCode = 1;
+        process.exit(1);
         return;
     }
 
@@ -153,7 +162,7 @@ const run = async () => {
     const offset = getOffset({ code, options });
     if (offset < 0) {
         process.stderr.write('Provide --find text or --offset number for a source position.\n');
-        process.exitCode = 1;
+        process.exit(1);
         return;
     }
 

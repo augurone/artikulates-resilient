@@ -2,6 +2,7 @@ export {
     contract,
     describe,
     getKind,
+    isEqual,
     isCompatible,
     isKnown,
     mergeContracts,
@@ -25,11 +26,20 @@ export {
 export {
     createContractGraph,
     getImportBindings,
+    getModuleAgreements,
     getModuleExports,
     getModuleSources,
     normalizePath,
     resolveModule
 } from './module-graph.js';
+
+export {
+    clearContractCaches,
+    clearProjectGraphCache,
+    createProjectGraphManager,
+    getProgramCacheSize,
+    getProjectGraphCacheStats
+} from './eslint-graph.js';
 
 export {
     createFunctionFlow,
@@ -44,6 +54,7 @@ export {
     getEnclosingFunction,
     getFunctionContext,
     getFunctionName,
+    getFunctionCallContext,
     getFunctionNodes,
     getOperationExpectation,
     getPropertyName,

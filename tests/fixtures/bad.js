@@ -139,7 +139,21 @@ const report = () => {};
 {
     try {
         process();
-    } catch {
+    } catch (error) {}
+
+    try {
+        process();
+    } catch {}
+
+    try {
+        process();
+    } catch (error) {;
+    }
+
+    try {
+        process();
+    } catch (error) {
+        // The comment does not handle or explain the failure.
     }
 }
 
@@ -285,6 +299,11 @@ const report = () => {};
     const render = ({ title = '' } = {}) => title.trim();
     render({ title: 42 });
 
+    const getCount = (title = '', count = 0) => title ? count : 0;
+    getCount('', 'count');
+
+    getTitle({ title: 42 });
+
     const getName = ({
         config: {
             name = ''
@@ -292,6 +311,23 @@ const report = () => {};
     } = {}) => name;
 
     getName({ config: { name: null } });
+
+    // A deeply destructured signature is an inline schema. Every nested
+    // property remains falsifiable at the call boundary.
+    const renderPage = ({
+        page: {
+            title = '',
+            items = []
+        } = {}
+    } = {}) => ({ title, items });
+    renderPage({ page: { title: 42, items: '' } });
+
+    // The transform argument must agree with the callback contract too.
+    const apply = (callback, value) => callback(value);
+    const readTitle = ({ title = '' } = {}) => title;
+    apply(readTitle, { title: 42 });
+
+    void [renderPage, apply, readTitle];
 }
 
 // signature-contract-operation
@@ -301,9 +337,29 @@ const report = () => {};
 
     void [inspectItems, inspectTitle];
 
-    getTitle({ title: 42 });
     getItems({}).toUpperCase();
     getConfig().items.toUpperCase();
+
+    const inspectMapped = () => {
+        const mapped = ['ready'].map(item => item.toUpperCase());
+        return mapped.toUpperCase();
+    };
+
+    // A known async callee still carries its return contract through await.
+    const loadPage = async () => ({ items: [] });
+    const inspectLoaded = async () => {
+        const page = await loadPage();
+        return page.items.toUpperCase();
+    };
+
+    // Array transforms derive their result from the callback return contract.
+    const normalizeTitle = ({ title = '' } = {}) => title.trim();
+    const inspectTitles = () => {
+        const titles = [{ title: 'ready' }].map(normalizeTitle);
+        return titles.toUpperCase();
+    };
+
+    void [inspectMapped, loadPage, inspectLoaded, normalizeTitle, inspectTitles];
 }
 
 // signature-contract-return-consistency
@@ -314,9 +370,18 @@ const report = () => {};
         return '';
     };
 
-    void getValue;
+    // Normalization must converge on one reliable return family. A branch
+    // that leaks the pre-normalized family is a contract disagreement.
+    const normalizeItems = (value) => {
+        if (Array.isArray(value)) return value;
+
+        return '';
+    };
+
+    void [getValue, normalizeItems];
 }
 
+// combined-patterns
 // Existing examples that combine the signature, default, and member-access
 // rules. The whole-object forwarding case is intentionally allowed by
 // prefer-signature-destructuring, but the other examples remain violations.

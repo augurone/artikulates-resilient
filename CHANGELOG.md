@@ -1,12 +1,48 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — 2026-08-27
+
+- Extended contract signatures and call-site diagnostics to cover all known
+  formal parameters and corresponding arguments.
+- Added a program-scope flow context so top-level declarations, aliases,
+  returned object properties, and destructured bindings remain contract-visible.
+- Stabilized direct local return propagation across function-definition order.
+- Stabilized transitive local export propagation across named re-export barrels,
+  `export *` barrels, and finite re-export cycles.
+- Propagated imported definitions into local wrapper return contracts, including
+  anonymous default exports.
+- Added import-tree agreement records for resolved, missing, ambiguous, and
+  unknown local imports, with namespace import and namespace re-export support.
+- Added recursive nested object and array destructuring diagnostics.
+- Aligned source-stack queries with known call-expression contracts.
+- Made the agent fixture check behavioral by requiring each labeled rule section
+  to produce its matching diagnostic.
+- Added an opt-in `imports` preset backed by `eslint-plugin-import` for generic
+  unresolved-path, named-export, namespace, and duplicate-export checks.
+- Propagated callable aliases and promise-shaped async returns through local
+  and imported contract analysis, with `await` unwrapping.
+- Propagated known elements through `Promise.resolve` and `Promise.all`, and
+  checked known callback arguments at higher-order call sites.
+- Added inline callback agreement at known array-operation boundaries, with
+  derived `map`, preserved `filter`, boolean `some`, accumulator-safe `reduce`,
+  and explicit `forEach` result contracts. `find` remains conservative when
+  its absence path is not proven.
+- Added a project-graph manager shared by contract ESLint rules, with resolver
+  and parser-aware reuse plus dependency-file-state invalidation and exposed
+  cache statistics.
+- Bounded parsed-program and project-graph retention with LRU eviction, exposed
+  combined cache reset, and cache lifecycle coverage for long-lived ESLint
+  hosts.
+- Reduced allocation churn in signature and stack inspection traversal
+  accumulators while preserving immutable contract outputs and explicit,
+  line-local safety-rule explanations for the mutable boundaries.
+- Expanded negative-first fixtures with end-to-end barrel, top-level retained
+  and destructured values, async returns, callback arguments, and explicit
+  resolved/missing/ambiguous/unknown graph agreements.
 
 ## 0.3.6 — 2026-08-25
 
 - Added integration fixtures based on real engine structures, including caches,
-
-
   API response boundaries, refs, reducers, graph accumulators, and loop control.
 - Formalized the agent-facing fixture contract in
   `tests/fixtures/manifest.json`, with one checked highlight for every public

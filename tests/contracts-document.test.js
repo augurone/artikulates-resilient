@@ -107,6 +107,33 @@ assert.equal(destructuringDiagnostics[0].ruleId, 'signature-contract-destructuri
 assert.equal(destructuringDiagnostics[0].data.actual, 'array-like');
 assert.equal(destructuringDiagnostics[0].data.expected, 'object-like');
 
+const nestedDestructuringCode = 'const getValue = () => { const { data: { items = [] } = {} } = { data: 42 }; return items; };';
+const nestedDestructuringProgram = await getProgram(nestedDestructuringCode);
+const nestedDestructuringDocument = createContractDocument(nestedDestructuringProgram, { fileName: 'nested-destructuring.js' });
+const nestedDestructuringDiagnostics = nestedDestructuringDocument.getDiagnostics();
+assert.equal(nestedDestructuringDiagnostics.length, 1);
+assert.equal(nestedDestructuringDiagnostics[0].ruleId, 'signature-contract-destructuring');
+assert.equal(nestedDestructuringDiagnostics[0].data.actual, 'number-like');
+assert.equal(nestedDestructuringDiagnostics[0].data.expected, 'object-like');
+
+const nestedArrayDestructuringCode = 'const getValue = () => { const [{ attr = "" } = {}] = [42]; return attr; };';
+const nestedArrayDestructuringProgram = await getProgram(nestedArrayDestructuringCode);
+const nestedArrayDestructuringDocument = createContractDocument(nestedArrayDestructuringProgram, { fileName: 'nested-array-destructuring.js' });
+const nestedArrayDestructuringDiagnostics = nestedArrayDestructuringDocument.getDiagnostics();
+assert.equal(nestedArrayDestructuringDiagnostics.length, 1);
+assert.equal(nestedArrayDestructuringDiagnostics[0].data.actual, 'number-like');
+assert.equal(nestedArrayDestructuringDiagnostics[0].data.expected, 'object-like');
+
+const forwardCallCode = 'const first = () => second(); const second = () => ({ items: [] }); first().items.toUpperCase();';
+const forwardCallProgram = await getProgram(forwardCallCode);
+const forwardCallDocument = createContractDocument(forwardCallProgram, { fileName: 'forward-call.js' });
+const forwardCallDiagnostics = forwardCallDocument.getDiagnostics();
+assert.equal(forwardCallDiagnostics.length, 1);
+assert.equal(forwardCallDiagnostics[0].ruleId, 'signature-contract-operation');
+assert.equal(forwardCallDiagnostics[0].data.receiver, 'first().items');
+assert.equal(forwardCallDiagnostics[0].data.actual, 'array-like');
+assert.equal(forwardCallDiagnostics[0].data.expected, 'string-like');
+
 const computedDestructuringCode = 'const getValue = (items = []) => { const { [0]: value = {} } = items; return value; };';
 const computedDestructuringProgram = await getProgram(computedDestructuringCode);
 const computedDestructuringDocument = createContractDocument(computedDestructuringProgram);
@@ -151,6 +178,10 @@ assert.equal(returnedDiagnostics[0].ruleId, 'signature-contract-operation');
 assert.equal(returnedDiagnostics[0].data.receiver, 'getItems()');
 assert.equal(returnedDiagnostics[0].data.actual, 'array-like');
 assert.equal(returnedDiagnostics[0].data.expected, 'string-like');
+const returnedStack = returnedGraph.getDocument('consumer-items.js')
+    .getStackAtOffset(returnedConsumerCode.indexOf('getItems({})'));
+assert.equal(returnedStack.frames.at(-1).kind, 'expression');
+assert.equal(returnedStack.frames.at(-1).contract.kind, 'array');
 
 const propertyProviderCode = 'export const getConfig = () => ({ items: [] });';
 const propertyConsumerCode = 'import { getConfig } from "./provider-config.js"; getConfig().items.toUpperCase();';

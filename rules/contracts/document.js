@@ -17,6 +17,7 @@ import { unknown } from './model.js';
 const EXPRESSION_TYPES = [
     'ArrayExpression',
     'AssignmentPattern',
+    'AwaitExpression',
     'BinaryExpression',
     'CallExpression',
     'ConditionalExpression',
@@ -51,13 +52,22 @@ const isPropertyIdentifier = ({ node = {} } = {}) => {
     );
 };
 
+const isCallCalleeIdentifier = ({ node = {} } = {}) => {
+    const { parent = {} } = node;
+    if (!parent || typeof parent !== 'object') return false;
+    return parent.type === 'CallExpression' && parent.callee === node;
+};
+
 const getExpressionNodes = (program = {}) => {
-    const nodes = [];
+    let nodes = [];
     walk(program, (node = {}) => {
         const { type = '' } = node;
         if (!EXPRESSION_TYPES.includes(type)) return;
-        if (type === 'Identifier' && isPropertyIdentifier({ node })) return;
-        nodes.push(node);
+        if (
+            type === 'Identifier' &&
+            (isPropertyIdentifier({ node }) || isCallCalleeIdentifier({ node }))
+        ) return;
+        nodes = [...nodes, node];
     });
     return nodes;
 };
@@ -94,8 +104,9 @@ const createContractDocument = (program = {}, {
     fileName = '',
     externalDefinitions = {}
 } = {}) => {
+    const localDefinitions = getDefinitions(program, externalDefinitions);
     const definitions = {
-        ...getDefinitions(program),
+        ...localDefinitions,
         ...externalDefinitions
     };
     const functions = getFunctionNodes(program);

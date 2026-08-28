@@ -24,6 +24,14 @@ ruleTester.run('no-silent-catch', rule, {
         {
             code: 'try { run(); } catch {}',
             errors: [{ messageId: 'silentCatch' }]
+        },
+        {
+            code: 'try { run(); } catch (error) {;}',
+            errors: [{ messageId: 'silentCatch' }]
+        },
+        {
+            code: 'try { run(); } catch (error) { /* ignored */ }',
+            errors: [{ messageId: 'silentCatch' }]
         }
     ]
 });

@@ -60,15 +60,25 @@ const incrementVersion = ({ version = '', releaseType = 'patch' } = {}) => {
 const getPackage = () => JSON.parse(read(packagePath));
 
 const setPackageVersion = ({ version = '' } = {}) => {
-    const packageJson = getPackage();
-    packageJson.version = version;
+    const packageJson = { ...getPackage(), version };
     write(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`);
 
-    const packageLock = JSON.parse(read(packageLockPath));
-    packageLock.version = version;
-    if (packageLock.packages && packageLock.packages['']) {
-        packageLock.packages[''].version = version;
-    }
+    const sourcePackageLock = JSON.parse(read(packageLockPath));
+    const packageLock = {
+        ...sourcePackageLock,
+        version,
+        ...(sourcePackageLock.packages && {
+            packages: {
+                ...sourcePackageLock.packages,
+                ...(sourcePackageLock.packages[''] && {
+                    '': {
+                        ...sourcePackageLock.packages[''],
+                        version
+                    }
+                })
+            }
+        })
+    };
     write(packageLockPath, `${JSON.stringify(packageLock, null, 2)}\n`);
 };
 
@@ -189,5 +199,5 @@ try {
     main();
 } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : error}\n`);
-    process.exitCode = 1;
+    process.exit(1);
 }

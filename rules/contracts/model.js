@@ -6,6 +6,7 @@ const KINDS = Object.freeze([
     'number',
     'boolean',
     'array',
+    'promise',
     'object'
 ]);
 
@@ -25,7 +26,7 @@ const contract = ({
     kind: KINDS.includes(kind) ? kind : 'unknown',
     sourceNode,
     optional,
-    ...(kind === 'array' && { element }),
+    ...(['array', 'promise'].includes(kind) && { element }),
     ...(kind === 'object' && { properties, branches })
 });
 
@@ -37,18 +38,44 @@ const withOptional = (value = unknown(), optional = false) => ({
 const getKind = ({ kind = 'unknown' } = {}) => kind;
 
 const isKnown = ({ kind = 'unknown' } = {}) => kind !== 'unknown';
-const mergeState = { mergeContracts: () => unknown() };
+
+const getContractShape = ({
+    kind = 'unknown',
+    optional = false,
+    element = {},
+    properties = {}
+} = {}) => ({
+    kind,
+    optional,
+    ...(['array', 'promise'].includes(kind) && { element: getContractShape(element) }),
+    ...(kind === 'object' && {
+        properties: Object.fromEntries(Object.entries(properties)
+            .sort(([left = ''], [right = '']) => left.localeCompare(right))
+            .map(([name = '', property = {}] = []) => [name, getContractShape(property)]))
+    })
+});
+
+const isEqual = (left = unknown(), right = unknown()) => (
+    JSON.stringify(getContractShape(left)) === JSON.stringify(getContractShape(right))
+);
+
+let mergeContracts = () => unknown();
 
 const mergeArrayContracts = (knownValues = []) => contract({
     kind: 'array',
-    element: mergeState.mergeContracts(knownValues.map(({ element = {} } = {}) => element))
+    element: mergeContracts(knownValues.map(({ element = {} } = {}) => element))
+});
+
+const mergePromiseContracts = (knownValues = []) => contract({
+    kind: 'promise',
+    element: mergeContracts(knownValues.map(({ element = {} } = {}) => element))
 });
 
 const mergeObjectContracts = (knownValues = []) => {
     const propertyNames = [...new Set(knownValues.flatMap(({ properties = {} } = {}) => Object.keys(properties)))];
     const properties = Object.fromEntries(propertyNames.map((name = '') => [
         name,
-        mergeState.mergeContracts(knownValues.map(({ properties: sourceProperties = {} } = {}) => (
+        mergeContracts(knownValues.map(({ properties: sourceProperties = {} } = {}) => (
             sourceProperties[name] || unknown()
         )))
     ]));
@@ -58,11 +85,12 @@ const mergeObjectContracts = (knownValues = []) => {
 
 const mergeSameKind = ({ kind = 'unknown', knownValues = [] } = {}) => {
     if (kind === 'array') return mergeArrayContracts(knownValues);
+    if (kind === 'promise') return mergePromiseContracts(knownValues);
     if (kind === 'object') return mergeObjectContracts(knownValues);
     return contract({ kind });
 };
 
-const mergeContracts = (values = []) => {
+mergeContracts = (values = []) => {
     const knownValues = values.filter(isKnown);
     if (!knownValues.length) return unknown();
 
@@ -72,13 +100,11 @@ const mergeContracts = (values = []) => {
     return mergeSameKind({ kind, knownValues });
 };
 
-mergeState.mergeContracts = mergeContracts;
-
 const isCompatible = ({ expected = unknown(), actual = unknown() } = {}) => {
     if (!isKnown(expected) || !isKnown(actual)) return true;
     if (expected.kind !== actual.kind) return false;
 
-    if (expected.kind === 'array') {
+    if (['array', 'promise'].includes(expected.kind)) {
         return isCompatible({ expected: expected.element, actual: actual.element });
     }
 
@@ -99,6 +125,7 @@ const describe = ({ kind = 'unknown' } = {}) => ({
     number: 'number-like',
     boolean: 'boolean-like',
     array: 'array-like',
+    promise: 'promise-like',
     object: 'object-like'
 }[kind] || 'unknown');
 
@@ -106,6 +133,7 @@ export {
     contract,
     describe,
     getKind,
+    isEqual,
     isCompatible,
     isKnown,
     mergeContracts,

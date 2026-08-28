@@ -75,26 +75,30 @@ export default {
         }
     },
     create({ report = () => {} } = {}) {
-        const functionStack = [];
+        let functionStack = [];
         const enterFunction = (node = {}) => {
             const { parent = {} } = node;
             const paramNames = getParamNames(node);
 
-            functionStack.push({
+            functionStack = [...functionStack, {
                 paramNames,
                 reducerParamNames: isReduceCallback({ parent, node })
                     ? [paramNames[0]]
                     : []
-            });
+            }];
+        };
+
+        const exitFunction = () => {
+            functionStack = functionStack.slice(0, -1);
         };
 
         return {
             FunctionDeclaration: enterFunction,
-            'FunctionDeclaration:exit': () => functionStack.pop(),
+            'FunctionDeclaration:exit': exitFunction,
             FunctionExpression: enterFunction,
-            'FunctionExpression:exit': () => functionStack.pop(),
+            'FunctionExpression:exit': exitFunction,
             ArrowFunctionExpression: enterFunction,
-            'ArrowFunctionExpression:exit': () => functionStack.pop(),
+            'ArrowFunctionExpression:exit': exitFunction,
             MemberExpression(node = {}) {
                 const {
                     object: {

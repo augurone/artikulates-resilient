@@ -38,6 +38,59 @@
         { "ruleId": "resilient/prefer-safe-transformations", "count": 3 },
         { "ruleId": "resilient/prefer-prototype-methods", "count": 1 }
       ]
+    },
+    {
+      "file": "tests/fixtures/integration/page-renderer.js",
+      "files": [
+        "tests/fixtures/integration/contentful-page-provider.js",
+        "tests/fixtures/integration/page-provider-barrel.js",
+        "tests/fixtures/integration/contentful-backend.js",
+        "tests/fixtures/integration/sanity-backend.js",
+        "tests/fixtures/integration/page-backends.js"
+      ],
+      "kind": "valid",
+      "covers": ["provider-barrel", "namespace-contract", "missing-export", "ambiguous-export", "external-unknown"],
+      "expectedDiagnostics": [
+        { "ruleId": "resilient/signature-contract-operation", "count": 2 }
+      ],
+      "agreementExpectations": [
+        { "localName": "pageApi", "importedName": "pageApi", "kind": "resolved" },
+        { "localName": "getPageView", "importedName": "getPageView", "kind": "resolved" },
+        { "localName": "getPreviewPage", "importedName": "getPreviewPage", "kind": "missing" },
+        { "localName": "backendPage", "importedName": "getPageView", "kind": "ambiguous" },
+        { "localName": "cmsClient", "importedName": "*", "kind": "unknown" }
+      ]
+    },
+    {
+      "file": "tests/fixtures/integration/contract-boundaries.invalid.js",
+      "files": [
+        "tests/fixtures/integration/contract-barrel.js",
+        "tests/fixtures/integration/contract-providers.js"
+      ],
+      "kind": "invalid",
+      "covers": ["barrel-contract", "argument-contract", "return-contract", "async-contract", "callback-contract"],
+      "expectedDiagnostics": [
+        { "ruleId": "resilient/signature-contract-call-site", "count": 5 },
+        { "ruleId": "resilient/signature-contract-operation", "count": 4 }
+      ]
+    },
+    {
+      "file": "tests/fixtures/integration/graph-agreement.invalid.js",
+      "files": [
+        "tests/fixtures/integration/graph-present.js",
+        "tests/fixtures/integration/graph-barrel.js",
+        "tests/fixtures/integration/graph-first.js",
+        "tests/fixtures/integration/graph-second.js"
+      ],
+      "kind": "invalid",
+      "covers": ["resolved", "missing", "ambiguous", "unknown"],
+      "expectedDiagnostics": [],
+      "agreementExpectations": [
+        { "localName": "present", "importedName": "present", "kind": "resolved" },
+        { "localName": "missing", "importedName": "missing", "kind": "missing" },
+        { "localName": "value", "importedName": "value", "kind": "ambiguous" },
+        { "localName": "external", "importedName": "*", "kind": "unknown" }
+      ]
     }
   ]
 }

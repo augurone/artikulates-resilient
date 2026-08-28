@@ -7,6 +7,7 @@ import resilient from 'eslint-plugin-resilient';
 
 const directory = await mkdtemp(path.join(process.cwd(), '.resilient-contract-'));
 const providerFile = path.join(directory, 'provider.js');
+const barrelFile = path.join(directory, 'barrel.js');
 const consumerFile = path.join(directory, 'consumer.js');
 const providerCode = [
     'export const getTitle = ({ title = "" } = {}) => title;',
@@ -14,7 +15,7 @@ const providerCode = [
     'export const getConfig = () => ({ items: [] });'
 ].join('\n');
 const consumerCode = [
-    'import { getTitle, getItems, getConfig } from "./provider.js";',
+    'import { getTitle, getItems, getConfig } from "./barrel.js";',
     'getTitle({ title: 42 });',
     'getItems({}).toUpperCase();',
     'getConfig().items.toUpperCase();'
@@ -22,6 +23,7 @@ const consumerCode = [
 
 try {
     await writeFile(providerFile, providerCode);
+    await writeFile(barrelFile, 'export { getTitle, getItems, getConfig } from "./provider.js";');
     await writeFile(consumerFile, consumerCode);
 
     const eslint = new ESLint({

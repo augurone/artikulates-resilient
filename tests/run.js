@@ -1,4 +1,4 @@
-await Promise.all([
+for (const testFile of [
     './no-destructuring-fallback.test.js',
     './no-else.test.js',
     './no-length-comparison.test.js',
@@ -22,7 +22,13 @@ await Promise.all([
     './signature-contract-operation.test.js',
     './signature-contract-return-consistency.test.js',
     './contracts-config.test.js',
+    './contracts-diagnostics.test.js',
     './contracts-document.test.js',
+    './contracts-module-graph.test.js',
+    './imports-config.test.js',
+    './program-cache.test.js',
+    './project-graph-cache.test.js',
+    './project-graph-resolver.test.js',
     './safety-config.test.js',
     './integration-fixtures.test.js'
-].map(testFile => import(testFile)));
+]) await import(testFile);

@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-resilient",
-  "version": "0.3.6",
+  "version": "0.4.0",
   "description": "Native-JavaScript discipline and contract analysis for explicit code",
   "type": "module",
   "main": "index.js",
@@ -50,10 +50,12 @@
   "peerDependencies": {
     "eslint": ">=9.0.0"
   },
+  "dependencies": {
+    "eslint-plugin-import": "^2.31.0"
+  },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
     "eslint": "^9.0.0",
-    "eslint-plugin-import": "^2.31.0",
     "globals": "^15.0.0"
   },
   "license": "MIT"
