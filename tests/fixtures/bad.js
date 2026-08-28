@@ -352,6 +352,23 @@ const report = () => {};
         return page.items.toUpperCase();
     };
 
+    // The non-null guard is valid; the fallback branch still carries null.
+    const inspectNullable = (value = null) => {
+        if (value !== null) return '';
+
+        return value.toUpperCase();
+    };
+
+    const inspectConditional = (enabled = false) => (enabled ? [] : '').toUpperCase();
+    const inspectLogical = (enabled = false) => (enabled && []).map(Boolean);
+    const inspectMixedItems = () => ['ready', 42].map(item => item.toUpperCase());
+    const getLocalItems = (page = { items: [] }) => {
+        const { items = [] } = page;
+
+        return items;
+    };
+    getLocalItems({}).toUpperCase();
+
     // Array transforms derive their result from the callback return contract.
     const normalizeTitle = ({ title = '' } = {}) => title.trim();
     const inspectTitles = () => {
@@ -359,7 +376,17 @@ const report = () => {};
         return titles.toUpperCase();
     };
 
-    void [inspectMapped, loadPage, inspectLoaded, normalizeTitle, inspectTitles];
+    void [
+        inspectMapped,
+        loadPage,
+        inspectLoaded,
+        inspectNullable,
+        inspectConditional,
+        inspectLogical,
+        normalizeTitle,
+        inspectTitles,
+        inspectMixedItems
+    ];
 }
 
 // signature-contract-return-consistency

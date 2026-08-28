@@ -15,6 +15,8 @@ import {
     unknown
 } from './model.js';
 
+const COMPARISON_OPERATORS = ['===', '!==', '==', '!='];
+
 const getObject = value => value && typeof value === 'object' ? value : {};
 
 const copyAliases = (aliases = {}) => Object.fromEntries(Object.entries(aliases).map(([name = '', related = []] = []) => [
@@ -73,33 +75,68 @@ const getPredicate = ({
     const {
         type: leftType = '',
         operator: leftOperator = '',
-        argument: leftArgument = {}
+        argument: leftArgument = {},
+        name: leftName = '',
+        value: leftValue = ''
     } = left;
-    const { type: rightType = '', value: rightValue = '' } = right;
-    const isTypeofPredicate = (
-        binaryType === 'BinaryExpression' &&
-        ['===', '=='].includes(operator) &&
+    const {
+        type: rightType = '',
+        value: rightValue = '',
+        name: rightName = '',
+        argument: rightArgument = {},
+        operator: rightOperator = ''
+    } = right;
+    const leftTypeof = (
         leftType === 'UnaryExpression' &&
         leftOperator === 'typeof' &&
         leftArgument.type === 'Identifier' &&
         rightType === 'Literal' &&
         ['string', 'number', 'boolean', 'undefined', 'object'].includes(rightValue)
     );
-    if (isTypeofPredicate) return {
-        kind: rightValue === 'undefined' ? 'undefined' : rightValue,
-        name: leftArgument.name
-    };
-
-    const isLiteralPredicate = (
+    const rightTypeof = (
+        rightType === 'UnaryExpression' &&
+        rightOperator === 'typeof' &&
+        rightArgument.type === 'Identifier' &&
+        leftType === 'Literal' &&
+        ['string', 'number', 'boolean', 'undefined', 'object'].includes(leftValue)
+    );
+    const isTypeofPredicate = (
         binaryType === 'BinaryExpression' &&
-        ['===', '=='].includes(operator) &&
+        COMPARISON_OPERATORS.includes(operator) &&
+        (leftTypeof || rightTypeof)
+    );
+    if (isTypeofPredicate) {
+        const kindValue = leftTypeof ? rightValue : leftValue;
+        return {
+            kind: kindValue === 'undefined' ? 'undefined' : kindValue,
+            name: leftTypeof ? leftArgument.name : rightArgument.name,
+            negated: ['!==', '!='].includes(operator)
+        };
+    }
+
+    const isLeftLiteralPredicate = (
+        binaryType === 'BinaryExpression' &&
+        COMPARISON_OPERATORS.includes(operator) &&
         leftType === 'Identifier' &&
         rightType === 'Literal'
     );
-    if (isLiteralPredicate) return {
-        kind: rightValue === null ? 'null' : typeof rightValue,
-        name: left.name
-    };
+    const isRightLiteralPredicate = (
+        binaryType === 'BinaryExpression' &&
+        COMPARISON_OPERATORS.includes(operator) &&
+        rightType === 'Identifier' &&
+        leftType === 'Literal'
+    );
+    if (isLeftLiteralPredicate || isRightLiteralPredicate) {
+        const literalValue = isLeftLiteralPredicate ? rightValue : leftValue;
+        const kind = literalValue === null ? 'null' : typeof literalValue;
+        const looseNullish = kind === 'null' && ['==', '!='].includes(operator);
+        return {
+            kind,
+            kinds: looseNullish ? ['null', 'undefined'] : [kind],
+            name: isLeftLiteralPredicate ? leftName : rightName,
+            negated: ['!==', '!='].includes(operator)
+        };
+    }
 
     return {};
 };
@@ -138,12 +175,25 @@ const narrowContext = ({
 
     if (type === 'LogicalExpression') return copyContext(context);
 
-    const { kind = '', name = '' } = getPredicate(test);
+    const {
+        kind = '',
+        kinds = [kind],
+        name = '',
+        negated = false
+    } = getPredicate(test);
     if (!kind || !name) return copyContext(context);
+
+    const predicateTruthy = negated ? !truthy : truthy;
 
     const current = context.bindings[name] || unknown();
     const currentKind = getKind(current);
-    if (truthy) {
+    const matchesPredicate = kinds.includes(currentKind);
+    if (predicateTruthy && negated && matchesPredicate) return setBinding({
+        context,
+        name,
+        value: unknown(current.sourceNode)
+    });
+    if (predicateTruthy) {
         return setBinding({
             context,
             name,
@@ -151,7 +201,7 @@ const narrowContext = ({
         });
     }
 
-    return currentKind === kind
+    return matchesPredicate
         ? setBinding({
             context,
             name,
@@ -162,7 +212,7 @@ const narrowContext = ({
 
 const mergeFlowContracts = (values = []) => {
     if (values.some(value => getKind(value) === 'unknown')) return unknown();
-    return mergeContracts(values);
+    return mergeContracts(values, { preserveContradictions: false });
 };
 
 const mergeContexts = (contexts = []) => {
@@ -320,7 +370,7 @@ const assignExpression = ({ context = {}, left = {}, value = unknown() } = {}) =
 const setExpressionContext = ({ state = {}, node = {}, context = {} } = {}) => {
     // The WeakMap is an internal memoization boundary for AST identity.
     // Its write cannot be expressed as a value transformation without losing identity lookup.
-    // eslint-disable-next-line resilient/prefer-safe-transformations
+    // eslint-disable-next-line resilient/prefer-safe-transformations -- The flow map is an identity-indexed analysis boundary.
     if (node && typeof node === 'object') state.contexts.set(node, context);
 };
 
@@ -408,7 +458,7 @@ const analyzer = {
                 context
             });
             // Return collection is analyzer-owned evidence accumulated across paths.
-            // eslint-disable-next-line resilient/prefer-safe-transformations
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- Return evidence is accumulated in traversal order.
             state.returns = [...state.returns, {
                 argument,
                 contract: inferExpression(argument, returnContext),
@@ -575,7 +625,11 @@ const analyzer = {
     }
 };
 
-const createFunctionFlow = ({ functionNode = {}, definitions = {} } = {}) => {
+const createFunctionFlow = ({
+    functionNode = {},
+    definitions = {},
+    initialBindings = {}
+} = {}) => {
     const signature = getSignature(functionNode);
     const matchingDefinitions = Object.entries(definitions)
         .filter(([, definition = {}] = []) => definition.node === functionNode)
@@ -586,7 +640,7 @@ const createFunctionFlow = ({ functionNode = {}, definitions = {} } = {}) => {
         returns: []
     };
     const context = {
-        bindings: { ...signature.bindings },
+        bindings: { ...signature.bindings, ...initialBindings },
         functions: definitions,
         callStack: functionName ? [functionName] : [],
         evaluateCalls: true,
@@ -597,7 +651,7 @@ const createFunctionFlow = ({ functionNode = {}, definitions = {} } = {}) => {
         ? analyzer.statement({ state, node: body, context })
         : analyzeExpression({ state, node: body, context });
     // Return collection is analyzer-owned evidence accumulated across paths.
-    // eslint-disable-next-line resilient/prefer-safe-transformations
+    // eslint-disable-next-line resilient/prefer-safe-transformations -- Expression-bodied return evidence is appended to the flow result.
     if (body.type !== 'BlockStatement') state.returns.push({
         argument: body,
         contract: inferExpression(body, result),

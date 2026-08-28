@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+## 0.4.3 — 2026-08-28
+
+- Corrected flow narrowing for strict and loose inequality predicates,
+  reversed literal comparisons, reversed `typeof` comparisons, and negated
+  nullish checks so known defaults do not leak into the wrong branch.
+- Added regression coverage for the negative-predicate matrix.
+- Checked known conditional and logical value branches at native operation
+  boundaries instead of analyzing only the collapsed expression result.
+- Preserved contracts through local destructuring before a function return.
+- Preserved contradiction state and conflicting families through downstream
+  calls instead of silently collapsing incompatible returns to unknown.
+- Distinguished tuple positions from homogeneous collection elements so
+  internal entry-pair transforms remain valid while mixed collection values
+  remain falsifiable.
+- Passed actual collection-element contracts into callback-body operation
+  checks, exposing invalid transforms such as a number reaching a string
+  operation.
+- Corrected logical-expression inference so short-circuit results retain both
+  possible operand contracts.
+- Recognized native `String`, `Number`, and `Boolean` coercions as explicit
+  normalization contracts, and recursively resolved nested promise wrappers
+  at `await` boundaries.
+- Hardened async return-path analysis against bare `return;` AST arguments so
+  linting cannot crash on a valid JavaScript completion path.
+- Clarified the documented boundary between propagated unknown contracts and
+  contradiction diagnostics, and listed return consistency in the enforcement
+  map.
+- Removed a stale README link to a roadmap document that is not part of the
+  package.
+
 ## 0.4.2 — 2026-08-28
 
 - Reconciled contract documentation with the single-family return rule and

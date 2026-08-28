@@ -121,7 +121,7 @@ side effects, and behavior static syntax cannot prove.
 | empty failure handlers | `no-silent-catch` in `configs.safety` |
 | dropped promise-chain rejection | `no-unhandled-promise-chain` in `configs.safety` |
 | promise callback sequencing | `prefer-async-await` warning in `configs.safety` |
-| known contract contradictions | `signature-contract-call-site`, `signature-contract-destructuring`, `signature-contract-operation` |
+| known contract contradictions | `signature-contract-call-site`, `signature-contract-destructuring`, `signature-contract-operation`, `signature-contract-return-consistency` |
 
 ## Review checklist
 
