@@ -8,15 +8,18 @@ import { contract, isEqual } from './model.js';
 
 const getObject = value => value && typeof value === 'object' ? value : {};
 
-const normalizePath = (value = '') => value
-    .replaceAll('\\', '/')
-    .split('/')
-    .reduce((parts = [], segment = '') => {
-        if (!segment || segment === '.') return parts;
-        if (segment === '..') return parts.slice(0, -1);
-        return [...parts, segment];
-    }, [])
-    .join('/');
+const normalizePath = (value = '') => {
+    const prefix = value.startsWith('/') ? '/' : '';
+    const parts = value
+        .replaceAll('\\', '/')
+        .split('/')
+        .reduce((segments = [], segment = '') => {
+            if (!segment || segment === '.') return segments;
+            if (segment === '..') return segments.slice(0, -1);
+            return [...segments, segment];
+        }, []);
+    return `${prefix}${parts.join('/')}`;
+};
 
 const getDirectory = (fileName = '') => {
     const normalized = normalizePath(fileName);
@@ -27,7 +30,7 @@ const getDirectory = (fileName = '') => {
 const resolveModule = ({ from = '', source = '', programs = {} } = {}) => {
     if (!source.startsWith('.')) return '';
     const directory = getDirectory(from);
-    const base = normalizePath(`${directory}/${source}`);
+    const base = normalizePath(directory ? `${directory}/${source}` : source);
     const candidates = [base, `${base}.js`, `${base}.jsx`, `${base}/index.js`];
     return candidates.find(candidate => programs[candidate]) || '';
 };
@@ -498,11 +501,25 @@ const areDefinitionSetsEqual = (left = {}, right = {}) => {
     ));
 };
 
-const createContractGraph = ({ programs = {}, resolve = resolveModule } = {}) => {
+const createContractGraph = ({
+    programs = {},
+    resolve = resolveModule,
+    previousGraph = {},
+    reusableFiles = []
+} = {}) => {
     const normalizedPrograms = Object.fromEntries(Object.entries(programs)
         .map(([fileName = '', program = {}] = []) => [normalizePath(fileName), program]));
+    const previousDefinitions = previousGraph.definitions || {};
+    const previousDocuments = previousGraph.documents || {};
+    const reusable = new Set(reusableFiles);
+    const canReuse = (fileName = '') => reusable.has(fileName) &&
+        Object.hasOwn(previousDefinitions, fileName) &&
+        Object.hasOwn(previousDocuments, fileName);
     let definitions = Object.fromEntries(Object.entries(normalizedPrograms)
-        .map(([fileName = '', program = {}] = []) => [fileName, getDefinitions(program)]));
+        .map(([fileName = '', program = {}] = []) => [
+            fileName,
+            canReuse(fileName) ? previousDefinitions[fileName] : getDefinitions(program)
+        ]));
     let moduleExports = {};
     let moduleResolution = { ambiguities: {}, exports: {} };
     const remaining = Object.keys(normalizedPrograms).length + 1;
@@ -518,13 +535,15 @@ const createContractGraph = ({ programs = {}, resolve = resolveModule } = {}) =>
         const nextDefinitions = Object.fromEntries(Object.entries(normalizedPrograms)
             .map(([fileName = '', program = {}] = []) => [
                 fileName,
-                getDefinitions(program, getImportedDefinitions({
-                    fileName,
-                    program,
-                    moduleExports,
-                    programs: normalizedPrograms,
-                    resolve
-                }))
+                canReuse(fileName)
+                    ? previousDefinitions[fileName]
+                    : getDefinitions(program, getImportedDefinitions({
+                        fileName,
+                        program,
+                        moduleExports,
+                        programs: normalizedPrograms,
+                        resolve
+                    }))
             ]));
         const changed = Object.entries(nextDefinitions)
             .some(([fileName = '', moduleDefinitions = {}] = []) => !areDefinitionSetsEqual(
@@ -543,6 +562,7 @@ const createContractGraph = ({ programs = {}, resolve = resolveModule } = {}) =>
     const { exports: resolvedExports = {} } = moduleResolution;
     moduleExports = resolvedExports;
     const documents = Object.fromEntries(Object.entries(normalizedPrograms).map(([fileName = '', program = {}] = []) => {
+        if (canReuse(fileName)) return [fileName, previousDocuments[fileName]];
         const importedDefinitions = getImportedDefinitions({
             fileName,
             program,
@@ -560,16 +580,19 @@ const createContractGraph = ({ programs = {}, resolve = resolveModule } = {}) =>
     const getDiagnostics = () => Object.entries(documents).flatMap(([fileName = '', document = {}] = []) => (
         document.getDiagnostics().map(diagnostic => ({ fileName, ...diagnostic }))
     ));
+    const previousAgreements = previousGraph.agreements || {};
     const agreements = Object.fromEntries(Object.entries(normalizedPrograms).map(([fileName = '', program = {}] = []) => [
         fileName,
-        getModuleAgreements({
-            fileName,
-            program,
-            moduleExports,
-            ambiguities: moduleResolution.ambiguities,
-            programs: normalizedPrograms,
-            resolve
-        })
+        canReuse(fileName) && Object.hasOwn(previousAgreements, fileName)
+            ? previousAgreements[fileName]
+            : getModuleAgreements({
+                fileName,
+                program,
+                moduleExports,
+                ambiguities: moduleResolution.ambiguities,
+                programs: normalizedPrograms,
+                resolve
+            })
     ]));
     const getAgreements = () => Object.values(agreements).flat();
 
@@ -580,7 +603,8 @@ const createContractGraph = ({ programs = {}, resolve = resolveModule } = {}) =>
         getDiagnostics,
         getDocument,
         moduleExports,
-        programs
+        programs,
+        definitions
     };
 };
 

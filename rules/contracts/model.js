@@ -32,7 +32,8 @@ const contract = ({
     branches = [],
     state = '',
     conflicts = [],
-    elements = []
+    elements = [],
+    residual = null
 } = {}) => ({
     kind: KINDS.includes(kind) ? kind : 'unknown',
     state: state || (KINDS.includes(kind) && kind !== 'unknown' ? 'known' : 'unknown'),
@@ -41,7 +42,11 @@ const contract = ({
     ...(state === 'contradictory' && { conflicts: [...new Set(conflicts)] }),
     ...(kind === 'array' && { element, ...(elements.length && { elements }) }),
     ...(kind === 'promise' && { element }),
-    ...(kind === 'object' && { properties, branches })
+    ...(kind === 'object' && {
+        properties,
+        branches,
+        ...(residual && { residual })
+    })
 });
 
 const withOptional = (value = unknown(), optional = false) => ({
@@ -75,7 +80,8 @@ const getContractShape = ({
     optional = false,
     element = {},
     elements = [],
-    properties = {}
+    properties = {},
+    residual = null
 } = {}) => ({
     kind,
     state,
@@ -89,7 +95,18 @@ const getContractShape = ({
     ...(kind === 'object' && {
         properties: Object.fromEntries(Object.entries(properties)
             .sort(([left = ''], [right = '']) => left.localeCompare(right))
-            .map(([name = '', property = {}] = []) => [name, getContractShape(property)]))
+            .map(([name = '', property = {}] = []) => [name, getContractShape(property)])),
+        ...(residual && {
+            residual: {
+                kind: residual.kind || 'object',
+                state: residual.state || 'unknown',
+                open: Boolean(residual.open),
+                excluded: [...new Set(residual.excluded || [])].sort(),
+                properties: Object.fromEntries(Object.entries(residual.properties || {})
+                    .sort(([left = ''], [right = '']) => left.localeCompare(right))
+                    .map(([name = '', property = {}] = []) => [name, getContractShape(property)]))
+            }
+        })
     })
 });
 
@@ -118,7 +135,27 @@ const mergeObjectContracts = (knownValues = [], options = {}) => {
         )), options)
     ]));
 
-    return contract({ kind: 'object', properties });
+    const residualValues = knownValues
+        .map(({ residual: value = null } = {}) => value)
+        .filter(Boolean);
+    const residualNames = [...new Set(residualValues
+        .flatMap(({ properties: sourceProperties = {} } = {}) => Object.keys(sourceProperties)))];
+    const residualProperties = Object.fromEntries(residualNames.map((name = '') => [
+        name,
+        mergeContracts(residualValues.map(({ properties: sourceProperties = {} } = {}) => (
+            sourceProperties[name] || unknown()
+        )), options)
+    ]));
+    const residual = residualValues.length
+        ? {
+            kind: 'object',
+            state: 'unknown',
+            open: residualValues.some(({ open = false } = {}) => open),
+            excluded: [...new Set(residualValues.flatMap(({ excluded = [] } = {}) => excluded))],
+            properties: residualProperties
+        }
+        : null;
+    return contract({ kind: 'object', properties, ...(residual && { residual }) });
 };
 
 const mergeSameKind = ({ kind = 'unknown', knownValues = [], options = {} } = {}) => {
@@ -162,9 +199,16 @@ const isCompatible = ({ expected = unknown(), actual = unknown() } = {}) => {
 
     if (expected.kind !== 'object') return true;
 
+    const getActualProperty = (name = '') => {
+        const { properties: actualProperties = {}, residual = null } = actual;
+        if (Object.hasOwn(actualProperties, name)) return actualProperties[name];
+        if (residual && Object.hasOwn(residual.properties || {}, name)) {
+            return residual.properties[name];
+        }
+        return unknown();
+    };
     return Object.entries(expected.properties || {}).every(([name = '', property = {}] = []) => {
-        const { properties: actualProperties = {} } = actual;
-        const actualProperty = actualProperties[name] || unknown();
+        const actualProperty = getActualProperty(name);
         return isCompatible({ expected: property, actual: actualProperty });
     });
 };

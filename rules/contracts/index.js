@@ -37,6 +37,12 @@ export {
 } from './module-graph.js';
 
 export {
+    createAnalysisSnapshot,
+    createProjectTree,
+    getModuleEdges
+} from './project-tree.js';
+
+export {
     clearContractCaches,
     clearProjectGraphCache,
     createProjectGraphManager,

@@ -94,8 +94,11 @@ const getMismatches = ({ expected = unknown(), actual = unknown(), node = {}, pa
 
     return Object.entries(expected.properties || {}).flatMap(([name = '', property = {}] = []) => {
         const { properties: actualProperties = {} } = actual;
+        const residualProperties = actual.residual && actual.residual.properties || {};
         const { properties: sourceProperties = [] } = node;
-        const actualProperty = actualProperties[name] || unknown();
+        const actualProperty = Object.hasOwn(actualProperties, name)
+            ? actualProperties[name]
+            : residualProperties[name] || unknown();
         const propertyNode = sourceProperties
             .find(candidate => getPropertyName(candidate) === name);
         return getMismatches({
@@ -231,13 +234,11 @@ const getArrayCallbackOperationContexts = ({
             const callbackContext = callbackFlow.contexts.get(callbackNode) || callbackFlow.finalContext;
             const nodeContexts = contexts.get(callbackNode);
             if (nodeContexts) {
-                // This local index is intentionally mutable for O(1) diagnostic lookup.
-                // eslint-disable-next-line resilient/prefer-safe-transformations -- AST-node index accumulation is a bounded analysis boundary.
+                // eslint-disable-next-line resilient/prefer-safe-transformations -- Private AST-node index appends callback context for O(1) lookup.
                 nodeContexts.push(callbackContext);
                 return;
             }
-            // This local index is intentionally mutable for O(1) diagnostic lookup.
-            // eslint-disable-next-line resilient/prefer-safe-transformations -- AST-node index insertion is a bounded analysis boundary.
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- Private AST-node index creates the first callback-context bucket.
             contexts.set(callbackNode, [callbackContext]);
         }, { skipFunctions: true });
     });

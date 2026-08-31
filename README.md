@@ -4,20 +4,48 @@ Resilient is a native-JavaScript discipline for explicit value, control-flow,
 transformation, and failure contracts. It treats executable JavaScript as the
 place where contracts live: signatures, defaults, operations, and return paths
 make the program's expectations visible. It provides build-time diagnostics
-and a portable contract model without requiring a parallel type language or
-annotation layer.
+and a portable contract model from executable code. For supported boundaries,
+the implementation is the contract.
 
 The ESLint rules are the foundation. The contract analyzer extends them by
 following evidence across expressions, control flow, and local module
 boundaries.
 
 The opt-in contract rules extend across local relative imports. The graph is
-available in live ESLint analysis; full project resolution and an editor
-protocol are not included in this package.
+available in live ESLint analysis, and the contracts API now exposes a
+caller-supplied Project Tree with explicit Active Tree activation and analysis
+snapshots. Filesystem discovery and an editor protocol are not included in
+this package.
+
+The distinction between the project-wide source index and the dependency
+closure that is actually analyzed is defined in
+[`docs/tree-resolution.md`](docs/tree-resolution.md). Unused indexed files do
+not become part of an Active Tree automatically.
 
 Resilient is not a runtime validator and it does not own framework concerns.
-React, Next.js, import policy, and application architecture remain project
-rules layered on top of Resilient.
+Import policy and application architecture remain project rules layered on top
+of Resilient.
+
+## Type safety from executable code
+
+Resilient makes supported native-JavaScript boundaries type-safe from
+executable code. A function's destructured parameters and defaults, operations,
+control flow, and return paths provide the contract evidence. The same source
+that runs is the source that gets checked.
+
+The guarantee is specific and observable:
+
+- known value and shape contradictions are reported;
+- defaults and return behavior are checked as executable evidence;
+- imported consumers are checked against the provider's actual implementation;
+- a provider change invalidates affected dependents and recomputes their result;
+- ESLint and the direct contracts API consume the same analysis snapshot;
+- unused indexed files remain inactive unless a selected root reaches them.
+
+Where the source does not provide enough evidence—such as external data,
+dynamic imports, or unresolved modules—Resilient reports an unknown boundary
+instead of inventing a type. Runtime validation, normalization, and tests own
+those cases.
 
 ## Install
 
@@ -85,7 +113,12 @@ defaults, aliases, guards, reassignment, property updates, bounded loops, and
 corresponding known call arguments and resolves direct local function returns
 to a stable point. Program-scope declarations and destructured bindings retain
 known returned shapes for later top-level operations. It understands known
-native operations such as string methods and collection methods.
+native operations such as string methods and collection methods. Object-rest
+bindings are represented as open residual object contracts with excluded keys;
+known remaining properties can be recovered through aliases, calls, returns,
+imports, and spreads while unsupported properties remain unknown. This residual
+behavior applies to object `RestElement` patterns; array rest elements retain
+array contracts.
 
 The dialect semantics behind those rules are defined in
 [`docs/semantics.md`](docs/semantics.md). The analyzer remains conservative:
@@ -98,6 +131,34 @@ consumer calls and returned values. They can report both an imported argument
 mismatch and an invalid operation on the imported function's known return
 value. The standalone `createContractGraph` API and inspector use the same
 propagation model.
+
+Consumers do not manage project activation. On the first contract-rule
+invocation in an ESLint run, Resilient activates its internal project analysis
+for that root and its supported local dependency closure. Subsequent contract
+rules in the same run reuse that analysis state; changed source or resolver
+identity causes the cached analysis to be rebuilt. A separate workspace
+activation hook is not required.
+
+For reusable project-aware analysis, supply parsed programs and selected roots
+to `createProjectTree`:
+
+```javascript
+import {
+    createProjectTree
+} from 'eslint-plugin-resilient/contracts';
+
+const tree = createProjectTree({ programs, roots: ['src/page.js'] });
+const snapshot = tree.analyze();
+```
+
+The snapshot contains the indexed Project Tree, the exact Active Tree,
+resolved and unknown edges, contracts, agreements, and diagnostics. `tree`
+also exposes dependent invalidation for changed files and parser, config, or
+resolver identities. Dynamic and unresolved edges remain unknown and do not
+activate their targets. A subsequent tree can pass its prior snapshot to
+`analyze({ previousSnapshot })`; files outside the invalidation closure reuse
+their prior contract documents, while changed files and affected dependents
+are recomputed.
 
 Known contradictions are reported. Unknown values remain unknown, so external
 data still belongs to runtime validation, normalization, and tests. Known
@@ -234,6 +295,7 @@ npm test
 npm run lint
 npm run fixtures:check
 npm run release:check
+npm run benchmark
 npx eslint tests/fixtures/bad.js --no-ignore --no-warn-ignored
 npm run inspect:stack -- tests/fixtures/bad.js --find "getItems({}).toUpperCase" --diagnostics
 ```
@@ -259,7 +321,7 @@ position.
 To prepare a release, add the next changes under `## Unreleased`, then run
 `npm run release`. It automatically prepares the next patch version. Use
 `npm run release -- minor`, `npm run release -- major`, or an explicit version
-such as `npm run release -- 0.4.4` when needed. The script updates the package,
+such as `npm run release -- 0.5.0` when needed. The script updates the package,
 lockfile, plugin metadata, and changelog, then verifies tests, lint, fixture
 coverage, and package contents. It only manages npm version metadata; commits
 and publishing remain separate decisions.

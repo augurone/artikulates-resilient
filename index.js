@@ -26,7 +26,7 @@ let configs = {};
 const plugin = {
     meta: {
         name: 'eslint-plugin-resilient',
-        version: '0.4.3'
+        version: '0.5.0'
     },
     rules: {
         'prefer-signature-destructuring': preferSignatureDestructuring,
