@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+## 0.5.0 — 2026-08-31
+
+- Added a caller-supplied Project Tree with source identity, forward and
+
+
+  reverse dependency edges, resolver outcomes, unknown-edge preservation, and
+  explicit Active Tree activation.
+- Added shared analysis snapshots consumed by both the contracts API and the
+  ESLint contract rules, including deterministic agreements and diagnostics.
+- Made ESLint project analysis activate lazily and transparently on the first
+  contract-rule invocation, with subsequent contract rules reusing the same
+  graph state and no consumer lifecycle API.
+- Added dependent and parser/config/resolver-identity invalidation with
+  conservative reuse of unchanged analysis documents across snapshots and
+  clean-run equivalence coverage.
+- Added residual object contracts for object rest, spread ordering, excluded
+  keys, and known lexical computed properties without inventing unknown values.
+- Optimized the measured AST traversal hotspot with narrowly scoped private
+  accumulators, preserving the default mutation discipline and exact analysis
+  results.
+- Consolidated and clarified internal mutation exceptions for traversal indexes,
+  identity registries, return evidence, and bounded caches; LRU behavior remains
+  explicit and unchanged.
+- Added shared-provider, runtime-boundary, active-set, invalidation, and reuse
+  benchmark fixture coverage. A real-project performance comparison remains a
+  separate release-gate measurement.
+
 ## 0.4.3 — 2026-08-28
 
 - Corrected flow narrowing for strict and loose inequality predicates,

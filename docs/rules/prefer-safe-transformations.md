@@ -84,6 +84,16 @@ export default [{
 }];
 ```
 
+Resilient's own analyzer has a separate internal exception policy. Its source
+may use function-local `push`, keyed assignment, `Map#set`, `WeakMap#set`, or
+`Set#add` for private traversal indexes and identity stores when replacing
+values would create avoidable copying. A bounded cache may additionally use
+`Map#delete` only for explicit LRU promotion or eviction. These exceptions are
+kept at the smallest helper scope, state why the store is private, and do not
+authorize mutation of AST nodes, inputs, returned contract data, or
+consumer-owned objects. Fresh computed-key objects such as `{ [key]: value }`
+remain the preferred non-mutating construction form.
+
 The rule does not prevent a reducer from returning a changed state. It rejects
 the in-place writes used to construct that state, unless the reducer is an
 explicit draft-based boundary. The contract analyzer separately models

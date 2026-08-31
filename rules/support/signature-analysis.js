@@ -88,6 +88,7 @@ const getStaticMemberName = ({ node = {} } = {}) => {
     return propertyName;
 };
 
+/* eslint-disable resilient/prefer-safe-transformations -- This function owns private traversal indexes; push/add avoid repeated copying and never mutate AST or caller data. */
 const getStaticMemberProperties = ({
     node = {},
     name = '',
@@ -105,8 +106,6 @@ const getStaticMemberProperties = ({
 
         if (directMemberRead && !staticMemberName) {
             hasUnsafeReference = true;
-            // This collection is private traversal state, not contract data.
-            // eslint-disable-next-line resilient/prefer-safe-transformations -- Local traversal accumulator; mutation avoids O(n²) copying.
             wholeObjectNodes.push(currentNode);
             return;
         }
@@ -117,10 +116,7 @@ const getStaticMemberProperties = ({
         }
 
         if (directMemberRead) {
-            // These accumulators belong exclusively to this AST traversal.
-            // eslint-disable-next-line resilient/prefer-safe-transformations -- Local traversal accumulator; mutation avoids O(n²) copying.
             properties.add(staticMemberName);
-            // eslint-disable-next-line resilient/prefer-safe-transformations -- Local traversal accumulator; mutation avoids O(n²) copying.
             memberNodes.push(currentNode);
             return;
         }
@@ -136,7 +132,6 @@ const getStaticMemberProperties = ({
             !isNonReferenceIdentifier({ node: currentNode })
         ) {
             hasUnsafeReference = true;
-            // eslint-disable-next-line resilient/prefer-safe-transformations -- Local traversal accumulator; mutation avoids O(n²) copying.
             wholeObjectNodes.push(currentNode);
             return;
         }
@@ -161,6 +156,7 @@ const getStaticMemberProperties = ({
         wholeObjectNodes
     };
 };
+/* eslint-enable resilient/prefer-safe-transformations */
 
 const hasWholeObjectReference = ({
     node = {},

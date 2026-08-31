@@ -60,6 +60,11 @@ Each finding includes a rule id, message, range, location, and source stack.
 
 ## Module graph
 
+Tree selection is defined separately from contract meaning in
+[`tree-resolution.md`](tree-resolution.md). The Project Tree may index unused
+files, but only the Active Tree—the selected roots and their statically
+resolvable dependency closure—is supplied to this graph and its analyzer.
+
 `createContractGraph` connects parsed programs for local relative imports. It
 currently carries named exports, named imports, default imports, and local
 re-export barrels into the consumer document. Named `export { ... } from` and
@@ -148,6 +153,13 @@ rules build the local graph for the file being linted and report findings on
 the consumer's AST nodes. This is what makes imported violations visible in
 the build and through the ESLint IDE extension.
 
+Consumers do not manage project activation. On the first contract-rule
+invocation in an ESLint run, the adapter activates its internal project
+analysis for that root and its supported local dependency closure. Subsequent
+contract rules in the same run reuse the graph; changed source or resolver
+identity causes a rebuild. This activation is lazy and transparent to the
+consumer because ESLint does not provide a separate workspace-activation hook.
+
 The ESLint adapter uses a project-graph manager shared by the contract rules.
 It reuses a graph when the root source, parser options, resolver identity, and
 all loaded dependency file states are unchanged. A changed provider or barrel
@@ -179,6 +191,16 @@ The bundled `inspect:stack` command is a one-shot adapter around this API. It
 loads the root file's local relative imports, then prints a static stack and
 contract findings at `--find` or `--offset`. It is intended for inspection and
 debugging; it does not replace the full ESLint run and does not watch files.
+
+The graph remains an Active Tree analyzer, not a project-wide semantic index.
+For a reusable project boundary, `createProjectTree` indexes caller-supplied
+programs, records forward and reverse edges, activates only selected roots and
+their resolved closure, and exposes `analyze()` snapshots. Its
+`getInvalidatedFiles()` result includes dependent files and identity changes;
+unused indexed files remain outside the Active Tree. Passing a prior result as
+`analyze({ previousSnapshot })` reuses unchanged files outside the invalidation
+closure and recomputes changed files plus affected dependents. Filesystem
+discovery and parser-backed loading remain adapter concerns.
 
 ## Inference and flow
 
@@ -255,12 +277,20 @@ const { items = [] } = page;
 items.toUpperCase(); // array-like value, string-like operation
 ```
 
+Object-pattern `RestElement`s are represented as open residual object
+contracts. Extracted keys are excluded, and known remaining keys are retained
+for later member access and compatibility checks; a key with no evidence stays
+unknown. This guarantee applies to object rest (`{ ...rest }`), not array rest,
+which remains array-shaped.
+
 At the top level, a retained call result uses the callee's declared return
 contract. Argument-sensitive re-evaluation is strongest inside function call
 contexts; invalid arguments are still reported at the originating call site.
 
-Dynamic properties, unsupported effects, and incomplete external information
-stay unknown.
+Statically known computed property keys—including literal numeric keys and
+literal-bound keys—are normalized to the same property names as direct member
+access. Dynamic properties, unsupported effects, and incomplete external
+information stay unknown.
 
 ## ESLint presets
 

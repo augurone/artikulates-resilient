@@ -10,8 +10,7 @@ const getObjectId = (value = {}) => {
     const existingId = objectIds.get(value);
     if (existingId) return existingId;
     nextObjectId += 1;
-    // WeakMap identity registry preserves parser object identity across cache calls.
-    // eslint-disable-next-line resilient/prefer-safe-transformations -- Identity lookup requires a WeakMap write.
+    // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap identity indexing is an internal cache boundary.
     objectIds.set(value, nextObjectId);
     return nextObjectId;
 };
@@ -60,18 +59,16 @@ const hasFileStateChanged = ({ mtimeMs: leftMtimeMs = 0, size: leftSize = 0 } = 
     leftMtimeMs !== rightMtimeMs || leftSize !== rightSize
 );
 
+/* eslint-disable resilient/prefer-safe-transformations -- Private bounded program cache; delete/set implement LRU without mutating parsed programs. */
 const setProgramCacheEntry = ({ cacheKey = '', entry = {} } = {}) => {
-    // Delete before set promotes the active entry for bounded LRU retention.
-    // eslint-disable-next-line resilient/prefer-safe-transformations -- Cache promotion is the cache's explicit mutable boundary.
     programCache.delete(cacheKey);
-    // eslint-disable-next-line resilient/prefer-safe-transformations -- Cache insertion must retain the parsed program by key.
     programCache.set(cacheKey, entry);
     if (programCache.size <= PROGRAM_CACHE_LIMIT) return;
     const oldestKey = programCache.keys().next().value || '';
     if (!oldestKey) return;
-    // eslint-disable-next-line resilient/prefer-safe-transformations -- LRU eviction must remove the oldest retained program.
     programCache.delete(oldestKey);
 };
+/* eslint-enable resilient/prefer-safe-transformations */
 
 const loadAndCache = ({ cacheKey = '', fileState = {}, load = () => ({}) } = {}) => {
     const program = load();

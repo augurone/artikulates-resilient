@@ -259,10 +259,44 @@ const bindPattern = ({ context = {}, pattern = {}, value = unknown() } = {}) => 
     });
     if (type !== 'ObjectPattern') return copyContext(context);
 
-    const { properties: valueProperties = {} } = value;
-    return pattern.properties
+    const {
+        kind: valueKind = 'unknown',
+        properties: valueProperties = {},
+        residual: valueResidual = null
+    } = value;
+    const excluded = pattern.properties
         .filter(({ type: propertyType = '' } = {}) => propertyType === 'Property')
-        .reduce((current, { key = {}, value: propertyValue = {} } = {}) => {
+        .map(({ key = {}, computed = false } = {}) => getPropertyName({ key, computed }))
+        .filter(Boolean);
+    return pattern.properties
+        .filter(({ type: propertyType = '' } = {}) => ['Property', 'RestElement'].includes(propertyType))
+        .reduce((current, { type: propertyType = '', key = {}, value: propertyValue = {}, argument = {} } = {}) => {
+            if (propertyType === 'RestElement') {
+                const residual = valueResidual || {};
+                const { properties: residualProperties = {} } = residual;
+                const remainingProperties = Object.fromEntries(Object.entries(valueProperties)
+                    .filter(([propertyName = ''] = []) => !excluded.includes(propertyName)));
+                return bindPattern({
+                    context: current,
+                    pattern: argument,
+                    value: contract({
+                        kind: 'object',
+                        state: 'unknown',
+                        properties: {
+                            ...residualProperties,
+                            ...remainingProperties
+                        },
+                        // eslint-disable-next-line resilient/signature-contract-call-site -- Rest binding carries residual object metadata, not a callable argument.
+                        residual: {
+                            kind: 'object',
+                            state: 'unknown',
+                            open: Boolean(residual.open || valueKind === 'object'),
+                            excluded: [...new Set([...(residual.excluded || []), ...excluded])],
+                            properties: {}
+                        }
+                    })
+                });
+            }
             const propertyName = key.name || key.value;
             if (!propertyName) return current;
             return bindPattern({
@@ -368,9 +402,7 @@ const assignExpression = ({ context = {}, left = {}, value = unknown() } = {}) =
 };
 
 const setExpressionContext = ({ state = {}, node = {}, context = {} } = {}) => {
-    // The WeakMap is an internal memoization boundary for AST identity.
-    // Its write cannot be expressed as a value transformation without losing identity lookup.
-    // eslint-disable-next-line resilient/prefer-safe-transformations -- The flow map is an identity-indexed analysis boundary.
+    // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap identity indexing is an internal analyzer boundary.
     if (node && typeof node === 'object') state.contexts.set(node, context);
 };
 
@@ -457,13 +489,12 @@ const analyzer = {
                 node: argument,
                 context
             });
-            // Return collection is analyzer-owned evidence accumulated across paths.
-            // eslint-disable-next-line resilient/prefer-safe-transformations -- Return evidence is accumulated in traversal order.
-            state.returns = [...state.returns, {
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- Private return evidence is appended in traversal order.
+            state.returns.push({
                 argument,
                 contract: inferExpression(argument, returnContext),
                 node: source
-            }];
+            });
             return { context: returnContext, reachable: false };
         }
 

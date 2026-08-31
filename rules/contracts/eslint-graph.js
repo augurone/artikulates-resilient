@@ -4,7 +4,6 @@ import path from 'node:path';
 import { Linter } from 'eslint';
 
 import {
-    createContractGraph,
     getModuleSources,
     normalizePath
 } from './module-graph.js';
@@ -15,6 +14,7 @@ import {
     getParserOptionsKey,
     getProgramCacheSize
 } from './program-cache.js';
+import { createProjectTree } from './project-tree.js';
 
 const resolverIds = new WeakMap();
 let nextResolverId = 0;
@@ -26,8 +26,7 @@ const getResolverId = (resolver = null) => {
     const existingId = resolverIds.get(resolver);
     if (existingId) return existingId;
     nextResolverId += 1;
-    // WeakMap identity registry is intentionally stateful; it preserves resolver identity across calls.
-    // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap identity registry requires an in-place write.
+    // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap identity indexing is an internal resolver boundary.
     resolverIds.set(resolver, nextResolverId);
     return nextResolverId;
 };
@@ -37,8 +36,7 @@ const getProgramId = (program = {}) => {
     const existingId = programIds.get(program);
     if (existingId) return existingId;
     nextProgramId += 1;
-    // WeakMap identity registry is intentionally stateful; it preserves AST identity across calls.
-    // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap identity registry requires an in-place write.
+    // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap identity indexing is an internal AST boundary.
     programIds.set(program, nextProgramId);
     return nextProgramId;
 };
@@ -267,18 +265,16 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
         builds: 0
     };
 
+    /* eslint-disable resilient/prefer-safe-transformations -- Private bounded graph cache; delete/set implement LRU without mutating analysis results. */
     const setGraphCacheEntry = ({ cacheKey = '', entry = {} } = {}) => {
-        // Delete before set promotes the active entry for bounded LRU retention.
-        // eslint-disable-next-line resilient/prefer-safe-transformations -- Cache promotion is the manager's explicit mutable boundary.
         graphCache.delete(cacheKey);
-        // eslint-disable-next-line resilient/prefer-safe-transformations -- Cache insertion is the manager's explicit mutable boundary.
         graphCache.set(cacheKey, entry);
         if (graphCache.size <= graphCacheLimit) return;
         const oldestKey = graphCache.keys().next().value || '';
         if (!oldestKey) return;
-        // eslint-disable-next-line resilient/prefer-safe-transformations -- LRU eviction is the manager's explicit mutable boundary.
         graphCache.delete(oldestKey);
     };
+    /* eslint-enable resilient/prefer-safe-transformations */
 
     const getGraph = ({
         context = {},
@@ -312,14 +308,18 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
         }
 
         stats = { ...stats, misses: stats.misses + 1 };
-        const graph = createContractGraph({
+        const projectTree = createProjectTree({
             programs,
+            roots: [fileName],
             resolve: createGraphResolver({
                 context,
                 fileNames: Object.keys(programs),
                 resolver: importResolver
-            })
+            }),
+            parserIdentity: getParserOptionsKey({ context }),
+            resolverIdentity: importResolver
         });
+        const { graph = {} } = projectTree.analyze({ roots: [fileName] });
         stats = { ...stats, builds: stats.builds + 1 };
         setGraphCacheEntry({
             cacheKey,
