@@ -19,5 +19,8 @@ const getItem = ([item = {}] = []) => item;
 ```
 
 Rest elements are exempt because they always produce an array or object value.
-`useState` tuple destructuring is also exempt: the setter is an external
-function and does not have a meaningful destructuring fallback.
+Directly invoked function-valued destructured bindings are also exempt; their
+absence contract belongs to `no-unguarded-callback-invocation`, which requires
+an `isFunction` or `typeof ... === 'function'` guard. `useState` tuple
+destructuring is also exempt: the setter is an external function and does not
+have a meaningful destructuring fallback.

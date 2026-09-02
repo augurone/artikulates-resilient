@@ -176,4 +176,7 @@ const run = async () => {
     process.stdout.write(`${JSON.stringify(result, null, 4)}\n`);
 };
 
-run();
+run().catch((error) => {
+    process.stderr.write(`${String(error)}\n`);
+    process.exit(1);
+});

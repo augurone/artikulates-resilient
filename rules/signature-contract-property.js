@@ -4,14 +4,12 @@ export default {
     meta: {
         type: 'problem',
         docs: {
-            description: 'Report known call-site values that contradict a function signature contract',
-            url: 'https://github.com/augurone/artikulates-resilient/blob/main/docs/rules/signature-contract-call-site.md'
+            description: 'Report access to properties absent from a known closed object contract',
+            url: 'https://github.com/augurone/artikulates-resilient/blob/main/docs/rules/signature-contract-property.md'
         },
         schema: [],
         messages: {
-            mismatch: '{{path}} expects {{expected}}, but this call supplies {{actual}}.',
-            arity: '{{message}}',
-            excessProperty: 'This call supplies excess property {{path}}.'
+            missingProperty: 'Property {{property}} does not exist on this known object contract.'
         }
     },
     create(context = {}) {
@@ -21,10 +19,10 @@ export default {
                 getEslintContractDiagnostics({
                     context,
                     program: node,
-                    ruleId: 'signature-contract-call-site'
+                    ruleId: 'signature-contract-property'
                 }).forEach(({
                     data = {},
-                    messageId = 'mismatch',
+                    messageId = 'missingProperty',
                     node: reportNode = {}
                 } = {}) => {
                     report({

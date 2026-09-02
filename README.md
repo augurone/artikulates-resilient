@@ -2,7 +2,8 @@
 
 Resilient is a native-JavaScript discipline for explicit value, control-flow,
 transformation, and failure contracts. It treats executable JavaScript as the
-place where contracts live: signatures, defaults, operations, and return paths
+place where contracts live: signatures, defaults, operations, callable values,
+and return paths
 make the program's expectations visible. It provides build-time diagnostics
 and a portable contract model from executable code. For supported boundaries,
 the implementation is the contract.
@@ -116,9 +117,20 @@ known returned shapes for later top-level operations. It understands known
 native operations such as string methods and collection methods. Object-rest
 bindings are represented as open residual object contracts with excluded keys;
 known remaining properties can be recovered through aliases, calls, returns,
-imports, and spreads while unsupported properties remain unknown. This residual
-behavior applies to object `RestElement` patterns; array rest elements retain
-array contracts.
+imports, and spreads while unsupported properties remain unknown. Known closed
+objects also receive property-existence checks, and known local calls receive
+arity checks plus direct-literal excess-property checks. Local higher-order
+calls carry known callback signatures through the invocation stack, including
+callback arity and callback rest parameters. Regular-expression literals and
+native `.test()` results are also inferred directly.
+This residual behavior applies to object `RestElement` patterns; array rest
+elements retain array contracts.
+
+TypeScript-only syntax—such as generic parameters, literal unions, and
+discriminated-union annotations—is outside the Resilient JavaScript grammar,
+not an unknown runtime contract that Resilient is expected to infer. Use a
+runtime boundary or a separate TypeScript/typed-linting tool when that syntax
+is required.
 
 The dialect semantics behind those rules are defined in
 [`docs/semantics.md`](docs/semantics.md). The analyzer remains conservative:
@@ -255,6 +267,9 @@ The preset:
   boundaries use its explicit binding or property options;
 - rejects empty `catch` blocks through `no-silent-catch`, while allowing
   `try`, `catch`, `finally`, and `throw` when they preserve error behavior;
+- requires an `isFunction` or equivalent `typeof ... === 'function'` guard
+  before invoking an optional destructured callback through
+  `no-unguarded-callback-invocation`;
 - reports expression-statement promise chains using `.then` or `.finally`
   without a `.catch` through `no-unhandled-promise-chain`;
 - warns on handled or explicitly owned `.then` chains through
@@ -321,7 +336,7 @@ position.
 To prepare a release, add the next changes under `## Unreleased`, then run
 `npm run release`. It automatically prepares the next patch version. Use
 `npm run release -- minor`, `npm run release -- major`, or an explicit version
-such as `npm run release -- 0.5.0` when needed. The script updates the package,
+when needed. The script updates the package,
 lockfile, plugin metadata, and changelog, then verifies tests, lint, fixture
 coverage, and package contents. It only manages npm version metadata; commits
 and publishing remain separate decisions.

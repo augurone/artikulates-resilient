@@ -2,6 +2,50 @@
 
 ## Unreleased
 
+## 0.6.0 — 2026-09-02
+
+- Expanded the opt-in contract diagnostics with known closed-object property
+
+
+  access checks, known-local function arity checks, and direct-literal excess
+  property checks.
+- Extended known-local arity checks through higher-order callback invocations,
+  including inline and member-function callbacks while preserving callback rest
+  parameters as passthrough arguments.
+- Preserved object-rest passthrough semantics at call sites: a signature with
+  `{ known, ...rest }` remains open, accepts extra direct-literal properties,
+  and keeps the residual object contract available for later analysis.
+- Strengthened `no-unhandled-promise-chain` to report dropped calls to known
+  local promise-producing functions while preserving explicit ownership via
+  `await`, `return`, assignment, `.catch()`, or `void`.
+- Clarified that omitted object properties are compatible with Resilient's
+  default-based absence semantics; required function parameters are enforced
+  through arity rather than required object-field diagnostics.
+- Clarified the dialect boundary with TypeScript: generic parameters, literal
+  unions, and discriminated-union annotations are outside Resilient's
+  ECMAScript grammar, while incompatible known families remain contradictions
+  rather than being widened into unions.
+- Documented that inferred return families and downstream contract boundaries
+  provide the practical coverage of return-assignability checks without adding
+  a separate return-annotation language.
+- Added `no-unguarded-callback-invocation`, requiring `isFunction` or an
+  equivalent `typeof ... === 'function'` guard before invoking an optional
+  destructured callback; omitted callbacks remain real `undefined` values.
+- Kept directly invoked callback bindings out of the generic destructuring
+  default requirement so callback absence is handled by the explicit guard
+  rule rather than by synthetic no-op defaults.
+- Promoted functions to a first-class contract family: known signatures now
+  travel through aliases, object properties, and returned functions, with
+  downstream call-site and return-family checks preserving the evidence.
+- Added implicit `regexp` value inference for regular-expression literals and
+  boolean results from native `.test()` calls.
+- Kept excess-property inference strict for empty object defaults; open value
+  bags must now declare nested object rest explicitly, such as
+  `variables: { ...variables } = {}`.
+- Added an inference-depth boundary so recursive or higher-order function
+  values become unknown at the recursion edge instead of causing analysis
+  overflow.
+
 ## 0.5.0 — 2026-08-31
 
 - Added a caller-supplied Project Tree with source identity, forward and

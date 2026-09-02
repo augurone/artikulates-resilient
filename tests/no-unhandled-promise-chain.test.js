@@ -16,7 +16,10 @@ ruleTester.run('no-unhandled-promise-chain', rule, {
         { code: 'const result = request().then(handle);' },
         { code: 'const run = async () => { await request().then(handle); };' },
         { code: 'const run = () => request().then(handle);' },
-        { code: 'void request().then(handle);' }
+        { code: 'void request().then(handle);' },
+        { code: 'const load = async () => true; const run = () => load();' },
+        { code: 'const load = async () => true; void load();' },
+        { code: 'unknownRequest();' }
     ],
     invalid: [
         {
@@ -25,6 +28,10 @@ ruleTester.run('no-unhandled-promise-chain', rule, {
         },
         {
             code: 'request().then(handle).finally(cleanup);',
+            errors: [{ messageId: 'unhandled' }]
+        },
+        {
+            code: 'const load = async () => true; load();',
             errors: [{ messageId: 'unhandled' }]
         }
     ]

@@ -138,7 +138,7 @@ on-demand loading of local relative dependencies, named/default imports,
 namespace imports, re-export barrels, finite cycles, cache reuse, and
 dependency file-state invalidation.
 
-The current 0.5.0 worktree implements the caller-supplied project substrate:
+The 0.5.0 release implemented the caller-supplied project substrate:
 
 - `createProjectTree` indexes parsed programs, source states, static edges, and
   resolver outcomes;

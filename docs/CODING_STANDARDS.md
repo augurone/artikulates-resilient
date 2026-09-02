@@ -121,9 +121,11 @@ side effects, and behavior static syntax cannot prove.
 | collection transformations | `prefer-prototype-methods` |
 | safe object and array transformations | `prefer-safe-transformations` in `configs.safety` |
 | empty failure handlers | `no-silent-catch` in `configs.safety` |
+| optional callback invocation | `no-unguarded-callback-invocation` in `configs.safety` |
 | dropped promise-chain rejection | `no-unhandled-promise-chain` in `configs.safety` |
 | promise callback sequencing | `prefer-async-await` warning in `configs.safety` |
 | known contract contradictions | `signature-contract-call-site`, `signature-contract-destructuring`, `signature-contract-operation`, `signature-contract-return-consistency` |
+| known closed-object property access | `signature-contract-property` |
 
 ## Review checklist
 

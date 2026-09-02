@@ -89,6 +89,12 @@ assert.deepEqual(nestedStack.frames.slice(1, 3).map(({ name = '' } = {}) => name
 ]);
 assert.equal(nestedStack.frames[3].contract.kind, 'string');
 
+const returnedFunctionCode = 'const makeHandler = () => value => value.trim(); const handler = makeHandler(); handler("value");';
+const returnedFunctionProgram = await getProgram(returnedFunctionCode);
+const returnedFunctionDocument = createContractDocument(returnedFunctionProgram, { fileName: 'returned-function.js' });
+const returnedFunctionResult = returnedFunctionDocument.getContractAtOffset(returnedFunctionCode.indexOf('handler("value")'));
+assert.equal(returnedFunctionResult.contract.kind, 'string');
+
 const operationCode = 'const inspect = ({ items = [] } = {}) => items.toUpperCase();';
 const operationProgram = await getProgram(operationCode);
 const operationDocument = createContractDocument(operationProgram, { fileName: 'operation.js' });

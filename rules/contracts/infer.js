@@ -90,6 +90,20 @@ const getExpressionPropertyName = ({ key = {}, computed = false, context = {} } 
         : '';
 };
 
+const getCallableContract = ({ definition = {}, sourceNode = {} } = {}) => {
+    if (['function', 'object'].includes(definition.kind)) return definition;
+    if (!definition.signature) return unknown(sourceNode);
+    return contract({
+        kind: 'function',
+        sourceNode: definition.node || sourceNode,
+        signature: {
+            parameters: definition.signature.parameters || [],
+            restIndex: definition.signature.restIndex ?? -1,
+            returnContract: definition.returnContract || unknown(sourceNode)
+        }
+    });
+};
+
 const inferExpression = (node = {}, context = {}) => {
     const source = getObject(node);
     const { type = '', name = '', right = {}, ...rest } = source;
@@ -98,7 +112,10 @@ const inferExpression = (node = {}, context = {}) => {
 
     if (type === 'Identifier') {
         const { [name]: functionValue = {} } = functions;
-        return bindings[name] || (functionValue.kind === 'object' ? functionValue : unknown(sourceNode));
+        return bindings[name] || getCallableContract({
+            definition: functionValue,
+            sourceNode
+        });
     }
     if (type === 'AssignmentPattern') return inferExpression(right, context);
     if (type === 'Literal') return expressionHandlers.Literal(sourceNode, context);
@@ -109,8 +126,9 @@ const inferExpression = (node = {}, context = {}) => {
     return unknown(sourceNode);
 };
 
-const inferLiteral = ({ value = '', ...node } = {}) => {
-    const sourceNode = { value, ...node };
+const inferLiteral = ({ value = '', regex = null, ...node } = {}) => {
+    const sourceNode = { value, regex, ...node };
+    if (regex) return contract({ kind: 'regexp', sourceNode });
     if (value === null) return contract({ kind: 'null', sourceNode });
     return contract({ kind: typeof value, sourceNode });
 };
@@ -487,7 +505,6 @@ const bindPattern = ({
                         ...residualSourceProperties,
                         ...residualProperties
                     },
-                    // eslint-disable-next-line resilient/signature-contract-call-site -- Rest binding carries residual object metadata, not a callable argument.
                     residual: {
                         kind: 'object',
                         state: 'unknown',
@@ -515,6 +532,7 @@ const getFunctionName = ({ id = {}, parent = {} } = {}) => {
     return parentIdName;
 };
 
+/* eslint-disable resilient/signature-contract-return-consistency -- AST traversal returns either a function node or the empty-node sentinel. */
 const getEnclosingFunction = ({ parent = {} } = {}) => {
     if (!parent || typeof parent !== 'object') return {};
     const { type = '' } = parent;
@@ -522,6 +540,7 @@ const getEnclosingFunction = ({ parent = {} } = {}) => {
     if (isFunction(parent)) return parent;
     return getEnclosingFunction(parent);
 };
+/* eslint-enable resilient/signature-contract-return-consistency */
 
 const getSignature = ({ params = [] } = {}) => {
     const parameters = params.map(parameter => inferPattern(parameter));
@@ -616,15 +635,26 @@ const getFunctionCallContext = ({
     (node.params || []).forEach((parameter = {}, index = 0) => {
         const { type: parameterType = '', name: parameterName = '' } = parameter;
         const { [index]: argument = {} } = args;
-        const { type: argumentType = '', name: argumentName = '' } = argument;
+        const {
+            type: argumentType = '',
+            name: argumentName = ''
+        } = argument;
         if ((!argument.type && !argumentContracts[index]) || argumentType === 'SpreadElement') return;
         const actual = argumentContracts[index] || mergeArgumentDefaults({
             expected: parameters[index] || unknown(),
             actual: inferExpression(argument, argumentContext)
         });
         initialBindings = bindPattern(parameter, actual, initialBindings);
-        if (parameterType !== 'Identifier' || argumentType !== 'Identifier') return;
-        const functionDefinition = functions[argumentName] || {};
+        if (parameterType !== 'Identifier') return;
+        const functionDefinition = functions[argumentName] || (() => {
+            const functionValue = inferExpression(argument, argumentContext);
+            if (functionValue.kind !== 'function' || !functionValue.signature) return {};
+            return {
+                node: functionValue.sourceNode,
+                signature: functionValue.signature,
+                returnContract: functionValue.signature.returnContract || unknown()
+            };
+        })();
         if (functionDefinition.signature) initialFunctions = {
             ...initialFunctions,
             [parameterName]: functionDefinition
@@ -645,6 +675,7 @@ const getFunctionReturnFromContracts = ({
     arguments: argumentContracts = [],
     context = {}
 } = {}) => {
+    if ((context.evaluationDepth || 0) >= 8) return unknown(node);
     const { parameters = [] } = getSignature(node);
     let initialBindings = {};
     (node.params || []).forEach((parameter = {}, index = 0) => {
@@ -665,8 +696,47 @@ const getFunctionReturnFromContracts = ({
     return getAsyncReturnContract({ value: inferredReturn, sourceNode: node });
 };
 
+const getFunctionValueContract = ({ node = {}, context = {} } = {}) => {
+    const signature = getSignature(node);
+    if ((context.evaluationDepth || 0) >= 8) return contract({
+        kind: 'function',
+        sourceNode: node,
+        signature: {
+            parameters: signature.parameters,
+            restIndex: signature.restIndex,
+            returnContract: unknown(node)
+        }
+    });
+    const functionContext = getFunctionContext(node, context.functions || {}, {
+        callStack: [...(context.callStack || []), '<function-value>'],
+        evaluateCalls: context.evaluateCalls !== false,
+        evaluationDepth: (context.evaluationDepth || 0) + 1
+    });
+    const inferredReturn = getInferredReturnContract({
+        node,
+        context: functionContext
+    });
+    const returnContract = node.async
+        ? getAsyncReturnContract({ value: inferredReturn, sourceNode: node })
+        : inferredReturn;
+    return contract({
+        kind: 'function',
+        sourceNode: node,
+        signature: {
+            parameters: signature.parameters,
+            restIndex: signature.restIndex,
+            returnContract
+        }
+    });
+};
+
+const inferFunctionExpression = (node = {}, context = {}) => (
+    getFunctionValueContract({ node, context })
+);
+
 const getFunctionReturnContract = ({
     functions = {},
+    functionValue = {},
     name = '',
     sourceNode = {},
     arguments: args = [],
@@ -675,7 +745,13 @@ const getFunctionReturnContract = ({
     evaluateCalls = true,
     evaluationDepth = 0
 } = {}) => {
-    const { [name]: functionContract = {} } = functions;
+    const functionContract = functionValue.kind === 'function'
+        ? {
+            node: functionValue.sourceNode,
+            signature: functionValue.signature,
+            returnContract: functionValue.signature && functionValue.signature.returnContract
+        }
+        : functions[name] || {};
     if (!functionContract.returnContract) return unknown(sourceNode);
     if (!evaluateCalls || !callStack.length || evaluationDepth >= 8) {
         return functionContract.returnContract;
@@ -799,6 +875,11 @@ const inferArrayMethod = ({
 
 const inferMemberCall = ({ callee = {}, ...node } = {}, context = {}) => {
     const sourceNode = { callee, ...node };
+    const {
+        evaluateCalls = true,
+        callStack = [],
+        evaluationDepth = 0
+    } = context;
     const { object = {}, property = {}, computed = false } = callee;
     const { arguments: args = [] } = node;
     const method = computed ? '' : getStaticName(property);
@@ -825,9 +906,21 @@ const inferMemberCall = ({ callee = {}, ...node } = {}, context = {}) => {
     if (getKind(receiver) === 'array' && ['map', 'filter', 'some', 'forEach', 'reduce'].includes(method)) {
         return inferArrayMethod({ method, receiver, args, context, sourceNode });
     }
+    if (getKind(receiver) === 'regexp' && method === 'test') {
+        return contract({ kind: 'boolean', sourceNode });
+    }
     const member = getKind(receiver) === 'object'
-        ? receiver.properties[method]
+        ? receiver.properties[method] || {}
         : {};
+    if (member.kind === 'function') return getFunctionReturnContract({
+        functionValue: member,
+        sourceNode,
+        arguments: args,
+        argumentContext: context,
+        evaluateCalls: evaluateCalls !== false,
+        callStack,
+        evaluationDepth
+    });
     if (member && member.returnContract) return member.returnContract;
     if (method === 'some') return contract({ kind: 'boolean', sourceNode });
     if (['trim', 'toLowerCase', 'toUpperCase', 'replaceAll'].includes(method)) {
@@ -856,12 +949,16 @@ const inferCallExpression = ({ callee = {}, ...node } = {}, context = {}) => {
     const safeCallee = getObject(callee);
     const { type = '', name = '' } = safeCallee;
     const sourceNode = { callee, ...node };
-    if (type === 'Identifier' && !functions[name] && !Object.prototype.hasOwnProperty.call(bindings, name)) {
+    const boundFunction = bindings[name] || {};
+    const knownFunction = functions[name] || {};
+    if (type === 'Identifier' && !knownFunction.signature && boundFunction.kind !== 'function' &&
+        !Object.prototype.hasOwnProperty.call(bindings, name)) {
         return getBuiltinCallContract({ name, sourceNode });
     }
     if (type === 'Identifier') {
         return getFunctionReturnContract({
             functions,
+            functionValue: boundFunction.kind === 'function' ? boundFunction : knownFunction,
             name,
             sourceNode,
             arguments: node.arguments || [],
@@ -878,6 +975,7 @@ const inferCallExpression = ({ callee = {}, ...node } = {}, context = {}) => {
 expressionHandlers = {
     ArrayExpression: inferArrayExpression,
     AwaitExpression: inferAwaitExpression,
+    ArrowFunctionExpression: inferFunctionExpression,
     BinaryExpression: inferBinaryExpression,
     CallExpression: inferCallExpression,
     ConditionalExpression: inferConditionalExpression,
@@ -885,6 +983,8 @@ expressionHandlers = {
     Literal: inferLiteral,
     MemberExpression: inferMemberExpression,
     ObjectExpression: inferObjectExpression,
+    FunctionDeclaration: inferFunctionExpression,
+    FunctionExpression: inferFunctionExpression,
     UnaryExpression: inferUnaryExpression
 };
 

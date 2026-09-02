@@ -12,7 +12,8 @@ const ruleTester = new RuleTester({
 ruleTester.run('prefer-safe-destructuring-defaults', rule, {
     valid: [
         { code: 'const getConfig = ({ config: { timBurton = "" } = {} } = {}) => timBurton;' },
-        { code: 'const useState = value => [value, () => {}]; const [value, setValue] = useState(false);' }
+        { code: 'const useState = value => [value, () => {}]; const [value, setValue] = useState(false);' },
+        { code: 'const run = ({ onDone } = {}) => { if (isFunction(onDone)) onDone(); };' }
     ],
     invalid: [
         {
@@ -25,6 +26,10 @@ ruleTester.run('prefer-safe-destructuring-defaults', rule, {
         },
         {
             code: 'const getFirst = ([item] = []) => item;',
+            errors: [{ messageId: 'safeDefault' }]
+        },
+        {
+            code: 'const run = ({ onDone }) => { const later = () => onDone(); return later; };',
             errors: [{ messageId: 'safeDefault' }]
         }
     ]

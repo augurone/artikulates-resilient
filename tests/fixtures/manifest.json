@@ -9,6 +9,7 @@
     { "rule": "no-undefined-assignment", "heading": "no-undefined-assignment" },
     { "rule": "prefer-safe-transformations", "heading": "prefer-safe-transformations" },
     { "rule": "no-silent-catch", "heading": "no-silent-catch" },
+    { "rule": "no-unguarded-callback-invocation", "heading": "no-unguarded-callback-invocation" },
     { "rule": "no-unhandled-promise-chain", "heading": "no-unhandled-promise-chain" },
     { "rule": "prefer-async-await", "heading": "prefer-async-await" },
     { "rule": "no-undefined-comparison", "heading": "no-undefined-comparison" },
@@ -21,6 +22,7 @@
     { "rule": "prefer-signature-destructuring", "heading": "prefer-signature-destructuring" },
     { "rule": "signature-contract-call-site", "heading": "signature-contract-call-site" },
     { "rule": "signature-contract-operation", "heading": "signature-contract-operation" },
+    { "rule": "signature-contract-property", "heading": "signature-contract-property" },
     { "rule": "signature-contract-return-consistency", "heading": "signature-contract-return-consistency" }
   ],
   "integrationFixtures": [

@@ -5,9 +5,11 @@ const KINDS = Object.freeze([
     'string',
     'number',
     'boolean',
+    'regexp',
     'array',
     'promise',
-    'object'
+    'object',
+    'function'
 ]);
 
 const unknown = (sourceNode = {}) => ({
@@ -28,6 +30,7 @@ const contract = ({
     sourceNode = {},
     optional = false,
     element = unknown(),
+    signature = null,
     properties = {},
     branches = [],
     state = '',
@@ -42,6 +45,7 @@ const contract = ({
     ...(state === 'contradictory' && { conflicts: [...new Set(conflicts)] }),
     ...(kind === 'array' && { element, ...(elements.length && { elements }) }),
     ...(kind === 'promise' && { element }),
+    ...(kind === 'function' && signature && { signature }),
     ...(kind === 'object' && {
         properties,
         branches,
@@ -80,6 +84,7 @@ const getContractShape = ({
     optional = false,
     element = {},
     elements = [],
+    signature = null,
     properties = {},
     residual = null
 } = {}) => ({
@@ -92,6 +97,13 @@ const getContractShape = ({
         ...(elements.length && { elements: elements.map(getContractShape) })
     }),
     ...(kind === 'promise' && { element: getContractShape(element) }),
+    ...(kind === 'function' && signature && {
+        signature: {
+            parameters: (signature.parameters || []).map(getContractShape),
+            restIndex: signature.restIndex ?? -1,
+            returnContract: getContractShape(signature.returnContract || unknown())
+        }
+    }),
     ...(kind === 'object' && {
         properties: Object.fromEntries(Object.entries(properties)
             .sort(([left = ''], [right = '']) => left.localeCompare(right))
@@ -125,6 +137,19 @@ const mergePromiseContracts = (knownValues = [], options = {}) => contract({
     kind: 'promise',
     element: mergeContracts(knownValues.map(({ element = {} } = {}) => element), options)
 });
+
+const mergeFunctionContracts = (knownValues = []) => {
+    const [first = {}] = knownValues;
+    const { signature: firstShape = null } = getContractShape(first);
+    const sameSignature = knownValues.every(value => (
+        JSON.stringify(getContractShape(value).signature) === JSON.stringify(firstShape)
+    ));
+    return contract({
+        kind: 'function',
+        signature: sameSignature ? first.signature : null,
+        sourceNode: first.sourceNode
+    });
+};
 
 const mergeObjectContracts = (knownValues = [], options = {}) => {
     const propertyNames = [...new Set(knownValues.flatMap(({ properties = {} } = {}) => Object.keys(properties)))];
@@ -161,6 +186,7 @@ const mergeObjectContracts = (knownValues = [], options = {}) => {
 const mergeSameKind = ({ kind = 'unknown', knownValues = [], options = {} } = {}) => {
     if (kind === 'array') return mergeArrayContracts(knownValues, options);
     if (kind === 'promise') return mergePromiseContracts(knownValues, options);
+    if (kind === 'function') return mergeFunctionContracts(knownValues, options);
     if (kind === 'object') return mergeObjectContracts(knownValues, options);
     return contract({ kind });
 };
@@ -197,6 +223,8 @@ const isCompatible = ({ expected = unknown(), actual = unknown() } = {}) => {
         return isCompatible({ expected: expected.element, actual: actual.element });
     }
 
+    if (expected.kind === 'function') return true;
+
     if (expected.kind !== 'object') return true;
 
     const getActualProperty = (name = '') => {
@@ -220,9 +248,11 @@ const describe = ({ kind = 'unknown' } = {}) => ({
     string: 'string-like',
     number: 'number-like',
     boolean: 'boolean-like',
+    regexp: 'regexp-like',
     array: 'array-like',
     promise: 'promise-like',
-    object: 'object-like'
+    object: 'object-like',
+    function: 'function-like'
 }[kind] || 'unknown');
 
 export {
