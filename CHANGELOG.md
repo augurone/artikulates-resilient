@@ -1,11 +1,12 @@
 # Changelog
 
-## Unreleased
-
 ## 0.6.1 — 2026-09-02
 
 - Added a rule-by-rule migration playbook in `docs/migration-playbook.md` to
   give the rule set a concrete adoption path and future fix backbone.
+- Added known closed-object missing-property diagnostics for object
+  destructuring, while preserving defaults as intentional absence handling and
+  object-rest passthrough as an open boundary.
 
 ## 0.6.0 — 2026-09-02
 

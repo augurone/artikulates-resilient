@@ -24,6 +24,8 @@ The analyzer reports known contradictions:
 - an explicitly rest-destructured object remains an open object bag and
   preserves passthrough keys;
 - a known closed object property access can be checked for absence;
+- a named property destructured from a known closed object can be checked for
+  absence, while defaults and object rest preserve intentional unknowns;
 - known local call sites can be checked for excess literal properties and
   function arity;
 - known callable values can carry signatures through aliases, object
@@ -228,8 +230,8 @@ Current inference tracks:
 - native `String`, `Number`, and `Boolean` coercion results;
 - branch guards such as `Array.isArray(value)`;
 - known property updates;
-- known closed-object property access and direct-literal excess-property
-  checks;
+- known closed-object property access and destructuring checks, plus
+  direct-literal excess-property checks;
 - local call arity for known function signatures, including callback
   invocations through local higher-order call stacks;
 - call-site checks for known function-valued object properties;

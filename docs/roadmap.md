@@ -72,6 +72,10 @@ This is the immediate priority after the 0.6.0 release. The goal is to
 establish whether the analyzer helps on real code before adding more
 inference.
 
+The 0.6.x line also extends known closed-object property checks into
+destructuring. Defaults continue to express intentional absence, and object
+rest continues to preserve open passthrough rather than inventing a finding.
+
 - [ ] Build a small corpus of real bugs, near-misses, and intentional
   non-findings. Record the source pattern, expected result, diagnostic quality,
   and whether runtime validation or a test is the correct owner.

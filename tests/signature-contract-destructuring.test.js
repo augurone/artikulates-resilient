@@ -12,6 +12,9 @@ const ruleTester = new RuleTester({
 ruleTester.run('signature-contract-destructuring', rule, {
     valid: [
         { code: 'const getValue = ({ value = {} } = {}) => { const { attr = "" } = value; return attr; };' },
+        { code: 'const getValue = () => ({ name: "A" }); const { missing = "" } = getValue();' },
+        { code: 'const getValue = () => ({ name: "A" }); const { name, ...rest } = getValue();' },
+        { code: 'const getValue = value => { const { name, ...rest } = value; return rest; };' },
         { code: 'const getValue = ({ value = [] } = {}) => { const [first = {}] = value; return first; };' },
         { code: 'const getValue = () => { const [{ attr = "" } = {}] = []; return attr; };' },
         { code: 'const getValue = (items = []) => { const { [0]: value = {} } = items; return value; };' },
@@ -27,6 +30,20 @@ ruleTester.run('signature-contract-destructuring', rule, {
                     actual: 'array-like',
                     expected: 'object-like'
                 }
+            }]
+        },
+        {
+            code: 'const getValue = () => ({ name: "A" }); const { nmae } = getValue();',
+            errors: [{
+                messageId: 'missingProperty',
+                data: { property: 'nmae' }
+            }]
+        },
+        {
+            code: 'const getValue = () => ({ profile: { name: "A" } }); const { profile: { nmae } } = getValue();',
+            errors: [{
+                messageId: 'missingProperty',
+                data: { property: 'profile.nmae' }
             }]
         }
     ]

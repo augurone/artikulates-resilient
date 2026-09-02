@@ -118,7 +118,8 @@ native operations such as string methods and collection methods. Object-rest
 bindings are represented as open residual object contracts with excluded keys;
 known remaining properties can be recovered through aliases, calls, returns,
 imports, and spreads while unsupported properties remain unknown. Known closed
-objects also receive property-existence checks, and known local calls receive
+objects also receive property-existence checks, including named properties
+destructured from known closed objects, and known local calls receive
 arity checks plus direct-literal excess-property checks. Local higher-order
 calls carry known callback signatures through the invocation stack, including
 callback arity and callback rest parameters. Regular-expression literals and
