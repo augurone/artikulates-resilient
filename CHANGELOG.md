@@ -2,11 +2,14 @@
 
 ## Unreleased
 
+## 0.6.1 — 2026-09-02
+
+- Added a rule-by-rule migration playbook in `docs/migration-playbook.md` to
+  give the rule set a concrete adoption path and future fix backbone.
+
 ## 0.6.0 — 2026-09-02
 
 - Expanded the opt-in contract diagnostics with known closed-object property
-
-
   access checks, known-local function arity checks, and direct-literal excess
   property checks.
 - Extended known-local arity checks through higher-order callback invocations,
@@ -49,8 +52,6 @@
 ## 0.5.0 — 2026-08-31
 
 - Added a caller-supplied Project Tree with source identity, forward and
-
-
   reverse dependency edges, resolver outcomes, unknown-edge preservation, and
   explicit Active Tree activation.
 - Added shared analysis snapshots consumed by both the contracts API and the

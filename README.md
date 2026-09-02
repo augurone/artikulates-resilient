@@ -297,6 +297,8 @@ the core to an editor or to ESLint; no such adapter is included here.
 ## Rule documentation
 
 Individual rule behavior and examples are in [docs/rules](docs/rules/).
+The migration playbook is in [docs/migration-playbook.md](docs/migration-playbook.md)
+and gives a rule-by-rule adoption path plus a future fix backbone.
 The concise discipline is in [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md).
 The contract model is described in [docs/contracts.md](docs/contracts.md), and
 the dialect semantics are in [docs/semantics.md](docs/semantics.md). The design
