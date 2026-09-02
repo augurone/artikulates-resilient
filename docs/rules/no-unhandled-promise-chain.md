@@ -1,8 +1,9 @@
 # no-unhandled-promise-chain
 
 Report an expression-statement promise chain that uses `.then` or `.finally`
-without a `.catch`. A rejection from a chain written this way has no visible
-local handling or ownership.
+without a `.catch`, and known promise calls whose result is dropped. A
+rejection from work written this way has no visible local handling or
+ownership.
 
 ## Smell
 
@@ -30,6 +31,18 @@ const request = loadUser().then(renderUser);
 await loadUser().then(renderUser);
 void loadUser().then(renderUser);
 ```
+
+Known local `async` functions and native promise combinators are also checked
+when called as bare expression statements:
+
+```javascript
+const loadUser = async () => user;
+
+loadUser(); // reported
+void loadUser(); // explicit fire-and-forget ownership
+```
+
+Unknown external calls remain unknown.
 
 This is a syntactic check. It cannot prove that an arbitrary object is a
 Promise or thenable, and it does not replace runtime behavior tests. For a

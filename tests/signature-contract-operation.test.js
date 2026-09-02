@@ -29,10 +29,13 @@ ruleTester.run('signature-contract-operation', rule, {
         { code: 'const inspect = async () => { return; };' },
         { code: 'const request = async () => ({ items: [] }); const load = async () => { const data = await request(); return data.items.map(Boolean); };' },
         { code: 'const inspect = () => { const items = ["a"]; return items.map(item => item.toUpperCase()).map(Boolean); };' },
+        { code: 'const makeHandler = () => (value = "") => value.trim(); const handler = makeHandler(); handler("value").toUpperCase();' },
+        { code: 'const api = { read: () => "value" }; api.read().toUpperCase();' },
         { code: 'const inspect = () => { const items = ["a"]; return items.filter(item => item).map(Boolean); };' },
         { code: 'const inspect = () => { const items = [1]; const total = items.reduce((sum, item) => sum, 0); return total.toFixed(); };' },
         { code: 'const inspect = () => [1].reduce((sum, item) => sum.toUpperCase(), "");' },
         { code: 'const inspect = () => ["ready", 42].map(item => String(item).toUpperCase());' },
+        { code: 'const inspect = () => Object.entries({ title: "ready" }).map(entry => entry);' },
         { code: 'const inspect = () => [1].map(item => { if (typeof item === "string") return item.toUpperCase(); return ""; });' },
         { code: 'const inspect = () => { const items = ["a"]; return items.find(item => item).toUpperCase(); };' },
         { code: 'const mapWithCondition = ({ value = {}, enabled = false } = {}) => { if (Array.isArray(value) && enabled) return value.map(Boolean); return []; };' },
@@ -217,6 +220,18 @@ ruleTester.run('signature-contract-operation', rule, {
             }]
         },
         {
+            code: 'const api = { read: () => "value" }; api.read().map(Boolean);',
+            errors: [{
+                messageId: 'mismatch',
+                data: {
+                    receiver: 'api.read()',
+                    actual: 'string-like',
+                    method: 'map',
+                    expected: 'array-like'
+                }
+            }]
+        },
+        {
             code: 'const inspect = () => { const items = ["a"]; return items.filter(item => item).toUpperCase(); };',
             errors: [{
                 messageId: 'mismatch',
@@ -285,6 +300,18 @@ ruleTester.run('signature-contract-operation', rule, {
                     actual: 'string-like',
                     method: 'map',
                     expected: 'array-like'
+                }
+            }]
+        },
+        {
+            code: 'const inspect = () => Object.entries({}).trim();',
+            errors: [{
+                messageId: 'mismatch',
+                data: {
+                    receiver: 'Object.entries()',
+                    actual: 'array-like',
+                    method: 'trim',
+                    expected: 'string-like'
                 }
             }]
         }

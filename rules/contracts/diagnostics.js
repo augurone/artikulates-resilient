@@ -110,6 +110,79 @@ const getMismatches = ({ expected = unknown(), actual = unknown(), node = {}, pa
     });
 };
 
+/* eslint-disable resilient/prefer-destructured-member-access -- Contract diagnostics inspect ESTree nodes and inferred contract records by design. */
+const hasProperty = ({ value = {}, name = '' } = {}) => (
+    Object.hasOwn(value.properties || {}, name) ||
+    Object.hasOwn(value.residual && value.residual.properties || {}, name)
+);
+
+const hasOpenResidual = (value = {}) => Boolean(value.residual && value.residual.open);
+
+const getShapeMismatches = ({ expected = unknown(), actual = unknown(), node = {}, path = [] } = {}) => {
+    if (expected.state === 'contradictory') return getContractVariants(expected).flatMap(expectedVariant => (
+        getShapeMismatches({ expected: expectedVariant, actual, node, path })
+    ));
+    if (actual.state === 'contradictory') return getContractVariants(actual).flatMap(actualVariant => (
+        getShapeMismatches({ expected, actual: actualVariant, node, path })
+    ));
+    if (expected.kind !== 'object' || actual.kind !== 'object') return [];
+
+    const expectedProperties = expected.properties || {};
+    const actualProperties = actual.properties || {};
+
+    const nested = Object.entries(expectedProperties).flatMap(([name = '', property = {}] = []) => {
+        const actualProperty = actualProperties[name] || (
+            actual.residual && actual.residual.properties || {}
+        )[name] || unknown();
+        return getShapeMismatches({
+            expected: property,
+            actual: actualProperty,
+            node,
+            path: [...path, name]
+        });
+    });
+
+    const exactLiteral = node.type === 'ObjectExpression' &&
+        !(node.properties || []).some(({ type = '' } = {}) => type === 'SpreadElement');
+    const excess = !expected.residual && exactLiteral
+        ? Object.keys(actualProperties)
+            .filter(name => !Object.hasOwn(expectedProperties, name))
+            .map(propertyName => ({
+                kind: 'excess-property',
+                propertyName,
+                node,
+                path: [...path, propertyName]
+            }))
+        : [];
+
+    return [...nested, ...excess];
+};
+
+const getArityDiagnostics = ({ node = {}, definition = {} } = {}) => {
+    const { signature = {} } = definition;
+    const { parameters = [], restIndex = -1 } = signature;
+    const args = node.arguments || [];
+    if (args.some(({ type = '' } = {}) => type === 'SpreadElement')) return [];
+
+    const requiredIndexes = parameters
+        .map(({ optional = false } = {}, index = 0) => index !== restIndex && !optional ? index : -1)
+        .filter(index => index >= 0);
+    const requiredCount = requiredIndexes.length ? Math.max(...requiredIndexes) + 1 : 0;
+    const maximumCount = restIndex === -1 ? parameters.length : Number.MAX_SAFE_INTEGER;
+    if (args.length < requiredCount) return [{
+        kind: 'arity',
+        node,
+        message: `Expected at least ${requiredCount} argument${requiredCount === 1 ? '' : 's'}, but got ${args.length}.`
+    }];
+    if (args.length > maximumCount) return [{
+        kind: 'arity',
+        node,
+        message: `Expected at most ${maximumCount} argument${maximumCount === 1 ? '' : 's'}, but got ${args.length}.`
+    }];
+    return [];
+};
+/* eslint-enable resilient/prefer-destructured-member-access */
+
 const getObject = value => (
     value && typeof value === 'object' ? value : {}
 );
@@ -148,6 +221,28 @@ const getSignatureParameters = ({ signature = {} } = {}) => {
 const getDefinitionsForProgram = ({ program = {}, definitions = {} } = {}) => (
     Object.keys(definitions).length ? definitions : getDefinitions(program)
 );
+
+const getFunctionDefinition = ({ value = {} } = {}) => {
+    if (value.kind !== 'function' || !value.signature) return {};
+    return {
+        node: value.sourceNode,
+        signature: value.signature,
+        returnContract: value.signature.returnContract || unknown()
+    };
+};
+
+const getMemberFunctionDefinition = ({ callee = {}, context = {} } = {}) => {
+    const { object = {}, property = {}, computed = false } = callee;
+    const method = getPropertyName({ key: property, computed });
+    if (!method) return {};
+    const receiver = inferExpression(object, context);
+    const { properties = {}, residual = null } = receiver;
+    const residualProperties = residual && residual.properties || {};
+    return getFunctionDefinition({
+        value: properties[method] || residualProperties[method] || {}
+    });
+};
+
 
 const getTopLevelFunctionAliases = ({ program = {}, definitions = {} } = {}) => {
     let aliases = { ...definitions };
@@ -305,14 +400,25 @@ const getHigherOrderCallDiagnostics = ({
     });
     return getCallbackCalls({ node: functionNode, callbackNames }).flatMap(({
         callee = {},
-        args = []
+        args = [],
+        node: callbackCall = {}
     } = {}) => {
         const callbackDefinition = callbackContext.functions[callee.name] || {};
         if (!callbackDefinition.signature) return [];
         const callbackParameter = callbackParameters
             .find(({ name = '' } = {}) => name === callee.name) || {};
         const { index: callbackIndex = 0 } = callbackParameter;
-        return getSignatureParameters(callbackDefinition).flatMap((expected = unknown(), index = 0) => {
+        const arityDiagnostics = getArityDiagnostics({
+            node: callbackCall,
+            definition: callbackDefinition
+        }).map(({ message = '' } = {}) => ({
+            ruleId: 'signature-contract-call-site',
+            messageId: 'arity',
+            message,
+            data: { message },
+            node: callbackCall
+        }));
+        const shapeDiagnostics = getSignatureParameters(callbackDefinition).flatMap((expected = unknown(), index = 0) => {
             const { [index]: argument = {} } = args;
             if (!argument || argument.type === 'SpreadElement') return [];
             const actual = inferExpression(argument, callbackContext);
@@ -342,6 +448,7 @@ const getHigherOrderCallDiagnostics = ({
                 };
             });
         });
+        return [...arityDiagnostics, ...shapeDiagnostics];
     });
 };
 
@@ -394,10 +501,23 @@ const getCallSiteDiagnostics = ({ program = {}, definitions = {}, flows = new Ma
         if (callee.type === 'MemberExpression') {
             diagnostics = [...diagnostics, ...getArrayCallbackDiagnostics({ node, context })];
         }
-        if (callee.type !== 'Identifier') return;
         const callableDefinitions = context.functions || sourceDefinitions;
-        const definition = callableDefinitions[callee.name] || {};
+        const definition = callee.type === 'Identifier'
+            ? callableDefinitions[callee.name] || getFunctionDefinition({
+                value: inferExpression(callee, context)
+            })
+            : getMemberFunctionDefinition({ callee, context });
         if (!definition.signature) return;
+
+        getArityDiagnostics({ node, definition }).forEach(({ message = '', node: reportNode = node } = {}) => {
+            diagnostics = [...diagnostics, {
+                ruleId: 'signature-contract-call-site',
+                messageId: 'arity',
+                message,
+                data: { message },
+                node: reportNode
+            }];
+        });
 
         diagnostics = [...diagnostics, ...getHigherOrderCallDiagnostics({
             node,
@@ -410,6 +530,23 @@ const getCallSiteDiagnostics = ({ program = {}, definitions = {}, flows = new Ma
             if (!argument || argument.type === 'SpreadElement') return;
 
             const actual = inferExpression(argument, context);
+            getShapeMismatches({ expected, actual, node: argument }).forEach(({
+                kind = '',
+                propertyName = '',
+                node: reportNode = argument,
+                path = []
+            } = {}) => {
+                if (kind !== 'excess-property') return;
+                const mismatchPath = path.join('.') || propertyName;
+                diagnostics = [...diagnostics, {
+                    ruleId: 'signature-contract-call-site',
+                    messageId: 'excessProperty',
+                    message: `This call supplies excess property ${mismatchPath}.`,
+                    data: { path: mismatchPath },
+                    node: reportNode
+                }];
+            });
+
             if (isCompatible({ expected, actual })) return;
 
             getMismatches({
@@ -439,6 +576,52 @@ const getCallSiteDiagnostics = ({ program = {}, definitions = {}, flows = new Ma
     });
     return diagnostics;
 };
+
+const OBJECT_PROPERTIES = new Set([
+    '__proto__',
+    'constructor',
+    'hasOwnProperty',
+    'isPrototypeOf',
+    'propertyIsEnumerable',
+    'toLocaleString',
+    'toString',
+    'valueOf'
+]);
+
+/* eslint-disable resilient/prefer-destructured-member-access -- This rule's implementation must inspect the object contract it enforces. */
+const getPropertyDiagnostics = ({ program = {}, definitions = {}, flows = new Map() } = {}) => {
+    const sourceDefinitions = getTopLevelFunctionAliases({
+        program,
+        definitions: getDefinitionsForProgram({ program, definitions })
+    });
+    const sourceFlows = flows.size
+        ? flows
+        : createFunctionFlows({ program, definitions: sourceDefinitions });
+    let diagnostics = [];
+    walk(program, (node = {}) => {
+        if (node.type !== 'MemberExpression' || node.computed || node.property.type !== 'Identifier') return;
+        const propertyName = node.property.name || '';
+        if (OBJECT_PROPERTIES.has(propertyName)) return;
+        const context = getFlowContext({ node, definitions: sourceDefinitions, flows: sourceFlows });
+        const receiver = inferExpression(node.object, context);
+        if (receiver.kind !== 'object' || hasOpenResidual(receiver)) return;
+        const expectedKind = getOperationExpectation({
+            kind: receiver.kind,
+            method: propertyName
+        });
+        if (expectedKind && expectedKind !== receiver.kind) return;
+        if (hasProperty({ value: receiver, name: propertyName })) return;
+        diagnostics = [...diagnostics, {
+            ruleId: 'signature-contract-property',
+            messageId: 'missingProperty',
+            message: `Property ${propertyName} does not exist on this known object contract.`,
+            data: { property: propertyName },
+            node
+        }];
+    });
+    return diagnostics;
+};
+/* eslint-enable resilient/prefer-destructured-member-access */
 
 const getOperationDiagnostics = ({ program = {}, definitions = {}, flows = new Map() } = {}) => {
     const sourceDefinitions = getTopLevelFunctionAliases({
@@ -533,14 +716,18 @@ const getDestructuringDiagnostics = ({ program = {}, definitions = {}, flows = n
 const getContractDiagnostics = ({ program = {}, definitions = {}, flows = new Map() } = {}) => [
     ...getCallSiteDiagnostics({ program, definitions, flows }),
     ...getOperationDiagnostics({ program, definitions, flows }),
-    ...getDestructuringDiagnostics({ program, definitions, flows })
+    ...getDestructuringDiagnostics({ program, definitions, flows }),
+    ...getPropertyDiagnostics({ program, definitions, flows })
 ];
 
 export {
     getCallSiteDiagnostics,
     getContractDiagnostics,
     getDestructuringDiagnostics,
+    getArityDiagnostics,
     getOperationDiagnostics,
     getMismatches,
+    getPropertyDiagnostics,
+    getShapeMismatches,
     hasComputedProperty
 };

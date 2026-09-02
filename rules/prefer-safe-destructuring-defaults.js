@@ -1,3 +1,5 @@
+import { getEnclosingFunction, walk } from './contracts/infer.js';
+
 const isAssignmentPattern = ({ type = '' } = {}) => type === 'AssignmentPattern';
 
 const isRestElement = ({ type = '' } = {}) => type === 'RestElement';
@@ -24,12 +26,36 @@ const isUseStateResult = ({ parent = {} } = {}) => {
     );
 };
 
+const isDirectlyInvoked = ({ node = {} } = {}) => {
+    const { value = {} } = node;
+    if (value.type !== 'Identifier') return false;
+
+    const functionNode = getEnclosingFunction({ parent: node.parent });
+    if (!functionNode.body) return false;
+
+    let invoked = false;
+    walk(functionNode.body, ({
+        type = '',
+        callee: {
+            type: calleeType = '',
+            name = ''
+        } = {}
+    } = {}) => {
+        if (type === 'CallExpression' && calleeType === 'Identifier' && name === value.name) {
+            invoked = true;
+        }
+    }, { skipFunctions: true });
+    return invoked;
+};
+
 const reportMissingDefault = ({ node = {}, report = () => {} } = {}) => {
     if (!node) return;
-    if (isAssignmentPattern(node) || isRestElement(node)) return;
+    const { value = node } = node;
+    if (isAssignmentPattern(value) || isRestElement(value)) return;
+    if (isDirectlyInvoked({ node })) return;
 
     report({
-        node,
+        node: value,
         messageId: 'safeDefault'
     });
 };
@@ -48,9 +74,9 @@ export default {
     },
     create({ report = () => {} } = {}) {
         return {
-            'ObjectPattern > Property': ({ value = {} } = {}) => {
+            'ObjectPattern > Property': (node = {}) => {
                 reportMissingDefault({
-                    node: value,
+                    node,
                     report
                 });
             },

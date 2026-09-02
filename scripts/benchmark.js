@@ -11,6 +11,10 @@ import { createContractGraph, createProjectTree } from 'eslint-plugin-resilient/
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const fixtureDirectory = path.join(scriptDirectory, '..', 'tests', 'fixtures', 'benchmark');
+const { version: packageVersion = '' } = JSON.parse(fs.readFileSync(
+    path.join(scriptDirectory, '..', 'package.json'),
+    'utf8'
+));
 
 const getFixtureFiles = (directory = '') => fs.readdirSync(directory, { withFileTypes: true })
     .flatMap((entry = {}) => {
@@ -145,7 +149,7 @@ const run = async () => {
         roots
     }));
     return {
-        benchmark: 'resilient-0.5.0',
+        benchmark: `resilient-${packageVersion}`,
         node: process.version,
         fixtureFiles: fixtureFiles.length,
         sharedActiveTree: {

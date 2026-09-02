@@ -1,3 +1,9 @@
+import {
+    getDefinitions,
+    inferExpression
+} from './contracts/infer.js';
+import { getKind } from './contracts/model.js';
+
 const getStaticPropertyName = ({
     type = '',
     computed = false,
@@ -31,11 +37,16 @@ const isUnhandledChain = ({ node = {} } = {}) => {
     );
 };
 
+const isDroppedKnownPromise = ({ node = {}, definitions = {} } = {}) => (
+    node.type === 'CallExpression' &&
+    getKind(inferExpression(node, { functions: definitions })) === 'promise'
+);
+
 export default {
     meta: {
         type: 'problem',
         docs: {
-            description: 'Require promise chains with then or finally to handle or propagate rejection',
+            description: 'Require known promise work to handle or propagate rejection',
             url: 'https://github.com/augurone/artikulates-resilient/blob/main/docs/rules/no-unhandled-promise-chain.md'
         },
         schema: [],
@@ -44,9 +55,16 @@ export default {
         }
     },
     create({ report = () => {} } = {}) {
+        let definitions = {};
         return {
+            Program(node = {}) {
+                definitions = getDefinitions(node);
+            },
             ExpressionStatement({ expression = {} } = {}) {
-                if (!isUnhandledChain({ node: expression })) return;
+                if (!isUnhandledChain({ node: expression }) && !isDroppedKnownPromise({
+                    node: expression,
+                    definitions
+                })) return;
 
                 report({
                     node: expression,

@@ -8,6 +8,7 @@ import noNullAssignment from './rules/no-null-assignment.js';
 import noSilentCatch from './rules/no-silent-catch.js';
 import noUndefinedAssignment from './rules/no-undefined-assignment.js';
 import noUndefinedComparison from './rules/no-undefined-comparison.js';
+import noUnguardedCallbackInvocation from './rules/no-unguarded-callback-invocation.js';
 import noUnhandledPromiseChain from './rules/no-unhandled-promise-chain.js';
 import preferAsyncAwait from './rules/prefer-async-await.js';
 import preferDestructuredMemberAccess from './rules/prefer-destructured-member-access.js';
@@ -19,6 +20,7 @@ import preferSignatureDestructuring from './rules/prefer-signature-destructuring
 import signatureContractCallSite from './rules/signature-contract-call-site.js';
 import signatureContractDestructuring from './rules/signature-contract-destructuring.js';
 import signatureContractOperation from './rules/signature-contract-operation.js';
+import signatureContractProperty from './rules/signature-contract-property.js';
 import signatureContractReturnConsistency from './rules/signature-contract-return-consistency.js';
 
 let configs = {};
@@ -26,7 +28,7 @@ let configs = {};
 const plugin = {
     meta: {
         name: 'eslint-plugin-resilient',
-        version: '0.5.0'
+        version: '0.6.0'
     },
     rules: {
         'prefer-signature-destructuring': preferSignatureDestructuring,
@@ -35,6 +37,7 @@ const plugin = {
         'no-length-comparison': noLengthComparison,
         'no-null-assignment': noNullAssignment,
         'no-silent-catch': noSilentCatch,
+        'no-unguarded-callback-invocation': noUnguardedCallbackInvocation,
         'no-unhandled-promise-chain': noUnhandledPromiseChain,
         'prefer-async-await': preferAsyncAwait,
         'no-nested-if': noNestedIf,
@@ -48,6 +51,7 @@ const plugin = {
         'signature-contract-call-site': signatureContractCallSite,
         'signature-contract-destructuring': signatureContractDestructuring,
         'signature-contract-operation': signatureContractOperation,
+        'signature-contract-property': signatureContractProperty,
         'signature-contract-return-consistency': signatureContractReturnConsistency
     },
     get configs() {
@@ -131,6 +135,7 @@ const contracts = {
         'resilient/signature-contract-call-site': 'error',
         'resilient/signature-contract-destructuring': 'error',
         'resilient/signature-contract-operation': 'error',
+        'resilient/signature-contract-property': 'error',
         'resilient/signature-contract-return-consistency': 'error'
     }
 };
@@ -142,6 +147,7 @@ const safety = {
     rules: {
         'resilient/prefer-safe-transformations': 'error',
         'resilient/no-silent-catch': 'error',
+        'resilient/no-unguarded-callback-invocation': 'error',
         'resilient/no-unhandled-promise-chain': 'error',
         'resilient/prefer-async-await': 'warn',
         'no-empty': ['error', { allowEmptyCatch: true }]

@@ -21,6 +21,13 @@ The analyzer reports known contradictions:
 - a known object passed a number where a string-shaped property is declared is
   a finding;
 - a signature default can absorb an `undefined` property;
+- an explicitly rest-destructured object remains an open object bag and
+  preserves passthrough keys;
+- a known closed object property access can be checked for absence;
+- known local call sites can be checked for excess literal properties and
+  function arity;
+- known callable values can carry signatures through aliases, object
+  properties, and returned functions;
 - unknown expressions remain unknown;
 - runtime validation, normalization, and behavioral tests remain executable
   concerns.
@@ -207,8 +214,10 @@ discovery and parser-backed loading remain adapter concerns.
 Current inference tracks:
 
 - primitive and collection value families;
+- implicit regular-expression literals and `RegExp.prototype.test` results;
 - nested destructuring and defaults;
 - object construction and direct returns;
+- function-valued expressions and returned function signatures;
 - all known formal parameters and corresponding call arguments;
 - aliases and reassignment;
 - callable identifier aliases;
@@ -219,14 +228,20 @@ Current inference tracks:
 - native `String`, `Number`, and `Boolean` coercion results;
 - branch guards such as `Array.isArray(value)`;
 - known property updates;
+- known closed-object property access and direct-literal excess-property
+  checks;
+- local call arity for known function signatures, including callback
+  invocations through local higher-order call stacks;
+- call-site checks for known function-valued object properties;
 - program/module-level bindings for declarations, aliases, and destructured
   returned properties;
 - bounded loop effects;
 - normal paths through `try`, `catch`, and `finally`.
 
 Local function return contracts are resolved to a stable point across direct
-function calls and callable aliases. Async returns are promise-shaped until
-`await` unwraps them. `Promise.resolve` and `Promise.all` preserve known
+function calls, callable aliases, function-valued object properties, and
+returned functions. Async returns are promise-shaped until `await` unwraps
+them. `Promise.resolve` and `Promise.all` preserve known
 elements. `map` derives its element contract from an inline or named callback,
 `filter` preserves the input element contract, `some` returns a boolean
 contract, `reduce` preserves a callback-compatible initial accumulator

@@ -45,8 +45,10 @@ The core value families are:
 | string-like | text and string operations | `''` |
 | number-like | numeric values and numeric operations | `0` |
 | boolean-like | boolean decisions | `false` |
+| regexp-like | regular-expression literals and matching operations | literal-defined |
 | array-like | ordered collections and collection operations | `[]` |
 | object-like | records and object properties | `{}` |
+| function-like | callable values, callbacks, and returned functions | no synthetic default |
 | nullish | explicit absence at a declared boundary | boundary-defined |
 | unknown | insufficient evidence | not normalized statically |
 
@@ -54,6 +56,27 @@ Arrays are distinct from records for destructuring and collection operations,
 while remaining objects at the JavaScript runtime level. A computed object
 property on an array can therefore be valid even when object and array
 destructuring have different contracts.
+
+Functions are a first-class value family. When a function's parameters and
+return paths are known, its contract travels through assignment, object
+properties, aliases, and returns. A returned function can therefore be called
+and checked at its later call site. A function without enough evidence for its
+signature remains a known callable family with an unknown signature; the
+analyzer does not infer a parameter type merely from an operation in the
+function body.
+
+Regular-expression literals are inferred as `regexp-like` values directly;
+they do not need a declaration contract. Native matching such as
+`pattern.test(value)` is therefore an ordinary implicit JavaScript contract,
+with a known boolean result.
+
+Prototype methods must agree with the receiver family. Collection methods such
+as `map`, `filter`, `reduce`, `some`, `find`, and `forEach` require an
+array-like receiver; string methods such as `trim`, `toLowerCase`,
+`toUpperCase`, and `replaceAll` require a string-like receiver. Native helpers
+that produce a known family participate in the same rule, so
+`Object.entries({}).map(...)` is valid while
+`Object.entries({}).trim()` is contradictory.
 
 The canonical empty value is a dialect default for value-producing application
 contracts. It is not a claim that every external value has already been
@@ -77,6 +100,12 @@ an array-shaped `items` value when the property is absent or `undefined`.
 Defaults do not convert `null`, validate arbitrary external input, or prove
 that an unknown value has the declared shape.
 
+An empty object default assigned to an undeclared value field does not by
+itself make that field an open object bag. When a value is intentionally an
+open bag, express that contract with nested destructuring and an object rest
+element, such as `variables: { ...variables } = {}`. This establishes the safe
+absent value while explicitly preserving passthrough keys.
+
 Application-owned function boundaries should expose their shape in the
 signature. Externally defined callback signatures, full-object forwarding,
 dynamic properties, and platform APIs are legitimate boundary exceptions when
@@ -89,12 +118,14 @@ external boundary whose contract explicitly permits absence. Inside a normalized
 value-producing application contract, Resilient prefers one shape-specific
 empty value rather than an unannounced nullish alternative.
 
-That distinction produces three cases:
+That distinction produces four cases:
 
 1. a missing property may be normalized by a destructuring default;
 2. an external `null` or `undefined` may remain at a declared boundary until
    runtime normalization handles it;
-3. an internal value-producing path should return the contract's canonical
+3. an omitted callback remains real `undefined` and must be guarded with
+   `isFunction` or `typeof callback === 'function'` before invocation;
+4. an internal value-producing path should return the contract's canonical
    empty value; a known alternate family is a contract contradiction.
 
 The falsey-return, nullish-assignment, and return-consistency rules enforce the

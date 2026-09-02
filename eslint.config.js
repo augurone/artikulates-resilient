@@ -102,5 +102,15 @@ export default [
                 }
             ]
         }
+    },
+    {
+        files: ['rules/**/*.js', 'scripts/**/*.js', 'tests/**/*.js'],
+        rules: {
+            // The analyzer implementation and its fixtures intentionally use
+            // open AST/options objects that the consumer-facing contract rules
+            // are designed to check.
+            'resilient/signature-contract-call-site': 'off',
+            'resilient/signature-contract-property': 'off'
+        }
     }
 ];

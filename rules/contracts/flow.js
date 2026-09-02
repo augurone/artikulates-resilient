@@ -50,6 +50,7 @@ const getPredicate = ({
 } = {}) => {
     const {
         type: calleeType = '',
+        name: calleeName = '',
         object = {},
         property = {},
         computed = false
@@ -57,6 +58,15 @@ const getPredicate = ({
     const [{ type: argumentType = '', name: argumentName = '' } = {}] = args;
     const { type: objectType = '', name: objectName = '' } = object;
     const { type: propertyType = '', name: propertyName = '' } = property;
+
+    if (
+        type === 'CallExpression' &&
+        calleeType === 'Identifier' &&
+        calleeName === 'isFunction' &&
+        argumentType === 'Identifier'
+    ) {
+        return { kind: 'function', name: argumentName };
+    }
 
     if (
         type === 'CallExpression' &&
@@ -91,14 +101,14 @@ const getPredicate = ({
         leftOperator === 'typeof' &&
         leftArgument.type === 'Identifier' &&
         rightType === 'Literal' &&
-        ['string', 'number', 'boolean', 'undefined', 'object'].includes(rightValue)
+        ['string', 'number', 'boolean', 'undefined', 'object', 'function'].includes(rightValue)
     );
     const rightTypeof = (
         rightType === 'UnaryExpression' &&
         rightOperator === 'typeof' &&
         rightArgument.type === 'Identifier' &&
         leftType === 'Literal' &&
-        ['string', 'number', 'boolean', 'undefined', 'object'].includes(leftValue)
+        ['string', 'number', 'boolean', 'undefined', 'object', 'function'].includes(leftValue)
     );
     const isTypeofPredicate = (
         binaryType === 'BinaryExpression' &&
@@ -286,7 +296,6 @@ const bindPattern = ({ context = {}, pattern = {}, value = unknown() } = {}) => 
                             ...residualProperties,
                             ...remainingProperties
                         },
-                        // eslint-disable-next-line resilient/signature-contract-call-site -- Rest binding carries residual object metadata, not a callable argument.
                         residual: {
                             kind: 'object',
                             state: 'unknown',

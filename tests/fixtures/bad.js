@@ -157,6 +157,13 @@ const report = () => {};
     }
 }
 
+// no-unguarded-callback-invocation
+{
+    const run = ({ onDone } = {}) => onDone();
+
+    void run;
+}
+
 // no-unhandled-promise-chain
 {
     request().then(process);
@@ -327,7 +334,26 @@ const report = () => {};
     const readTitle = ({ title = '' } = {}) => title;
     apply(readTitle, { title: 42 });
 
-    void [renderPage, apply, readTitle];
+    // A local callback boundary must invoke each known callback with the
+    // payload its signature requires, including callbacks supplied inline or
+    // as a member function.
+    const publish = onPublished => onPublished('published');
+    const formatPublication = (status, publishedAt) => `${status}:${publishedAt}`;
+    publish(formatPublication);
+
+    const publishWithTimestamp = onPublished => onPublished('published', 0);
+    const storePublicationStatus = status => status;
+    publishWithTimestamp(storePublicationStatus);
+
+    const runWhenReady = onReady => onReady();
+    runWhenReady(page => page.title);
+
+    const pageHandlers = { render: page => page.title };
+    runWhenReady(pageHandlers.render);
+
+    void [renderPage, apply, readTitle, publish, formatPublication,
+        publishWithTimestamp, storePublicationStatus, runWhenReady,
+        pageHandlers];
 }
 
 // signature-contract-operation
@@ -387,6 +413,14 @@ const report = () => {};
         inspectTitles,
         inspectMixedItems
     ];
+}
+
+// signature-contract-property
+{
+    const knownUser = { name: '' };
+    knownUser.nmae;
+
+    void knownUser;
 }
 
 // signature-contract-return-consistency
