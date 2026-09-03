@@ -1,7 +1,7 @@
 # signature-contract-destructuring
 
 Reports known value shapes that contradict an object or array destructuring
-pattern.
+pattern, including a missing property on a known closed object.
 
 ## Smell
 
@@ -20,6 +20,17 @@ const getValue = ({ value = [] } = {}) => {
 
 Unknown values remain unknown and are not reported. Nested patterns are checked
 by their own shape: an object element inside an array pattern is valid.
+
+A property with a default expresses intentional absence and is not reported as
+missing. Object rest keeps the remaining object open, so unsupported property
+names remain unknown rather than becoming false findings:
+
+```javascript
+const getUser = () => ({ name: '' });
+
+const { name, missing = '' } = getUser(); // valid: the default owns absence
+const { nmae } = getUser(); // reported: `nmae` is absent
+```
 
 ```javascript
 const [{ attr = '' } = {}] = []; // valid

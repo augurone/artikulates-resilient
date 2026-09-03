@@ -38,7 +38,7 @@ examples, and exceptions.
 | [prefer-safe-transformations](rules/prefer-safe-transformations.md) | mutating a binding, property, collection, or `Object.assign` target | return a new object or array | medium |
 | [prefer-signature-destructuring](rules/prefer-signature-destructuring.md) | body destructuring from a simple parameter | move destructuring into the function signature when the parameter is owned | medium |
 | [signature-contract-call-site](rules/signature-contract-call-site.md) | known invalid argument, arity, or excess property | align the call with the provider contract | medium |
-| [signature-contract-destructuring](rules/signature-contract-destructuring.md) | known shape contradicts destructuring | normalize first or change the pattern | medium |
+| [signature-contract-destructuring](rules/signature-contract-destructuring.md) | known shape contradicts destructuring or a named property is absent | normalize first, change the pattern, or restore the property | medium |
 | [signature-contract-operation](rules/signature-contract-operation.md) | known wrong native method for a value family | use the correct operation or normalize first | medium |
 | [signature-contract-property](rules/signature-contract-property.md) | known missing property on a closed object | rename, remove, or widen the source contract | medium |
 | [signature-contract-return-consistency](rules/signature-contract-return-consistency.md) | mixed known return families | make all known return paths agree | medium |
@@ -51,7 +51,7 @@ examples, and exceptions.
 - Low-friction remediation: move the default into the destructuring site,
   usually the function signature or declaration.
 - Keep if: the `||` is doing ordinary value selection, not contract setup.
-- Future fix shape: simple rewrite.
+- Future fix shape: simple rewrite. 
 
 ### no-else
 
@@ -195,7 +195,8 @@ examples, and exceptions.
 
 ### signature-contract-destructuring
 
-- First failure: a known value is destructured as the wrong shape.
+- First failure: a known value is destructured as the wrong shape or a named
+  property is absent from a known closed object.
 - Low-friction remediation: normalize the value first or change the pattern to
   match the evidence.
 - Keep if: the value is unknown or the destructuring is intentionally dynamic.

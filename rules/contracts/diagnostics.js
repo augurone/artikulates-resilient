@@ -158,6 +158,49 @@ const getShapeMismatches = ({ expected = unknown(), actual = unknown(), node = {
     return [...nested, ...excess];
 };
 
+const getMissingDestructuredProperties = ({ pattern = {}, actual = unknown(), path = [] } = {}) => {
+    const sourcePattern = pattern.type === 'AssignmentPattern'
+        ? pattern.left || {}
+        : pattern;
+    if (sourcePattern.type !== 'ObjectPattern' || actual.kind !== 'object') return [];
+
+    const actualProperties = actual.properties || {};
+    const residualProperties = actual.residual && actual.residual.properties || {};
+    const openResidual = hasOpenResidual(actual);
+
+    return (sourcePattern.properties || []).flatMap(({
+        type = '',
+        key = {},
+        computed = false,
+        value = {}
+    } = {}) => {
+        if (type === 'RestElement' || computed) return [];
+
+        const name = getPropertyName({ key, computed });
+        if (!name) return [];
+
+        const hasKnownProperty = Object.hasOwn(actualProperties, name) ||
+            Object.hasOwn(residualProperties, name);
+        const hasDefault = value.type === 'AssignmentPattern';
+        if (!hasKnownProperty && (hasDefault || openResidual)) return [];
+        if (!hasKnownProperty) return [{
+            kind: 'missing-property',
+            propertyName: name,
+            node: key,
+            path: [...path, name]
+        }];
+
+        const actualProperty = Object.hasOwn(actualProperties, name)
+            ? actualProperties[name]
+            : residualProperties[name];
+        return getMissingDestructuredProperties({
+            pattern: value,
+            actual: actualProperty,
+            path: [...path, name]
+        });
+    });
+};
+
 const getArityDiagnostics = ({ node = {}, definition = {} } = {}) => {
     const { signature = {} } = definition;
     const { parameters = [], restIndex = -1 } = signature;
@@ -709,6 +752,18 @@ const getDestructuringDiagnostics = ({ program = {}, definitions = {}, flows = n
                 node: reportNode
             }];
         });
+
+        getMissingDestructuredProperties({ pattern: id, actual })
+            .forEach(({ propertyName = '', path = [], node: reportNode = init } = {}) => {
+                const propertyPath = path.join('.') || propertyName;
+                diagnostics = [...diagnostics, {
+                    ruleId: 'signature-contract-destructuring',
+                    messageId: 'missingProperty',
+                    message: `Property ${propertyPath} does not exist on this known object contract.`,
+                    data: { property: propertyPath },
+                    node: reportNode
+                }];
+            });
     });
     return diagnostics;
 };
