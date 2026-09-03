@@ -17,6 +17,8 @@ ruleTester.run('signature-contract-call-site', rule, {
         { code: 'const getConfig = ({ config: { name = "" } = {} } = {}) => name; getConfig({ config: { name: nullValue } });' },
         { code: 'const getTitle = (title = "") => title; getTitle(value);' },
         { code: 'const getTitle = ({ title = "" } = {}) => title; getTitle({ ...value });' },
+        { code: 'const passthrough = (value = {}) => value; passthrough({ extra: true });' },
+        { code: 'const setEntry = ({ cacheKey = "", entry = {} } = {}) => entry; setEntry({ cacheKey: "current", entry: {} });' },
         { code: 'const getTitle = ({ title, ...rest } = {}) => title; getTitle({ ...value });' },
         { code: 'const getRest = ({ title = "", ...rest } = {}) => rest; getRest({ title: "", extra: 42 });' },
         { code: 'const api = { collect: (title = "", ...rest) => title }; api.collect("A", 1, 2);' },
@@ -171,6 +173,24 @@ ruleTester.run('signature-contract-call-site', rule, {
             errors: [{
                 messageId: 'arity',
                 data: { message: 'Expected at least 1 argument, but got 0.' }
+            }]
+        },
+        {
+            code: 'const getTitle = ({ title = "" } = {}) => title; const alias = getTitle; alias({ title: false });',
+            errors: [{
+                messageId: 'mismatch',
+                data: {
+                    path: 'title',
+                    expected: 'string-like',
+                    actual: 'boolean-like'
+                }
+            }]
+        },
+        {
+            code: 'const getTitle = (title = "") => title; getTitle("A", 42);',
+            errors: [{
+                messageId: 'arity',
+                data: { message: 'Expected at most 1 argument, but got 2.' }
             }]
         }
     ]

@@ -1,3 +1,5 @@
+import { isObject } from './support/object.js';
+
 const isFalseyNode = ({ argument = {} } = {}) => {
     const {
         type = '',
@@ -12,7 +14,8 @@ const isFalseyNode = ({ argument = {} } = {}) => {
 };
 
 const getFalseyNodes = (node = {}) => {
-    if (!node || typeof node !== 'object') return [];
+    if (!isObject(node)) return [];
+
     if (isFalseyNode({ argument: node })) return [node];
 
     const {
@@ -45,6 +48,7 @@ const getFalseyNodes = (node = {}) => {
     }
 
     if (type === 'AwaitExpression') return getFalseyNodes(argument);
+
     if (type === 'UnaryExpression' && operator === 'void') return [node];
 
     return [];
@@ -76,8 +80,12 @@ export default {
             ReturnStatement({ argument = {} } = {}) {
                 reportFalseyNodes({ node: argument, report });
             },
-            ArrowFunctionExpression({ body = {} } = {}) {
-                if (body.type === 'BlockStatement') return;
+            ArrowFunctionExpression(node = {}) {
+                const { body = {} } = node;
+                const { type: bodyType = '' } = body;
+
+                if (bodyType === 'BlockStatement') return;
+
                 reportFalseyNodes({ node: body, report });
             }
         };

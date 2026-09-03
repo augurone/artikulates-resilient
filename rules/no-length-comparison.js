@@ -32,8 +32,11 @@ const getLengthNode = ({ left = {}, right = {} } = {}) => (
 );
 
 const getSourceText = ({ sourceCode = {}, node = {} } = {}) => {
-    if (typeof sourceCode.getText !== 'function') return '';
-    return sourceCode.getText(node);
+    const { getText = false } = sourceCode;
+
+    if (typeof getText !== 'function') return '';
+
+    return getText.call(sourceCode, node);
 };
 
 export default {

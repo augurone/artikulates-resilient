@@ -22,6 +22,10 @@ ruleTester.run('no-null-assignment', rule, {
         {
             code: 'value = null;',
             errors: [{ messageId: 'nullAssignment' }]
+        },
+        {
+            code: 'const value = enabled ? "ready" : null;',
+            errors: [{ messageId: 'nullAssignment' }]
         }
     ]
 });

@@ -10,8 +10,7 @@ import {
     inferExpression
 } from './contracts/infer.js';
 import { getKind, isKnown } from './contracts/model.js';
-
-const getObject = value => value && typeof value === 'object' ? value : {};
+import { getObject } from './support/object.js';
 
 const getReturnBranches = (nodeInput = {}, context = {}) => {
     const {
@@ -22,9 +21,11 @@ const getReturnBranches = (nodeInput = {}, context = {}) => {
         ...node
     } = getObject(nodeInput);
     const sourceNode = { type, test, consequent, alternate, ...node };
+
     if (type !== 'ConditionalExpression') {
         return [{ node: sourceNode, contract: inferExpression(sourceNode, context) }];
     }
+
     return [
         ...getReturnBranches(consequent, narrowContext({ ...test, context, truthy: true })),
         ...getReturnBranches(alternate, narrowContext({ ...test, context, truthy: false }))
@@ -33,9 +34,13 @@ const getReturnBranches = (nodeInput = {}, context = {}) => {
 
 const getComparableContract = ({ functionNode = {}, contract = {} } = {}) => {
     const { async = false } = functionNode;
+
     if (!async) return contract;
+
     const { kind = '', element = {} } = contract;
+
     if (kind !== 'promise') return contract;
+
     return element;
 };
 
@@ -43,9 +48,11 @@ const getInconsistentBranches = ({ functionNode = {}, definitions = {}, flows = 
     const branches = getReturnNodes(functionNode)
         .flatMap(({ argument = {} } = {}) => {
             const safeArgument = getObject(argument);
-            const context = safeArgument.type
+            const { type: argumentType = '' } = safeArgument;
+            const context = argumentType
                 ? getFlowContext({ node: safeArgument, definitions, flows })
                 : { functions: definitions };
+
             return getReturnBranches(safeArgument, context);
         })
         .map(({ contract: branchContract = {}, ...branch } = {}) => ({
@@ -57,7 +64,9 @@ const getInconsistentBranches = ({ functionNode = {}, definitions = {}, flows = 
         }))
         .filter(({ contract = {} } = {}) => isKnown(contract));
     const kinds = [...new Set(branches.map(({ contract = {} } = {}) => getKind(contract)))];
+
     if (kinds.length < 2) return [];
+
     return branches.map(({ node = {}, contract = {} } = {}) => ({
         node,
         actual: getKind(contract),

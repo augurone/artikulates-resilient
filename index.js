@@ -28,7 +28,7 @@ let configs = {};
 const plugin = {
     meta: {
         name: 'eslint-plugin-resilient',
-        version: '0.6.1'
+        version: '0.6.2'
     },
     rules: {
         'prefer-signature-destructuring': preferSignatureDestructuring,
@@ -99,7 +99,20 @@ const recommended = {
         'arrow-parens': ['error', 'as-needed', { requireForBlockBody: true }],
         'implicit-arrow-linebreak': 'error',
         'max-len': ['error', { code: 200, tabWidth: 4 }],
-        'no-multiple-empty-lines': 'error',
+        'no-multiple-empty-lines': ['error', { max: 1, maxEOF: 0, maxBOF: 0 }],
+        'no-trailing-spaces': 'error',
+        'no-multi-spaces': 'error',
+        'no-mixed-spaces-and-tabs': 'error',
+        'eol-last': ['error', 'always'],
+        'padded-blocks': ['error', { blocks: 'never', classes: 'never', switches: 'never' }],
+        'padding-line-between-statements': [
+            'error',
+            { blankLine: 'always', prev: '*', next: 'if' },
+            { blankLine: 'always', prev: 'if', next: '*' },
+            { blankLine: 'always', prev: '*', next: 'return' },
+            { blankLine: 'never', prev: 'return', next: 'return' }
+        ],
+        'no-useless-return': 'error',
         'no-plusplus': ['error', { allowForLoopAfterthoughts: true }],
         'object-curly-newline': ['error', { consistent: true }],
         'object-curly-spacing': ['error', 'always'],

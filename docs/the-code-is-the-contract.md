@@ -9,7 +9,9 @@ the analyzer's implementation boundary is in [`contracts.md`](contracts.md).
 Function signatures, defaults, object construction, native operations, and
 return paths already contain information about what JavaScript expects and
 produces. Resilient makes that information visible without introducing a
-parallel annotation language.
+parallel annotation language. For Resilient, adding a second annotation layer
+to restate those executable boundaries is an anti-pattern: it can drift, while
+the JavaScript remains the runtime contract.
 
 The goal is not to pretend that dynamic JavaScript is statically complete. The
 goal is to report contradictions where the source provides enough evidence and
@@ -32,13 +34,17 @@ second contract surface that can drift from the program.
 
 This does not make a signature a runtime validator. A default handles a missing
 or `undefined` property; it does not prove that arbitrary external input has
-the declared shape.
+the declared shape. With `resilient.configs.contracts` enabled, the contract
+analyzer checks the known boundaries and propagates the evidence; runtime
+validation, falsification, and normalization still belong to the boundary that
+owns external data.
 
 ## Why evidence stays local
 
-Facts change as code executes. The analyzer follows the supported local flow of
-guards, aliases, reassignment, property updates, loops, and exception paths,
-but it does not promote a partial fact into certainty at a branch join.
+Facts change as code executes. The analyzer follows guards, aliases,
+reassignment, property updates, bounded loops, and exception paths represented
+in parsed source, but it does not promote a partial fact into certainty at a
+branch join.
 
 ```javascript
 const mapItems = ({ value = {} } = {}) => {

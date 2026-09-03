@@ -2,6 +2,13 @@ import { RuleTester } from 'eslint';
 
 import rule from '../rules/no-unguarded-callback-invocation.js';
 
+const listeners = rule.create({ report: () => {} });
+
+listeners.CallExpression({
+    type: 'CallExpression',
+    callee: { type: 'Identifier', name: 'onDone' }
+});
+
 const ruleTester = new RuleTester({
     languageOptions: {
         ecmaVersion: 'latest',

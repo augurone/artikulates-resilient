@@ -14,6 +14,7 @@ export default {
     },
     create(context = {}) {
         const { report = () => {} } = context;
+
         return {
             Program(node = {}) {
                 getEslintContractDiagnostics({

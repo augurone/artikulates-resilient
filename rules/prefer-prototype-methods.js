@@ -5,7 +5,9 @@ import {
     hasLoopControl
 } from './support/loop-analysis.js';
 
-const reportLoop = ({ report = () => {}, node = {} } = {}) => {
+const reportLoop = ({ report, node = {} } = {}) => {
+    if (typeof report !== 'function') return;
+
     report({
         node,
         messageId: 'prototypeMethod'

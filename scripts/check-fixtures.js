@@ -9,6 +9,7 @@ import resilient from '../index.js';
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifestPath = path.join(rootDirectory, 'tests', 'fixtures', 'manifest.json');
+const { rules = {} } = resilient;
 
 const read = filePath => fs.readFileSync(filePath, 'utf8');
 const fail = (message) => {
@@ -30,8 +31,8 @@ const getSectionHeadings = (source = '') => [...source.matchAll(/^\/\/ ([a-z][a-
     }));
 
 const assertRuleHighlights = ({ manifest = {}, badFixture = '' } = {}) => {
-    const ruleNames = Object.keys(resilient.rules);
-    const highlights = manifest.ruleHighlights || [];
+    const ruleNames = Object.keys(rules);
+    const { ruleHighlights: highlights = [] } = manifest;
     const sections = getSectionHeadings(badFixture);
     const highlightedRules = highlights.map(({ rule = '' } = {}) => rule);
     const missingRules = ruleNames.filter(ruleName => !highlightedRules.includes(ruleName));
@@ -46,13 +47,17 @@ const assertRuleHighlights = ({ manifest = {}, badFixture = '' } = {}) => {
         .map(({ heading = '' } = {}) => heading);
 
     if (missingRules.length) fail(`Fixture manifest is missing rules: ${missingRules.join(', ')}`);
+
     if (extraRules.length) fail(`Fixture manifest has unknown rules: ${extraRules.join(', ')}`);
+
     if (highlightedRules.length !== new Set(highlightedRules).size) {
         fail('Fixture manifest contains duplicate rule highlights.');
     }
+
     if (missingHeadings.length) {
         fail(`Agent fixture is missing headings: ${missingHeadings.join(', ')}`);
     }
+
     if (repeatedHeadings.length) {
         fail(`Agent fixture must contain one section for each heading: ${repeatedHeadings.join(', ')}`);
     }
@@ -60,6 +65,7 @@ const assertRuleHighlights = ({ manifest = {}, badFixture = '' } = {}) => {
 
 const getRuleRegions = ({ manifest = {}, badFixture = '' } = {}) => {
     const sections = getSectionHeadings(badFixture);
+
     return manifest.ruleHighlights
         .map(({ rule = '', heading = '' } = {}) => {
             const marker = `// ${heading}\n`;
@@ -67,6 +73,7 @@ const getRuleRegions = ({ manifest = {}, badFixture = '' } = {}) => {
             const matchingSection = sections
                 .find(({ heading: sectionHeading = '' } = {}) => sectionHeading === heading);
             const { offset: sectionOffset = 0, startLine = 0 } = matchingSection ?? {};
+
             return {
                 rule,
                 startLine: startLine + 1,
@@ -78,9 +85,11 @@ const getRuleRegions = ({ manifest = {}, badFixture = '' } = {}) => {
             const { offset: regionOffset = 0 } = region;
             const nextSection = sections
                 .find(({ offset: sectionOffset = 0 } = {}) => sectionOffset > regionOffset);
+            const { startLine: nextStartLine = 0 } = nextSection ?? {};
+
             return {
                 ...region,
-                endLine: nextSection ? nextSection.startLine - 2 : Number.MAX_SAFE_INTEGER
+                endLine: nextSection ? nextStartLine - 2 : Number.MAX_SAFE_INTEGER
             };
         });
 };
@@ -114,14 +123,15 @@ const assertAgentFixtureBehavior = async ({ manifest = {}, badFixture = '' } = {
     if (result.messages.some(({ fatal = false } = {}) => fatal)) {
         fail('Agent fixture could not be parsed for behavioral verification.');
     }
+
     if (missingDiagnostics.length) {
         fail(`Agent fixture is missing behavioral diagnostics: ${missingDiagnostics.join(', ')}`);
     }
 };
 
 const assertIntegrationFixtures = ({ manifest = {} } = {}) => {
-    const fixtures = manifest.integrationFixtures || [];
-    const ruleNames = new Set(Object.keys(resilient.rules).map(ruleName => `resilient/${ruleName}`));
+    const { integrationFixtures: fixtures = [] } = manifest;
+    const ruleNames = new Set(Object.keys(rules).map(ruleName => `resilient/${ruleName}`));
     const fixtureFiles = fixtures.flatMap(({ file = '', files = [] } = {}) => [file, ...files]);
     const missingFiles = fixtureFiles.filter(file => !fs.existsSync(path.join(rootDirectory, file)));
     const invalidKinds = fixtures
@@ -133,8 +143,11 @@ const assertIntegrationFixtures = ({ manifest = {} } = {}) => {
         .filter(ruleId => !ruleNames.has(ruleId));
 
     if (!fixtures.length) fail('Fixture manifest must define integration fixtures.');
+
     if (missingFiles.length) fail(`Integration fixture files are missing: ${missingFiles.join(', ')}`);
+
     if (invalidKinds.length) fail(`Integration fixture kinds are invalid: ${invalidKinds.join(', ')}`);
+
     if (unknownExpectedRules.length) {
         fail(`Integration fixtures name unknown rules: ${unknownExpectedRules.join(', ')}`);
     }
@@ -142,10 +155,12 @@ const assertIntegrationFixtures = ({ manifest = {} } = {}) => {
 
 const main = async () => {
     const manifest = getManifest();
-    if (manifest.version !== 1) fail('Unsupported fixture manifest version.');
+    const { version = 0, agentFixture = '', integrationFixtures = [] } = manifest;
 
-    const agentFixture = manifest.agentFixture || '';
+    if (version !== 1) fail('Unsupported fixture manifest version.');
+
     const agentFixturePath = path.join(rootDirectory, agentFixture);
+
     if (!agentFixture || !fs.existsSync(agentFixturePath)) {
         fail(`Agent fixture is missing: ${agentFixture}`);
     }
@@ -153,7 +168,7 @@ const main = async () => {
     assertRuleHighlights({ manifest, badFixture: read(agentFixturePath) });
     await assertAgentFixtureBehavior({ manifest, badFixture: read(agentFixturePath) });
     assertIntegrationFixtures({ manifest });
-    process.stdout.write(`Fixture contract valid: ${Object.keys(resilient.rules).length} rule highlights, ${manifest.integrationFixtures.length} integration fixtures.\n`);
+    process.stdout.write(`Fixture contract valid: ${Object.keys(rules).length} rule highlights, ${integrationFixtures.length} integration fixtures.\n`);
 };
 
 try {

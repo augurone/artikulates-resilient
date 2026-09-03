@@ -39,9 +39,8 @@ Project Tree
             └── model.js         active dependency
 ```
 
-Only Active Tree programs are supplied to the contract graph and analyzer.
-Unused Project Tree entries cannot produce diagnostics merely because they are
-present in the project.
+The contract graph and analyzer receive Active Tree programs. Unused Project
+Tree entries cannot produce diagnostics merely because they are present.
 
 ## Resolution algorithm
 
@@ -61,20 +60,20 @@ For an analysis rooted at one or more files:
 8. Resolve local export and re-export contracts to a stable point, then run
    diagnostics on the resulting Active Tree documents.
 
-The analyzer follows only edges represented by supported static syntax. A
-dynamic import, external package, unsupported module form, or resolver failure
-does not become a guessed contract. It remains unknown unless a caller supplies
-an appropriate resolver or evidence adapter.
+The analyzer follows edges represented by its static module syntax. A dynamic
+import, external package, unsupported module form, or resolver failure does not
+become a guessed contract. It remains unknown until a caller supplies an
+appropriate resolver or evidence adapter.
 
 The compatibility adapter performs this process on demand from an ESLint root
-file. Its default resolver supports local relative `.js`, `.jsx`, and
+file. Its default resolver handles local relative `.js`, `.jsx`, and
 `index.js` paths. The contract graph then propagates signatures, returns,
 properties, and re-export agreements across the loaded active files. See
 [`contracts.md`](contracts.md) for the current implementation boundary.
 
 For ESLint consumers, activation is automatic and lazy: the first contract
 rule invocation activates the internal Project Tree for the current root and
-its supported local dependency closure. Later contract rules reuse that graph
+its statically resolvable local dependency closure. Later contract rules reuse that graph
 within the same run. Consumers enable the contracts preset; they do not call a
 project-activation API.
 
@@ -89,8 +88,8 @@ The current caller-supplied implementation provides:
    activating every file.
 2. **Resolution** — turn a module edge into a concrete file, an explicit
    unknown edge, or a resolution agreement that tooling can inspect.
-3. **Activation** — construct the Active Tree from explicit roots and supported
-   dependency edges.
+3. **Activation** — construct the Active Tree from explicit roots and resolved
+   local dependency edges.
 4. **Invalidation** — when a file, resolver, parser option, or relevant config
    changes, identify the active roots and dependents that need recomputation.
 5. **Reuse** — retain parsed programs and completed analysis snapshots while

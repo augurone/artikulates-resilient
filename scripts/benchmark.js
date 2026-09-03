@@ -7,8 +7,6 @@ import { ESLint } from 'eslint';
 import resilient from 'eslint-plugin-resilient';
 import { createContractGraph, createProjectTree } from 'eslint-plugin-resilient/contracts';
 
-/* eslint-disable resilient/prefer-signature-destructuring -- Dirent receiver context must remain intact. */
-
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const fixtureDirectory = path.join(scriptDirectory, '..', 'tests', 'fixtures', 'benchmark');
 const { version: packageVersion = '' } = JSON.parse(fs.readFileSync(
@@ -18,8 +16,10 @@ const { version: packageVersion = '' } = JSON.parse(fs.readFileSync(
 
 const getFixtureFiles = (directory = '') => fs.readdirSync(directory, { withFileTypes: true })
     .flatMap((entry = {}) => {
+        // eslint-disable-next-line resilient/prefer-signature-destructuring -- Node's Dirent must remain intact so its predicate keeps the native receiver.
         const { name = '' } = entry;
         const entryPath = path.join(directory, name);
+
         // Dirent predicates require their receiver, so this is a narrow API boundary.
         return entry.isDirectory() ? getFixtureFiles(entryPath) : [entryPath];
     })
@@ -50,7 +50,10 @@ const getProgram = async ({ fileName = '', code = '' } = {}) => {
             rules: { 'capture/program': 'error' }
         }]
     }).lintText(code || fs.readFileSync(fileName, 'utf8'), { filePath: fileName });
-    if ((result.errorCount || 0) > 0) return {};
+    const { errorCount = 0 } = result;
+
+    if (errorCount > 0) return {};
+
     return program;
 };
 
@@ -59,6 +62,7 @@ const round = (value = 0) => Number(value.toFixed(3));
 const measure = async (operation = async () => {}) => {
     const start = performance.now();
     const value = await operation();
+
     return { value, milliseconds: performance.now() - start };
 };
 
@@ -66,6 +70,7 @@ const createEvaluatedGraph = ({ programs = {} } = {}) => {
     const graph = createContractGraph({ programs });
     graph.getAgreements();
     graph.getDiagnostics();
+
     return graph;
 };
 
@@ -78,6 +83,7 @@ const run = async () => {
     const programs = Object.fromEntries(parsed);
     const sourceStates = Object.fromEntries(fixtureFiles.map((fileName = '') => {
         const { mtimeMs = 0, size = 0 } = fs.statSync(fileName);
+
         return [fileName, `${mtimeMs}:${size}`];
     }));
     const roots = [
@@ -105,9 +111,10 @@ const run = async () => {
             code: 'export const getItems = ({ items = [], label = 0 } = {}) => ({ items, label });'
         })
     };
+    const { [changedProviderFile]: changedProviderState = '' } = sourceStates;
     const changedSourceStates = {
         ...sourceStates,
-        [changedProviderFile]: `${sourceStates[changedProviderFile]}:changed`
+        [changedProviderFile]: `${changedProviderState}:changed`
     };
     const changedTree = createProjectTree({
         programs: changedPrograms,
@@ -118,11 +125,20 @@ const run = async () => {
         previousSnapshot: coldSnapshot
     }));
     const { value: changedSnapshot = {} } = changedAnalysis;
+    const { activeTree = {} } = coldSnapshot;
+    const {
+        activeFiles = [],
+        programs: activePrograms = {},
+        stats: {
+            indexed: activeFilesIndexed = 0,
+            activated: activeFilesActivated = 0
+        } = {}
+    } = activeTree;
     const graphOnlyFirstSample = await measure(async () => createEvaluatedGraph({
-        programs: coldSnapshot.activeTree.programs
+        programs: activePrograms
     }));
     const graphOnlySecondSample = await measure(async () => createEvaluatedGraph({
-        programs: coldSnapshot.activeTree.programs
+        programs: activePrograms
     }));
     const invalidation = tree.getInvalidatedFiles({
         changedFiles: [path.join(fixtureDirectory, 'providers', 'items.js')],
@@ -136,8 +152,12 @@ const run = async () => {
     const lintResults = await lintRunner.lintFiles(roots);
     const eslintDiagnostics = lintResults.flatMap(({ messages = [] } = {}) => messages);
     const { diagnostics: directDiagnostics = [] } = coldSnapshot;
-    const directDiagnosticKeys = directDiagnostics.map(({ fileName = '', ruleId = '', loc = {} } = {}) => (
-        `${fileName}:resilient/${ruleId}:${loc.start && loc.start.line}:${loc.start && loc.start.column}`
+    const directDiagnosticKeys = directDiagnostics.map(({
+        fileName = '',
+        ruleId = '',
+        loc: { start: { line = 0, column = 0 } = {} } = {}
+    } = {}) => (
+        `${fileName}:resilient/${ruleId}:${line}:${column}`
     ));
     const eslintDiagnosticKeys = lintResults.flatMap(({ filePath = '', messages = [] } = {}) => messages.map(({
         ruleId = '',
@@ -148,22 +168,44 @@ const run = async () => {
         changedFiles: [path.join(fixtureDirectory, 'providers', 'items.js')],
         roots
     }));
+    const {
+        reuse: {
+            reusedFiles = []
+        } = {}
+    } = changedSnapshot;
+    const {
+        activeInvalidatedFiles = [],
+        invalidatedFiles = []
+    } = invalidation;
+    const { hits: cacheHits = 0, misses: cacheMisses = 0 } = stats;
+    const { milliseconds: projectTreeMilliseconds = 0 } = projectTreeMeasurement;
+    const { milliseconds: activationMilliseconds = 0 } = activationMeasurement;
+    const { milliseconds: snapshotMilliseconds = 0 } = projectSnapshotMeasurement;
+    const { milliseconds: coldMilliseconds = 0 } = coldAnalysis;
+    const { milliseconds: warmMilliseconds = 0 } = warmAnalysis;
+    const { milliseconds: graphFirstMilliseconds = 0 } = graphOnlyFirstSample;
+    const { milliseconds: graphSecondMilliseconds = 0 } = graphOnlySecondSample;
+    const { milliseconds: changedMilliseconds = 0 } = changedAnalysis;
+    const { milliseconds: incrementalMilliseconds = 0 } = incremental;
+    const { getProjectSnapshot = false } = tree;
+    const { files: projectFiles = [] } = getProjectSnapshot.call(tree);
+
     return {
         benchmark: `resilient-${packageVersion}`,
         node: process.version,
         fixtureFiles: fixtureFiles.length,
         sharedActiveTree: {
-            filesIndexed: coldSnapshot.activeTree.stats.indexed,
-            filesActivated: coldSnapshot.activeTree.stats.activated,
+            filesIndexed: activeFilesIndexed,
+            filesActivated: activeFilesActivated,
             filesParsed: fixtureFiles.length,
-            filesReanalyzed: invalidation.activeInvalidatedFiles.length,
-            cacheHits: stats.hits,
-            cacheMisses: stats.misses,
+            filesReanalyzed: activeInvalidatedFiles.length,
+            cacheHits,
+            cacheMisses,
             diagnosticCount: directDiagnostics.length,
-            coldMilliseconds: round(coldAnalysis.milliseconds),
-            warmMilliseconds: round(warmAnalysis.milliseconds),
-            graphOnlyFirstSampleMilliseconds: round(graphOnlyFirstSample.milliseconds),
-            graphOnlySecondSampleMilliseconds: round(graphOnlySecondSample.milliseconds)
+            coldMilliseconds: round(coldMilliseconds),
+            warmMilliseconds: round(warmMilliseconds),
+            graphOnlyFirstSampleMilliseconds: round(graphFirstMilliseconds),
+            graphOnlySecondSampleMilliseconds: round(graphSecondMilliseconds)
         },
         eslintAgreement: {
             directDiagnosticCount: directDiagnostics.length,
@@ -173,21 +215,21 @@ const run = async () => {
             eslintDiagnosticKeys
         },
         projectTree: {
-            discoveryMilliseconds: round(projectTreeMeasurement.milliseconds),
-            activationMilliseconds: round(activationMeasurement.milliseconds),
-            snapshotMilliseconds: round(projectSnapshotMeasurement.milliseconds),
-            incrementalAnalysisMilliseconds: round(changedAnalysis.milliseconds),
-            incrementalInvalidationMilliseconds: round(incremental.milliseconds),
-            filesIndexed: tree.getProjectSnapshot().files.length,
-            filesActivated: coldSnapshot.activeTree.stats.activated,
+            discoveryMilliseconds: round(projectTreeMilliseconds),
+            activationMilliseconds: round(activationMilliseconds),
+            snapshotMilliseconds: round(snapshotMilliseconds),
+            incrementalAnalysisMilliseconds: round(changedMilliseconds),
+            incrementalInvalidationMilliseconds: round(incrementalMilliseconds),
+            filesIndexed: projectFiles.length,
+            filesActivated: activeFilesActivated,
             filesParsed: fixtureFiles.length,
-            filesReanalyzed: invalidation.activeInvalidatedFiles.length,
-            filesReused: (changedSnapshot.reuse && changedSnapshot.reuse.reusedFiles || []).length,
-            reusedFiles: changedSnapshot.reuse && changedSnapshot.reuse.reusedFiles || [],
-            invalidatedFiles: invalidation.invalidatedFiles,
-            activeTree: coldAnalysis.value.activeTree.activeFiles,
-            cacheHits: stats.hits,
-            cacheMisses: stats.misses,
+            filesReanalyzed: activeInvalidatedFiles.length,
+            filesReused: reusedFiles.length,
+            reusedFiles,
+            invalidatedFiles,
+            activeTree: activeFiles,
+            cacheHits,
+            cacheMisses,
             diagnosticCount: directDiagnostics.length
         }
     };

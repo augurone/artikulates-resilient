@@ -35,6 +35,7 @@ const getProgram = async (code = '', fileName = 'fixture.js') => {
         }]
     });
     await eslint.lintText(code, { filePath: fileName });
+
     return program;
 };
 
@@ -47,7 +48,10 @@ const residualDefinitionMissing = ({
         } = {}
     } = {}
 } = {}) => {
-    return !Object.hasOwn(residual.properties, 'unknownKey');
+    const { properties = {} } = residual;
+    const { unknownKey: foundUnknownKey = false } = properties;
+
+    return !foundUnknownKey;
 };
 
 const residualCode = [
@@ -183,6 +187,38 @@ assert.deepEqual(identityInvalidation.activeInvalidatedFiles, activeTree.activeF
 const snapshot = tree.analyze();
 assert.deepEqual(snapshot.activeTree.activeFiles, activeTree.activeFiles);
 assert.deepEqual(snapshot.diagnostics, snapshot.graph.getDiagnostics());
+
+const identityRoot = await getProgram(
+    'import { getValue } from "./identity-provider.js"; getValue({ title: 42 });',
+    'identity-root.js'
+);
+const identityProvider = await getProgram(
+    'export const getValue = ({ title = "" } = {}) => title;',
+    'identity-provider.js'
+);
+const identityTree = createProjectTree({
+    programs: {
+        'identity-root.js': identityRoot,
+        'identity-provider.js': identityProvider
+    },
+    roots: ['identity-root.js']
+});
+const identitySnapshot = identityTree.analyze();
+const identityChangedProvider = await getProgram(
+    'export const getValue = ({ title = 0 } = {}) => title;',
+    'identity-provider.js'
+);
+const identityChangedSnapshot = createProjectTree({
+    programs: {
+        'identity-root.js': identityRoot,
+        'identity-provider.js': identityChangedProvider
+    },
+    roots: ['identity-root.js']
+}).analyze({ previousSnapshot: identitySnapshot });
+assert.deepEqual(identityChangedSnapshot.reuse.changedFiles, ['identity-provider.js']);
+assert.deepEqual(identityChangedSnapshot.reuse.invalidatedFiles, ['identity-provider.js', 'identity-root.js']);
+assert.deepEqual(identityChangedSnapshot.reuse.reusedFiles, []);
+assert.equal(identityChangedSnapshot.diagnostics.length, 0);
 
 const resolverPrograms = {
     'root.js': await getProgram(

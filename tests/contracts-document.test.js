@@ -28,6 +28,7 @@ const getProgram = async (code) => {
     });
 
     await eslint.lintText(code, { filePath: 'contract-document.js' });
+
     return program;
 };
 
@@ -214,6 +215,9 @@ const missingGraph = createContractGraph({
         'consumer-missing.js': missingConsumerProgram
     }
 });
-assert.equal(Object.hasOwn(missingGraph.moduleExports['provider-missing.js'], 'missing'), false);
+const { moduleExports: missingModuleExports = {} } = missingGraph;
+const { ['provider-missing.js']: missingProviderExports = {} } = missingModuleExports;
+const { missing: foundMissing = false } = missingProviderExports;
+assert.equal(!!foundMissing, false);
 assert.equal(missingGraph.getDocument('consumer-missing.js').definitions.missing, undefined);
 assert.equal(missingGraph.getDocument('consumer-missing.js').getDiagnostics().length, 0);

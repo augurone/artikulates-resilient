@@ -14,31 +14,34 @@ import {
     mergeContracts,
     unknown
 } from './model.js';
+import { getObject, hasObjectValue, isObject } from '../support/object.js';
 
 const COMPARISON_OPERATORS = ['===', '!==', '==', '!='];
 
-const getObject = value => value && typeof value === 'object' ? value : {};
-
-const copyAliases = (aliases = {}) => Object.fromEntries(Object.entries(aliases).map(([name = '', related = []] = []) => [
+const copyAliases = (aliases = {}) => Object.fromEntries(Object.entries(getObject(aliases)).map(([name = '', related = []] = []) => [
     name,
-    [...related]
+    Array.isArray(related) ? [...related] : []
 ]));
 
-const copyContext = ({
-    bindings = {},
-    functions = {},
-    aliases = {},
-    callStack = [],
-    evaluateCalls = true,
-    evaluationDepth = 0
-} = {}) => ({
-    bindings: { ...bindings },
-    functions,
-    aliases: copyAliases(aliases),
-    callStack: [...callStack],
-    evaluateCalls,
-    evaluationDepth
-});
+const copyContext = (source = {}) => {
+    const {
+        bindings = {},
+        functions = {},
+        aliases = {},
+        callStack = [],
+        evaluateCalls = true,
+        evaluationDepth = 0
+    } = getObject(source);
+
+    return {
+        bindings: { ...getObject(bindings) },
+        functions: getObject(functions),
+        aliases: copyAliases(getObject(aliases)),
+        callStack: Array.isArray(callStack) ? [...callStack] : [],
+        evaluateCalls,
+        evaluationDepth
+    };
+};
 
 const getPredicate = ({
     type = '',
@@ -48,16 +51,18 @@ const getPredicate = ({
     left = {},
     right = {}
 } = {}) => {
+    const safeCallee = getObject(callee);
     const {
         type: calleeType = '',
         name: calleeName = '',
         object = {},
         property = {},
         computed = false
-    } = callee;
-    const [{ type: argumentType = '', name: argumentName = '' } = {}] = args;
-    const { type: objectType = '', name: objectName = '' } = object;
-    const { type: propertyType = '', name: propertyName = '' } = property;
+    } = safeCallee;
+    const [firstArgument = {}] = Array.isArray(args) ? args : [];
+    const { type: argumentType = '', name: argumentName = '' } = getObject(firstArgument);
+    const { type: objectType = '', name: objectName = '' } = getObject(object);
+    const { type: propertyType = '', name: propertyName = '' } = getObject(property);
 
     if (
         type === 'CallExpression' &&
@@ -88,25 +93,27 @@ const getPredicate = ({
         argument: leftArgument = {},
         name: leftName = '',
         value: leftValue = ''
-    } = left;
+    } = getObject(left);
     const {
         type: rightType = '',
         value: rightValue = '',
         name: rightName = '',
         argument: rightArgument = {},
         operator: rightOperator = ''
-    } = right;
+    } = getObject(right);
+    const { type: leftArgumentType = '', name: leftArgumentName = '' } = getObject(leftArgument);
+    const { type: rightArgumentType = '', name: rightArgumentName = '' } = getObject(rightArgument);
     const leftTypeof = (
         leftType === 'UnaryExpression' &&
         leftOperator === 'typeof' &&
-        leftArgument.type === 'Identifier' &&
+        leftArgumentType === 'Identifier' &&
         rightType === 'Literal' &&
         ['string', 'number', 'boolean', 'undefined', 'object', 'function'].includes(rightValue)
     );
     const rightTypeof = (
         rightType === 'UnaryExpression' &&
         rightOperator === 'typeof' &&
-        rightArgument.type === 'Identifier' &&
+        rightArgumentType === 'Identifier' &&
         leftType === 'Literal' &&
         ['string', 'number', 'boolean', 'undefined', 'object', 'function'].includes(leftValue)
     );
@@ -115,11 +122,13 @@ const getPredicate = ({
         COMPARISON_OPERATORS.includes(operator) &&
         (leftTypeof || rightTypeof)
     );
+
     if (isTypeofPredicate) {
         const kindValue = leftTypeof ? rightValue : leftValue;
+
         return {
             kind: kindValue === 'undefined' ? 'undefined' : kindValue,
-            name: leftTypeof ? leftArgument.name : rightArgument.name,
+            name: leftTypeof ? leftArgumentName : rightArgumentName,
             negated: ['!==', '!='].includes(operator)
         };
     }
@@ -136,10 +145,12 @@ const getPredicate = ({
         rightType === 'Identifier' &&
         leftType === 'Literal'
     );
+
     if (isLeftLiteralPredicate || isRightLiteralPredicate) {
         const literalValue = isLeftLiteralPredicate ? rightValue : leftValue;
         const kind = literalValue === null ? 'null' : typeof literalValue;
         const looseNullish = kind === 'null' && ['==', '!='].includes(operator);
+
         return {
             kind,
             kinds: looseNullish ? ['null', 'undefined'] : [kind],
@@ -153,11 +164,14 @@ const getPredicate = ({
 
 const setBinding = ({ context = {}, name = '', value = unknown() } = {}) => {
     const next = copyContext(context);
-    const names = [name, ...(next.aliases[name] || [])];
+    const { aliases = {}, bindings = {} } = next;
+    const { [name]: related = [] } = aliases;
+    const names = [name, ...(Array.isArray(related) ? related : [])];
+
     return {
         ...next,
         bindings: {
-            ...next.bindings,
+            ...bindings,
             ...Object.fromEntries(names.map(currentName => [currentName, value]))
         }
     };
@@ -174,12 +188,14 @@ const narrowContext = ({
     ...rest
 } = {}) => {
     const test = { ...rest, type, operator, argument, left, right };
+
     if (type === 'UnaryExpression' && operator === '!') {
         return narrowContext({ context, ...argument, truthy: !truthy });
     }
 
     if (type === 'LogicalExpression' && operator === '&&' && truthy) {
         const leftContext = narrowContext({ context, ...left, truthy });
+
         return narrowContext({ context: leftContext, ...right, truthy });
     }
 
@@ -191,18 +207,24 @@ const narrowContext = ({
         name = '',
         negated = false
     } = getPredicate(test);
+
     if (!kind || !name) return copyContext(context);
 
     const predicateTruthy = negated ? !truthy : truthy;
 
-    const current = context.bindings[name] || unknown();
+    const { bindings = {} } = copyContext(context);
+    const { [name]: boundValue = unknown() } = bindings;
+    const current = boundValue;
     const currentKind = getKind(current);
+    const { sourceNode = {} } = getObject(current);
     const matchesPredicate = kinds.includes(currentKind);
+
     if (predicateTruthy && negated && matchesPredicate) return setBinding({
         context,
         name,
-        value: unknown(current.sourceNode)
+        value: unknown(sourceNode)
     });
+
     if (predicateTruthy) {
         return setBinding({
             context,
@@ -215,77 +237,106 @@ const narrowContext = ({
         ? setBinding({
             context,
             name,
-            value: unknown(current.sourceNode)
+            value: unknown(sourceNode)
         })
         : copyContext(context);
 };
 
 const mergeFlowContracts = (values = []) => {
     if (values.some(value => getKind(value) === 'unknown')) return unknown();
+
     return mergeContracts(values, { preserveContradictions: false });
 };
 
 const mergeContexts = (contexts = []) => {
-    const names = [...new Set(contexts.flatMap(({ bindings = {} } = {}) => Object.keys(bindings)))];
-    const [first = {}] = contexts;
-    const functions = first.functions || {};
-    const aliases = Object.fromEntries(Object.entries(first.aliases || {})
+    const sourceContexts = Array.isArray(contexts) ? contexts : [];
+    const names = [...new Set(sourceContexts.flatMap((value) => {
+        const { bindings = {} } = getObject(value);
+
+        return Object.keys(getObject(bindings));
+    }))];
+    const [first = {}] = sourceContexts;
+    const {
+        functions = {},
+        aliases: firstAliases = {},
+        callStack = [],
+        evaluateCalls = true,
+        evaluationDepth = 0
+    } = getObject(first);
+    const aliases = Object.fromEntries(Object.entries(getObject(firstAliases))
         .map(([name = '', related = []] = []) => [
             name,
-            related.filter(alias => contexts.every(({ aliases: sourceAliases = {} } = {}) => (
-                (sourceAliases[name] || []).includes(alias)
-            )))
+            (Array.isArray(related) ? related : []).filter(alias => sourceContexts.every((value) => {
+                const { aliases: sourceAliases = {} } = getObject(value);
+                const { [name]: sourceRelated = [] } = getObject(sourceAliases);
+
+                return Array.isArray(sourceRelated) && sourceRelated.includes(alias);
+            }))
         ])
         .filter(([, related = []] = []) => related.length));
     const bindings = Object.fromEntries(names.map(name => [
         name,
-        mergeFlowContracts(contexts.map(({ bindings: sourceBindings = {} } = {}) => (
-            sourceBindings[name] || unknown()
-        )))
+        mergeFlowContracts(sourceContexts.map((value) => {
+            const { bindings: sourceBindings = {} } = getObject(value);
+            const { [name]: sourceValue = unknown() } = getObject(sourceBindings);
+
+            return sourceValue;
+        }))
     ]));
+
     return {
         aliases,
         bindings,
         functions,
-        callStack: [...(first.callStack || [])],
-        evaluateCalls: first.evaluateCalls !== false,
-        evaluationDepth: first.evaluationDepth || 0
+        callStack: Array.isArray(callStack) ? [...callStack] : [],
+        evaluateCalls: evaluateCalls !== false,
+        evaluationDepth: evaluationDepth || 0
     };
 };
 
 const bindPattern = ({ context = {}, pattern = {}, value = unknown() } = {}) => {
-    const { type = '', name = '' } = pattern;
+    const { type = '', name = '' } = getObject(pattern);
+
     if (type === 'Identifier') {
         const next = copyContext(context);
+        const { bindings: nextBindings = {} } = next;
+
         return {
             ...next,
-            bindings: { ...next.bindings, [name]: value }
+            bindings: { ...nextBindings, [name]: value }
         };
     }
-    if (type === 'AssignmentPattern') return bindPattern({
-        context,
-        pattern: pattern.left,
-        value
-    });
+
+    if (type === 'AssignmentPattern') {
+        const { left = {} } = getObject(pattern);
+
+        return bindPattern({ context, pattern: left, value });
+    }
+
     if (type !== 'ObjectPattern') return copyContext(context);
 
     const {
         kind: valueKind = 'unknown',
         properties: valueProperties = {},
-        residual: valueResidual = null
-    } = value;
-    const excluded = pattern.properties
+        residual: valueResidual = {}
+    } = getObject(value);
+    const { properties: patternProperties = [] } = getObject(pattern);
+    const safePatternProperties = Array.isArray(patternProperties) ? patternProperties : [];
+    const safeValueProperties = getObject(valueProperties);
+    const safeValueResidual = getObject(valueResidual);
+    const excluded = safePatternProperties
         .filter(({ type: propertyType = '' } = {}) => propertyType === 'Property')
         .map(({ key = {}, computed = false } = {}) => getPropertyName({ key, computed }))
         .filter(Boolean);
-    return pattern.properties
+
+    return safePatternProperties
         .filter(({ type: propertyType = '' } = {}) => ['Property', 'RestElement'].includes(propertyType))
         .reduce((current, { type: propertyType = '', key = {}, value: propertyValue = {}, argument = {} } = {}) => {
             if (propertyType === 'RestElement') {
-                const residual = valueResidual || {};
-                const { properties: residualProperties = {} } = residual;
-                const remainingProperties = Object.fromEntries(Object.entries(valueProperties)
+                const { properties: residualProperties = {}, open = false, excluded: residualExcluded = [] } = safeValueResidual;
+                const remainingProperties = Object.fromEntries(Object.entries(safeValueProperties)
                     .filter(([propertyName = ''] = []) => !excluded.includes(propertyName)));
+
                 return bindPattern({
                     context: current,
                     pattern: argument,
@@ -293,53 +344,68 @@ const bindPattern = ({ context = {}, pattern = {}, value = unknown() } = {}) => 
                         kind: 'object',
                         state: 'unknown',
                         properties: {
-                            ...residualProperties,
+                            ...getObject(residualProperties),
                             ...remainingProperties
                         },
                         residual: {
                             kind: 'object',
                             state: 'unknown',
-                            open: Boolean(residual.open || valueKind === 'object'),
-                            excluded: [...new Set([...(residual.excluded || []), ...excluded])],
+                            open: open === true || valueKind === 'object',
+                            excluded: [...new Set([
+                                ...(Array.isArray(residualExcluded) ? residualExcluded : []),
+                                ...excluded
+                            ])],
                             properties: {}
                         }
                     })
                 });
             }
-            const propertyName = key.name || key.value;
+
+            const { name: keyName = '', value: keyValue = '' } = getObject(key);
+            const propertyName = keyName || keyValue;
+
             if (!propertyName) return current;
+
+            const { [propertyName]: knownProperty = unknown(propertyValue) } = safeValueProperties;
+
             return bindPattern({
                 context: current,
                 pattern: propertyValue,
-                value: valueProperties[propertyName] || unknown(propertyValue)
+                value: knownProperty
             });
         }, copyContext(context));
 };
 
 const removeAliases = ({ context = {}, name = '' } = {}) => {
     const next = copyContext(context);
-    const names = [name, ...(next.aliases[name] || [])];
-    const aliases = Object.fromEntries(Object.entries(next.aliases)
+    const { aliases: nextAliases = {} } = next;
+    const { [name]: related = [] } = nextAliases;
+    const names = [name, ...(Array.isArray(related) ? related : [])];
+    const aliases = Object.fromEntries(Object.entries(nextAliases)
         .filter(([currentName = '']) => !names.includes(currentName))
         .map(([currentName = '', related = []] = []) => [
             currentName,
             related.filter(alias => !names.includes(alias))
         ]));
+
     return { ...next, aliases };
 };
 
 const addAliases = ({ context = {}, name = '', target = '' } = {}) => {
     const next = copyContext(context);
+    const { aliases: nextAliases = {} } = next;
+    const { [name]: nameAliases = [], [target]: targetAliases = [] } = nextAliases;
     const group = [...new Set([
         name,
         target,
-        ...(next.aliases[name] || []),
-        ...(next.aliases[target] || [])
+        ...(Array.isArray(nameAliases) ? nameAliases : []),
+        ...(Array.isArray(targetAliases) ? targetAliases : [])
     ])];
+
     return {
         ...next,
         aliases: {
-            ...next.aliases,
+            ...nextAliases,
             ...Object.fromEntries(group.map(currentName => [
                 currentName,
                 group.filter(alias => alias !== currentName)
@@ -350,18 +416,25 @@ const addAliases = ({ context = {}, name = '', target = '' } = {}) => {
 
 const bindDeclaration = ({ context = {}, pattern = {}, value = unknown(), init = {} } = {}) => {
     const { type: patternType = '', name = '' } = pattern;
+    const { type: initType = '', name: initName = '' } = getObject(init);
     const unlinked = patternType === 'Identifier'
         ? removeAliases({ context, name })
         : context;
     const bound = bindPattern({ context: unlinked, pattern, value });
-    if (patternType !== 'Identifier' || init.type !== 'Identifier') return bound;
-    const aliased = addAliases({ context: bound, name, target: init.name });
-    const functionAlias = getFunctionAlias({ init, functions: aliased.functions });
-    if (!functionAlias.signature) return aliased;
+
+    if (patternType !== 'Identifier' || initType !== 'Identifier') return bound;
+
+    const aliased = addAliases({ context: bound, name, target: initName });
+    const { functions: aliasedFunctions = {} } = aliased;
+    const functionAlias = getFunctionAlias({ init, functions: aliasedFunctions });
+    const { signature = {} } = getObject(functionAlias);
+
+    if (!hasObjectValue(signature)) return aliased;
+
     return {
         ...aliased,
         functions: {
-            ...aliased.functions,
+            ...aliasedFunctions,
             [name]: functionAlias
         }
     };
@@ -369,89 +442,121 @@ const bindDeclaration = ({ context = {}, pattern = {}, value = unknown(), init =
 
 const getMemberPath = ({ type = '', name = '', object = {}, property = {}, computed = false } = {}) => {
     if (type === 'Identifier') return [name];
+
     if (type !== 'MemberExpression') return [];
+
     const propertyName = getPropertyName({ key: property, computed });
+
     if (!propertyName) return [];
+
     const path = getMemberPath(object);
+
     return path.length ? [...path, propertyName] : [];
 };
 
 const updateContractPath = ({ value = unknown(), path = [], nextValue = unknown(), sourceNode = {} } = {}) => {
     const [name = '', ...rest] = path;
+
     if (getKind(value) !== 'object' || !name) return value;
-    const properties = { ...(value.properties || {}) };
-    const current = properties[name] || unknown();
+
+    const { properties: sourceProperties = {}, branches = [], sourceNode: currentSourceNode = {} } = getObject(value);
+    const properties = { ...getObject(sourceProperties) };
+    const { [name]: current = unknown() } = properties;
     const updated = rest.length
         ? updateContractPath({ value: current, path: rest, nextValue, sourceNode })
         : nextValue;
+
     return contract({
         kind: 'object',
         properties: { ...properties, [name]: updated },
-        branches: value.branches || [],
-        sourceNode: sourceNode || value.sourceNode
+        branches,
+        sourceNode: sourceNode || currentSourceNode
     });
 };
 
 const assignExpression = ({ context = {}, left = {}, value = unknown() } = {}) => {
     const { type = '' } = left;
+
     if (type === 'Identifier') return bindDeclaration({ context, pattern: left, value });
+
     if (type !== 'MemberExpression') return context;
+
     const path = getMemberPath(left);
     const [rootName = '', ...propertyPath] = path;
+
     if (!rootName || !propertyPath.length) return context;
-    const current = context.bindings[rootName] || unknown();
+
+    const { bindings: contextBindings = {} } = context;
+    const { [rootName]: current = unknown() } = contextBindings;
     const updated = updateContractPath({
         value: current,
         path: propertyPath,
         nextValue: value,
         sourceNode: left
     });
+
     if (updated === current) return context;
+
     return setBinding({ context, name: rootName, value: updated });
 };
 
 const setExpressionContext = ({ state = {}, node = {}, context = {} } = {}) => {
     // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap identity indexing is an internal analyzer boundary.
-    if (node && typeof node === 'object') state.contexts.set(node, context);
+    if (isObject(node)) state.contexts.set(node, context);
 };
 
 const analyzeExpression = ({ state = {}, node = {}, context = {} } = {}) => {
     const source = getObject(node);
     const { type = '' } = source;
+
     if (!type || isFunction(source)) return context;
+
     setExpressionContext({ state, node: source, context });
 
     if (type === 'AssignmentExpression') {
-        const rightContext = analyzeExpression({ state, node: source.right, context });
-        const value = inferExpression(source.right, rightContext);
-        return assignExpression({ context: rightContext, left: source.left, value });
+        const { right = {}, left = {} } = source;
+        const rightContext = analyzeExpression({ state, node: right, context });
+        const value = inferExpression(right, rightContext);
+
+        return assignExpression({ context: rightContext, left, value });
     }
 
-    if (type === 'LogicalExpression' && source.operator === '&&') {
-        const leftContext = analyzeExpression({ state, node: source.left, context });
+    const {
+        operator = '',
+        left = {},
+        right = {},
+        test = {},
+        consequent = {},
+        alternate = {}
+    } = source;
+
+    if (type === 'LogicalExpression' && operator === '&&') {
+        const leftContext = analyzeExpression({ state, node: left, context });
         const rightContext = narrowContext({
-            ...source.left,
+            ...left,
             context: leftContext,
             truthy: true
         });
-        analyzeExpression({ state, node: source.right, context: rightContext });
+        analyzeExpression({ state, node: right, context: rightContext });
+
         return context;
     }
 
     if (type === 'ConditionalExpression') {
-        const testContext = analyzeExpression({ state, node: source.test, context });
+        const testContext = analyzeExpression({ state, node: test, context });
         const consequentContext = narrowContext({
-            ...source.test,
+            ...test,
             context: testContext,
             truthy: true
         });
         const alternateContext = narrowContext({
-            ...source.test,
+            ...test,
             context: testContext,
             truthy: false
         });
-        analyzeExpression({ state, node: source.consequent, context: consequentContext });
-        analyzeExpression({ state, node: source.alternate, context: alternateContext });
+        analyzeExpression({ state, node: consequent, context: consequentContext });
+        analyzeExpression({ state, node: alternate, context: alternateContext });
+
         return mergeContexts([consequentContext, alternateContext]);
     }
 
@@ -466,9 +571,13 @@ const analyzeExpression = ({ state = {}, node = {}, context = {} } = {}) => {
 
 const getLoopElement = ({ type = '', right = {}, context = {} } = {}) => {
     if (type === 'ForInStatement') return contract({ kind: 'string', sourceNode: right });
+
     if (type !== 'ForOfStatement') return unknown();
+
     const source = inferExpression(right, context);
-    return getKind(source) === 'array' ? source.element : unknown();
+    const { element = unknown() } = getObject(source);
+
+    return getKind(source) === 'array' ? element : unknown();
 };
 
 const analyzer = {
@@ -504,11 +613,13 @@ const analyzer = {
                 contract: inferExpression(argument, returnContext),
                 node: source
             });
+
             return { context: returnContext, reachable: false };
         }
 
         if (type === 'ThrowStatement') {
             const throwContext = analyzeExpression({ state, node: argument, context });
+
             return { context: throwContext, reachable: false };
         }
 
@@ -532,9 +643,12 @@ const analyzer = {
             const reachableContexts = [consequentFlow, alternateFlow]
                 .filter(({ reachable = false } = {}) => reachable)
                 .map(({ context: branchContext = {} } = {}) => branchContext);
+            const { reachable: consequentReachable = false } = getObject(consequentFlow);
+            const { reachable: alternateReachable = false } = getObject(alternateFlow);
+
             return {
                 context: reachableContexts.length ? mergeContexts(reachableContexts) : testContext,
-                reachable: consequentFlow.reachable || alternateFlow.reachable
+                reachable: consequentReachable || alternateReachable
             };
         }
 
@@ -553,6 +667,7 @@ const analyzer = {
                         context: current
                     });
                     const value = inferExpression(init, valueContext);
+
                     return bindDeclaration({
                         context: valueContext,
                         init,
@@ -584,7 +699,9 @@ const analyzer = {
     statements: ({ state = {}, statements = [], context = {} } = {}) => statements.reduce(
         (current, statement = {}) => {
             const { context: currentContext = {}, reachable = false } = current;
+
             if (!reachable) return current;
+
             return analyzer.statement({ state, node: statement, context: currentContext });
         },
         { context, reachable: true }
@@ -602,33 +719,42 @@ const analyzer = {
         } = node;
         const { declarations = [] } = left;
         const [{ id: loopPattern = {} } = {}] = declarations;
-        const initResult = init.type === 'VariableDeclaration'
+        const { type: initType = '' } = getObject(init);
+        const initResult = initType === 'VariableDeclaration'
             ? analyzer.statement({ state, node: init, context })
             : {
                 context: analyzeExpression({ state, node: init, context }),
                 reachable: true
             };
-        const entryContext = initResult.context || context;
-        const testContext = test.type
+        const { context: entryContext = context } = getObject(initResult);
+        const { type: testType = '' } = getObject(test);
+        const testContext = testType
             ? analyzeExpression({ state, node: test, context: entryContext })
             : entryContext;
         const element = getLoopElement({ type, right, context: testContext });
+        const { type: loopPatternType = '' } = getObject(loopPattern);
         const loopContext = type === 'ForOfStatement' || type === 'ForInStatement'
             ? bindDeclaration({
                 context: testContext,
-                pattern: loopPattern.type ? loopPattern : left,
+                pattern: loopPatternType ? loopPattern : left,
                 value: element,
                 init: {}
             })
             : narrowContext({ ...test, context: testContext, truthy: true });
         const bodyFlow = analyzer.statement({ state, node: body, context: loopContext });
-        const updateContext = update.type && bodyFlow.reachable
-            ? analyzeExpression({ state, node: update, context: bodyFlow.context })
-            : bodyFlow.context;
-        const afterIteration = bodyFlow.reachable ? updateContext : bodyFlow.context;
+        const {
+            context: bodyContext = loopContext,
+            reachable: bodyReachable = false
+        } = getObject(bodyFlow);
+        const { type: updateType = '' } = getObject(update);
+        const updateContext = updateType && bodyReachable
+            ? analyzeExpression({ state, node: update, context: bodyContext })
+            : bodyContext;
+        const afterIteration = bodyReachable ? updateContext : bodyContext;
         const contexts = type === 'DoWhileStatement'
             ? [afterIteration]
             : [testContext, afterIteration];
+
         return {
             context: mergeContexts(contexts),
             reachable: true
@@ -636,13 +762,16 @@ const analyzer = {
     },
 
     try: ({ state = {}, node = {}, context = {} } = {}) => {
-        const { block = {}, handler = {}, finalizer = {} } = node;
+        const { block = {}, handler = {}, finalizer = {} } = getObject(node);
         const safeHandler = getObject(handler);
         const safeFinalizer = getObject(finalizer);
         const { param = {}, body: handlerBody = {} } = safeHandler;
         const safeParam = getObject(param);
         const tryFlow = analyzer.statement({ state, node: block, context });
-        const catchContext = safeParam.type
+        const { type: paramType = '' } = safeParam;
+        const { type: handlerType = '' } = safeHandler;
+        const { type: finalizerType = '' } = safeFinalizer;
+        const catchContext = paramType
             ? bindDeclaration({
                 context,
                 pattern: safeParam,
@@ -650,17 +779,19 @@ const analyzer = {
                 init: {}
             })
             : context;
-        const catchFlow = safeHandler.type
+        const catchFlow = handlerType
             ? analyzer.statement({ state, node: handlerBody, context: catchContext })
             : { context, reachable: false };
         const paths = [tryFlow, catchFlow]
             .filter(({ reachable = false } = {}) => reachable)
             .map(({ context: pathContext = {} } = {}) => pathContext);
         const joinedContext = paths.length ? mergeContexts(paths) : context;
-        if (!safeFinalizer.type) return {
+
+        if (!finalizerType) return {
             context: joinedContext,
             reachable: paths.length > 0
         };
+
         return analyzer.statement({ state, node: safeFinalizer, context: joinedContext });
     }
 };
@@ -672,35 +803,45 @@ const createFunctionFlow = ({
 } = {}) => {
     const signature = getSignature(functionNode);
     const matchingDefinitions = Object.entries(definitions)
-        .filter(([, definition = {}] = []) => definition.node === functionNode)
+        .filter(([, definition = {}] = []) => {
+            const { node: definitionNode = {} } = getObject(definition);
+
+            return definitionNode === functionNode;
+        })
         .map(([name = ''] = []) => name);
     const [functionName = ''] = matchingDefinitions;
     const state = {
         contexts: new Map(),
         returns: []
     };
+    const { contexts = new Map(), returns = [] } = state;
+    const { bindings: signatureBindings = {} } = getObject(signature);
     const context = {
-        bindings: { ...signature.bindings, ...initialBindings },
+        bindings: { ...signatureBindings, ...initialBindings },
         functions: definitions,
         callStack: functionName ? [functionName] : [],
         evaluateCalls: true,
         evaluationDepth: 0
     };
-    const { body = {} } = functionNode;
-    const result = body.type === 'BlockStatement'
+    const { body = {} } = getObject(functionNode);
+    const { type: bodyType = '' } = getObject(body);
+    const result = bodyType === 'BlockStatement'
         ? analyzer.statement({ state, node: body, context })
         : analyzeExpression({ state, node: body, context });
+    const { context: resultContext = result } = getObject(result);
+
     // Return collection is analyzer-owned evidence accumulated across paths.
     // eslint-disable-next-line resilient/prefer-safe-transformations -- Expression-bodied return evidence is appended to the flow result.
-    if (body.type !== 'BlockStatement') state.returns.push({
+    if (bodyType !== 'BlockStatement') returns.push({
         argument: body,
         contract: inferExpression(body, result),
         node: body
     });
+
     return {
-        contexts: state.contexts,
-        finalContext: result.context || result,
-        returns: state.returns
+        contexts,
+        finalContext: resultContext,
+        returns
     };
 };
 
@@ -709,6 +850,7 @@ const createProgramFlow = ({ program = {}, definitions = {} } = {}) => {
         contexts: new Map(),
         returns: []
     };
+    const { contexts = new Map(), returns = [] } = state;
     const context = {
         bindings: {},
         functions: definitions,
@@ -716,15 +858,18 @@ const createProgramFlow = ({ program = {}, definitions = {} } = {}) => {
         evaluateCalls: true,
         evaluationDepth: 0
     };
+    const { body: programStatements = [] } = getObject(program);
     const result = analyzer.statements({
         state,
-        statements: program.body || [],
+        statements: programStatements,
         context
     });
+    const { context: resultContext = context } = getObject(result);
+
     return {
-        contexts: state.contexts,
-        finalContext: result.context || context,
-        returns: state.returns
+        contexts,
+        finalContext: resultContext,
+        returns
     };
 };
 
@@ -740,16 +885,20 @@ const createFunctionFlows = ({ program = {}, definitions = {} } = {}) => new Map
 
 const getEnclosingProgram = (node = {}) => {
     const source = getObject(node);
-    if (source.type === 'Program') return source;
-    return source.parent ? getEnclosingProgram(source.parent) : {};
+    const { type = '', parent = {} } = source;
+
+    if (type === 'Program') return source;
+
+    return hasObjectValue(parent) ? getEnclosingProgram(parent) : {};
 };
 
 const getFlowContext = ({ node = {}, definitions = {}, flows = new Map() } = {}) => {
     const functionNode = getEnclosingFunction(node);
     const programNode = getEnclosingProgram(node);
     const flow = flows.get(functionNode) || flows.get(programNode) || {};
-    const contexts = flow.contexts || new Map();
-    return contexts.get(node) || flow.finalContext || { functions: definitions };
+    const { contexts = new Map(), finalContext = {} } = getObject(flow);
+
+    return contexts.get(node) || finalContext || { functions: definitions };
 };
 
 export {

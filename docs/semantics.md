@@ -100,16 +100,22 @@ an array-shaped `items` value when the property is absent or `undefined`.
 Defaults do not convert `null`, validate arbitrary external input, or prove
 that an unknown value has the declared shape.
 
-An empty object default assigned to an undeclared value field does not by
-itself make that field an open object bag. When a value is intentionally an
-open bag, express that contract with nested destructuring and an object rest
-element, such as `variables: { ...variables } = {}`. This establishes the safe
-absent value while explicitly preserving passthrough keys.
+An empty object default assigned to an undeclared value field defines a safe
+absent value but does not declare any named properties. The analyzer therefore
+treats that binding as open: later properties remain unknown rather than being
+guessed or reported as absent. When a boundary needs named properties and
+intentional passthrough, express it with nested destructuring and an object
+rest element, such as `variables: { known = '', ...variables } = {}`. This
+establishes the safe absent value, records the known field, and explicitly
+preserves passthrough keys. Direct object literals and named destructuring
+without a rest element remain closed when their properties are known.
 
 Application-owned function boundaries should expose their shape in the
-signature. Externally defined callback signatures, full-object forwarding,
-dynamic properties, and platform APIs are legitimate boundary exceptions when
-destructuring would change the contract or hide intent.
+signature. External callback signatures, full-object forwarding, dynamic
+properties, and platform APIs have ownership or shape outside the local
+destructuring boundary. Keep those forms intact when destructuring would
+change the contract or hide intent, and record a narrow file-local exception
+when a rule would otherwise report the boundary.
 
 ## Absence semantics
 
@@ -153,7 +159,10 @@ method would hide:
 - detailed control flow or ordered effects.
 
 The loop barrier is therefore a default for collection transformations, not a
-ban on iteration.
+ban on iteration. `await` and direct `break`/`continue`/`return`/`throw` are
+native loop exceptions because they make sequential or control-flow semantics
+visible in the loop itself. Other retained loop patterns require the explicit
+file-local marker `// resilient-allow-loop: reason`.
 
 ## Transformation and ownership contracts
 

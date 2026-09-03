@@ -4,12 +4,15 @@ const FUNCTION_TYPES = [
     'FunctionExpression'
 ];
 
-const hasNestedIfAncestor = ({ node = {} } = {}) => {
-    const { parent: ancestor = {} } = node;
-
+const hasNestedIfAncestor = ({ node: { parent: ancestor = {} } = {} } = {}) => {
     if (!ancestor) return false;
-    if (ancestor.type === 'IfStatement') return true;
-    if (FUNCTION_TYPES.includes(ancestor.type)) return false;
+
+    const { type: ancestorType = '' } = ancestor;
+
+    if (ancestorType === 'IfStatement') return true;
+
+    if (FUNCTION_TYPES.includes(ancestorType)) return false;
+
     return hasNestedIfAncestor({ node: ancestor });
 };
 

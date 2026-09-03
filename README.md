@@ -3,10 +3,10 @@
 Resilient is a native-JavaScript discipline for explicit value, control-flow,
 transformation, and failure contracts. It treats executable JavaScript as the
 place where contracts live: signatures, defaults, operations, callable values,
-and return paths
-make the program's expectations visible. It provides build-time diagnostics
-and a portable contract model from executable code. For supported boundaries,
-the implementation is the contract.
+and return paths make the program's expectations visible. It provides build-time
+diagnostics and a portable contract model from executable code. The analyzer
+reads parsed JavaScript at function, call, return, object, operation, control-
+flow, callback, and local module boundaries.
 
 The ESLint rules are the foundation. The contract analyzer extends them by
 following evidence across expressions, control flow, and local module
@@ -27,12 +27,21 @@ Resilient is not a runtime validator and it does not own framework concerns.
 Import policy and application architecture remain project rules layered on top
 of Resilient.
 
-## Type safety from executable code
+## Why Resilient?
 
-Resilient makes supported native-JavaScript boundaries type-safe from
-executable code. A function's destructured parameters and defaults, operations,
-control flow, and return paths provide the contract evidence. The same source
-that runs is the source that gets checked.
+[The Code Is the Contract](https://dev.to/augurone/the-code-is-the-contract-mk1)
+explains the reasoning behind Resilient: using standard JavaScript's executable
+boundaries as evidence for static analysis instead of maintaining a second,
+granular annotation system. For Resilient, annotations that merely restate
+those boundaries are an anti-pattern; the executable JavaScript remains the
+runtime contract.
+
+## Static contracts from executable code
+
+Resilient performs static contract analysis on executable JavaScript. A
+function's destructured parameters and defaults, operations, control flow, and
+return paths provide the contract evidence. The same source that runs is the
+source that gets checked.
 
 The guarantee is specific and observable:
 
@@ -43,10 +52,10 @@ The guarantee is specific and observable:
 - ESLint and the direct contracts API consume the same analysis snapshot;
 - unused indexed files remain inactive unless a selected root reaches them.
 
-Where the source does not provide enough evidence—such as external data,
-dynamic imports, or unresolved modules—Resilient reports an unknown boundary
-instead of inventing a type. Runtime validation, normalization, and tests own
-those cases.
+Runtime API data, database records, configuration, third-party implementations,
+dynamic imports and properties, unresolved modules, unsupported effects, and
+incomplete evidence remain unknown. Runtime validation, normalization, and
+explicit adapters own those boundaries.
 
 ## Install
 
@@ -128,10 +137,10 @@ This residual behavior applies to object `RestElement` patterns; array rest
 elements retain array contracts.
 
 TypeScript-only syntax—such as generic parameters, literal unions, and
-discriminated-union annotations—is outside the Resilient JavaScript grammar,
-not an unknown runtime contract that Resilient is expected to infer. Use a
-runtime boundary or a separate TypeScript/typed-linting tool when that syntax
-is required.
+discriminated-union annotations—is outside the Resilient JavaScript grammar.
+Resilient does not consume annotations as contract evidence; the executable
+boundary is the source of truth. If another consumer independently requires
+that syntax, use that consumer's own tool at its boundary.
 
 The dialect semantics behind those rules are defined in
 [`docs/semantics.md`](docs/semantics.md). The analyzer remains conservative:
@@ -147,10 +156,10 @@ propagation model.
 
 Consumers do not manage project activation. On the first contract-rule
 invocation in an ESLint run, Resilient activates its internal project analysis
-for that root and its supported local dependency closure. Subsequent contract
-rules in the same run reuse that analysis state; changed source or resolver
-identity causes the cached analysis to be rebuilt. A separate workspace
-activation hook is not required.
+for that root and its statically resolvable local dependency closure. Subsequent
+contract rules in the same run reuse that analysis state; changed source or
+resolver identity causes the cached analysis to be rebuilt. A separate
+workspace activation hook is not required.
 
 For reusable project-aware analysis, supply parsed programs and selected roots
 to `createProjectTree`:
@@ -277,11 +286,12 @@ The preset:
   `prefer-async-await`; an unowned expression-statement chain is owned by the
   stronger `no-unhandled-promise-chain` error instead.
 
-Use `Promise.all` for independent work, a sequential loop when ordering,
-polling, retries, rate limits, or early termination matter, and
-`Promise.allSettled` when partial failure is part of the contract. A necessary
-loop can be documented with `// resilient-allow-loop: reason`; a required
-promise chain can be documented with
+Use `Promise.all` for independent work, a sequential `await` loop when
+ordering, polling, retries, or rate limits matter, and `Promise.allSettled` when
+partial failure is part of the contract. Loops with direct
+`break`/`continue`/`return`/`throw` are also native exceptions because their
+control flow is explicit. Other necessary loop forms require
+`// resilient-allow-loop: reason`; a required promise chain can be documented with
 `// resilient-allow-promise-chain: reason`.
 
 See the individual [safety rule documentation](docs/rules/) for the supported
@@ -304,6 +314,7 @@ The concise discipline is in [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md
 The contract model is described in [docs/contracts.md](docs/contracts.md), and
 the dialect semantics are in [docs/semantics.md](docs/semantics.md). The design
 rationale is in [docs/the-code-is-the-contract.md](docs/the-code-is-the-contract.md),
+objections are addressed in [docs/overcoming-objections.md](docs/overcoming-objections.md),
 and release history is recorded in [CHANGELOG.md](CHANGELOG.md).
 
 ## Development
@@ -323,7 +334,9 @@ The aggregate lint command excludes the deliberately invalid
 --no-warn-ignored` to see its diagnostics directly. `tests/fixtures/manifest.json`
 is the machine-checkable agent fixture contract: `bad.js` contains one highlighted
 section for every public rule, and `npm run fixtures:check` verifies that each
-section produces its matching diagnostic against a real ESLint run.
+section produces its matching diagnostic against a real ESLint run. The fixture
+checker promotes all rules to error severity for coverage; the safety preset's
+`prefer-async-await` rule remains an intentional warning.
 `tests/fixtures/integration/` contains real engine
 boundary scenarios. The fixture enables the standalone
 `signature-contract-return-consistency` rule so every Resilient rule is

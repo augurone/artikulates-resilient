@@ -25,6 +25,7 @@ const getProgram = async (code) => {
     });
 
     await eslint.lintText(code, { filePath: 'contract-graph.js' });
+
     return program;
 };
 
@@ -38,7 +39,10 @@ const reexportGraph = await createGraph({
     'barrel.js': 'export { getItems } from "./base.js";',
     'consumer.js': 'import { getItems } from "./barrel.js"; getItems({}).toUpperCase();'
 });
-assert.equal(Object.hasOwn(reexportGraph.moduleExports['barrel.js'], 'getItems'), true);
+const { moduleExports: reexportModuleExports = {} } = reexportGraph;
+const { ['barrel.js']: reexportBarrelExports = {} } = reexportModuleExports;
+const { getItems: reexportedGetItems = false } = reexportBarrelExports;
+assert.equal(!!reexportedGetItems, true);
 assert.equal(reexportGraph.getDiagnostics().length, 1);
 assert.equal(reexportGraph.getDiagnostics()[0].fileName, 'consumer.js');
 assert.equal(reexportGraph.getDiagnostics()[0].ruleId, 'signature-contract-operation');
@@ -48,7 +52,10 @@ const exportAllGraph = await createGraph({
     'barrel.js': 'export * from "./base.js";',
     'consumer.js': 'import { getItems } from "./barrel.js"; getItems({}).toUpperCase();'
 });
-assert.equal(Object.hasOwn(exportAllGraph.moduleExports['barrel.js'], 'getItems'), true);
+const { moduleExports: exportAllModuleExports = {} } = exportAllGraph;
+const { ['barrel.js']: exportAllBarrelExports = {} } = exportAllModuleExports;
+const { getItems: exportedGetItems = false } = exportAllBarrelExports;
+assert.equal(!!exportedGetItems, true);
 assert.equal(exportAllGraph.getDocument('consumer.js').getDiagnostics().length, 1);
 
 const namespaceGraph = await createGraph({
@@ -72,7 +79,10 @@ const defaultGraph = await createGraph({
     'provider.js': 'export default ({ title = "" } = {}) => title;',
     'consumer.js': 'import render from "./provider.js"; render({ title: 42 });'
 });
-assert.equal(Object.hasOwn(defaultGraph.moduleExports['provider.js'], 'default'), true);
+const { moduleExports: defaultModuleExports = {} } = defaultGraph;
+const { ['provider.js']: defaultProviderExports = {} } = defaultModuleExports;
+const { default: defaultExport = false } = defaultProviderExports;
+assert.equal(!!defaultExport, true);
 assert.equal(defaultGraph.getDiagnostics().length, 1);
 assert.equal(defaultGraph.getDiagnostics()[0].ruleId, 'signature-contract-call-site');
 assert.equal(defaultGraph.getDiagnostics()[0].data.path, 'title');
@@ -166,7 +176,10 @@ const conflictGraph = await createGraph({
     ].join('\n'),
     'consumer.js': 'import { getItems } from "./barrel.js"; getItems({}).toUpperCase();'
 });
-assert.equal(Object.hasOwn(conflictGraph.moduleExports['barrel.js'], 'getItems'), false);
+const { moduleExports: conflictModuleExports = {} } = conflictGraph;
+const { ['barrel.js']: conflictBarrelExports = {} } = conflictModuleExports;
+const { getItems: conflictGetItems = false } = conflictBarrelExports;
+assert.equal(!!conflictGetItems, false);
 assert.equal(conflictGraph.getAgreements().find(({ fileName = '' } = {}) => fileName === 'consumer.js').kind, 'ambiguous');
 assert.equal(conflictGraph.getDiagnostics().length, 0);
 
@@ -175,7 +188,10 @@ const unknownCycleGraph = await createGraph({
     'b.js': 'export { value } from "./a.js";',
     'consumer.js': 'import { value } from "./a.js"; value.toUpperCase();'
 });
-assert.equal(Object.hasOwn(unknownCycleGraph.moduleExports['a.js'], 'value'), false);
+const { moduleExports: unknownCycleModuleExports = {} } = unknownCycleGraph;
+const { ['a.js']: unknownCycleExports = {} } = unknownCycleModuleExports;
+const { value: cyclicValue = false } = unknownCycleExports;
+assert.equal(!!cyclicValue, false);
 assert.equal(unknownCycleGraph.getDiagnostics().length, 0);
 
 const missingAgreementGraph = await createGraph({

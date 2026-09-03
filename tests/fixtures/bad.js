@@ -271,7 +271,10 @@ const report = () => {};
         return attr;
     };
 
-    void getValue;
+    const getProfile = () => ({ profile: { name: '' } });
+    const { profile: { nmae } } = getProfile();
+
+    void [getValue, nmae];
 }
 
 // prefer-signature-destructuring
@@ -308,6 +311,12 @@ const report = () => {};
 
     const getCount = (title = '', count = 0) => title ? count : 0;
     getCount('', 'count');
+    getCount('');
+    getCount('', 0, true);
+
+    render({ title: '', extra: true });
+    const renderAlias = render;
+    renderAlias({ title: false });
 
     getTitle({ title: 42 });
 
@@ -351,9 +360,16 @@ const report = () => {};
     const pageHandlers = { render: page => page.title };
     runWhenReady(pageHandlers.render);
 
+    const makeReader = () => (title = '') => title.trim();
+    const reader = makeReader();
+    reader(42);
+
+    const functionApi = { read: (title = '') => title.trim() };
+    functionApi.read(42);
+
     void [renderPage, apply, readTitle, publish, formatPublication,
         publishWithTimestamp, storePublicationStatus, runWhenReady,
-        pageHandlers];
+        pageHandlers, makeReader, reader, functionApi];
 }
 
 // signature-contract-operation
@@ -395,6 +411,12 @@ const report = () => {};
     };
     getLocalItems({}).toUpperCase();
 
+    const getItemsAlias = getItems;
+    getItemsAlias({}).toUpperCase();
+
+    const getPage = () => ({ title: '' });
+    getPage().title.map(Boolean);
+
     // Array transforms derive their result from the callback return contract.
     const normalizeTitle = ({ title = '' } = {}) => title.trim();
     const inspectTitles = () => {
@@ -411,7 +433,9 @@ const report = () => {};
         inspectLogical,
         normalizeTitle,
         inspectTitles,
-        inspectMixedItems
+        inspectMixedItems,
+        getItemsAlias,
+        getPage
     ];
 }
 
@@ -420,7 +444,12 @@ const report = () => {};
     const knownUser = { name: '' };
     knownUser.nmae;
 
-    void knownUser;
+    const getUser = () => ({ name: '' });
+    const user = getUser();
+    user.nmae;
+    getUser().nmae;
+
+    void [knownUser, user];
 }
 
 // signature-contract-return-consistency
@@ -442,7 +471,13 @@ const report = () => {};
     // Mixed known return families are a contradiction, not an inferred union.
     const getNullableValue = (enabled = false) => enabled ? '' : null;
 
-    void [getValue, normalizeItems, getNullableValue];
+    const getAsyncValue = async (enabled = false) => {
+        if (enabled) return [];
+
+        return '';
+    };
+
+    void [getValue, normalizeItems, getNullableValue, getAsyncValue];
 }
 
 // combined-patterns

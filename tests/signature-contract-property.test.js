@@ -13,6 +13,7 @@ ruleTester.run('signature-contract-property', rule, {
     valid: [
         { code: 'const user = { name: "A" }; user.name;' },
         { code: 'const read = value => value.missing;' },
+        { code: 'const read = (source = {}) => source.missing;' },
         { code: 'const read = ({ name = "", ...rest } = {}) => rest.missing;' },
         { code: 'const user = { name: "A" }; user.toString();' },
         { code: 'const isSlug = value => /^[a-z0-9/-]+$/.test(value);' },
@@ -29,6 +30,13 @@ ruleTester.run('signature-contract-property', rule, {
         },
         {
             code: 'const getUser = () => ({ name: "A" }); getUser().nmae;',
+            errors: [{
+                messageId: 'missingProperty',
+                data: { property: 'nmae' }
+            }]
+        },
+        {
+            code: 'const getUser = () => ({ name: "A" }); const user = getUser(); user.nmae;',
             errors: [{
                 messageId: 'missingProperty',
                 data: { property: 'nmae' }
