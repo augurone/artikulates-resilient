@@ -3,6 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { ESLint } from 'eslint';
+
 import resilient from 'eslint-plugin-resilient';
 
 const directory = await mkdtemp(path.join(process.cwd(), '.resilient-contract-'));

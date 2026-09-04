@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+## 0.7.0 — 2026-09-04
+
+- Restored ESLint 10 contract analysis by reading `context.filename`, while
+  retaining a narrow fallback for hosts that still expose `getFilename()`.
+- Corrected project-tree invalidation so changed program identities invalidate
+  the affected file and its dependents instead of comparing the previous
+  snapshot to itself.
+- Hardened recursive AST parent walks with `hasObjectValue` termination checks,
+  including regression coverage for incomplete synthetic nodes.
+- Aligned the package engine, lockfile, documentation, and CI matrix with the
+  Node runtimes supported by ESLint 10.
+- Added an informational post-lint `npm outdated --long` report with bounded
+  registry retries, so dependency drift is visible without masking lint or
+  release-check failures.
+
 ## 0.6.2 — 2026-09-03
 
 - Removed the accidental self-analysis exemption for the contract rules;

@@ -37,7 +37,7 @@ const getParserOptionsKey = ({ context = {} } = {}) => {
         ...sourceParserOptions,
         ...getObject(languageParserOptions)
     };
-    let serializedOptions = '';
+    let serializedOptions;
 
     try {
         serializedOptions = JSON.stringify(options);

@@ -109,7 +109,16 @@ reviewable bug/non-finding corpus, a documented support matrix, and a measured
 diagnostic/performance baseline with no ambiguity between fixture and real-code
 results.
 
-## 0.7 — runtime boundaries and evidence
+## 0.7.0 — green-edge compatibility baseline
+
+The 0.7.0 release establishes the green-edge development baseline: ESLint 10
+contract analysis, the Node runtimes supported by that host, CI verification,
+dependency-freshness reporting, and the regression hardening required to keep
+the analyzer alive across incomplete AST boundaries. This is release
+infrastructure and compatibility work; it does not claim the runtime-evidence
+capability below.
+
+## 0.7.1+ — runtime boundaries and evidence
 
 The next adjacent area is the seam between what source code implies and what
 the runtime can establish. This extends the unknown model without creating a

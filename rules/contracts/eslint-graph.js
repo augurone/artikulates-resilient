@@ -181,10 +181,9 @@ const parseProgram = ({ code = '', context = {} } = {}) => {
 
 const getFileName = ({ context: sourceContext = {} } = {}) => {
     const context = getObject(sourceContext);
-    const { getFilename: internalMethod = false } = context;
-    const fileName = typeof internalMethod === 'function'
-        ? internalMethod.call(context)
-        : '';
+    const { filename = '', getFilename: internalMethod = false } = context;
+    // context.filename replaces the removed context.getFilename() as of ESLint 10.
+    const fileName = filename || (typeof internalMethod === 'function' ? internalMethod.call(context) : '');
 
     if (!fileName) return '<text>';
 

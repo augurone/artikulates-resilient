@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 
 import { ESLint } from 'eslint';
+
 import {
     createContractDocument,
     createContractGraph

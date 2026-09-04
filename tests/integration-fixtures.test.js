@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { ESLint } from 'eslint';
+
 import { createContractGraph } from 'eslint-plugin-resilient/contracts';
 
 // eslint-disable-next-line import/no-useless-path-segments -- Integration tests intentionally import the repository entry point.

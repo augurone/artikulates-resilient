@@ -1,4 +1,4 @@
-import * as importPlugin from 'eslint-plugin-import';
+import * as importPlugin from 'eslint-plugin-import-x';
 
 import noDestructuringFallback from './rules/no-destructuring-fallback.js';
 import noElse from './rules/no-else.js';
@@ -28,7 +28,7 @@ let configs = {};
 const plugin = {
     meta: {
         name: 'eslint-plugin-resilient',
-        version: '0.6.2'
+        version: '0.7.0'
     },
     rules: {
         'prefer-signature-destructuring': preferSignatureDestructuring,
