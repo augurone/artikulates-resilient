@@ -1,5 +1,7 @@
 import js from '@eslint/js';
+import eslintPlugin from 'eslint-plugin-eslint-plugin';
 import * as importPlugin from 'eslint-plugin-import-x';
+import nodePlugin from 'eslint-plugin-n';
 import globals from 'globals';
 
 import resilient from 'eslint-plugin-resilient';
@@ -9,6 +11,24 @@ export default [
         ignores: ['node_modules/**']
     },
     js.configs.recommended,
+    {
+        files: ['rules/*.js'],
+        plugins: {
+            'eslint-plugin': eslintPlugin
+        },
+        rules: {
+            ...eslintPlugin.configs.recommended.rules
+        }
+    },
+    {
+        files: ['index.js', 'rules/**/*.js', 'eslint.config.js'],
+        plugins: {
+            n: nodePlugin
+        },
+        rules: {
+            ...nodePlugin.configs['flat/recommended'].rules
+        }
+    },
     resilient.configs.recommended,
     resilient.configs.contracts,
     resilient.configs.safety,

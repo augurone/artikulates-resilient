@@ -20,28 +20,28 @@ examples, and exceptions.
 
 | Rule | First Failure | Low-Friction Remediation | Fix Potential |
 | --- | --- | --- | --- |
-| [no-destructuring-fallback](rules/no-destructuring-fallback.md) | `pattern || {}` around object destructuring | move the default into the signature or declaration | high |
-| [no-else](rules/no-else.md) | alternate branch after an early return | flatten to an early return | high |
-| [no-length-comparison](rules/no-length-comparison.md) | `.length === 0` / `.length !== 0` | use `!length` or `length` | high |
-| [no-null-assignment](rules/no-null-assignment.md) | explicit `null` assignment | use the contract’s empty value or remove the assignment | medium |
-| [no-undefined-assignment](rules/no-undefined-assignment.md) | explicit `undefined` assignment | use the contract’s empty value or remove the assignment | medium |
-| [no-silent-catch](rules/no-silent-catch.md) | empty or comment-only `catch` | handle, translate, rethrow, or return a fallback | high |
-| [no-unguarded-callback-invocation](rules/no-unguarded-callback-invocation.md) | direct invocation of an optional callback | guard with `isFunction` or `typeof === 'function'` | high |
-| [no-unhandled-promise-chain](rules/no-unhandled-promise-chain.md) | dropped `.then` / `.finally` chain | `await`, `return`, assign, `void`, or `.catch` | high |
-| [no-undefined-comparison](rules/no-undefined-comparison.md) | equality test against `undefined` | use `!value` or `!!value` | medium |
-| [no-nested-if](rules/no-nested-if.md) | nested `if` in the same function | split into guard clauses | high |
-| [prefer-async-await](rules/prefer-async-await.md) | handled `.then` chain that is only sequencing work | convert to `async` / `await` when timing stays equivalent | medium |
-| [prefer-destructured-member-access](rules/prefer-destructured-member-access.md) | repeated static member access on owned parameter data | destructure once near the boundary | medium |
-| [prefer-falsey-returns](rules/prefer-falsey-returns.md) | `null` / `undefined` in a value-producing return | return `''`, `[]`, `{}`, `0`, or `false` | medium |
-| [prefer-prototype-methods](rules/prefer-prototype-methods.md) | imperative collection loop | use `map`, `filter`, `reduce`, `some`, `find`, or `forEach` | medium |
-| [prefer-safe-destructuring-defaults](rules/prefer-safe-destructuring-defaults.md) | destructured binding without a default | add the explicit default at the boundary | high |
-| [prefer-safe-transformations](rules/prefer-safe-transformations.md) | mutating a binding, property, collection, or `Object.assign` target | return a new object or array | medium |
-| [prefer-signature-destructuring](rules/prefer-signature-destructuring.md) | body destructuring from a simple parameter | move destructuring into the function signature when the parameter is owned | medium |
-| [signature-contract-call-site](rules/signature-contract-call-site.md) | known invalid argument, arity, or excess property | align the call with the provider contract | medium |
-| [signature-contract-destructuring](rules/signature-contract-destructuring.md) | known shape contradicts destructuring or a named property is absent | normalize first, change the pattern, or restore the property | medium |
-| [signature-contract-operation](rules/signature-contract-operation.md) | known wrong native method for a value family | use the correct operation or normalize first | medium |
-| [signature-contract-property](rules/signature-contract-property.md) | known missing property on a closed object | rename, remove, or widen the source contract | medium |
-| [signature-contract-return-consistency](rules/signature-contract-return-consistency.md) | mixed known return families | make all known return paths agree | medium |
+| [no-destructuring-fallback](../rules/no-destructuring-fallback.md) | `pattern || {}` around object destructuring | move the default into the signature or declaration | high |
+| [no-else](../rules/no-else.md) | alternate branch after an early return | flatten to an early return | high |
+| [no-length-comparison](../rules/no-length-comparison.md) | `.length === 0` / `.length !== 0` / `.length > 0` | use `!length` or `length` | high |
+| [no-null-assignment](../rules/no-null-assignment.md) | explicit `null` assignment | use the contract’s empty value or remove the assignment | medium |
+| [no-undefined-assignment](../rules/no-undefined-assignment.md) | explicit `undefined` assignment | use the contract’s empty value or remove the assignment | medium |
+| [no-silent-catch](../rules/no-silent-catch.md) | empty or comment-only `catch` | handle, translate, rethrow, or return a fallback | high |
+| [no-unguarded-callback-invocation](../rules/no-unguarded-callback-invocation.md) | direct invocation of an optional callback | guard with `isFunction` or `typeof === 'function'` | high |
+| [no-unhandled-promise-chain](../rules/no-unhandled-promise-chain.md) | dropped `.then` / `.finally` chain | `await`, `return`, assign, `void`, or `.catch` | high |
+| [no-undefined-comparison](../rules/no-undefined-comparison.md) | equality test against `undefined` | use `!value` or `!!value` | medium |
+| [no-nested-if](../rules/no-nested-if.md) | nested `if` in the same function | split into guard clauses | high |
+| [prefer-async-await](../rules/prefer-async-await.md) | handled `.then` chain that is only sequencing work | convert to `async` / `await` when timing stays equivalent | medium |
+| [prefer-destructured-member-access](../rules/prefer-destructured-member-access.md) | repeated static member access on owned parameter data | destructure once near the boundary | medium |
+| [prefer-falsey-returns](../rules/prefer-falsey-returns.md) | `null` / `undefined` in a value-producing return | return `''`, `[]`, `{}`, `0`, or `false` | medium |
+| [prefer-prototype-methods](../rules/prefer-prototype-methods.md) | imperative collection loop | use `map`, `filter`, `reduce`, `some`, `find`, or `forEach` | medium |
+| [prefer-safe-destructuring-defaults](../rules/prefer-safe-destructuring-defaults.md) | destructured binding without a default | add the explicit default at the boundary | high |
+| [prefer-safe-transformations](../rules/prefer-safe-transformations.md) | mutating a binding, property, collection, or `Object.assign` target | return a new object or array | medium |
+| [prefer-signature-destructuring](../rules/prefer-signature-destructuring.md) | body destructuring from a simple parameter | move destructuring into the function signature when the parameter is owned | medium |
+| [signature-contract-call-site](../rules/signature-contract-call-site.md) | known invalid argument, arity, or excess property | align the call with the provider contract | medium |
+| [signature-contract-destructuring](../rules/signature-contract-destructuring.md) | known shape contradicts destructuring or a named property is absent | normalize first, change the pattern, or restore the property | medium |
+| [signature-contract-operation](../rules/signature-contract-operation.md) | known wrong native method for a value family | use the correct operation or normalize first | medium |
+| [signature-contract-property](../rules/signature-contract-property.md) | known missing property on a closed object | rename, remove, or widen the source contract | medium |
+| [signature-contract-return-consistency](../rules/signature-contract-return-consistency.md) | mixed known return families | make all known return paths agree | medium |
 
 ## Rule-by-Rule Migration Notes
 
@@ -62,7 +62,7 @@ examples, and exceptions.
 
 ### no-length-comparison
 
-- First failure: `items.length === 0` or `0 !== items.length`.
+- First failure: `items.length === 0`, `0 !== items.length`, or `items.length > 0`.
 - Low-friction remediation: use `!items.length` for empty and `items.length` for
   non-empty.
 - Keep if: exact cardinality matters, such as `length === 1`.

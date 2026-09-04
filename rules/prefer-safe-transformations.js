@@ -120,18 +120,22 @@ export default {
             description: 'Prefer new values over in-place object and array mutation',
             url: 'https://github.com/augurone/artikulates-resilient/blob/main/docs/rules/prefer-safe-transformations.md'
         },
+        defaultOptions: [{}],
         schema: [{
             type: 'object',
             properties: {
                 ignoredParameters: {
+                    description: 'Parameter names that are allowed to be mutated',
                     type: 'array',
                     items: { type: 'string' }
                 },
                 ignoredBindings: {
+                    description: 'Binding names that are allowed to be mutated',
                     type: 'array',
                     items: { type: 'string' }
                 },
                 ignoredProperties: {
+                    description: 'Property names that are allowed to be mutated',
                     type: 'array',
                     items: { type: 'string' }
                 }

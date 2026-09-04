@@ -28,13 +28,27 @@ Every inferred fact has one of three semantic states:
 - **contradictory**: known facts conflict at a boundary, operation, pattern, or
   return path.
 
-Only contradictions are static contract findings. Unknown data remains unknown
-and belongs to runtime validation, normalization, or behavioral tests.
+Only contradictions are static contract findings. Unknown data remains
+unknown; Resilient does not evaluate runtime data. The owning application or
+data boundary is responsible for what happens at runtime.
 
 The current contract object represents all three states directly. A
 contradictory contract retains the known conflicting families so downstream
 boundaries can inspect them; it is never treated as a permissive union or as an
 ordinary unknown value.
+
+## External data is outside the analyzer
+
+Resilient never evaluates runtime data and never becomes a runtime dependency
+of the client application. A source declaration expresses the contract authored
+code expects. The build can report a contradiction when known source data does
+not satisfy that declaration; it cannot observe whether an external payload
+actually fails at runtime.
+
+External, dynamic, unresolved, and unsupported inputs remain unknown. A
+consumer may inspect a static boundary marker identifying the expected contract
+and the external-data owner of a possible failure, but that marker is not
+runtime evidence and does not validate, normalize, or repair the data.
 
 ## Value contracts
 
@@ -127,8 +141,8 @@ empty value rather than an unannounced nullish alternative.
 That distinction produces four cases:
 
 1. a missing property may be normalized by a destructuring default;
-2. an external `null` or `undefined` may remain at a declared boundary until
-   runtime normalization handles it;
+2. an external `null` or `undefined` may remain at a declared boundary; the
+   owning runtime boundary handles it;
 3. an omitted callback remains real `undefined` and must be guarded with
    `isFunction` or `typeof callback === 'function'` before invocation;
 4. an internal value-producing path should return the contract's canonical
@@ -137,8 +151,9 @@ That distinction produces four cases:
 The falsey-return, nullish-assignment, and return-consistency rules enforce the
 default dialect. A known value-producing function has one return family;
 incompatible nullish and non-nullish paths are contradictions rather than an
-automatically widened union. Unknown external paths remain unknown until a
-normalization boundary establishes a contract.
+automatically widened union. Unknown external paths remain unknown to
+Resilient. Source declarations may make the expected contract explicit, but
+Resilient does not evaluate whether runtime data satisfies it.
 
 ## Control-flow contracts
 

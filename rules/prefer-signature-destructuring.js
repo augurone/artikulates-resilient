@@ -84,6 +84,7 @@ export default {
         hasSuggestions: true,
         messages: {
             preferSignature: 'Destructure "{{name}}" in the function signature instead of inside the function body. ({val = ""} = {}) => vals',
+            // eslint-disable-next-line eslint-plugin/no-unused-message-ids -- The imported suggestion builder consumes this message ID.
             moveToSignature: 'Move "{{name}}" destructuring to the function signature.'
         }
     },

@@ -6,11 +6,11 @@ These instructions apply to work inside `artikulates-resilient/`.
 
 Read the documents in this order when the task concerns project behavior:
 
-1. [`docs/semantics.md`](docs/semantics.md) — the normative dialect;
-2. [`docs/CODING_STANDARDS.md`](docs/CODING_STANDARDS.md) — the quick reference;
-3. [`docs/contracts.md`](docs/contracts.md) — analyzer evidence and limits;
+1. [`docs/reference/semantics.md`](docs/reference/semantics.md) — the normative dialect;
+2. [`docs/ai/CODING_STANDARDS.md`](docs/ai/CODING_STANDARDS.md) — the quick reference;
+3. [`docs/reference/contracts.md`](docs/reference/contracts.md) — analyzer evidence and limits;
 4. [`README.md`](README.md) — public configuration and product surface;
-5. [`docs/roadmap.md`](docs/roadmap.md) — proposed and unimplemented work only.
+5. [`docs/engineering/roadmap.md`](docs/engineering/roadmap.md) — proposed and unimplemented work only.
 
 `.github/copilot-instructions.md` is a short adapter for Copilot-style tools.
 Individual rule pages in `docs/rules/` own rule-specific behavior, exceptions,
@@ -146,7 +146,7 @@ The package requires ESLint `^10.9.1` and Node.js `^22.13.0` or `>=24`.
 
 ## Completion checklist
 
-- [ ] The change follows [`docs/semantics.md`](docs/semantics.md).
+- [ ] The change follows [`docs/reference/semantics.md`](docs/reference/semantics.md).
 - [ ] Known contradictions are distinguished from unknown values.
 - [ ] Boundary exceptions are explicit and narrow.
 - [ ] Tests cover valid, invalid, and exception cases.

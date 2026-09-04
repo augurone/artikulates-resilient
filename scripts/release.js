@@ -142,6 +142,7 @@ const verify = () => {
     run('npm', ['run', 'fixtures:check']);
     run('npm', ['test']);
     run('npm', ['run', 'lint']);
+    run('npm', ['run', 'consumer:check']);
 
     const temporaryCache = fs.mkdtempSync(path.join(os.tmpdir(), 'resilient-release-cache-'));
     try {

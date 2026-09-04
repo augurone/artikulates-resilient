@@ -369,6 +369,7 @@ const createProjectTree = ({
             moduleExports = {},
             getAgreements = () => [],
             getDiagnostics = () => [],
+            getEvidence = () => [],
             getDocument = () => ({})
         } = getObject(graph);
         const { invalidatedFiles = [] } = getObject(invalidation);
@@ -379,6 +380,7 @@ const createProjectTree = ({
             contracts: moduleExports,
             agreements: getAgreements(),
             diagnostics: getDiagnostics(),
+            evidence: getEvidence(),
             getDocument,
             graph,
             reuse: {

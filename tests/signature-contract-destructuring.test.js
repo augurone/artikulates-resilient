@@ -6,6 +6,11 @@ const ruleTester = new RuleTester({
     languageOptions: {
         ecmaVersion: 'latest',
         sourceType: 'module'
+    },
+    settings: {
+        resilient: {
+            evidenceMessages: false
+        }
     }
 });
 

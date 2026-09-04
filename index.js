@@ -28,7 +28,8 @@ let configs = {};
 const plugin = {
     meta: {
         name: 'eslint-plugin-resilient',
-        version: '0.7.0'
+        version: '0.7.1',
+        namespace: 'resilient'
     },
     rules: {
         'prefer-signature-destructuring': preferSignatureDestructuring,
@@ -143,6 +144,11 @@ const recommended = {
 const contracts = {
     plugins: {
         resilient: plugin
+    },
+    settings: {
+        resilient: {
+            evidenceMessages: true
+        }
     },
     rules: {
         'resilient/signature-contract-call-site': 'error',

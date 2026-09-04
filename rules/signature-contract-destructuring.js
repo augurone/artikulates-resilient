@@ -10,7 +10,9 @@ export default {
         schema: [],
         messages: {
             mismatch: 'This {{actual}} value is destructured as {{expected}}.',
-            missingProperty: 'Property {{property}} does not exist on this known object contract.'
+            missingProperty: 'Property {{property}} does not exist on this known object contract.',
+            mismatchWithEvidence: 'This {{actual}} value is destructured as {{expected}}{{evidenceHint}}.',
+            missingPropertyWithEvidence: 'Property {{property}} does not exist on this known object contract{{evidenceHint}}.'
         }
     },
     create(context = {}) {

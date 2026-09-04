@@ -9,7 +9,8 @@ export default {
         },
         schema: [],
         messages: {
-            mismatch: '{{receiver}} is {{actual}}, but .{{method}}() requires a {{expected}}.'
+            mismatch: '{{receiver}} is {{actual}}, but .{{method}}() requires a {{expected}}.',
+            mismatchWithEvidence: '{{receiver}} is {{actual}}, but .{{method}}() requires a {{expected}}{{evidenceHint}}.'
         }
     },
     create(context = {}) {
@@ -23,11 +24,12 @@ export default {
                     ruleId: 'signature-contract-operation'
                 }).forEach(({
                     data = {},
+                    messageId = 'mismatch',
                     node: reportNode = {}
                 } = {}) => {
                     report({
                         node: reportNode,
-                        messageId: 'mismatch',
+                        messageId,
                         data
                     });
                 });

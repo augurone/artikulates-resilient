@@ -13,8 +13,8 @@ grow its integration surface.
 
 Resilient's initial intent is not to recreate TypeScript or prove every
 possible JavaScript behavior. It is to make contracts already expressed by
-executable ECMAScript visible, report contradictions when evidence supports
-them, and preserve unknowns for runtime validation, normalization, and tests.
+executable ECMAScript visible, report contradictions when source evidence
+supports them, and preserve unknown external data as unknown.
 
 The roadmap therefore protects five invariants:
 
@@ -30,12 +30,12 @@ The roadmap therefore protects five invariants:
 - **Evidence before expansion.** New semantics should start with a real bug,
   an intentional non-finding, or a consumer workflow that the current model
   cannot express.
-- **Adjacent concepts over parity.** Prefer concepts that improve runtime
+- **Adjacent concepts over parity.** Prefer concepts that improve source
   honesty and developer decisions—preconditions, postconditions, evidence,
   effect ownership, and failure paths—over a larger type-language surface.
 - **Unknown is a product state.** Every new inference must define what is
-  known, what remains unknown, and which runtime or test boundary owns the
-  remainder.
+  known, what remains unknown, and which external-data or test boundary owns the
+  remainder. Resilient does not evaluate runtime data.
 - **Claims need a measurement.** Performance, coverage, and correctness
   claims must name their fixture, sample method, and acceptance threshold.
 - **Adapters stay thin.** Integrations may supply evidence or presentation;
@@ -88,7 +88,7 @@ rest continues to preserve open passthrough rather than inventing a finding.
 
 - [ ] Build a small corpus of real bugs, near-misses, and intentional
   non-findings. Record the source pattern, expected result, diagnostic quality,
-  and whether runtime validation or a test is the correct owner.
+  and whether the external-data boundary or a test is the correct owner.
 - [ ] Publish a support matrix for value, control-flow, effect, and failure
   contracts, including known, unknown, and contradictory outcomes.
 - [ ] Measure diagnostic quality: false positives, useful locations, stable
@@ -115,40 +115,66 @@ The 0.7.0 release establishes the green-edge development baseline: ESLint 10
 contract analysis, the Node runtimes supported by that host, CI verification,
 dependency-freshness reporting, and the regression hardening required to keep
 the analyzer alive across incomplete AST boundaries. This is release
-infrastructure and compatibility work; it does not claim the runtime-evidence
+infrastructure and compatibility work; it does not claim the contract-evidence
 capability below.
 
-## 0.7.1+ — runtime boundaries and evidence
+## 0.7.1 — contract-evidence slice
 
-The next adjacent area is the seam between what source code implies and what
-the runtime can establish. This extends the unknown model without creating a
-second type language.
+The next release should bundle the current release-hardening and documentation
+changes with the first contract-evidence implementation. The current
+changes do not independently warrant a version release. The implementation
+plan is [`docs/engineering/evidence-model-plan.md`](evidence-model-plan.md).
 
-- [ ] Define an evidence/provenance model for facts supplied by guards,
-  assertions, normalizers, tests, and trusted adapters. Make the source and
-  scope of each fact inspectable.
-- [ ] Explore adapters for existing runtime validators and schemas (for
-  example JSON Schema or a consumer's chosen validator). Adapters should
-  import evidence at a boundary; Resilient should not own a schema language.
-- [ ] Model explicit boundary operations such as `assert`, `parse`, and
-  `normalize`, including success values, rejected values, and failure
-  ownership.
-- [ ] Add static/runtime divergence fixtures: the same boundary should show
-  what static analysis can prove, what runtime validation establishes, and
-  what remains unknown after failure or missing evidence.
+The external-data boundary is already an existing product boundary, not a new
+runtime feature. This release should make the source evidence, expected
+contract, and external-data ownership inspectable. It should not evaluate
+runtime data, add a runtime dependency, import validator results, or create a
+second schema language.
+
+Release evidence is stable serialized provenance, direct API inspection,
+source/data-boundary fixtures, and proof that evidence does not leak across
+path, identity, mutation, or unknown boundaries.
+
+The first implementation is now present in the unreleased working tree:
+contract documents expose evidence lookup, diagnostics carry evidence IDs,
+graphs aggregate file-qualified evidence, and analysis snapshots retain the
+aggregate list. The remaining release work is to broaden path and identity
+coverage without changing the static-only runtime boundary.
+
+## 0.7.1+ — contract evidence expansion
+
+The next adjacent area is extending the inspectability of source contracts and
+external-data ownership. Resilient remains a static analyzer; it does not
+evaluate runtime values or enter client runtime dependencies.
+
+- [ ] Extend the 0.7.1 evidence model through source-declared external
+  boundaries and possible failure ownership. Preserve visible source and scope
+  for each fact without evaluating the data.
+- [ ] Model boundary notation for external, dynamic, unresolved, and
+  unsupported data origins. A boundary marker remains unknown evidence and
+  carries no Resilient runtime dependency.
+- [ ] Add source/data-boundary fixtures: the same declaration should show what
+  static analysis can prove, what remains unknown, and which data boundary owns
+  a possible runtime failure.
 - [ ] Explore documentation output that explains a contract's evidence path
   and its unresolved boundaries for code review and maintenance.
 
-Exit evidence: a boundary can move from unknown to known only through visible,
-scoped evidence; rejected or absent evidence remains represented honestly; and
-at least one existing validator can be integrated without duplicating core
-semantics.
+Exit evidence: source declarations and external-data ownership are inspectable,
+unknown data remains unknown, and no runtime validator or client dependency is
+required.
 
 ## 0.8 — adjacent contract concepts and developer leverage
 
 Once the evidence model is stable, explore concepts that make the original
 contract intent more useful in design and review.
 
+- [ ] Add an IDE contract-visibility track for VS Code and other JavaScript
+  editors. Make Resilient's known function, value, return-path, and boundary
+  contracts available where native editor inference widens them to `any`, and
+  keep editor hovers, navigation, and diagnostics consistent with the ESLint
+  and contract-document results. Evaluate a thin editor or language-server
+  adapter rather than adding TypeScript syntax, a runtime validator, or an
+  editor dependency to the contract core.
 - [ ] Explore design-by-contract views: preconditions, postconditions, and
   invariants derived from existing guards, defaults, returns, and failure
   paths. Keep these as explanations and checks over native code, not a new
@@ -192,10 +218,16 @@ diagnostic format are stable.
 - [ ] Add an editor or language-server adapter for the contract document API
   only when a concrete consumer workflow justifies the protocol surface.
 - [ ] Document migration paths and maintain a small example repository that
-  demonstrates runtime validation, failure ownership, and intentional
+  demonstrates source contracts, data-boundary ownership, and intentional
   non-findings.
+- [ ] Add an AI adopter evaluation harness using isolated tasks derived from
+  `tests/fixtures/bad.js`, rule tests, integration fixtures, the standards, and
+  the migration playbook. Compare cold, standards, and playbook-assisted runs
+  for diagnosis, behavior-preserving repair, suppression avoidance, and
+  correct handling of unknown and runtime-owned boundaries.
 - [ ] Publish an AI coding guide, evaluation corpus, and reusable constitution
-  examples only after the support matrix and evidence vocabulary are stable.
+  examples only after the support matrix, evidence vocabulary, and adopter
+  evaluation results are stable.
 
 Exit evidence: integrations consume the same snapshot and diagnostics as the
 ESLint path, project loading preserves identity and invalidation semantics, and
@@ -218,8 +250,9 @@ materially changes the product boundary:
 - TypeScript parity, declaration-file compatibility, or a general-purpose type
   language covering generics, inheritance, decorators, and every library type.
 - A Resilient-owned runtime schema or annotation language.
-- Whole-program proof, arbitrary dynamic-value prediction, or elimination of
-  all runtime validation and tests.
+- Whole-program proof, arbitrary dynamic-value prediction, or runtime data
+  evaluation and validation.
+- A Resilient runtime package dependency in a client application.
 - Ownership of React, JSX, framework routing, accessibility, product naming,
   or application architecture.
 - Guessing unresolved dynamic imports, external APIs, or filesystem behavior

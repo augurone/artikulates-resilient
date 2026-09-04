@@ -2,8 +2,8 @@
 
 Before changing code, read:
 
-- [docs/semantics.md](../docs/semantics.md)
-- [docs/CODING_STANDARDS.md](../docs/CODING_STANDARDS.md)
+- [docs/reference/semantics.md](../docs/reference/semantics.md)
+- [docs/ai/CODING_STANDARDS.md](../docs/ai/CODING_STANDARDS.md)
 - [AGENTS.md](../AGENTS.md)
 
 Those files define the dialect, operational examples, and agent workflow. Do

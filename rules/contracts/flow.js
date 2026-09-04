@@ -789,7 +789,7 @@ const analyzer = {
 
         if (!finalizerType) return {
             context: joinedContext,
-            reachable: paths.length > 0
+            reachable: !!paths.length
         };
 
         return analyzer.statement({ state, node: safeFinalizer, context: joinedContext });

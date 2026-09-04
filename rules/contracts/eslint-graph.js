@@ -19,6 +19,7 @@ import { getObject, isObject } from '../support/object.js';
 
 const resolverIds = new WeakMap();
 const programIds = new WeakMap();
+const evidenceIndexes = new WeakMap();
 let nextResolverId = 0;
 let nextProgramId = 0;
 
@@ -421,6 +422,86 @@ const clearContractCaches = () => {
     clearProgramCache();
 };
 
+const getEvidenceIndex = (document = {}) => {
+    const existing = evidenceIndexes.get(document);
+
+    if (existing) return existing;
+
+    const { getEvidence: readEvidence = () => [] } = getObject(document);
+    const records = readEvidence();
+    const index = {
+        records,
+        byId: new Map(records.map((record = {}) => {
+            const { id = '' } = record;
+
+            return [id, record];
+        }))
+    };
+
+    // eslint-disable-next-line resilient/prefer-safe-transformations -- This WeakMap caches immutable document evidence for repeated diagnostics.
+    evidenceIndexes.set(document, index);
+
+    return index;
+};
+
+const getEvidenceTrail = ({ id = '', recordsById = new Map(), visited = new Set() } = {}) => {
+    if (!id || visited.has(id)) return [];
+
+    const nextVisited = new Set([...visited, id]);
+    const record = recordsById.get(id);
+    const { derivesFrom = [] } = getObject(record);
+
+    return [
+        ...(record ? [record] : []),
+        ...derivesFrom.flatMap(parent => getEvidenceTrail({
+            id: parent,
+            recordsById,
+            visited: nextVisited
+        }))
+    ];
+};
+
+const getEvidenceHint = ({ diagnostic = {}, document = {} } = {}) => {
+    const { evidenceIds = [] } = getObject(diagnostic);
+
+    if (!Array.isArray(evidenceIds) || !evidenceIds.length) return '';
+
+    const {
+        byId: recordsById = new Map()
+    } = getEvidenceIndex(document);
+    const trail = evidenceIds.flatMap(id => getEvidenceTrail({ id, recordsById }));
+    const sourceRecord = trail.find(({ fact = {} } = {}) => {
+        const { subject = '' } = fact;
+
+        return subject.startsWith('AssignmentPattern@');
+    }) || trail.find(({ kind = '' } = {}) => kind === 'guard') || trail.find(({
+        kind = ''
+    } = {}) => kind === 'syntax') || {};
+    const {
+        kind = '',
+        fact = {},
+        source: {
+            loc: {
+                start: {
+                    line = 0
+                } = {}
+            } = {}
+        } = {}
+    } = sourceRecord;
+    const { subject = '' } = fact;
+    const getLabel = () => {
+        if (subject.startsWith('AssignmentPattern@')) return 'default';
+
+        if (kind === 'guard') return 'guard';
+
+        return 'source';
+    };
+    const label = getLabel();
+    const location = line ? ` at line ${line}` : '';
+
+    return ` (static evidence: ${label}${location})`;
+};
+
 const getEslintContractDiagnostics = ({
     context = {},
     program = {},
@@ -437,9 +518,29 @@ const getEslintContractDiagnostics = ({
     });
     const document = graph.getDocument(fileName);
     const { getDiagnostics = () => [] } = getObject(document);
+    const { settings = {} } = context;
+    const { resilient = {} } = settings;
+    const { evidenceMessages = true } = resilient;
 
     return getDiagnostics()
-        .filter(({ ruleId: diagnosticRuleId = '' } = {}) => diagnosticRuleId === ruleId);
+        .filter(({ ruleId: diagnosticRuleId = '' } = {}) => diagnosticRuleId === ruleId)
+        .map((diagnostic = {}) => {
+            const { data = {}, messageId = '' } = getObject(diagnostic);
+            const evidenceHint = evidenceMessages === true
+                ? getEvidenceHint({ diagnostic, document })
+                : '';
+
+            return {
+                ...diagnostic,
+                ...(evidenceHint && messageId && {
+                    messageId: `${messageId}WithEvidence`
+                }),
+                data: {
+                    ...data,
+                    evidenceHint
+                }
+            };
+        });
 };
 
 export {

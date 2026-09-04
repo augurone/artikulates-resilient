@@ -20,12 +20,34 @@ this package.
 
 The distinction between the project-wide source index and the dependency
 closure that is actually analyzed is defined in
-[`docs/tree-resolution.md`](docs/tree-resolution.md). Unused indexed files do
+[`docs/reference/tree-resolution.md`](docs/reference/tree-resolution.md). Unused indexed files do
 not become part of an Active Tree automatically.
 
 Resilient is not a runtime validator and it does not own framework concerns.
 Import policy and application architecture remain project rules layered on top
 of Resilient.
+
+For the practical workflow for explaining a highlighted finding, see
+[`docs/guide/diagnostic-explanations.md`](docs/guide/diagnostic-explanations.md). The
+contract diagnostics add one concise static evidence hint by default when
+evidence is available; projects that want only the original wording can opt
+out, while the full derivation chain remains available through the inspector
+and contracts API.
+
+## Documentation map
+
+The [documentation index](docs/) organizes the project by audience:
+
+- [Guides](docs/guide/) cover adoption, migration, diagnostic explanations,
+  and objections.
+- [Reference](docs/reference/) defines the dialect, analyzer API, and tree
+  behavior; [rule pages](docs/rules/) remain a stable top-level namespace.
+- [AI material](docs/ai/) contains the concise standards and learning
+  evaluation protocol.
+- [Engineering material](docs/engineering/) contains evidence design, corpus,
+  benchmarks, and roadmap documents.
+- The technical [Code Is the Contract](docs/engineering/the-code-is-the-contract.md)
+  model is separate from the readable [blog version](docs/blogs/blog-the-code-is-the-contract.md).
 
 ## Why Resilient?
 
@@ -54,8 +76,8 @@ The guarantee is specific and observable:
 
 Runtime API data, database records, configuration, third-party implementations,
 dynamic imports and properties, unresolved modules, unsupported effects, and
-incomplete evidence remain unknown. Runtime validation, normalization, and
-explicit adapters own those boundaries.
+incomplete evidence remain unknown. Runtime data handling belongs to the
+owning application boundary and is outside Resilient.
 
 ## Install
 
@@ -150,7 +172,7 @@ boundary is the source of truth. If another consumer independently requires
 that syntax, use that consumer's own tool at its boundary.
 
 The dialect semantics behind those rules are defined in
-[`docs/semantics.md`](docs/semantics.md). The analyzer remains conservative:
+[`docs/reference/semantics.md`](docs/reference/semantics.md). The analyzer remains conservative:
 it reports contradictions supported by evidence and leaves unknown values
 unknown.
 
@@ -190,7 +212,7 @@ their prior contract documents, while changed files and affected dependents
 are recomputed.
 
 Known contradictions are reported. Unknown values remain unknown, so external
-data still belongs to runtime validation, normalization, and tests. Known
+data remains outside Resilient's runtime analysis. Known
 return paths must agree on one value family; incompatible paths are reported by
 `signature-contract-return-consistency` rather than widened into a union.
 
@@ -205,6 +227,7 @@ const document = createContractDocument(program);
 const contract = document.getContractAtOffset(offset);
 const signature = document.getSignatureAtOffset(offset);
 const stack = document.getStackAtOffset(offset);
+const evidence = document.getEvidenceAtOffset(offset);
 ```
 
 `createContractDocument` builds an offset index for editor or CLI adapters.
@@ -221,8 +244,21 @@ items.toUpperCase(); // reported when items is array-like
 `getStackAtOffset` exposes the file, enclosing functions, and expression under
 the offset, with inferred contracts on the relevant frames. The package does
 not include an LSP protocol adapter or a built-in resolver for package aliases
-or dynamic imports. Proposed extensions are listed in the
-[`roadmap`](docs/roadmap.md).
+or dynamic imports. `getEvidence()` exposes stable, AST-free provenance for
+static source facts; it can show how a default, guard, operation, alias, or
+return path supports a contract. External SDK calls remain unknown boundary
+records and are never evaluated at runtime. Proposed extensions are listed in the
+[`roadmap`](docs/engineering/roadmap.md).
+
+The same analysis surface is available as the published `resilient-inspect`
+binary after installing the package:
+
+```bash
+npx resilient-inspect src/page.js --find "items.toUpperCase" --diagnostics --evidence
+```
+
+It is a one-shot source inspection tool, not a runtime evaluator or a second
+lint engine.
 
 For generic import-tree correctness, Resilient also exposes an `imports`
 preset backed by `eslint-plugin-import`:
@@ -315,13 +351,17 @@ the core to an editor or to ESLint; no such adapter is included here.
 ## Rule documentation
 
 Individual rule behavior and examples are in [docs/rules](docs/rules/).
-The migration playbook is in [docs/migration-playbook.md](docs/migration-playbook.md)
+The migration playbook is in [docs/guide/migration-playbook.md](docs/guide/migration-playbook.md)
 and gives a rule-by-rule adoption path plus a future fix backbone.
-The concise discipline is in [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md).
-The contract model is described in [docs/contracts.md](docs/contracts.md), and
-the dialect semantics are in [docs/semantics.md](docs/semantics.md). The design
-rationale is in [docs/the-code-is-the-contract.md](docs/the-code-is-the-contract.md),
-objections are addressed in [docs/overcoming-objections.md](docs/overcoming-objections.md),
+The diagnostic corpus and test classification are in
+[docs/engineering/diagnostic-corpus.md](docs/engineering/diagnostic-corpus.md).
+The agent-learning evaluation protocol is in
+[docs/ai/agent-learning-evaluation.md](docs/ai/agent-learning-evaluation.md).
+The concise discipline is in [docs/ai/CODING_STANDARDS.md](docs/ai/CODING_STANDARDS.md).
+The contract model is described in [docs/reference/contracts.md](docs/reference/contracts.md), and
+the dialect semantics are in [docs/reference/semantics.md](docs/reference/semantics.md). The design
+rationale is in [docs/engineering/the-code-is-the-contract.md](docs/engineering/the-code-is-the-contract.md),
+objections are addressed in [docs/guide/overcoming-objections.md](docs/guide/overcoming-objections.md),
 and release history is recorded in [CHANGELOG.md](CHANGELOG.md).
 
 ## Development
@@ -331,9 +371,11 @@ npm test
 npm run lint
 npm run fixtures:check
 npm run release:check
+npm run consumer:check
 npm run benchmark
 npx eslint tests/fixtures/bad.js --no-ignore --no-warn-ignored
 npm run inspect:stack -- tests/fixtures/bad.js --find "getItems({}).toUpperCase" --diagnostics
+npx resilient-inspect tests/fixtures/bad.js --find "getItems({}).toUpperCase" --diagnostics --evidence
 ```
 
 `npm run lint` prints the dependency freshness report after the lint pass. The
@@ -341,6 +383,11 @@ post-lint `npm outdated --long` report is informational: stale dependencies
 remain visible without turning an otherwise successful lint run red. The report
 also runs during `npm run release:check`, because release verification invokes
 the lint script.
+`npm run consumer:check` packs the repository, installs the generated tarball
+into a temporary consumer with the supported ESLint peer, verifies the direct
+contracts export, checks both a clean and a diagnostic-producing lint run, and
+executes the published inspector entry point. Release verification runs this
+packed-consumer check as well.
 
 The aggregate lint command excludes the deliberately invalid
 `tests/fixtures` directory; run `npx eslint tests/fixtures/bad.js --no-ignore

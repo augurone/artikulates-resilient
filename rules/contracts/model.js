@@ -407,6 +407,7 @@ export {
     contract,
     describe,
     getKind,
+    getContractShape,
     isEqual,
     isCompatible,
     isContradictory,

@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
@@ -129,7 +131,8 @@ const simplifyFrame = ({
     loc = {},
     signature: { contract: { kind: parameterKind = 'unknown' } = {} } = {},
     returnContract: { kind: returnKind = 'unknown' } = {},
-    contract: { kind: expressionKind = 'unknown' } = {}
+    contract: { kind: expressionKind = 'unknown' } = {},
+    evidenceIds = []
 } = {}) => {
     return {
         kind,
@@ -141,7 +144,8 @@ const simplifyFrame = ({
             parameterContract: parameterKind,
             returnContract: returnKind
         }),
-        ...(kind === 'expression' && { contract: expressionKind })
+        ...(kind === 'expression' && { contract: expressionKind }),
+        ...(Array.isArray(evidenceIds) && { evidenceIds: [...evidenceIds] })
     };
 };
 
@@ -150,12 +154,14 @@ const simplifyDiagnostic = ({
     message = '',
     range = [],
     loc = {},
+    evidenceIds = [],
     stack: { frames = [] } = {}
 } = {}) => ({
     ruleId,
     message,
     range,
     loc,
+    evidenceIds,
     stack: frames.map(simplifyFrame)
 });
 
@@ -164,7 +170,7 @@ const run = async () => {
     const [fileName = '', ...options] = commandLine;
 
     if (!fileName) {
-        process.stderr.write('Usage: node scripts/inspect-stack.js <file> [--find text | --offset number]\n');
+        process.stderr.write('Usage: node scripts/inspect-stack.js <file> [--find text | --offset number] [--diagnostics] [--evidence]\n');
         process.exit(1);
 
         return;
@@ -189,13 +195,20 @@ const run = async () => {
     const document = graph.getDocument(rootDisplayName);
     const stack = document.getStackAtOffset(offset);
     const { frames = [] } = stack;
-    const { getDiagnosticsAtOffset = false } = document;
+    const {
+        getDiagnosticsAtOffset = false,
+        getEvidenceAtOffset = false
+    } = document;
     const includeDiagnostics = options.includes('--diagnostics');
+    const includeEvidence = options.includes('--evidence');
     const result = {
         offset,
         stack: frames.map(simplifyFrame),
         ...(includeDiagnostics && {
             diagnostics: getDiagnosticsAtOffset.call(document, offset).map(simplifyDiagnostic)
+        }),
+        ...(includeEvidence && {
+            evidence: getEvidenceAtOffset.call(document, offset)
         })
     };
     process.stdout.write(`${JSON.stringify(result, null, 4)}\n`);
