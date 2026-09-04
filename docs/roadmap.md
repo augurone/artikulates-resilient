@@ -99,7 +99,7 @@ rest continues to preserve open passthrough rather than inventing a finding.
 - [ ] Add a repeatable real-project benchmark with clearly named fresh and
   reused samples. Keep synthetic fixture measurements separate from the real
   project comparison and do not publish unsupported percentage claims.
-- [ ] Harden release and compatibility behavior: stable public contracts,
+- [x] Harden release and compatibility behavior: stable public contracts,
   semver notes, package contents, clean-run equivalence, and CI verification.
 - [ ] Use consumer feedback to revisit mutation false positives and the
   ergonomics of explicit boundary exceptions.
