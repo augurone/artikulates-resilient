@@ -37,6 +37,7 @@ const getProgram = async (code = '', file = '') => {
     });
 
     await eslint.lintText(code, { filePath: file });
+
     return program;
 };
 

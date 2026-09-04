@@ -12,11 +12,6 @@ export default [
     resilient.configs.contracts,
     resilient.configs.safety,
     {
-        rules: {
-            'resilient/signature-contract-return-consistency': 'error'
-        }
-    },
-    {
         files: ['**/*.js'],
         languageOptions: {
             ecmaVersion: 'latest',
@@ -48,7 +43,20 @@ export default [
             'arrow-parens': ['error', 'as-needed', { requireForBlockBody: true }],
             'implicit-arrow-linebreak': 'error',
             'max-len': ['error', { code: 200, tabWidth: 4 }],
-            'no-multiple-empty-lines': 'error',
+            'no-multiple-empty-lines': ['error', { max: 1, maxEOF: 0, maxBOF: 0 }],
+            'no-trailing-spaces': 'error',
+            'no-multi-spaces': 'error',
+            'no-mixed-spaces-and-tabs': 'error',
+            'eol-last': ['error', 'always'],
+            'padded-blocks': ['error', { blocks: 'never', classes: 'never', switches: 'never' }],
+            'padding-line-between-statements': [
+                'error',
+                { blankLine: 'always', prev: '*', next: 'if' },
+                { blankLine: 'always', prev: 'if', next: '*' },
+                { blankLine: 'always', prev: '*', next: 'return' },
+                { blankLine: 'never', prev: 'return', next: 'return' }
+            ],
+            'no-useless-return': 'error',
             'no-plusplus': ['error', { allowForLoopAfterthoughts: true }],
             'object-curly-newline': ['error', { consistent: true }],
             'object-curly-spacing': ['error', 'always'],
@@ -101,16 +109,6 @@ export default [
                     message: 'Classes are forbidden. Use function expressions instead.'
                 }
             ]
-        }
-    },
-    {
-        files: ['rules/**/*.js', 'scripts/**/*.js', 'tests/**/*.js'],
-        rules: {
-            // The analyzer implementation and its fixtures intentionally use
-            // open AST/options objects that the consumer-facing contract rules
-            // are designed to check.
-            'resilient/signature-contract-call-site': 'off',
-            'resilient/signature-contract-property': 'off'
         }
     }
 ];

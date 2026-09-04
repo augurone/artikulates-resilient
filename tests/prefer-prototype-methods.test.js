@@ -1,6 +1,23 @@
+import assert from 'node:assert/strict';
+
 import { RuleTester } from 'eslint';
 
 import rule from '../rules/prefer-prototype-methods.js';
+import { hasLoopControl } from '../rules/support/loop-analysis.js';
+
+const incompleteLabeledLoop = {
+    type: 'ForStatement',
+    body: {
+        type: 'BreakStatement',
+        label: { type: 'Identifier', name: 'outer' },
+        parent: {
+            type: 'LabeledStatement',
+            label: { type: 'Identifier', name: 'outer' }
+        }
+    }
+};
+
+assert.equal(hasLoopControl(incompleteLabeledLoop), false);
 
 const ruleTester = new RuleTester({
     languageOptions: {

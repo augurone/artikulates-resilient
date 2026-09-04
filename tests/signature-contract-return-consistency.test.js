@@ -47,6 +47,13 @@ ruleTester.run('signature-contract-return-consistency', rule, {
                 { messageId: 'inconsistent' },
                 { messageId: 'inconsistent' }
             ]
+        },
+        {
+            code: 'const getValue = async (enabled = false) => { if (enabled) return []; return ""; };',
+            errors: [
+                { messageId: 'inconsistent' },
+                { messageId: 'inconsistent' }
+            ]
         }
     ]
 });

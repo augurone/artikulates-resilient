@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.6.2 — 2026-09-03
+
+- Removed the accidental self-analysis exemption for the contract rules;
+  Resilient now lint-checks its own source, scripts, and tests under the same
+  contract preset used by consumers.
+- Removed the redundant standalone return-consistency configuration because
+  that rule is already included in `resilient.configs.contracts`.
+- Corrected empty-object default inference so an undeclared defaulted object
+  binding remains an open, unknown-preserving boundary instead of becoming a
+  falsely closed empty object.
+- Preserved explicit named-property and object-rest semantics while carrying
+  open object contracts through conditional expressions, logical fallbacks,
+  aliases, calls, and returned values.
+- Replaced internal no-op callback defaults with explicit guards where the
+  callback is optional, keeping analyzer and rule implementation behavior
+  aligned with the dialect's callback policy.
+- Centralized object-record validation in the shared `isObject` and
+  `hasObjectValue` utilities instead of repeating weak `typeof` checks.
+- Extended `no-null-assignment` to report explicit nulls inside assigned
+  conditional, logical, object, array, and nested-assignment expressions.
+- Added regression coverage for open defaults and passthrough call sites.
+- Added the repository formatting contract to both the exported recommended
+  config and the local ESLint config: autofixable whitespace and final-newline
+  cleanup, tight function and control-flow braces, padding after `if`
+  statements, padding before returns, and redundant-return rejection.
+- Expanded `tests/fixtures/bad.js` and the existing rule tests across aliases,
+  higher-order calls, arity, excess properties, operation mismatches, property
+  access, and asynchronous return contradictions; fixture coverage now verifies
+  all 22 public rule highlights and 5 integration fixtures.
+- Clarified that statically named missing properties are contract violations,
+  while computed property keys remain data-driven; computed destructuring with
+  an explicit default is valid boundary code.
+- Strengthened `prefer-destructured-member-access` to inspect nested
+  destructured bindings, local bindings, and computed member lookups; prototype
+  operations remain explicit exceptions.
+
 ## 0.6.1 — 2026-09-02
 
 - Added a rule-by-rule migration playbook in `docs/migration-playbook.md` to

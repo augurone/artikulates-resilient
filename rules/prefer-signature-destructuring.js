@@ -24,18 +24,20 @@ const isPassedLater = ({
     name === paramName && start > getSourceEnd(node)
 ));
 
-const isWholeObjectPassThrough = ({ violation = {}, functionNode = {} } = {}) => {
-    const {
+const isWholeObjectPassThrough = ({
+    violation: {
         init = {},
         paramName = '',
-        paramNode = {}
-    } = violation;
-
+        paramNode = {},
+        node: violationNode = {}
+    } = {},
+    functionNode = {}
+} = {}) => {
     return hasWholeObjectReference({
         node: functionNode,
         name: paramName,
         excludedNodes: [paramNode, init],
-        afterNode: violation.node
+        afterNode: violationNode
     });
 };
 
@@ -44,7 +46,7 @@ const reportViolation = ({
     calls = [],
     functionNode = {},
     sourceCode = {},
-    report = () => {}
+    report
 } = {}) => {
     const {
         node = {},
@@ -52,7 +54,10 @@ const reportViolation = ({
     } = violation;
 
     if (isPassedLater({ node, paramName, calls })) return;
+
     if (isWholeObjectPassThrough({ violation, functionNode })) return;
+
+    if (typeof report !== 'function') return;
 
     report({
         node,
@@ -126,6 +131,7 @@ export default {
 
                 paramNames.forEach((name = '') => {
                     if (!nodeArguments.some((argument = {}) => containsIdentifier({ node: argument, name }))) return;
+
                     const currentIndex = functionStack.length - 1;
                     functionStack = [
                         ...functionStack.slice(0, currentIndex),
@@ -154,6 +160,7 @@ export default {
                 const safeInit = init ?? {};
 
                 if (!isDestructuringFromParam({ id, init: safeInit }, paramNames)) return;
+
                 const { name: paramName = '' } = safeInit;
                 const { node: paramNode = {} } = params.find(({ name = '' } = {}) => name === paramName) ?? {};
                 const currentIndex = functionStack.length - 1;

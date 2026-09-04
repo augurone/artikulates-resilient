@@ -66,9 +66,19 @@ expression inference, and explicit optional-callback guards. Object-rest
 passthrough and default-based absence semantics remain native JavaScript
 contracts rather than annotation features.
 
+## 0.6.2 — self-analysis and open-boundary correctness
+
+The 0.6.2 patch release restores the contract rules for the Resilient source,
+scripts, and tests. It also corrects empty-object default inference so an
+undeclared defaulted object binding remains safely open, while explicit named
+properties and object-rest exclusions retain their intended contract meaning.
+The release adds regression coverage for both open defaults and passthrough
+calls. No roadmap capability is being claimed here; this is release-hardening
+of the existing contract model.
+
 ## 0.6.x — prove the signal and stabilize the contract
 
-This is the immediate priority after the 0.6.0 release. The goal is to
+This remains the immediate priority after the 0.6.2 release. The goal is to
 establish whether the analyzer helps on real code before adding more
 inference.
 

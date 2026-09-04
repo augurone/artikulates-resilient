@@ -26,13 +26,16 @@ const fail = (message) => {
 
 const parseVersion = (version = '') => {
     const match = /^([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z.-]+))?$/.exec(version);
+
     if (!match) fail(`Invalid semantic version: ${version}`);
 
+    const [, majorText = '', minorText = '', patchText = '', prerelease = ''] = match;
+
     return {
-        major: Number(match[1]),
-        minor: Number(match[2]),
-        patch: Number(match[3]),
-        prerelease: match[4] || ''
+        major: Number(majorText),
+        minor: Number(minorText),
+        patch: Number(patchText),
+        prerelease
     };
 };
 
@@ -41,19 +44,29 @@ const compareVersions = (left = '', right = '') => {
     const b = parseVersion(right);
 
     for (const key of ['major', 'minor', 'patch']) {
-        if (a[key] !== b[key]) return a[key] - b[key];
+        const { [key]: leftValue = 0 } = a;
+        const { [key]: rightValue = 0 } = b;
+
+        if (leftValue !== rightValue) return leftValue - rightValue;
     }
 
-    if (!a.prerelease && b.prerelease) return 1;
-    if (a.prerelease && !b.prerelease) return -1;
-    return a.prerelease.localeCompare(b.prerelease);
+    const { prerelease: leftPrerelease = '' } = a;
+    const { prerelease: rightPrerelease = '' } = b;
+
+    if (!leftPrerelease && rightPrerelease) return 1;
+
+    if (leftPrerelease && !rightPrerelease) return -1;
+
+    return leftPrerelease.localeCompare(rightPrerelease);
 };
 
 const incrementVersion = ({ version = '', releaseType = 'patch' } = {}) => {
     const { major = 0, minor = 0, patch = 0 } = parseVersion(version);
 
     if (releaseType === 'major') return `${major + 1}.0.0`;
+
     if (releaseType === 'minor') return `${major}.${minor + 1}.0`;
+
     return `${major}.${minor}.${patch + 1}`;
 };
 
@@ -64,15 +77,20 @@ const setPackageVersion = ({ version = '' } = {}) => {
     write(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`);
 
     const sourcePackageLock = JSON.parse(read(packageLockPath));
+    const { packages: sourcePackages = {} } = sourcePackageLock;
+    const { packages: packageEntries = false } = sourcePackageLock;
+    const { '': rootPackageEntry = false } = sourcePackages;
+    const hasPackages = !!packageEntries;
+    const hasRootPackage = !!rootPackageEntry;
     const packageLock = {
         ...sourcePackageLock,
         version,
-        ...(sourcePackageLock.packages && {
+        ...(hasPackages && {
             packages: {
-                ...sourcePackageLock.packages,
-                ...(sourcePackageLock.packages[''] && {
+                ...sourcePackages,
+                ...(hasRootPackage && {
                     '': {
-                        ...sourcePackageLock.packages[''],
+                        ...rootPackageEntry,
                         version
                     }
                 })
@@ -84,14 +102,18 @@ const setPackageVersion = ({ version = '' } = {}) => {
 
 const getPackageLockVersion = () => {
     const packageLock = JSON.parse(read(packageLockPath));
-    return packageLock.packages && packageLock.packages['']
-        ? packageLock.packages[''].version
-        : '';
+    const { packages = {} } = packageLock;
+    const { '': rootPackage = {} } = packages;
+    const { version = '' } = rootPackage;
+
+    return version;
 };
 
 const getIndexVersion = () => {
     const match = /version:\s*['"]([^'"]+)['"]/.exec(read(indexPath));
-    return match ? match[1] : '';
+    const [, version = ''] = match ?? [];
+
+    return version;
 };
 
 const assertConsistency = () => {
@@ -101,16 +123,18 @@ const assertConsistency = () => {
     const changelog = read(changelogPath);
 
     if (!packageLockVersion) fail('Could not find the root package version in package-lock.json.');
+
     if (packageVersion !== packageLockVersion) {
         fail(`package.json (${packageVersion}) and package-lock.json (${packageLockVersion}) differ.`);
     }
+
     if (packageVersion !== indexVersion) {
         fail(`package.json (${packageVersion}) and index.js (${indexVersion}) differ.`);
     }
+
     if (!changelog.includes(`## ${packageVersion}`)) {
         fail(`CHANGELOG.md has no heading for ${packageVersion}.`);
     }
-
 };
 
 const verify = () => {
@@ -132,15 +156,18 @@ const getDate = () => new Date().toISOString().slice(0, 10);
 const getPromotedChangelog = ({ version = '' } = {}) => {
     const changelog = read(changelogPath);
     const match = /^## Unreleased\s*\n\s*\n([\s\S]*?)(?=\n## |\s*$)/m.exec(changelog);
+    const [fullMatch = '', unreleased = ''] = match ?? [];
 
-    if (!match || !match[1].trim()) {
+    if (!fullMatch || !String.prototype.trim.call(unreleased)) {
         fail('CHANGELOG.md needs a non-empty ## Unreleased section before preparing a release.');
     }
 
-    const release = `## ${version} — ${getDate()}\n\n${match[1].trim()}\n\n`;
+    const release = `## ${version} — ${getDate()}\n\n${String.prototype.trim.call(unreleased)}\n\n`;
     const replacement = `## Unreleased\n\n${release}`;
 
-    return changelog.replace(match[0], replacement);
+    const { replace = false } = changelog;
+
+    return replace.call(changelog, fullMatch, replacement);
 };
 
 const prepare = ({ version = '' } = {}) => {
@@ -172,23 +199,27 @@ const main = () => {
 
     if (first === '--check') {
         verify();
+
         return;
     }
 
     if (!length) {
         const { version = '' } = getPackage();
         prepare({ version: incrementVersion({ version }) });
+
         return;
     }
 
     if (['major', 'minor', 'patch'].includes(first)) {
         const { version = '' } = getPackage();
         prepare({ version: incrementVersion({ version, releaseType: first }) });
+
         return;
     }
 
     if (length === 1) {
         prepare({ version: first });
+
         return;
     }
 

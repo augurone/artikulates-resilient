@@ -24,14 +24,58 @@ tests first. Update documentation only when the behavior is intentional.
 - Use existing ECMAScript syntax as the project’s value and behavior language.
 - Treat executable signatures, defaults, operations, control flow, and returns
   as contract evidence.
+- Destructure the fields a function needs in its signature whenever the
+  boundary is known; do not accept an opaque object and unpack it later.
 - Report known contradictions; preserve unknown values as unknown.
 - Keep runtime validation and normalization at external boundaries.
 - Keep transformation policy separate from analyzer inference: understanding a
   rejected update does not approve it.
 - Respect external callback signatures, full-object forwarding, dynamic APIs,
   platform objects, draft boundaries, and meaningful sequential async work.
-- Do not add a parallel annotation language, runtime schema system, or required
-  dependency on `eslint-plugin-functional`.
+- Do not add a parallel annotation language, a Resilient-owned runtime schema
+  language, or a required dependency on `eslint-plugin-functional`. Runtime
+  validators and schemas remain valid when they have an independent boundary
+  job such as falsifying or normalizing external data.
+
+## Rule enforcement is non-negotiable
+
+The repository is dogfooded. Every source file, including the analyzer, support
+code, scripts, and tests, must pass the configured rules. A diagnostic shown by
+the editor but absent from the CLI is a tooling defect to investigate, not a
+warning to ignore.
+
+Exceptions are never global by default. An exception must be written at the
+narrowest possible location in the file with the rule's supported syntax. For
+ordinary rule exceptions, that means an adjacent `eslint-disable-next-line` or
+a tightly scoped `eslint-disable`/`eslint-enable` pair and a concrete reason
+that identifies the boundary being protected. The loop rule has one explicit
+file-local marker, `// resilient-allow-loop: reason`, for retained loops that
+do not have native `await` or direct loop-control semantics. A bare disable, an
+unexplained exception, a file-wide disable for convenience, or a config-level
+override is invalid.
+
+Before accepting an exception, check whether the code can instead be repaired
+with a complete destructured signature, a shared `isObject`, `getObject`, or
+`hasObjectValue` utility, a returned transformation, or an explicit boundary
+model. Defaults used for existence lookups must be falsey; never use `{}` as a
+missing-value sentinel and then test it as a boolean. External and dynamic
+boundaries may remain unknown, but the internal
+code handling them still follows the rules.
+
+When lint output contains errors, completion is blocked. Do not report the
+project as clean because a subset of files, fixtures, or a different installed
+package passed. Run the repository lint command and inspect suppressed messages
+as well as ordinary errors. Severity remains meaningful: error-level diagnostics
+fail the repository lint command, while warning-level diagnostics remain
+advisory. The safety preset's `prefer-async-await` rule is intentionally
+warning-level and does not fail the build.
+
+Whitespace is also enforced. Keep function and control-flow braces tight: do
+not add blank lines immediately after an opening brace or before its closing
+brace. Separate the meaningful stages after an `if` statement and place top
+padding before return statements. ESLint autofixes trailing spaces, repeated or
+mixed horizontal spaces, final-newline errors, and excess blank lines. Do not
+use a formatter change to hide a semantic diagnostic.
 
 ## Rule development
 

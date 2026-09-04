@@ -1,4 +1,5 @@
 import { getEnclosingFunction, walk } from './contracts/infer.js';
+import { getObject } from './support/object.js';
 
 const isAssignmentPattern = ({ type = '' } = {}) => type === 'AssignmentPattern';
 
@@ -8,51 +9,68 @@ const isUseStateResult = ({ parent = {} } = {}) => {
     const {
         type = '',
         id = {},
-        init: {
-            type: initType = '',
-            callee: {
-                type: calleeType = '',
-                name = ''
-            } = {}
-        } = {}
-    } = parent;
+        init = {}
+    } = getObject(parent);
+    const { type: idType = '' } = getObject(id);
+    const {
+        type: initType = '',
+        callee = {}
+    } = getObject(init);
+    const {
+        type: calleeType = '',
+        name = ''
+    } = getObject(callee);
 
     return (
         type === 'VariableDeclarator' &&
-        id.type === 'ArrayPattern' &&
+        idType === 'ArrayPattern' &&
         initType === 'CallExpression' &&
         calleeType === 'Identifier' &&
         name === 'useState'
     );
 };
 
-const isDirectlyInvoked = ({ node = {} } = {}) => {
-    const { value = {} } = node;
-    if (value.type !== 'Identifier') return false;
+const isDirectlyInvoked = ({
+    node: {
+        value: {
+            type: valueType = '',
+            name: valueName = ''
+        } = {},
+        parent = {}
+    } = {}
+} = {}) => {
+    if (valueType !== 'Identifier') return false;
 
-    const functionNode = getEnclosingFunction({ parent: node.parent });
-    if (!functionNode.body) return false;
+    const functionNode = getEnclosingFunction({ parent });
+    const { body: functionBody = {} } = functionNode;
+
+    if (!functionBody) return false;
 
     let invoked = false;
-    walk(functionNode.body, ({
+    walk(functionBody, ({
         type = '',
         callee: {
             type: calleeType = '',
             name = ''
         } = {}
     } = {}) => {
-        if (type === 'CallExpression' && calleeType === 'Identifier' && name === value.name) {
+        if (type === 'CallExpression' && calleeType === 'Identifier' && name === valueName) {
             invoked = true;
         }
     }, { skipFunctions: true });
+
     return invoked;
 };
 
-const reportMissingDefault = ({ node = {}, report = () => {} } = {}) => {
-    if (!node) return;
-    const { value = node } = node;
+const reportMissingDefault = ({ node = {}, report } = {}) => {
+    const { value: sourceValue = node, parent = {} } = getObject(node);
+    const value = getObject(sourceValue);
+
     if (isAssignmentPattern(value) || isRestElement(value)) return;
-    if (isDirectlyInvoked({ node })) return;
+
+    if (isDirectlyInvoked({ node: { value, parent } })) return;
+
+    if (typeof report !== 'function') return;
 
     report({
         node: value,
@@ -80,8 +98,7 @@ export default {
                     report
                 });
             },
-            ArrayPattern(node = {}) {
-                const { elements = [] } = node;
+            ArrayPattern({ elements = [], ...node } = {}) {
                 if (isUseStateResult(node)) return;
 
                 elements

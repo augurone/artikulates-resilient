@@ -9,9 +9,12 @@ const isUndefinedIdentifier = (node = {}) => {
     );
 };
 
-const reportUndefinedAssignment = ({ node = {}, report = () => {} } = {}) => {
+const reportUndefinedAssignment = ({ node = {}, report } = {}) => {
     const safeNode = node ?? {};
+
     if (!isUndefinedIdentifier(safeNode)) return;
+
+    if (typeof report !== 'function') return;
 
     report({
         node: safeNode,

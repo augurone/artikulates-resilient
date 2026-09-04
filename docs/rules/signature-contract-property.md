@@ -16,8 +16,19 @@ getUser().nmae; // reported
 ```
 
 The rule also checks known object properties carried through local aliases and
-returns. Open residual objects, unknown external values, dynamic properties,
-and platform objects remain unknown rather than producing a guessed finding.
-Inherited `Object.prototype` members are allowed.
+returns. A statically named access such as `user.nmae` is a source-code
+contract violation when the known object contains `name` but not `nmae`.
+
+Computed member keys are data, not statically named properties. The rule does
+not guess that `user[propertyName]` is a misspelling. For a data-driven read,
+prefer computed destructuring with an explicit default:
+
+```javascript
+const { [propertyName]: name = '' } = knownUser;
+```
+
+Open residual objects, unknown external values, and platform objects remain
+unknown rather than producing a guessed finding. Inherited `Object.prototype`
+members are allowed.
 
 This is an opt-in contract rule enabled by `resilient.configs.contracts`.

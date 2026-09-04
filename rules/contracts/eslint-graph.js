@@ -15,29 +15,40 @@ import {
     getProgramCacheSize
 } from './program-cache.js';
 import { createProjectTree } from './project-tree.js';
+import { getObject, isObject } from '../support/object.js';
 
 const resolverIds = new WeakMap();
-let nextResolverId = 0;
 const programIds = new WeakMap();
+let nextResolverId = 0;
 let nextProgramId = 0;
 
-const getResolverId = (resolver = null) => {
+const getResolverId = (resolver) => {
     if (typeof resolver !== 'function') return 0;
+
     const existingId = resolverIds.get(resolver);
+
     if (existingId) return existingId;
+
     nextResolverId += 1;
+
     // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap identity indexing is an internal resolver boundary.
     resolverIds.set(resolver, nextResolverId);
+
     return nextResolverId;
 };
 
 const getProgramId = (program = {}) => {
-    if (!program || typeof program !== 'object') return 0;
+    if (!isObject(program)) return 0;
+
     const existingId = programIds.get(program);
+
     if (existingId) return existingId;
+
     nextProgramId += 1;
+
     // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap identity indexing is an internal AST boundary.
     programIds.set(program, nextProgramId);
+
     return nextProgramId;
 };
 
@@ -51,12 +62,14 @@ const getExistingFile = (fileName = '') => {
 
 const resolveLocalImport = ({ from = '', source = '' } = {}) => {
     if (!from || from.startsWith('<') || !source.startsWith('.')) return '';
+
     const base = path.resolve(path.dirname(from), source);
     const candidates = [base, `${base}.js`, `${base}.jsx`, path.join(base, 'index.js')];
+
     return candidates.map(getExistingFile).find(Boolean) || '';
 };
 
-const getConfiguredResolver = ({ context = {}, resolver = null } = {}) => {
+const getConfiguredResolver = ({ context = {}, resolver = resolveLocalImport } = {}) => {
     const {
         settings = {}
     } = context;
@@ -64,10 +77,13 @@ const getConfiguredResolver = ({ context = {}, resolver = null } = {}) => {
         resilient = {}
     } = settings;
     const {
-        resolver: settingsResolver = null
+        resolver: settingsResolver = {}
     } = resilient;
-    if (typeof resolver === 'function') return resolver;
+
+    if (typeof resolver === 'function' && resolver !== resolveLocalImport) return resolver;
+
     if (typeof settingsResolver === 'function') return settingsResolver;
+
     return resolveLocalImport;
 };
 
@@ -83,7 +99,9 @@ const getResolvedImportFile = ({
             from: fileName,
             source
         });
+
         if (typeof resolvedFile !== 'string' || !resolvedFile) return '';
+
         return getExistingFile(path.resolve(resolvedFile));
     } catch {
         return '';
@@ -107,7 +125,10 @@ const createGraphResolver = ({
         resolver
     });
     const normalizedFile = normalizePath(resolvedFile);
-    return programs[normalizedFile] ? normalizedFile : '';
+
+    const { [normalizedFile]: importedProgram = false } = programs;
+
+    return importedProgram ? normalizedFile : '';
 };
 
 const getLanguageOptions = ({ context = {} } = {}) => {
@@ -118,17 +139,20 @@ const getLanguageOptions = ({ context = {} } = {}) => {
     const {
         ecmaVersion = 'latest',
         sourceType = 'module',
-        parser = {}
+        parser = {},
+        parserOptions: languageParserOptions = {}
     } = languageOptions;
+    const { parse = false } = getObject(parser);
     const options = {
         ecmaVersion,
         sourceType,
         parserOptions: {
             ...parserOptions,
-            ...(languageOptions.parserOptions || {})
+            ...getObject(languageParserOptions)
         },
-        ...(parser && typeof parser.parse === 'function' && { parser })
+        ...(parser && typeof parse === 'function' && { parser })
     };
+
     return options;
 };
 
@@ -151,14 +175,19 @@ const parseProgram = ({ code = '', context = {} } = {}) => {
         plugins: { capture },
         rules: { 'capture/program': 'error' }
     });
+
     return messages.some(({ severity = 0 } = {}) => severity === 2) ? {} : program;
 };
 
-const getFileName = ({ context = {} } = {}) => {
-    const fileName = typeof context.getFilename === 'function'
-        ? context.getFilename()
+const getFileName = ({ context: sourceContext = {} } = {}) => {
+    const context = getObject(sourceContext);
+    const { getFilename: internalMethod = false } = context;
+    const fileName = typeof internalMethod === 'function'
+        ? internalMethod.call(context)
         : '';
+
     if (!fileName) return '<text>';
+
     return fileName.startsWith('<') ? fileName : path.resolve(fileName);
 };
 
@@ -169,6 +198,7 @@ const getImportedProgram = ({ importedFile = '', context = {} } = {}) => {
         load: () => {
             try {
                 const code = fs.readFileSync(importedFile, 'utf8');
+
                 return parseProgram({ code, context });
             } catch {
                 return {};
@@ -184,36 +214,50 @@ const getPendingPrograms = ({
     pending = [],
     programs = {},
     resolver = resolveLocalImport
-} = {}) => getModuleSources(currentProgram).reduce((queue = [], source = '') => {
-    const importedFile = getResolvedImportFile({
-        context,
-        fileName: currentFile,
-        source,
-        resolver
-    });
-    if (!importedFile || programs[importedFile]) return queue;
-    const importedProgram = getImportedProgram({ importedFile, context });
-    return importedProgram.type
-        ? [...queue, { fileName: importedFile, program: importedProgram }]
-        : queue;
-}, pending);
+} = {}) => {
+    const sources = getModuleSources(currentProgram);
+
+    return sources.reduce((queue = [], source = '') => {
+        const importedFile = getResolvedImportFile({
+            context,
+            fileName: currentFile,
+            source,
+            resolver
+        });
+        const { [importedFile]: existingProgram = false } = programs;
+
+        if (!importedFile || existingProgram) return queue;
+
+        const importedProgram = getImportedProgram({ importedFile, context });
+        const { type: importedProgramType = '' } = getObject(importedProgram);
+
+        return importedProgramType
+            ? [...queue, { fileName: importedFile, program: importedProgram }]
+            : queue;
+    }, pending);
+};
 
 const loadPrograms = ({
     context = {},
     program = {},
     fileName = '',
-    resolver = null
+    resolver = resolveLocalImport
 } = {}) => {
     const importResolver = getConfiguredResolver({ context, resolver });
     const process = (pending = [], programs = {}) => {
         if (!pending.length) return programs;
+
         const [current = {}, ...remaining] = pending;
         const {
             fileName: currentFile = '',
             program: currentProgram = {}
         } = current;
-        if (!currentFile || programs[currentFile]) return process(remaining, programs);
+        const { [currentFile]: existingProgram = false } = programs;
+
+        if (!currentFile || existingProgram) return process(remaining, programs);
+
         const nextPrograms = { ...programs, [currentFile]: currentProgram };
+
         return process(getPendingPrograms({
             context,
             currentFile,
@@ -229,7 +273,10 @@ const loadPrograms = ({
 
 const getSourceState = ({ context = {}, program = {} } = {}) => {
     const { sourceCode = {} } = context;
-    if (typeof sourceCode.text === 'string') return sourceCode.text;
+    const { text = '' } = getObject(sourceCode);
+
+    if (typeof text === 'string') return text;
+
     return `program:${getProgramId(program)}`;
 };
 
@@ -248,6 +295,7 @@ const getProgramSnapshot = ({
                 ? getSourceState({ context, program })
                 : getFileState(currentFile)
         ]));
+
     return files;
 };
 
@@ -265,22 +313,34 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
         builds: 0
     };
 
-    /* eslint-disable resilient/prefer-safe-transformations -- Private bounded graph cache; delete/set implement LRU without mutating analysis results. */
-    const setGraphCacheEntry = ({ cacheKey = '', entry = {} } = {}) => {
+    const setGraphCacheEntry = ({
+        cacheKey = '',
+        entry: {
+            graph = {},
+            snapshot = {}
+        } = {}
+    } = {}) => {
+        // eslint-disable-next-line resilient/prefer-safe-transformations -- The bounded cache owns this delete before replacement.
         graphCache.delete(cacheKey);
-        graphCache.set(cacheKey, entry);
+
+        // eslint-disable-next-line resilient/prefer-safe-transformations -- The bounded cache owns this insertion and does not mutate analysis results.
+        graphCache.set(cacheKey, { graph, snapshot });
+
         if (graphCache.size <= graphCacheLimit) return;
+
         const oldestKey = graphCache.keys().next().value || '';
+
         if (!oldestKey) return;
+
+        // eslint-disable-next-line resilient/prefer-safe-transformations -- The bounded cache evicts its oldest entry by identity.
         graphCache.delete(oldestKey);
     };
-    /* eslint-enable resilient/prefer-safe-transformations */
 
     const getGraph = ({
         context = {},
         program = {},
         fileName = '',
-        resolver = null
+        resolver = {}
     } = {}) => {
         const importResolver = getConfiguredResolver({ context, resolver });
         const programs = loadPrograms({
@@ -301,13 +361,23 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
             programs
         });
         const cached = graphCache.get(cacheKey);
-        if (cached && areSnapshotsEqual(cached.snapshot, snapshot)) {
+
+        const { snapshot: cachedSnapshot = {}, graph: cachedGraph = {} } = getObject(cached);
+
+        if (cached && areSnapshotsEqual(cachedSnapshot, snapshot)) {
             setGraphCacheEntry({ cacheKey, entry: cached });
-            stats = { ...stats, hits: stats.hits + 1 };
-            return cached.graph;
+
+            const { hits = 0 } = stats;
+
+            stats = { ...stats, hits: hits + 1 };
+
+            return cachedGraph;
         }
 
-        stats = { ...stats, misses: stats.misses + 1 };
+        const { misses = 0 } = stats;
+
+        stats = { ...stats, misses: misses + 1 };
+
         const projectTree = createProjectTree({
             programs,
             roots: [fileName],
@@ -319,12 +389,17 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
             parserIdentity: getParserOptionsKey({ context }),
             resolverIdentity: importResolver
         });
-        const { graph = {} } = projectTree.analyze({ roots: [fileName] });
-        stats = { ...stats, builds: stats.builds + 1 };
+        const { analyze = () => ({}) } = getObject(projectTree);
+        const { graph = {} } = analyze({ roots: [fileName] });
+        const { builds = 0 } = stats;
+
+        stats = { ...stats, builds: builds + 1 };
+
         setGraphCacheEntry({
             cacheKey,
             entry: { graph, snapshot }
         });
+
         return graph;
     };
 
@@ -353,14 +428,18 @@ const getEslintContractDiagnostics = ({
     ruleId = ''
 } = {}) => {
     const fileName = getFileName({ context });
+
     if (!fileName) return [];
+
     const graph = defaultProjectGraphManager.getGraph({
         context,
         program,
         fileName
     });
     const document = graph.getDocument(fileName);
-    return document.getDiagnostics()
+    const { getDiagnostics = () => [] } = getObject(document);
+
+    return getDiagnostics()
         .filter(({ ruleId: diagnosticRuleId = '' } = {}) => diagnosticRuleId === ruleId);
 };
 

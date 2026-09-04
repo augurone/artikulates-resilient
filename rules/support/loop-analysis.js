@@ -1,3 +1,9 @@
+import {
+    getObject,
+    hasObjectValue,
+    isObject
+} from './object.js';
+
 const LOOP_TYPES = [
     'ForStatement',
     'ForInStatement',
@@ -22,8 +28,9 @@ const LOOP_CONTROL_TYPES = [
 const isAncestor = ({ ancestor = {}, node = {} } = {}) => {
     let current = node;
 
-    while (current && typeof current === 'object') {
+    while (hasObjectValue(current)) {
         if (current === ancestor) return true;
+
         const { parent = {} } = current;
         current = parent;
     }
@@ -31,31 +38,45 @@ const isAncestor = ({ ancestor = {}, node = {} } = {}) => {
     return false;
 };
 
+const getLabeledAncestor = ({ node = {}, name = '' } = {}) => {
+    if (!hasObjectValue(node)) return {};
+
+    const {
+        type = '',
+        label = {},
+        parent: next = {}
+    } = node;
+    const { name: currentName = '' } = getObject(label);
+
+    if (type === 'LabeledStatement' && currentName === name) return node;
+
+    if (!hasObjectValue(next)) return {};
+
+    return getLabeledAncestor({ node: next, name });
+};
+
 const isLoopBreak = ({ node = {}, rootNode = {}, switchDepth = 0 } = {}) => {
-    const { label = {} } = node;
+    const {
+        label = {},
+        parent = {}
+    } = node;
+    const { name: labelName = '' } = getObject(label);
 
-    if (!label || !label.name) return switchDepth === 0;
+    if (!labelName) return switchDepth === 0;
 
-    const { parent = {} } = node;
-    let current = parent;
-    while (current && typeof current === 'object') {
-        if (
-            current.type === 'LabeledStatement' &&
-            current.label &&
-            current.label.name === label.name
-        ) return isAncestor({ ancestor: current, node: rootNode });
+    const ancestor = getLabeledAncestor({ node: parent, name: labelName });
+    const { type: ancestorType = '' } = getObject(ancestor);
 
-        const { parent: next = {} } = current;
-        current = next;
-    }
-
-    return false;
+    return Boolean(ancestorType) && isAncestor({ ancestor, node: rootNode });
 };
 
 const hasAwaitExpression = (node = {}, seen = new Set(), root = true) => {
-    if (!node || typeof node !== 'object' || seen.has(node)) return false;
+    if (!isObject(node) || seen.has(node)) return false;
+
     const { type = '', ...properties } = node;
+
     if (type === 'AwaitExpression') return true;
+
     // Await in a callback does not make the surrounding collection loop sequential.
     if (!root && FUNCTION_TYPES.includes(type)) return false;
 
@@ -75,13 +96,18 @@ const hasLoopControl = (
     switchDepth = 0,
     rootNode = node
 ) => {
-    if (!node || typeof node !== 'object' || seen.has(node)) return false;
+    if (!isObject(node) || seen.has(node)) return false;
+
     const { type = '', ...properties } = node;
+
     if (!root && LOOP_TYPES.includes(type)) return false;
+
     if (!root && FUNCTION_TYPES.includes(type)) return false;
+
     if (type === 'BreakStatement') {
         return isLoopBreak({ node, rootNode, switchDepth });
     }
+
     if (LOOP_CONTROL_TYPES.includes(type)) return true;
 
     const nextSeen = new Set([...seen, node]);
@@ -95,9 +121,11 @@ const hasLoopControl = (
 };
 
 const hasAllowComment = ({ sourceCode = {}, node = {} } = {}) => {
-    if (typeof sourceCode.getCommentsBefore !== 'function') return false;
+    const { getCommentsBefore = false } = sourceCode;
 
-    return sourceCode.getCommentsBefore(node)
+    if (typeof getCommentsBefore !== 'function') return false;
+
+    return getCommentsBefore.call(sourceCode, node)
         .some(({ value = '' } = {}) => /^\s*resilient-allow-loop\s*:\s*\S/.test(value));
 };
 
@@ -108,16 +136,23 @@ const hasLoopException = ({ sourceCode = {}, node = {} } = {}) => (
 );
 
 const getEnclosingLoop = ({ node = {} } = {}) => {
-    const { parent = {} } = node;
-    if (!parent || !parent.type) return {};
-    if (LOOP_TYPES.includes(parent.type)) return parent;
-    if (FUNCTION_TYPES.includes(parent.type)) return {};
+    const { parent = {} } = getObject(node);
+    const { type: parentType = '' } = getObject(parent);
+
+    if (!hasObjectValue(parent) || !parentType) return {};
+
+    if (LOOP_TYPES.includes(parentType)) return parent;
+
+    if (FUNCTION_TYPES.includes(parentType)) return {};
+
     return getEnclosingLoop({ node: parent });
 };
 
 const isCoveredByLoopRule = ({ sourceCode = {}, node = {} } = {}) => {
     const loop = getEnclosingLoop({ node });
-    return Boolean(loop.type) && !hasLoopException({ sourceCode, node: loop });
+    const { type: loopType = '' } = loop;
+
+    return Boolean(loopType) && !hasLoopException({ sourceCode, node: loop });
 };
 
 export {

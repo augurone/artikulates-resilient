@@ -24,14 +24,22 @@ import {
     isKnown,
     unknown
 } from './model.js';
+import { getObject, hasObjectValue } from '../support/object.js';
 
-const getMethodName = ({ property = {}, computed = false } = {}) => (
-    !computed && property.type === 'Identifier' ? property.name : ''
-);
+const getMethodName = ({ property = {}, computed = false } = {}) => {
+    const { type = '', name = '' } = getObject(property);
 
-const getNodeType = ({ type = '' } = {}) => type;
+    return !computed && type === 'Identifier' ? name : '';
+};
+
+const getNodeType = (node = {}) => {
+    const { type = '' } = getObject(node);
+
+    return type;
+};
 
 const getReceiverName = ({ object = {} } = {}) => {
+    const source = getObject(object);
     const {
         type = '',
         name = '',
@@ -39,15 +47,21 @@ const getReceiverName = ({ object = {} } = {}) => {
         object: sourceObject = {},
         property = {},
         computed = false
-    } = object;
+    } = source;
+
     if (type === 'Identifier') return name;
+
     if (type === 'CallExpression') {
         const calleeName = getReceiverName({ object: callee });
+
         return calleeName ? `${calleeName}()` : 'value';
     }
+
     if (type !== 'MemberExpression') return 'value';
+
     const objectName = getReceiverName({ object: sourceObject });
     const propertyName = getPropertyName({ key: property, computed });
+
     return objectName && propertyName ? `${objectName}.${propertyName}` : 'value';
 };
 
@@ -56,84 +70,119 @@ const getArrayMismatches = ({
     actual = {},
     node = {},
     path = [],
-    mismatch = () => []
+    mismatch
 } = {}) => {
-    const expectedElements = expected.elements || [];
-    const actualElements = actual.elements || [];
-    if (!expectedElements.length || !actualElements.length) return mismatch({
-        expected: expected.element,
-        actual: actual.element,
+    if (typeof mismatch !== 'function') return [];
+
+    const { element: expectedElement = unknown(), elements: expectedElements = [] } = getObject(expected);
+    const { element: actualElement = unknown(), elements: actualElements = [] } = getObject(actual);
+    const safeExpectedElements = Array.isArray(expectedElements) ? expectedElements : [];
+    const safeActualElements = Array.isArray(actualElements) ? actualElements : [];
+
+    if (!safeExpectedElements.length || !safeActualElements.length) return mismatch({
+        expected: expectedElement,
+        actual: actualElement,
         node,
         path: [...path, '[]']
     });
-    return expectedElements.flatMap((expectedElement = unknown(), index = 0) => mismatch({
-        expected: expectedElement,
-        actual: actualElements[index] || unknown(),
-        node,
-        path: [...path, `[${index}]`]
-    }));
+
+    return safeExpectedElements.flatMap((expectedValue = unknown(), index = 0) => {
+        const { [index]: actualValue = unknown() } = safeActualElements;
+
+        return mismatch({
+            expected: expectedValue,
+            actual: actualValue,
+            node,
+            path: [...path, `[${index}]`]
+        });
+    });
 };
 
 const getMismatches = ({ expected = unknown(), actual = unknown(), node = {}, path = [] } = {}) => {
-    if (expected.state === 'contradictory') return getContractVariants(expected).flatMap(expectedVariant => (
+    const { state: expectedState = '', kind: expectedKind = 'unknown', properties: expectedProperties = {} } = getObject(expected);
+    const { state: actualState = '', kind: actualKind = 'unknown', properties: actualProperties = {}, residual: actualResidual = {} } = getObject(actual);
+
+    if (expectedState === 'contradictory') return getContractVariants(expected).flatMap(expectedVariant => (
         getMismatches({ expected: expectedVariant, actual, node, path })
     ));
-    if (actual.state === 'contradictory') return getContractVariants(actual).flatMap(actualVariant => (
+
+    if (actualState === 'contradictory') return getContractVariants(actual).flatMap(actualVariant => (
         getMismatches({ expected, actual: actualVariant, node, path })
     ));
-    if (expected.kind === 'unknown' || actual.kind === 'unknown') return [];
-    if (expected.kind !== actual.kind) return [{ expected, actual, node, path }];
-    if (expected.kind === 'array') return getArrayMismatches({
+
+    if (expectedKind === 'unknown' || actualKind === 'unknown') return [];
+
+    if (expectedKind !== actualKind) return [{ expected, actual, node, path }];
+
+    if (expectedKind === 'array') return getArrayMismatches({
         expected,
         actual,
         node,
         path,
         mismatch: getMismatches
     });
-    if (expected.kind !== 'object') return [];
 
-    return Object.entries(expected.properties || {}).flatMap(([name = '', property = {}] = []) => {
-        const { properties: actualProperties = {} } = actual;
-        const residualProperties = actual.residual && actual.residual.properties || {};
-        const { properties: sourceProperties = [] } = node;
-        const actualProperty = Object.hasOwn(actualProperties, name)
-            ? actualProperties[name]
-            : residualProperties[name] || unknown();
-        const propertyNode = sourceProperties
-            .find(candidate => getPropertyName(candidate) === name);
+    if (expectedKind !== 'object') return [];
+
+    const { properties: sourceProperties = [] } = getObject(node);
+    const { properties: actualResidualProperties = {} } = getObject(actualResidual);
+    const safeActualProperties = getObject(actualProperties);
+    const safeResidualProperties = getObject(actualResidualProperties);
+
+    return Object.entries(getObject(expectedProperties)).flatMap(([name = '', property = {}] = []) => {
+        const { [name]: knownProperty = false } = safeActualProperties;
+        const { [name]: residualProperty = false } = safeResidualProperties;
+        const actualProperty = knownProperty || residualProperty;
+        const propertyNode = sourceProperties.find(candidate => getPropertyName(candidate) === name);
+        const { value: propertyValue = node } = getObject(propertyNode);
+
         return getMismatches({
             expected: property,
             actual: actualProperty,
-            node: propertyNode ? propertyNode.value : node,
+            node: propertyValue,
             path: [...path, name]
         });
     });
 };
 
-/* eslint-disable resilient/prefer-destructured-member-access -- Contract diagnostics inspect ESTree nodes and inferred contract records by design. */
-const hasProperty = ({ value = {}, name = '' } = {}) => (
-    Object.hasOwn(value.properties || {}, name) ||
-    Object.hasOwn(value.residual && value.residual.properties || {}, name)
-);
+const hasProperty = ({ value = {}, name = '' } = {}) => {
+    const { properties = {}, residual = {} } = getObject(value);
+    const { properties: residualProperties = {} } = getObject(residual);
 
-const hasOpenResidual = (value = {}) => Boolean(value.residual && value.residual.open);
+    const { [name]: foundProperty = false } = getObject(properties);
+    const { [name]: foundResidualProperty = false } = getObject(residualProperties);
+
+    return !!(foundProperty || foundResidualProperty);
+};
+
+const hasOpenResidual = ({ residual = {} } = {}) => {
+    const { open = false } = getObject(residual);
+
+    return open === true;
+};
 
 const getShapeMismatches = ({ expected = unknown(), actual = unknown(), node = {}, path = [] } = {}) => {
-    if (expected.state === 'contradictory') return getContractVariants(expected).flatMap(expectedVariant => (
+    const { state: expectedState = '', kind: expectedKind = 'unknown', properties: expectedProperties = {}, residual: expectedResidual = {} } = getObject(expected);
+    const { state: actualState = '', kind: actualKind = 'unknown', properties: actualProperties = {}, residual: actualResidual = {} } = getObject(actual);
+    const safeExpectedProperties = getObject(expectedProperties);
+    const safeActualProperties = getObject(actualProperties);
+    const { properties: actualResidualProperties = {} } = getObject(actualResidual);
+
+    if (expectedState === 'contradictory') return getContractVariants(expected).flatMap(expectedVariant => (
         getShapeMismatches({ expected: expectedVariant, actual, node, path })
     ));
-    if (actual.state === 'contradictory') return getContractVariants(actual).flatMap(actualVariant => (
+
+    if (actualState === 'contradictory') return getContractVariants(actual).flatMap(actualVariant => (
         getShapeMismatches({ expected, actual: actualVariant, node, path })
     ));
-    if (expected.kind !== 'object' || actual.kind !== 'object') return [];
 
-    const expectedProperties = expected.properties || {};
-    const actualProperties = actual.properties || {};
+    if (expectedKind !== 'object' || actualKind !== 'object') return [];
 
-    const nested = Object.entries(expectedProperties).flatMap(([name = '', property = {}] = []) => {
-        const actualProperty = actualProperties[name] || (
-            actual.residual && actual.residual.properties || {}
-        )[name] || unknown();
+    const nested = Object.entries(safeExpectedProperties).flatMap(([name = '', property = {}] = []) => {
+        const { [name]: knownProperty = unknown() } = safeActualProperties;
+        const { [name]: residualProperty = unknown() } = getObject(actualResidualProperties);
+        const actualProperty = knownProperty || residualProperty;
+
         return getShapeMismatches({
             expected: property,
             actual: actualProperty,
@@ -142,11 +191,16 @@ const getShapeMismatches = ({ expected = unknown(), actual = unknown(), node = {
         });
     });
 
-    const exactLiteral = node.type === 'ObjectExpression' &&
-        !(node.properties || []).some(({ type = '' } = {}) => type === 'SpreadElement');
-    const excess = !expected.residual && exactLiteral
-        ? Object.keys(actualProperties)
-            .filter(name => !Object.hasOwn(expectedProperties, name))
+    const { type: nodeType = '', properties: nodeProperties = [] } = getObject(node);
+    const safeNodeProperties = Array.isArray(nodeProperties) ? nodeProperties : [];
+    const exactLiteral = nodeType === 'ObjectExpression' && !safeNodeProperties.some(({ type = '' } = {}) => type === 'SpreadElement');
+    const excess = !hasObjectValue(expectedResidual) && exactLiteral
+        ? Object.keys(safeActualProperties)
+            .filter((name) => {
+                const { [name]: foundProperty = false } = safeExpectedProperties;
+
+                return !foundProperty;
+            })
             .map(propertyName => ({
                 kind: 'excess-property',
                 propertyName,
@@ -159,16 +213,21 @@ const getShapeMismatches = ({ expected = unknown(), actual = unknown(), node = {
 };
 
 const getMissingDestructuredProperties = ({ pattern = {}, actual = unknown(), path = [] } = {}) => {
-    const sourcePattern = pattern.type === 'AssignmentPattern'
-        ? pattern.left || {}
-        : pattern;
-    if (sourcePattern.type !== 'ObjectPattern' || actual.kind !== 'object') return [];
+    const source = getObject(pattern);
+    const { type: sourceType = '', left = {} } = source;
+    const sourcePattern = sourceType === 'AssignmentPattern' ? getObject(left) : source;
+    const { kind: actualKind = 'unknown', properties: actualProperties = {}, residual = {} } = getObject(actual);
+    const { type: patternType = '', properties: sourceProperties = [] } = sourcePattern;
 
-    const actualProperties = actual.properties || {};
-    const residualProperties = actual.residual && actual.residual.properties || {};
+    if (patternType !== 'ObjectPattern' || actualKind !== 'object') return [];
+
+    const safeActualProperties = getObject(actualProperties);
+    const { properties: residualProperties = {} } = getObject(residual);
+    const safeResidualProperties = getObject(residualProperties);
     const openResidual = hasOpenResidual(actual);
+    const patternProperties = Array.isArray(sourceProperties) ? sourceProperties : [];
 
-    return (sourcePattern.properties || []).flatMap(({
+    return patternProperties.flatMap(({
         type = '',
         key = {},
         computed = false,
@@ -177,12 +236,17 @@ const getMissingDestructuredProperties = ({ pattern = {}, actual = unknown(), pa
         if (type === 'RestElement' || computed) return [];
 
         const name = getPropertyName({ key, computed });
+
         if (!name) return [];
 
-        const hasKnownProperty = Object.hasOwn(actualProperties, name) ||
-            Object.hasOwn(residualProperties, name);
-        const hasDefault = value.type === 'AssignmentPattern';
+        const { [name]: knownProperty = false } = safeActualProperties;
+        const { [name]: residualProperty = false } = safeResidualProperties;
+        const hasKnownProperty = !!(knownProperty || residualProperty);
+        const { type: valueType = '' } = getObject(value);
+        const hasDefault = valueType === 'AssignmentPattern';
+
         if (!hasKnownProperty && (hasDefault || openResidual)) return [];
+
         if (!hasKnownProperty) return [{
             kind: 'missing-property',
             propertyName: name,
@@ -190,9 +254,8 @@ const getMissingDestructuredProperties = ({ pattern = {}, actual = unknown(), pa
             path: [...path, name]
         }];
 
-        const actualProperty = Object.hasOwn(actualProperties, name)
-            ? actualProperties[name]
-            : residualProperties[name];
+        const actualProperty = knownProperty || residualProperty;
+
         return getMissingDestructuredProperties({
             pattern: value,
             actual: actualProperty,
@@ -202,9 +265,12 @@ const getMissingDestructuredProperties = ({ pattern = {}, actual = unknown(), pa
 };
 
 const getArityDiagnostics = ({ node = {}, definition = {} } = {}) => {
-    const { signature = {} } = definition;
-    const { parameters = [], restIndex = -1 } = signature;
-    const args = node.arguments || [];
+    const { signature = {} } = getObject(definition);
+    const { parameters: sourceParameters = [], restIndex = -1 } = getObject(signature);
+    const { arguments: sourceArguments = [] } = getObject(node);
+    const parameters = Array.isArray(sourceParameters) ? sourceParameters : [];
+    const args = Array.isArray(sourceArguments) ? sourceArguments : [];
+
     if (args.some(({ type = '' } = {}) => type === 'SpreadElement')) return [];
 
     const requiredIndexes = parameters
@@ -212,24 +278,21 @@ const getArityDiagnostics = ({ node = {}, definition = {} } = {}) => {
         .filter(index => index >= 0);
     const requiredCount = requiredIndexes.length ? Math.max(...requiredIndexes) + 1 : 0;
     const maximumCount = restIndex === -1 ? parameters.length : Number.MAX_SAFE_INTEGER;
+
     if (args.length < requiredCount) return [{
         kind: 'arity',
         node,
         message: `Expected at least ${requiredCount} argument${requiredCount === 1 ? '' : 's'}, but got ${args.length}.`
     }];
+
     if (args.length > maximumCount) return [{
         kind: 'arity',
         node,
         message: `Expected at most ${maximumCount} argument${maximumCount === 1 ? '' : 's'}, but got ${args.length}.`
     }];
+
     return [];
 };
-/* eslint-enable resilient/prefer-destructured-member-access */
-
-const getObject = value => (
-    value && typeof value === 'object' ? value : {}
-);
-
 const getList = value => (
     Array.isArray(value) ? value : []
 );
@@ -245,19 +308,29 @@ const hasComputedProperty = (node = {}) => {
     } = getObject(node);
     const safeLeft = getObject(left);
     const safeArgument = getObject(argument);
+    const { type: leftType = '' } = safeLeft;
+    const { type: argumentType = '' } = safeArgument;
+
     return (
         (type === 'Property' && computed) ||
-        (safeLeft.type && hasComputedProperty(safeLeft)) ||
-        (safeArgument.type && hasComputedProperty(safeArgument)) ||
+        (leftType && hasComputedProperty(safeLeft)) ||
+        (argumentType && hasComputedProperty(safeArgument)) ||
         getList(properties).some(property => hasComputedProperty(property)) ||
         getList(elements).some(element => hasComputedProperty(element))
     );
 };
 
-const getSignatureParameters = ({ signature = {} } = {}) => {
-    const { parameters = [], contract = unknown(), restIndex = -1 } = signature;
+const getSignatureParameters = ({
+    signature: {
+        parameters = [],
+        contract = unknown(),
+        restIndex = -1
+    } = {}
+} = {}) => {
     if (restIndex === 0) return [];
+
     if (restIndex > 0) return parameters.slice(0, restIndex);
+
     return parameters.length ? parameters : [contract];
 };
 
@@ -266,61 +339,103 @@ const getDefinitionsForProgram = ({ program = {}, definitions = {} } = {}) => (
 );
 
 const getFunctionDefinition = ({ value = {} } = {}) => {
-    if (value.kind !== 'function' || !value.signature) return {};
+    const {
+        kind = 'unknown',
+        sourceNode = {},
+        signature = {}
+    } = getObject(value);
+    const { returnContract = unknown() } = getObject(signature);
+
+    if (kind !== 'function' || !hasObjectValue(signature)) return {};
+
     return {
-        node: value.sourceNode,
-        signature: value.signature,
-        returnContract: value.signature.returnContract || unknown()
+        node: sourceNode,
+        signature,
+        returnContract
     };
 };
 
-const getMemberFunctionDefinition = ({ callee = {}, context = {} } = {}) => {
-    const { object = {}, property = {}, computed = false } = callee;
+const getMemberFunctionDefinition = ({
+    callee: {
+        object = {},
+        property = {},
+        computed = false
+    } = {},
+    context = {}
+} = {}) => {
     const method = getPropertyName({ key: property, computed });
-    if (!method) return {};
-    const receiver = inferExpression(object, context);
-    const { properties = {}, residual = null } = receiver;
-    const residualProperties = residual && residual.properties || {};
-    return getFunctionDefinition({
-        value: properties[method] || residualProperties[method] || {}
-    });
-};
 
+    if (!method) return {};
+
+    const {
+        properties: {
+            [method]: ogMethod = {}
+        } = {},
+        residual: {
+            properties: {
+                [method]: residualMethod = {}
+            } = {}
+        } = {}
+    } = getObject(inferExpression(object, context));
+
+    const propertyDefinition = getFunctionDefinition({ value: ogMethod });
+
+    return hasObjectValue(propertyDefinition)
+        ? propertyDefinition
+        : getFunctionDefinition({ value: residualMethod });
+};
 
 const getTopLevelFunctionAliases = ({ program = {}, definitions = {} } = {}) => {
     let aliases = { ...definitions };
     walk(program, ({ type = '', id = {}, init = {} } = {}) => {
-        const safeId = id || {};
-        const safeInit = init || {};
+        const safeId = getObject(id);
+        const safeInit = getObject(init);
         const { type: idType = '', name = '' } = safeId;
+        const { type: initType = '', name: initName = '' } = safeInit;
+
         if (type !== 'VariableDeclarator' || idType !== 'Identifier') return;
-        const functionDefinition = aliases[safeInit.name] || {};
-        if (safeInit.type === 'Identifier' && functionDefinition.signature) {
+
+        const { [initName]: functionDefinition = {} } = aliases;
+        const { signature = {} } = getObject(functionDefinition);
+
+        if (initType === 'Identifier' && hasObjectValue(signature)) {
             aliases = { ...aliases, [name]: functionDefinition };
         }
     }, { skipFunctions: true });
+
     return aliases;
 };
 
 const getCallbackCalls = ({ node = {}, callbackNames = [] } = {}) => {
     let calls = [];
-    walk(node.body, (current = {}) => {
+    const { body = {} } = getObject(node);
+    walk(body, (current = {}) => {
         const {
             type = '',
             callee = {},
             arguments: args = []
         } = current;
-        if (type !== 'CallExpression' || callee.type !== 'Identifier') return;
-        if (callbackNames.includes(callee.name)) calls = [...calls, { callee, args, node: current }];
+        const { type: calleeType = '', name: calleeName = '' } = getObject(callee);
+
+        if (type !== 'CallExpression' || calleeType !== 'Identifier') return;
+
+        if (callbackNames.includes(calleeName)) calls = [...calls, { callee, args, node: current }];
     }, { skipFunctions: true });
+
     return calls;
 };
 
 const getArrayCallbackDefinition = ({ callback = {}, context = {} } = {}) => {
     if (isFunction(callback)) return { node: callback, signature: getSignature(callback) };
-    const { type = '', name = '' } = callback;
+
+    const { type = '', name = '' } = getObject(callback);
+
     if (type !== 'Identifier') return {};
-    return context.functions[name] || {};
+
+    const { functions = {} } = getObject(context);
+    const { [name]: definition = {} } = getObject(functions);
+
+    return definition;
 };
 
 const getArrayCallbackOperationContexts = ({
@@ -330,76 +445,113 @@ const getArrayCallbackOperationContexts = ({
 } = {}) => {
     const contexts = new Map();
     walk(program, (node = {}) => {
-        const { type = '', callee = {}, arguments: args = [] } = node;
-        if (type !== 'CallExpression' || callee.type !== 'MemberExpression') return;
-        const { object = {}, property = {}, computed = false } = callee;
-        const method = !computed && property.type === 'Identifier' ? property.name : '';
+        const { type = '', callee = {}, arguments: sourceArguments = [] } = getObject(node);
+        const args = Array.isArray(sourceArguments) ? sourceArguments : [];
+        const { type: calleeType = '', object = {}, property = {}, computed = false } = getObject(callee);
+        const { type: propertyType = '', name: propertyName = '' } = getObject(property);
+
+        if (type !== 'CallExpression' || calleeType !== 'MemberExpression') return;
+
+        const method = !computed && propertyType === 'Identifier' ? propertyName : '';
+
         if (!['map', 'filter', 'some', 'find', 'forEach', 'reduce'].includes(method)) return;
+
         const callContext = getFlowContext({ node, definitions, flows });
         const receiver = inferExpression(object, callContext);
+        const {
+            functions: contextFunctions = {},
+            callStack = [],
+            evaluateCalls = true,
+            evaluationDepth = 0
+        } = getObject(callContext);
+        const { element: receiverElement = unknown() } = getObject(receiver);
+        const [, reduceInitial = {}] = args;
+
         if (getKind(receiver) !== 'array') return;
-        const callback = args[0] || {};
+
+        const [callback = {}] = args;
         const definition = getArrayCallbackDefinition({ callback, context: callContext });
         const { node: definitionNode = {} } = definition;
-        if (!definitionNode.type) return;
+        const { type: definitionType = '' } = getObject(definitionNode);
+
+        if (!definitionType) return;
+
         const callbackContext = getFunctionCallContext({
             definition,
-            functions: callContext.functions || definitions,
+            functions: hasObjectValue(contextFunctions) ? contextFunctions : definitions,
             argumentContracts: method === 'reduce'
                 ? [
-                    inferExpression(args[1] || {}, callContext),
-                    receiver.element,
+                    inferExpression(reduceInitial, callContext),
+                    receiverElement,
                     contract({ kind: 'number' }),
                     receiver
                 ]
                 : [
-                    receiver.element,
+                    receiverElement,
                     contract({ kind: 'number' }),
                     receiver
                 ],
-            callStack: callContext.callStack || [],
-            evaluateCalls: callContext.evaluateCalls !== false,
-            evaluationDepth: callContext.evaluationDepth || 0
+            callStack,
+            evaluateCalls: evaluateCalls !== false,
+            evaluationDepth
         });
+        const { bindings: callbackBindings = {} } = getObject(callbackContext);
         const callbackFlow = createFunctionFlow({
             functionNode: definitionNode,
-            definitions: callContext.functions || definitions,
-            initialBindings: callbackContext.bindings
+            definitions: hasObjectValue(contextFunctions) ? contextFunctions : definitions,
+            initialBindings: callbackBindings
         });
-        walk(definitionNode.body, (callbackNode = {}) => {
+        const { body: definitionBody = {} } = getObject(definitionNode);
+        const { contexts: callbackContexts = new Map(), finalContext = {} } = getObject(callbackFlow);
+        walk(definitionBody, (callbackNode = {}) => {
             const callbackType = getNodeType(callbackNode);
+
             if (callbackType !== 'MemberExpression') return;
-            const callbackContext = callbackFlow.contexts.get(callbackNode) || callbackFlow.finalContext;
+
+            const callbackContext = callbackContexts.get(callbackNode) || finalContext;
             const nodeContexts = contexts.get(callbackNode);
+
             if (nodeContexts) {
                 // eslint-disable-next-line resilient/prefer-safe-transformations -- Private AST-node index appends callback context for O(1) lookup.
                 nodeContexts.push(callbackContext);
+
                 return;
             }
+
             // eslint-disable-next-line resilient/prefer-safe-transformations -- Private AST-node index creates the first callback-context bucket.
             contexts.set(callbackNode, [callbackContext]);
         }, { skipFunctions: true });
     });
+
     return contexts;
 };
 
 const getArrayCallbackDiagnostics = ({ node = {}, context = {} } = {}) => {
-    const { callee = {}, arguments: args = [] } = node;
-    const { object = {}, property = {}, computed = false } = callee;
-    const method = !computed && property.type === 'Identifier' ? property.name : '';
+    const { callee = {}, arguments: sourceArguments = [] } = getObject(node);
+    const args = Array.isArray(sourceArguments) ? sourceArguments : [];
+    const { object = {}, property = {}, computed = false } = getObject(callee);
+    const { type: propertyType = '', name: propertyName = '' } = getObject(property);
+    const method = !computed && propertyType === 'Identifier' ? propertyName : '';
+
     if (!['map', 'filter', 'some', 'find', 'forEach', 'reduce'].includes(method)) return [];
+
     const receiver = inferExpression(object, context);
+    const { element: receiverElement = unknown() } = getObject(receiver);
+
     if (getKind(receiver) !== 'array') return [];
-    const callback = args[0] || {};
+
+    const [callback = {}] = args;
     const definition = getArrayCallbackDefinition({ callback, context });
     const { signature = {} } = definition;
     const { parameters = [] } = signature;
     const parameterIndex = method === 'reduce' ? 1 : 0;
-    const expected = parameters[parameterIndex] || unknown();
+    const { [parameterIndex]: expected = unknown() } = parameters;
+
     if (!isKnown(expected)) return [];
+
     return getMismatches({
         expected,
-        actual: receiver.element,
+        actual: receiverElement,
         node: callback,
         path: [method, 'callback']
     }).map(({
@@ -421,35 +573,70 @@ const getArrayCallbackDiagnostics = ({ node = {}, context = {} } = {}) => {
 };
 
 const getHigherOrderCallDiagnostics = ({
-    node = {},
-    definition = {},
-    context = {}
+    node: {
+        arguments: nodeArguments = []
+    } = {},
+    definition: {
+        node: functionNode = {},
+        ...definitionRest
+    } = {},
+    context: {
+        functions: contextFunctions = {},
+        arguments: contextArguments = [],
+        callStack = [],
+        ...contextRest
+    } = {}
 } = {}) => {
-    const { node: functionNode = {} } = definition;
-    const callbackParameters = (functionNode.params || [])
+    const { params = [] } = getObject(functionNode);
+    const callbackParameters = params
         .map((parameter, index = 0) => ({ parameter, index }))
-        .filter(({ parameter = {} } = {}) => parameter.type === 'Identifier')
-        .map(({ parameter = {}, index = 0 } = {}) => ({ name: parameter.name, index }));
+        .filter(({ parameter = {} } = {}) => {
+            const { type: parameterType = '' } = getObject(parameter);
+
+            return parameterType === 'Identifier';
+        })
+        .map(({ parameter = {}, index = 0 } = {}) => {
+            const { name = '' } = getObject(parameter);
+
+            return { name, index };
+        });
     const callbackNames = callbackParameters.map(({ name = '' } = {}) => name);
+
     if (!callbackNames.length) return [];
 
+    const definition = { node: functionNode, ...definitionRest };
+    const context = {
+        functions: contextFunctions,
+        arguments: contextArguments,
+        callStack,
+        ...contextRest
+    };
+    const callArguments = contextArguments.length || !nodeArguments.length
+        ? contextArguments
+        : nodeArguments;
     const callbackContext = getFunctionCallContext({
         definition,
-        functions: context.functions || {},
-        arguments: node.arguments || [],
+        functions: contextFunctions,
+        arguments: callArguments,
         argumentContext: context,
-        callStack: context.callStack || [],
+        callStack,
         evaluateCalls: false
     });
+
     return getCallbackCalls({ node: functionNode, callbackNames }).flatMap(({
         callee = {},
         args = [],
         node: callbackCall = {}
     } = {}) => {
-        const callbackDefinition = callbackContext.functions[callee.name] || {};
-        if (!callbackDefinition.signature) return [];
+        const { name: calleeName = '' } = getObject(callee);
+        const { functions = {} } = getObject(callbackContext);
+        const { [calleeName]: callbackDefinition = {} } = getObject(functions);
+        const { signature = {} } = getObject(callbackDefinition);
+
+        if (!hasObjectValue(signature)) return [];
+
         const callbackParameter = callbackParameters
-            .find(({ name = '' } = {}) => name === callee.name) || {};
+            .find(({ name = '' } = {}) => name === calleeName) || {};
         const { index: callbackIndex = 0 } = callbackParameter;
         const arityDiagnostics = getArityDiagnostics({
             node: callbackCall,
@@ -463,13 +650,18 @@ const getHigherOrderCallDiagnostics = ({
         }));
         const shapeDiagnostics = getSignatureParameters(callbackDefinition).flatMap((expected = unknown(), index = 0) => {
             const { [index]: argument = {} } = args;
-            if (!argument || argument.type === 'SpreadElement') return [];
+            const { type: argumentType = '' } = getObject(argument);
+
+            if (!argument || argumentType === 'SpreadElement') return [];
+
             const actual = inferExpression(argument, callbackContext);
-            const callbackPath = [callee.name, ...(index ? [`argument[${index}]`] : [])];
+            const callbackPath = [calleeName, ...(index ? [`argument[${index}]`] : [])];
+            const { [callbackIndex]: callbackArgument = argument } = nodeArguments;
+
             return getMismatches({
                 expected,
                 actual,
-                node: node.arguments[callbackIndex] || argument,
+                node: callbackArgument,
                 path: callbackPath
             }).map(({
                 expected: expectedContract = unknown(),
@@ -478,6 +670,7 @@ const getHigherOrderCallDiagnostics = ({
                 path = []
             } = {}) => {
                 const mismatchPath = path.join('.') || callbackPath.join('.');
+
                 return {
                     ruleId: 'signature-contract-call-site',
                     messageId: 'mismatch',
@@ -491,6 +684,7 @@ const getHigherOrderCallDiagnostics = ({
                 };
             });
         });
+
         return [...arityDiagnostics, ...shapeDiagnostics];
     });
 };
@@ -506,6 +700,7 @@ const getExpressionContracts = ({ node = {}, context = {} } = {}) => {
         consequent = {},
         alternate = {}
     } = source;
+
     if (type === 'ConditionalExpression') return [
         ...getExpressionContracts({
             node: consequent,
@@ -516,6 +711,7 @@ const getExpressionContracts = ({ node = {}, context = {} } = {}) => {
             context: narrowContext({ ...test, context, truthy: false })
         })
     ];
+
     if (type === 'LogicalExpression') return [
         ...getExpressionContracts({ node: left, context }),
         ...getExpressionContracts({
@@ -527,6 +723,7 @@ const getExpressionContracts = ({ node = {}, context = {} } = {}) => {
             })
         })
     ];
+
     return [inferExpression(source, context)];
 };
 
@@ -537,20 +734,34 @@ const getCallSiteDiagnostics = ({ program = {}, definitions = {}, flows = new Ma
     });
     let diagnostics = [];
     walk(program, (node = {}) => {
-        const { type = '' } = node;
+        const { type = '', callee = {}, arguments: sourceArguments = [] } = getObject(node);
+        const args = Array.isArray(sourceArguments) ? sourceArguments : [];
+        const { type: calleeType = '', name: calleeName = '' } = getObject(callee);
+
         if (type !== 'CallExpression') return;
-        const { callee = {}, arguments: args = [] } = node;
+
         const context = getFlowContext({ node, definitions: sourceDefinitions, flows });
-        if (callee.type === 'MemberExpression') {
+
+        if (calleeType === 'MemberExpression') {
             diagnostics = [...diagnostics, ...getArrayCallbackDiagnostics({ node, context })];
         }
-        const callableDefinitions = context.functions || sourceDefinitions;
-        const definition = callee.type === 'Identifier'
-            ? callableDefinitions[callee.name] || getFunctionDefinition({
-                value: inferExpression(callee, context)
-            })
-            : getMemberFunctionDefinition({ callee, context });
-        if (!definition.signature) return;
+
+        const { functions: contextFunctions = {} } = getObject(context);
+        const callableDefinitions = hasObjectValue(contextFunctions)
+            ? contextFunctions
+            : sourceDefinitions;
+        const { [calleeName]: callableDefinition = {} } = getObject(callableDefinitions);
+        let definition = getMemberFunctionDefinition({ callee, context });
+
+        if (calleeType === 'Identifier') {
+            definition = hasObjectValue(callableDefinition)
+                ? callableDefinition
+                : getFunctionDefinition({ value: inferExpression(callee, context) });
+        }
+
+        const { signature = {} } = getObject(definition);
+
+        if (!hasObjectValue(signature)) return;
 
         getArityDiagnostics({ node, definition }).forEach(({ message = '', node: reportNode = node } = {}) => {
             diagnostics = [...diagnostics, {
@@ -570,9 +781,12 @@ const getCallSiteDiagnostics = ({ program = {}, definitions = {}, flows = new Ma
 
         getSignatureParameters(definition).forEach((expected = unknown(), index = 0) => {
             const { [index]: argument = {} } = args;
-            if (!argument || argument.type === 'SpreadElement') return;
+            const { type: argumentType = '' } = getObject(argument);
+
+            if (!argument || argumentType === 'SpreadElement') return;
 
             const actual = inferExpression(argument, context);
+
             getShapeMismatches({ expected, actual, node: argument }).forEach(({
                 kind = '',
                 propertyName = '',
@@ -580,7 +794,9 @@ const getCallSiteDiagnostics = ({ program = {}, definitions = {}, flows = new Ma
                 path = []
             } = {}) => {
                 if (kind !== 'excess-property') return;
+
                 const mismatchPath = path.join('.') || propertyName;
+
                 diagnostics = [...diagnostics, {
                     ruleId: 'signature-contract-call-site',
                     messageId: 'excessProperty',
@@ -617,6 +833,7 @@ const getCallSiteDiagnostics = ({ program = {}, definitions = {}, flows = new Ma
             });
         });
     });
+
     return diagnostics;
 };
 
@@ -631,29 +848,47 @@ const OBJECT_PROPERTIES = new Set([
     'valueOf'
 ]);
 
-/* eslint-disable resilient/prefer-destructured-member-access -- This rule's implementation must inspect the object contract it enforces. */
 const getPropertyDiagnostics = ({ program = {}, definitions = {}, flows = new Map() } = {}) => {
     const sourceDefinitions = getTopLevelFunctionAliases({
         program,
         definitions: getDefinitionsForProgram({ program, definitions })
     });
-    const sourceFlows = flows.size
+    const { size: flowSize = 0 } = flows;
+    const sourceFlows = flowSize
         ? flows
         : createFunctionFlows({ program, definitions: sourceDefinitions });
     let diagnostics = [];
     walk(program, (node = {}) => {
-        if (node.type !== 'MemberExpression' || node.computed || node.property.type !== 'Identifier') return;
-        const propertyName = node.property.name || '';
+        const {
+            type = '',
+            computed = false,
+            property = {},
+            object: sourceObject = {}
+        } = node;
+        const {
+            type: propertyType = '',
+            name: propertyName = ''
+        } = getObject(property);
+
+        if (type !== 'MemberExpression' || computed || propertyType !== 'Identifier') return;
+
         if (OBJECT_PROPERTIES.has(propertyName)) return;
+
         const context = getFlowContext({ node, definitions: sourceDefinitions, flows: sourceFlows });
-        const receiver = inferExpression(node.object, context);
-        if (receiver.kind !== 'object' || hasOpenResidual(receiver)) return;
+        const receiver = inferExpression(sourceObject, context);
+        const { kind: receiverKind = '' } = receiver;
+
+        if (receiverKind !== 'object' || hasOpenResidual(receiver)) return;
+
         const expectedKind = getOperationExpectation({
-            kind: receiver.kind,
+            kind: receiverKind,
             method: propertyName
         });
-        if (expectedKind && expectedKind !== receiver.kind) return;
+
+        if (expectedKind && expectedKind !== getKind(receiver)) return;
+
         if (hasProperty({ value: receiver, name: propertyName })) return;
+
         diagnostics = [...diagnostics, {
             ruleId: 'signature-contract-property',
             messageId: 'missingProperty',
@@ -662,16 +897,16 @@ const getPropertyDiagnostics = ({ program = {}, definitions = {}, flows = new Ma
             node
         }];
     });
+
     return diagnostics;
 };
-/* eslint-enable resilient/prefer-destructured-member-access */
-
 const getOperationDiagnostics = ({ program = {}, definitions = {}, flows = new Map() } = {}) => {
     const sourceDefinitions = getTopLevelFunctionAliases({
         program,
         definitions: getDefinitionsForProgram({ program, definitions })
     });
-    const sourceFlows = flows.size
+    const { size: flowSize = 0 } = flows;
+    const sourceFlows = flowSize
         ? flows
         : createFunctionFlows({ program, definitions: sourceDefinitions });
     const callbackContexts = getArrayCallbackOperationContexts({
@@ -680,16 +915,22 @@ const getOperationDiagnostics = ({ program = {}, definitions = {}, flows = new M
         flows: sourceFlows
     });
     let diagnostics = [];
+
     walk(program, (node = {}) => {
         const { type = '' } = node;
+
         if (type !== 'MemberExpression') return;
+
         const { object = {} } = node;
         const method = getMethodName(node);
+
         if (!method) return;
+
         const contexts = callbackContexts.get(node) || [];
         const analysisContexts = contexts.length
             ? contexts
             : [getFlowContext({ node, definitions: sourceDefinitions, flows: sourceFlows })];
+
         analysisContexts.forEach((context = {}) => getExpressionContracts({ node: object, context })
             .flatMap(getContractVariants)
             .filter(isKnown)
@@ -698,6 +939,7 @@ const getOperationDiagnostics = ({ program = {}, definitions = {}, flows = new M
                     kind: getKind(receiver),
                     method
                 });
+
                 if (!expected || expected === getKind(receiver)) return;
 
                 diagnostics = [...diagnostics, {
@@ -714,6 +956,7 @@ const getOperationDiagnostics = ({ program = {}, definitions = {}, flows = new M
                 }];
             }));
     });
+
     return diagnostics;
 };
 
@@ -722,18 +965,27 @@ const getDestructuringDiagnostics = ({ program = {}, definitions = {}, flows = n
         program,
         definitions: getDefinitionsForProgram({ program, definitions })
     });
-    const sourceFlows = flows.size
+    const { size: flowSize = 0 } = flows;
+    const sourceFlows = flowSize
         ? flows
         : createFunctionFlows({ program, definitions: sourceDefinitions });
     let diagnostics = [];
+
     walk(program, (node = {}) => {
-        const { type = '', id = {}, init = {} } = node;
+        const { type = '', id = {}, init = {} } = getObject(node);
+
         if (type !== 'VariableDeclarator') return;
+
         const expected = inferPattern(id);
-        if (!['array', 'object'].includes(expected.kind)) return;
+        const { kind: expectedKind = 'unknown' } = getObject(expected);
+
+        if (!['array', 'object'].includes(expectedKind)) return;
+
         if (hasComputedProperty(id)) return;
+
         const context = getFlowContext({ node: init, definitions: sourceDefinitions, flows: sourceFlows });
         const actual = inferExpression(init, context);
+
         if (!isKnown(actual)) return;
 
         getMismatches({ expected, actual, node: init }).forEach(({
@@ -765,6 +1017,7 @@ const getDestructuringDiagnostics = ({ program = {}, definitions = {}, flows = n
                 }];
             });
     });
+
     return diagnostics;
 };
 

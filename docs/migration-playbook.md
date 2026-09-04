@@ -152,8 +152,10 @@ examples, and exceptions.
 - First failure: a loop that is really a collection transform.
 - Low-friction remediation: use the native collection method that states the
   operation.
-- Keep if: the loop is sequential, rate-limited, retrying, polling, or needs
-  direct control flow.
+- Keep if: the loop uses `await` for sequential, rate-limited, retrying, or
+  polling work, or uses direct loop control for explicit early termination.
+  Other necessary loops need `// resilient-allow-loop: reason` explaining the
+  retained pattern.
 - Future fix shape: medium; not every loop can be rewritten safely.
 
 ### prefer-safe-destructuring-defaults

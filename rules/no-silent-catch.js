@@ -15,8 +15,8 @@ export default {
     },
     create({ report = () => {} } = {}) {
         return {
-            CatchClause({ body = {} } = {}) {
-                if (body.type !== 'BlockStatement' || hasMeaningfulStatement(body)) return;
+            CatchClause({ body: { type: bodyType = '', ...body } = {} } = {}) {
+                if (bodyType !== 'BlockStatement' || hasMeaningfulStatement(body)) return;
 
                 report({
                     node: body,

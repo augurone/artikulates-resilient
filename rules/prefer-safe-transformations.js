@@ -1,4 +1,5 @@
 import { isCoveredByLoopRule } from './support/loop-analysis.js';
+import { getObject } from './support/object.js';
 
 const MUTATING_METHODS = new Set([
     'add',
@@ -18,7 +19,9 @@ const MUTATING_METHODS = new Set([
 
 const getRootIdentifier = ({ type = '', object = {}, expression = {}, ...node } = {}) => {
     if (type === 'ChainExpression') return getRootIdentifier(expression);
+
     if (type === 'MemberExpression') return getRootIdentifier(object);
+
     return type === 'Identifier' ? { type, ...node } : {};
 };
 
@@ -31,6 +34,7 @@ const getStaticPropertyName = ({
     } = {}
 } = {}) => {
     if (type !== 'MemberExpression' || computed || propertyType !== 'Identifier') return '';
+
     return name;
 };
 
@@ -42,25 +46,42 @@ const getMutationTarget = ({ node = {} } = {}) => {
         callee = {},
         arguments: args = [],
         operator = ''
-    } = node;
+    } = getObject(node);
+    const { type: leftType = '' } = getObject(left);
+    const { type: argumentType = '' } = getObject(argument);
+    const safeCallee = getObject(callee);
+    const {
+        type: calleeType = '',
+        object: calleeObject = {}
+    } = safeCallee;
+    const {
+        type: calleeObjectType = '',
+        name: calleeObjectName = ''
+    } = getObject(calleeObject);
+    const [firstArgument = {}] = args;
 
-    if (type === 'AssignmentExpression') return left.type === 'MemberExpression' ? left : {};
-    if (type === 'UpdateExpression') return argument.type === 'MemberExpression' ? argument : {};
+    if (type === 'AssignmentExpression') return leftType === 'MemberExpression' ? left : {};
+
+    if (type === 'UpdateExpression') return argumentType === 'MemberExpression' ? argument : {};
+
     if (type === 'UnaryExpression' && operator === 'delete') {
-        return argument.type === 'MemberExpression' ? argument : {};
+        return argumentType === 'MemberExpression' ? argument : {};
     }
+
     if (type !== 'CallExpression') return {};
 
     if (
-        callee.type === 'MemberExpression' &&
-        callee.object.type === 'Identifier' &&
-        callee.object.name === 'Object' &&
-        getStaticPropertyName(callee) === 'assign'
-    ) return args[0] || {};
+        calleeType === 'MemberExpression' &&
+        calleeObjectType === 'Identifier' &&
+        calleeObjectName === 'Object' &&
+        getStaticPropertyName(safeCallee) === 'assign'
+    ) return firstArgument;
 
-    const method = getStaticPropertyName(callee);
+    const method = getStaticPropertyName(safeCallee);
+
     if (!MUTATING_METHODS.has(method)) return {};
-    return callee;
+
+    return safeCallee;
 };
 
 const getMutationProperty = ({
@@ -70,8 +91,11 @@ const getMutationProperty = ({
     callee = {}
 } = {}) => {
     if (type === 'AssignmentExpression') return getStaticPropertyName(left);
+
     if (type === 'UpdateExpression') return getStaticPropertyName(argument);
+
     if (type === 'UnaryExpression') return getStaticPropertyName(argument);
+
     return getStaticPropertyName(callee);
 };
 
@@ -127,10 +151,13 @@ export default {
             const target = getMutationTarget({ node });
             const root = getRootIdentifier(target);
             const { name = '' } = root;
+
             if (!name) return;
+
             if (isCoveredByLoopRule({ sourceCode, node })) return;
 
             const property = getMutationProperty(node);
+
             if (isIgnored({ name, property, options })) return;
 
             report({

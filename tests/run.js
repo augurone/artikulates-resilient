@@ -4,6 +4,7 @@ for (const testFile of [
     './no-else.test.js',
     './no-length-comparison.test.js',
     './no-null-assignment.test.js',
+    './object-utils.test.js',
     './no-silent-catch.test.js',
     './no-unguarded-callback-invocation.test.js',
     './no-unhandled-promise-chain.test.js',

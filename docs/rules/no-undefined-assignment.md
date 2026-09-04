@@ -2,7 +2,7 @@
 
 Disallows explicitly assigning `undefined` as a generic application value.
 Flexible data may naturally produce `undefined` while being read, but
-value-producing functions should normalize it to the type-safe falsey value
+value-producing functions should normalize it to the type-appropriate falsey value
 specified by their contract.
 
 ## Smell

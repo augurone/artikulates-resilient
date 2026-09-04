@@ -314,6 +314,18 @@ ruleTester.run('signature-contract-operation', rule, {
                     expected: 'string-like'
                 }
             }]
+        },
+        {
+            code: 'const getPage = () => ({ title: "ready" }); getPage().title.map(Boolean);',
+            errors: [{
+                messageId: 'mismatch',
+                data: {
+                    receiver: 'getPage().title',
+                    actual: 'string-like',
+                    method: 'map',
+                    expected: 'array-like'
+                }
+            }]
         }
     ]
 });

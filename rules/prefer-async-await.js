@@ -21,6 +21,7 @@ const getStaticPropertyName = ({
     } = {}
 } = {}) => {
     if (type !== 'MemberExpression' || computed || propertyType !== 'Identifier') return '';
+
     return name;
 };
 
@@ -38,27 +39,37 @@ const getChainMethods = ({ type = '', callee = {} } = {}) => {
 
 const getOuterChain = (node = {}) => {
     const { parent = {} } = node;
-    if (parent.type === 'CallExpression' && parent.callee === node) return getOuterChain(parent);
-    if (parent.type === 'MemberExpression' && parent.object === node) return getOuterChain(parent);
+    const {
+        type: parentType = '',
+        callee = {},
+        object = {}
+    } = parent;
+
+    if (parentType === 'CallExpression' && callee === node) return getOuterChain(parent);
+
+    if (parentType === 'MemberExpression' && object === node) return getOuterChain(parent);
+
     return node;
 };
 
 const isUnhandledExpression = ({ node = {} } = {}) => {
     const outer = getOuterChain(node);
-    const { parent = {} } = outer;
+    const { parent: { type: parentType = '' } = {} } = outer;
     const methods = getChainMethods(outer);
 
     return (
-        parent.type === 'ExpressionStatement' &&
+        parentType === 'ExpressionStatement' &&
         methods.some(method => ['then', 'finally'].includes(method)) &&
         !methods.includes('catch')
     );
 };
 
 const hasAllowComment = ({ sourceCode = {}, node = {} } = {}) => {
-    if (typeof sourceCode.getCommentsBefore !== 'function') return false;
+    const { getCommentsBefore = false } = sourceCode;
 
-    return sourceCode.getCommentsBefore(node)
+    if (typeof getCommentsBefore !== 'function') return false;
+
+    return getCommentsBefore.call(sourceCode, node)
         .some(({ value = '' } = {}) => /^\s*resilient-allow-promise-chain\s*:\s*\S/.test(value));
 };
 
@@ -79,9 +90,17 @@ export default {
             MemberExpression(node = {}) {
                 if (!isThenMember(node) || hasAllowComment({ sourceCode, node })) return;
 
-                const { parent = {} } = node;
-                if (parent.type !== 'CallExpression' || parent.callee !== node) return;
-                if (isUnhandledExpression({ node: parent })) return;
+                const {
+                    parent: parentNode = {}
+                } = node;
+                const {
+                    type: parentType = '',
+                    callee = {}
+                } = parentNode;
+
+                if (parentType !== 'CallExpression' || callee !== node) return;
+
+                if (isUnhandledExpression({ node: parentNode })) return;
 
                 report({
                     node,

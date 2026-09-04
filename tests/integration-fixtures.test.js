@@ -19,6 +19,7 @@ const lintFixture = async ({ file = '', config = resilient.configs.safety } = {}
         overrideConfig: Array.isArray(config) ? config : [config]
     });
     const [result = {}] = await eslint.lintText(read(file), { filePath: file });
+
     return result;
 };
 
@@ -53,11 +54,13 @@ const getProgram = async ({ code = '', file = '' } = {}) => {
     });
 
     await eslint.lintText(code, { filePath: file });
+
     return program;
 };
 
 const getFixturePrograms = async ({ file = '', files = [] } = {}) => {
     const fixtureFiles = [file, ...files];
+
     return Object.fromEntries(await Promise.all(fixtureFiles.map(async fixtureFile => [
         fixtureFile,
         await getProgram({ file: fixtureFile, code: read(fixtureFile) })
@@ -112,12 +115,13 @@ const assertValidEngineFixture = async () => {
             }
         ]
     });
+    const { errorCount = 0, messages = [] } = result;
 
     const { expectedDiagnostics = [] } = getFixtureContract({
         file: 'tests/fixtures/integration/engine-boundaries.valid.js'
     });
     assert.deepEqual(expectedDiagnostics, []);
-    assert.equal(result.errorCount, 0, result.messages.map(({ message = '' } = {}) => message).join('\n'));
+    assert.equal(errorCount, 0, messages.map(({ message = '' } = {}) => message).join('\n'));
 };
 
 const assertInvalidEngineFixture = async () => {
@@ -159,9 +163,10 @@ const assertContractTreeFixture = async () => {
         file,
         config: resilient.configs.contracts
     });
-    assert.equal(result.errorCount, 2);
-    assert.ok(result.messages.some(({ message = '' } = {}) => message.startsWith('getPageView().assets is array-like')));
-    assert.ok(result.messages.some(({ message = '' } = {}) => message.startsWith('pageApi.getPageView().assets is array-like')));
+    const { errorCount = 0, messages = [] } = result;
+    assert.equal(errorCount, 2);
+    assert.ok(messages.some(({ message = '' } = {}) => message.startsWith('getPageView().assets is array-like')));
+    assert.ok(messages.some(({ message = '' } = {}) => message.startsWith('pageApi.getPageView().assets is array-like')));
 };
 
 const assertContractBoundaryFixture = async () => {

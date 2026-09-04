@@ -71,8 +71,8 @@ Each finding includes a rule id, message, range, location, and source stack.
 
 Tree selection is defined separately from contract meaning in
 [`tree-resolution.md`](tree-resolution.md). The Project Tree may index unused
-files, but only the Active Tree—the selected roots and their statically
-resolvable dependency closure—is supplied to this graph and its analyzer.
+files. The Active Tree supplies the selected roots and their statically
+resolvable local dependency closure to this graph and its analyzer.
 
 `createContractGraph` connects parsed programs for local relative imports. It
 currently carries named exports, named imports, default imports, and local
@@ -164,7 +164,7 @@ the build and through the ESLint IDE extension.
 
 Consumers do not manage project activation. On the first contract-rule
 invocation in an ESLint run, the adapter activates its internal project
-analysis for that root and its supported local dependency closure. Subsequent
+analysis for that root and its statically resolvable local dependency closure. Subsequent
 contract rules in the same run reuse the graph; changed source or resolver
 identity causes a rebuild. This activation is lazy and transparent to the
 consumer because ESLint does not provide a separate workspace-activation hook.
@@ -227,7 +227,8 @@ Current inference tracks:
 - known `map`, `filter`, `some`, `reduce`, and `forEach` result contracts;
 - promise-shaped async returns and `await` unwrapping;
 - `Promise.resolve` and `Promise.all` element propagation;
-- native `String`, `Number`, and `Boolean` coercion results;
+- explicit native primitive-producing calls such as `String`, `Number`, and
+  `Boolean`;
 - branch guards such as `Array.isArray(value)`;
 - known property updates;
 - known closed-object property access and destructuring checks, plus
@@ -252,15 +253,13 @@ unsupported promise combinators remain unknown because absence and alternate
 completion paths need more evidence. Recursive cycles and unsupported effects
 remain unknown.
 
-Explicit native coercions establish their result family and are therefore the
-preferred normalization form when every input should become that family:
-
-```javascript
-const labels = values.map(value => String(value).trim());
-```
-
-A type guard remains the correct form when the branches perform different
-work, rather than merely converting the same input to one output family.
+The analyzer models explicit native primitive-producing calls by their returned
+family. That fact describes the result of the call; it does not validate the
+input, establish an external contract, or authorize coercion as a substitute
+for a project-owned falsification or validation utility. At an external
+boundary, establish the contract explicitly before relying on downstream
+operations. The guard or utility must match the boundary's actual contract.
+Converting an unreliable value does not prove that the value was valid.
 
 Facts are narrowed only inside the branch that proves them. At a branch join,
 uncertain facts are preserved as unknown instead of being promoted to a false
@@ -324,18 +323,32 @@ The repository's agent-facing fixture contract is recorded in
 [`tests/fixtures/manifest.json`](../tests/fixtures/manifest.json) and checked by
 `npm run fixtures:check`. The deliberately invalid `bad.js` fixture contains
 one labeled section for every public rule; the check executes the fixture and
-verifies that each section produces its matching diagnostic.
+verifies that each section produces its matching diagnostic. The checker runs
+all public rules at error severity for coverage, so this fixture contract does
+not redefine a preset's published severity; `prefer-async-await` remains a
+warning in `resilient.configs.safety`.
 The integration fixtures model real engine boundaries and declare the
 diagnostics they must produce. Rule changes must update the relevant fixture,
 manifest entry, and test together; the manifest is part of the verification
 contract, not an informal inventory.
 
-## Current limits
+## Boundary inventory
 
-The core does not perform runtime validation, resolve arbitrary package or
-dynamic imports, or provide an LSP server. The current graph adapter handles
-local relative `.js`, `.jsx`, and `index.js` paths plus named local and
-namespace re-export edges. Filesystem-wide project discovery and parser-backed
-resolution are not included. Proposed extensions are listed in
-[`roadmap.md`](roadmap.md); none requires a parallel type-annotation language
-in application source.
+The analyzer reads parsed JavaScript at function parameters, calls, returns,
+object construction and destructuring, object-rest residuals, value
+operations, guards and branches, reassignment, property updates,
+`try`/`catch`/`finally`, bounded loops, and local module relationships. It
+propagates those facts through aliases, callback calls, returned functions,
+returned objects, async results, and known native operations.
+
+The graph adapter resolves local relative `.js`, `.jsx`, and `index.js` paths,
+named/default/namespace imports, named and star re-export barrels, and finite
+re-export cycles. A caller can provide a resolver for additional authored
+module layouts.
+
+Runtime API data, database records, configuration, third-party implementations,
+dynamic imports and properties, unresolved modules, unsupported effects,
+filesystem discovery, parser loading, and LSP behavior belong to runtime
+validation or a separate adapter. They remain unknown in the contract model.
+Proposed extensions are listed in [`roadmap.md`](roadmap.md); none requires a
+parallel type-annotation language in application source.

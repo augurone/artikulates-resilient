@@ -5,8 +5,7 @@ import {
     walk
 } from './infer.js';
 import { contract, isEqual } from './model.js';
-
-const getObject = value => value && typeof value === 'object' ? value : {};
+import { getObject, hasObjectValue, isObject } from '../support/object.js';
 
 const normalizePath = (value = '') => {
     const prefix = value.startsWith('/') ? '/' : '';
@@ -15,33 +14,46 @@ const normalizePath = (value = '') => {
         .split('/')
         .reduce((segments = [], segment = '') => {
             if (!segment || segment === '.') return segments;
+
             if (segment === '..') return segments.slice(0, -1);
+
             return [...segments, segment];
         }, []);
+
     return `${prefix}${parts.join('/')}`;
 };
 
 const getDirectory = (fileName = '') => {
     const normalized = normalizePath(fileName);
     const separator = normalized.lastIndexOf('/');
+
     return separator >= 0 ? normalized.slice(0, separator) : '';
 };
 
 const resolveModule = ({ from = '', source = '', programs = {} } = {}) => {
     if (!source.startsWith('.')) return '';
+
     const directory = getDirectory(from);
     const base = normalizePath(directory ? `${directory}/${source}` : source);
     const candidates = [base, `${base}.js`, `${base}.jsx`, `${base}/index.js`];
-    return candidates.find(candidate => programs[candidate]) || '';
+
+    return candidates.find((candidate) => {
+        const { [candidate]: program = false } = programs;
+
+        return isObject(program);
+    }) || '';
 };
 
 const getModuleSources = (program = {}) => {
     let sources = [];
     walk(program, ({ type = '', source = {} } = {}) => {
         if (!['ImportDeclaration', 'ExportNamedDeclaration', 'ExportAllDeclaration'].includes(type)) return;
+
         const { value = '' } = getObject(source);
+
         if (value) sources = [...sources, value];
     });
+
     return [...new Set(sources)];
 };
 
@@ -49,20 +61,23 @@ const getImportBindings = (program = {}) => {
     let bindings = [];
     walk(program, ({ type = '', source = {}, specifiers = [] } = {}) => {
         if (type !== 'ImportDeclaration') return;
+
         const { value: sourceValue = '' } = getObject(source);
         specifiers.forEach(({
             type: specifierType = '',
             local = {},
             imported = {}
         } = {}) => {
-            const { name: localName = '' } = local;
+            const { name: localName = '' } = getObject(local);
             const importedNames = {
                 ImportSpecifier: getPropertyName({ key: imported }),
                 ImportDefaultSpecifier: 'default',
                 ImportNamespaceSpecifier: '*'
             };
-            const importedName = importedNames[specifierType] || '';
+            const { [specifierType]: importedName = '' } = importedNames;
+
             if (!sourceValue || !localName || !importedName) return;
+
             bindings = [...bindings, {
                 kind: specifierType === 'ImportNamespaceSpecifier' ? 'namespace' : 'named',
                 localName,
@@ -71,6 +86,7 @@ const getImportBindings = (program = {}) => {
             }];
         });
     });
+
     return bindings;
 };
 
@@ -82,7 +98,8 @@ const getImportMap = (program = {}) => Object.fromEntries(getImportBindings(prog
     }]));
 
 const getImportBinding = ({ imports = {}, localName = '' } = {}) => {
-    const { [localName]: binding = null } = imports;
+    const { [localName]: binding = {} } = imports;
+
     return binding;
 };
 
@@ -91,103 +108,158 @@ const getModuleExportEntries = ({ program = {}, definitions = {} } = {}) => {
     let exportAllSources = [];
     const imports = getImportMap(program);
 
-    const addLocalExport = ({ exportName = '', localName = '' } = {}) => {
-        if (!exportName || !localName) return;
-        if (Object.hasOwn(definitions, localName)) {
-            entries = { ...entries, [exportName]: {
-                kind: 'definition',
-                definition: definitions[localName]
-            } };
-            return;
-        }
-        const binding = getImportBinding({ imports, localName });
-        if (!binding) return;
-        entries = { ...entries, [exportName]: {
-            kind: binding.kind === 'namespace' ? 'namespace-reexport' : 'reexport',
-            importedName: binding.importedName,
-            source: binding.source
-        } };
-    };
+    const getLocalExportEntry = ({ exportName = '', localName = '' } = {}) => {
+        if (!exportName || !localName) return {};
 
-    const addNamedExport = ({ source = {}, declaration = {}, specifiers = [] } = {}) => {
-        const { value: sourceValue = '' } = getObject(source);
-        if (sourceValue) {
-            specifiers.forEach(({ local = {}, exported = {} } = {}) => {
-                const importedName = getPropertyName({ key: local });
-                const exportName = getPropertyName({ key: exported });
-                if (!importedName || !exportName) return;
-                entries = { ...entries, [exportName]: {
-                    kind: 'reexport',
-                    importedName,
-                    source: sourceValue
-                } };
-            });
-            return;
+        const { [localName]: definition = false } = definitions;
+
+        if (definition) {
+            return {
+                kind: 'definition',
+                definition
+            };
         }
+
+        const binding = getImportBinding({ imports, localName });
+
+        if (!hasObjectValue(binding)) return {};
 
         const {
-            type: declarationType = '',
-            id = {},
-            declarations = []
-        } = getObject(declaration);
-        if (declarationType === 'FunctionDeclaration') {
-            const { name: idName = '' } = getObject(id);
-            addLocalExport({
-                exportName: idName,
-                localName: idName
-            });
-            return;
-        }
-        if (declarationType === 'VariableDeclaration') {
-            declarations.forEach(({ id: declarationId = {} } = {}) => {
-                const { name = '' } = getObject(declarationId);
-                addLocalExport({ exportName: name, localName: name });
-            });
-            return;
-        }
-        specifiers.forEach(({ local = {}, exported = {} } = {}) => addLocalExport({
-            exportName: getPropertyName({ key: exported }),
-            localName: getPropertyName({ key: local })
-        }));
+            kind: bindingKind = '',
+            importedName = '',
+            source = ''
+        } = getObject(binding);
+
+        return {
+            kind: bindingKind === 'namespace' ? 'namespace-reexport' : 'reexport',
+            importedName,
+            source
+        };
     };
 
-    walk(program, ({ type = '', declaration = {}, source = {}, specifiers = [], exported = {} } = {}) => {
+    const getLocalExportEntries = ({ exports = [] } = {}) => Object.fromEntries(
+        (Array.isArray(exports) ? exports : []).flatMap(({ exportName = '', localName = '' } = {}) => {
+            const entry = getLocalExportEntry({ exportName, localName });
+
+            return hasObjectValue(entry) ? [[exportName, entry]] : [];
+        })
+    );
+
+    const getNamedReexportEntries = ({ sourceValue = '', specifiers = [] } = {}) => Object.fromEntries(
+        (Array.isArray(specifiers) ? specifiers : []).flatMap(({ local = {}, exported = {} } = {}) => {
+            const importedName = getPropertyName({ key: local });
+            const exportName = getPropertyName({ key: exported });
+
+            if (!importedName || !exportName) return [];
+
+            return [[exportName, {
+                kind: 'reexport',
+                importedName,
+                source: sourceValue
+            }]];
+        })
+    );
+
+    const getNamedExportEntries = ({
+        sourceValue = '',
+        declarationType = '',
+        declarationId = {},
+        declarations = [],
+        specifiers = []
+    } = {}) => {
+        if (sourceValue) return getNamedReexportEntries({ sourceValue, specifiers });
+
+        if (declarationType === 'FunctionDeclaration') {
+            const { name: idName = '' } = getObject(declarationId);
+
+            return getLocalExportEntries({
+                exports: [{
+                    exportName: idName,
+                    localName: idName
+                }]
+            });
+        }
+
+        if (declarationType === 'VariableDeclaration') {
+            return getLocalExportEntries({
+                exports: (Array.isArray(declarations) ? declarations : []).map(({ id: declarationId = {} } = {}) => {
+                    const { name = '' } = getObject(declarationId);
+
+                    return { exportName: name, localName: name };
+                })
+            });
+        }
+
+        return getLocalExportEntries({
+            exports: (Array.isArray(specifiers) ? specifiers : []).map(({ local = {}, exported = {} } = {}) => ({
+                exportName: getPropertyName({ key: exported }),
+                localName: getPropertyName({ key: local })
+            }))
+        });
+    };
+
+    walk(program, ({
+        type = '',
+        declaration = {},
+        source = {},
+        specifiers = [],
+        exported = {}
+    } = {}) => {
+        const {
+            type: declarationType = '',
+            id: declarationId = {},
+            declarations = [],
+            name: declarationName = ''
+        } = getObject(declaration);
+        const { value: sourceValue = '' } = getObject(source);
+
         if (type === 'ExportNamedDeclaration') {
-            addNamedExport({ source, declaration, specifiers });
+            entries = {
+                ...entries,
+                ...getNamedExportEntries({
+                    sourceValue,
+                    declarationType,
+                    declarationId,
+                    declarations,
+                    specifiers
+                })
+            };
+
             return;
         }
 
         if (type === 'ExportDefaultDeclaration') {
-            const {
-                type: declarationType = '',
-                id = {},
-                name = ''
-            } = getObject(declaration);
-            const { name: idName = '' } = getObject(id);
-            addLocalExport({
-                exportName: 'default',
-                localName: idName || name || (
-                    ['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression']
-                        .includes(declarationType)
-                        ? 'default'
-                        : ''
-                )
+            const { name: idName = '' } = getObject(declarationId);
+            const localName = idName || declarationName || (
+                ['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression']
+                    .includes(declarationType)
+                    ? 'default'
+                    : ''
+            );
+            const defaultEntries = getLocalExportEntries({
+                exports: [{ exportName: 'default', localName }]
             });
+            entries = { ...entries, ...defaultEntries };
+
             return;
         }
 
         if (type !== 'ExportAllDeclaration') return;
-        const { value = '' } = getObject(source);
-        if (!value) return;
+
+        if (!sourceValue) return;
+
         const { name: exportedName = '' } = getObject(exported);
+
         if (exportedName) {
             entries = { ...entries, [exportedName]: {
                 kind: 'namespace-reexport',
-                source: value
+                source: sourceValue
             } };
+
             return;
         }
-        exportAllSources = [...exportAllSources, value];
+
+        exportAllSources = [...exportAllSources, sourceValue];
     });
 
     return { entries, exportAllSources };
@@ -195,9 +267,18 @@ const getModuleExportEntries = ({ program = {}, definitions = {} } = {}) => {
 
 const getModuleExports = ({ program = {}, definitions = {} } = {}) => {
     const { entries = {} } = getModuleExportEntries({ program, definitions });
+
     return Object.fromEntries(Object.entries(entries)
-        .filter(([, entry = {}] = []) => entry.kind === 'definition')
-        .map(([name = '', { definition = {} } = {}] = []) => [name, definition]));
+        .filter(([, entry = {}] = []) => {
+            const { kind = '' } = getObject(entry);
+
+            return kind === 'definition';
+        })
+        .map(([name = '', entry = {}] = []) => {
+            const { definition = {} } = getObject(entry);
+
+            return [name, definition];
+        }));
 };
 
 const getImportedDefinitions = ({
@@ -209,29 +290,49 @@ const getImportedDefinitions = ({
 } = {}) => Object.fromEntries(getImportBindings(program)
     .flatMap(({ kind = 'named', localName = '', importedName = '', source = '' } = {}) => {
         const targetFile = resolve({ from: fileName, source, programs });
+
         if (!targetFile) return [];
-        const targetExports = moduleExports[targetFile] || {};
+
+        const { [targetFile]: targetExports = {} } = moduleExports;
+
         if (kind === 'namespace') return [[localName, contract({
             kind: 'object',
             properties: targetExports
         })]];
-        if (!Object.hasOwn(targetExports, importedName)) return [];
-        return [[localName, targetExports[importedName]]];
+
+        const { [importedName]: importedDefinition = false } = targetExports;
+
+        if (!importedDefinition) return [];
+
+        return [[localName, importedDefinition]];
     }));
 
 const addExportCandidate = ({ candidates = {}, name = '', definition = {}, priority = 'star' } = {}) => {
     if (!name || !definition) return candidates;
+
     const { [name]: existing = [] } = candidates;
+
     return { ...candidates, [name]: [...existing, { definition, priority }] };
 };
 
 const getCandidateResolution = (candidates = []) => {
     if (!candidates.length) return {};
+
     const explicit = candidates.filter(({ priority = '' } = {}) => priority === 'explicit');
+
     if (explicit.length > 1) return { ambiguous: true };
-    if (explicit.length === 1) return { definition: explicit[0].definition };
+
+    if (explicit.length === 1) {
+        const [{ definition = {} } = {}] = explicit;
+
+        return { definition };
+    }
+
     if (candidates.length > 1) return { ambiguous: true };
-    return { definition: candidates[0].definition };
+
+    const [{ definition = {} } = {}] = candidates;
+
+    return { definition };
 };
 
 const getNamespaceContract = (moduleExports = {}) => contract({
@@ -250,17 +351,24 @@ const addResolvedEntryCandidate = ({
     resolve = resolveModule
 } = {}) => {
     const { kind = '', importedName = '', source = '' } = entry;
+
     if (kind === 'definition') {
+        const { definition = {} } = getObject(entry);
+
         return addExportCandidate({
             candidates,
             name: exportName,
-            definition: entry.definition,
+            definition,
             priority: 'explicit'
         });
     }
+
     const targetFile = resolve({ from: moduleName, source, programs });
+
     if (!targetFile) return candidates;
-    const targetExports = resolved[targetFile] || {};
+
+    const { [targetFile]: targetExports = {} } = resolved;
+
     if (kind === 'namespace-reexport') {
         return addExportCandidate({
             candidates,
@@ -269,14 +377,19 @@ const addResolvedEntryCandidate = ({
             priority: 'explicit'
         });
     }
+
     if (kind !== 'reexport') return candidates;
-    const targetAmbiguities = ambiguities[targetFile] || {};
-    if (Object.hasOwn(targetAmbiguities, importedName)) return candidates;
-    if (!Object.hasOwn(targetExports, importedName)) return candidates;
+
+    const { [targetFile]: targetAmbiguities = {} } = ambiguities;
+    const { [importedName]: ambiguity = false } = targetAmbiguities;
+    const { [importedName]: importedDefinition = false } = targetExports;
+
+    if (ambiguity || !importedDefinition) return candidates;
+
     return addExportCandidate({
         candidates,
         name: exportName,
-        definition: targetExports[importedName],
+        definition: importedDefinition,
         priority: 'explicit'
     });
 };
@@ -290,8 +403,11 @@ const addExportAllCandidates = ({
     resolve = resolveModule
 } = {}) => {
     const targetFile = resolve({ from: fileName, source, programs });
+
     if (!targetFile) return candidates;
-    const targetExports = resolved[targetFile] || {};
+
+    const { [targetFile]: targetExports = {} } = resolved;
+
     return Object.entries(targetExports)
         .filter(([name = ''] = []) => name !== 'default')
         .reduce((current, [name = '', definition = {}] = []) => addExportCandidate({
@@ -304,31 +420,46 @@ const addExportAllCandidates = ({
 const areExportValuesEqual = (left = {}, right = {}) => {
     const leftObject = getObject(left);
     const rightObject = getObject(right);
-    const leftNamespace = leftObject.kind === 'object';
-    const rightNamespace = rightObject.kind === 'object';
+    const { kind: leftKind = '' } = leftObject;
+    const { kind: rightKind = '' } = rightObject;
+    const leftNamespace = leftKind === 'object';
+    const rightNamespace = rightKind === 'object';
+
     if (leftNamespace !== rightNamespace) return false;
+
     if (leftNamespace) {
-        const leftProperties = leftObject.properties || {};
-        const rightProperties = rightObject.properties || {};
-        const leftNames = Object.keys(leftProperties);
-        const rightNames = Object.keys(rightProperties);
-        return leftNames.length === rightNames.length && leftNames.every(name => (
-            Object.hasOwn(rightProperties, name) && areExportValuesEqual(
-                leftProperties[name],
-                rightProperties[name]
-            )
-        ));
+        const { properties: leftProperties = {} } = leftObject;
+        const { properties: rightProperties = {} } = rightObject;
+        const safeLeftProperties = getObject(leftProperties);
+        const safeRightProperties = getObject(rightProperties);
+        const leftNames = Object.keys(safeLeftProperties);
+        const rightNames = Object.keys(safeRightProperties);
+
+        return leftNames.length === rightNames.length && leftNames.every((name) => {
+            const { [name]: leftValue = {} } = safeLeftProperties;
+            const { [name]: rightValue = false } = safeRightProperties;
+
+            return !!rightValue && areExportValuesEqual(leftValue, rightValue);
+        });
     }
-    if (!Object.hasOwn(leftObject, 'returnContract') || !Object.hasOwn(rightObject, 'returnContract')) {
-        return left === right;
-    }
-    return isEqual(leftObject.returnContract, rightObject.returnContract);
+
+    const { returnContract: leftReturnContract = {} } = leftObject;
+    const { returnContract: rightReturnContract = {} } = rightObject;
+
+    if (!hasObjectValue(leftReturnContract) || !hasObjectValue(rightReturnContract)) return left === right;
+
+    return isEqual(leftReturnContract, rightReturnContract);
 };
 
 const areNameSetsEqual = (left = {}, right = {}) => {
     const leftNames = Object.keys(left);
     const rightNames = Object.keys(right);
-    return leftNames.length === rightNames.length && leftNames.every(name => Object.hasOwn(right, name));
+
+    return leftNames.length === rightNames.length && leftNames.every((name) => {
+        const { [name]: foundName = false } = right;
+
+        return !!foundName;
+    });
 };
 
 const getModuleExportState = ({
@@ -337,10 +468,14 @@ const getModuleExportState = ({
     resolve = resolveModule
 } = {}) => {
     const entries = Object.fromEntries(Object.entries(programs)
-        .map(([fileName = '', program = {}] = []) => [fileName, getModuleExportEntries({
-            program,
-            definitions: definitions[fileName]
-        })]));
+        .map(([fileName = '', program = {}] = []) => {
+            const { [fileName]: fileDefinitions = {} } = definitions;
+
+            return [fileName, getModuleExportEntries({
+                program,
+                definitions: fileDefinitions
+            })];
+        }));
     let resolved = Object.fromEntries(Object.keys(programs)
         .map(fileName => [fileName, {}]));
     let ambiguities = Object.fromEntries(Object.keys(programs)
@@ -356,7 +491,7 @@ const getModuleExportState = ({
             exportAllSources = []
         } = {}] = []) => {
             Object.entries(moduleEntries).forEach(([name = '', entry = {}] = []) => {
-                const entryCandidates = candidatesByFile[fileName] || {};
+                const { [fileName]: entryCandidates = {} } = candidatesByFile;
                 const nextCandidates = addResolvedEntryCandidate({
                     moduleName: fileName,
                     exportName: name,
@@ -374,10 +509,11 @@ const getModuleExportState = ({
             });
 
             exportAllSources.forEach((source = '') => {
+                const { [fileName]: entryCandidates = {} } = candidatesByFile;
                 const nextCandidates = addExportAllCandidates({
                     fileName,
                     source,
-                    candidates: candidatesByFile[fileName],
+                    candidates: entryCandidates,
                     resolved,
                     programs,
                     resolve
@@ -398,13 +534,17 @@ const getModuleExportState = ({
                 } = Object.entries(candidates)
                     .reduce(({ exports: currentExports = {}, ambiguities: currentAmbiguities = {} }, [name = '', candidateList = []] = []) => {
                         const resolution = getCandidateResolution(candidateList);
-                        if (resolution.ambiguous) {
+                        const { ambiguous = false } = getObject(resolution);
+
+                        if (ambiguous) {
                             return {
                                 exports: currentExports,
                                 ambiguities: { ...currentAmbiguities, [name]: true }
                             };
                         }
-                        const { definition = null } = resolution;
+
+                        const { definition = {} } = resolution;
+
                         return definition
                             ? {
                                 exports: { ...currentExports, [name]: definition },
@@ -416,17 +556,26 @@ const getModuleExportState = ({
                     ...nextAmbiguities,
                     [fileName]: fileAmbiguities
                 };
+
                 return [fileName, exports];
             }));
-        const changed = Object.keys(programs).some(fileName => (
-            !areExportValuesEqual(
-                { kind: 'object', properties: resolved[fileName] || {} },
-                { kind: 'object', properties: next[fileName] || {} }
-            ) ||
-            !areNameSetsEqual(ambiguities[fileName] || {}, nextAmbiguities[fileName] || {})
-        ));
+        const changed = Object.keys(programs).some((fileName) => {
+            const { [fileName]: previousExports = {} } = resolved;
+            const { [fileName]: nextExports = {} } = next;
+            const { [fileName]: previousAmbiguities = {} } = ambiguities;
+            const { [fileName]: nextFileAmbiguities = {} } = nextAmbiguities;
+
+            return (
+                !areExportValuesEqual(
+                    { kind: 'object', properties: previousExports },
+                    { kind: 'object', properties: nextExports }
+                ) ||
+            !areNameSetsEqual(previousAmbiguities, nextFileAmbiguities)
+            );
+        });
         resolved = next;
         ambiguities = nextAmbiguities;
+
         if (!changed) break;
     }
 
@@ -447,6 +596,7 @@ const getModuleAgreements = ({
     source = ''
 } = {}) => {
     const targetFile = resolve({ from: fileName, source, programs });
+
     if (!targetFile) return {
         fileName,
         kind: 'unknown',
@@ -454,8 +604,10 @@ const getModuleAgreements = ({
         importedName,
         source
     };
-    const targetExports = moduleExports[targetFile] || {};
-    const targetAmbiguities = ambiguities[targetFile] || {};
+
+    const { [targetFile]: targetExports = {} } = moduleExports;
+    const { [targetFile]: targetAmbiguities = {} } = ambiguities;
+
     if (kind === 'namespace') return {
         fileName,
         kind: 'resolved',
@@ -464,7 +616,11 @@ const getModuleAgreements = ({
         source,
         targetFile
     };
-    if (Object.hasOwn(targetAmbiguities, importedName)) return {
+
+    const { [importedName]: ambiguity = false } = targetAmbiguities;
+    const { [importedName]: targetExport = false } = targetExports;
+
+    if (ambiguity) return {
         fileName,
         kind: 'ambiguous',
         localName,
@@ -472,7 +628,8 @@ const getModuleAgreements = ({
         source,
         targetFile
     };
-    if (!Object.hasOwn(targetExports, importedName)) return {
+
+    if (!targetExport) return {
         fileName,
         kind: 'missing',
         localName,
@@ -480,6 +637,7 @@ const getModuleAgreements = ({
         source,
         targetFile
     };
+
     return {
         fileName,
         kind: 'resolved',
@@ -493,12 +651,18 @@ const getModuleAgreements = ({
 const areDefinitionSetsEqual = (left = {}, right = {}) => {
     const leftNames = Object.keys(left);
     const rightNames = Object.keys(right);
-    return leftNames.length === rightNames.length && leftNames.every(name => (
-        Object.hasOwn(right, name) && isEqual(
-            left[name].returnContract,
-            right[name].returnContract
-        )
-    ));
+
+    return leftNames.length === rightNames.length && leftNames.every((name) => {
+        const { [name]: leftDefinition = {} } = left;
+        const { [name]: rightDefinition = false } = right;
+
+        if (!rightDefinition) return false;
+
+        const { returnContract: leftReturnContract = {} } = getObject(leftDefinition);
+        const { returnContract: rightReturnContract = {} } = getObject(rightDefinition);
+
+        return isEqual(leftReturnContract, rightReturnContract);
+    });
 };
 
 const createContractGraph = ({
@@ -509,17 +673,26 @@ const createContractGraph = ({
 } = {}) => {
     const normalizedPrograms = Object.fromEntries(Object.entries(programs)
         .map(([fileName = '', program = {}] = []) => [normalizePath(fileName), program]));
-    const previousDefinitions = previousGraph.definitions || {};
-    const previousDocuments = previousGraph.documents || {};
+    const {
+        definitions: previousDefinitions = {},
+        documents: previousDocuments = {}
+    } = getObject(previousGraph);
     const reusable = new Set(reusableFiles);
-    const canReuse = (fileName = '') => reusable.has(fileName) &&
-        Object.hasOwn(previousDefinitions, fileName) &&
-        Object.hasOwn(previousDocuments, fileName);
+    const canReuse = (fileName = '') => {
+        const { [fileName]: previousDefinition = false } = previousDefinitions;
+        const { [fileName]: previousDocument = false } = previousDocuments;
+
+        return reusable.has(fileName) && !!previousDefinition && !!previousDocument;
+    };
     let definitions = Object.fromEntries(Object.entries(normalizedPrograms)
-        .map(([fileName = '', program = {}] = []) => [
-            fileName,
-            canReuse(fileName) ? previousDefinitions[fileName] : getDefinitions(program)
-        ]));
+        .map(([fileName = '', program = {}] = []) => {
+            const { [fileName]: priorDefinitions = {} } = previousDefinitions;
+
+            return [
+                fileName,
+                canReuse(fileName) ? priorDefinitions : getDefinitions(program)
+            ];
+        }));
     let moduleExports = {};
     let moduleResolution = { ambiguities: {}, exports: {} };
     const remaining = Object.keys(normalizedPrograms).length + 1;
@@ -533,24 +706,30 @@ const createContractGraph = ({
         const { exports: resolvedExports = {} } = moduleResolution;
         moduleExports = resolvedExports;
         const nextDefinitions = Object.fromEntries(Object.entries(normalizedPrograms)
-            .map(([fileName = '', program = {}] = []) => [
-                fileName,
-                canReuse(fileName)
-                    ? previousDefinitions[fileName]
-                    : getDefinitions(program, getImportedDefinitions({
-                        fileName,
-                        program,
-                        moduleExports,
-                        programs: normalizedPrograms,
-                        resolve
-                    }))
-            ]));
+            .map(([fileName = '', program = {}] = []) => {
+                const { [fileName]: priorDefinitions = {} } = previousDefinitions;
+
+                return [
+                    fileName,
+                    canReuse(fileName)
+                        ? priorDefinitions
+                        : getDefinitions(program, getImportedDefinitions({
+                            fileName,
+                            program,
+                            moduleExports,
+                            programs: normalizedPrograms,
+                            resolve
+                        }))
+                ];
+            }));
         const changed = Object.entries(nextDefinitions)
-            .some(([fileName = '', moduleDefinitions = {}] = []) => !areDefinitionSetsEqual(
-                definitions[fileName] || {},
-                moduleDefinitions
-            ));
+            .some(([fileName = '', moduleDefinitions = {}] = []) => {
+                const { [fileName]: currentDefinitions = {} } = definitions;
+
+                return !areDefinitionSetsEqual(currentDefinitions, moduleDefinitions);
+            });
         definitions = nextDefinitions;
+
         if (!changed) break;
     }
 
@@ -559,10 +738,16 @@ const createContractGraph = ({
         definitions,
         resolve
     });
+
     const { exports: resolvedExports = {} } = moduleResolution;
+
     moduleExports = resolvedExports;
+
     const documents = Object.fromEntries(Object.entries(normalizedPrograms).map(([fileName = '', program = {}] = []) => {
-        if (canReuse(fileName)) return [fileName, previousDocuments[fileName]];
+        const { [fileName]: priorDocument = {} } = previousDocuments;
+
+        if (canReuse(fileName)) return [fileName, priorDocument];
+
         const importedDefinitions = getImportedDefinitions({
             fileName,
             program,
@@ -570,29 +755,43 @@ const createContractGraph = ({
             programs: normalizedPrograms,
             resolve
         });
+
         return [fileName, createContractDocument(program, {
             fileName,
             externalDefinitions: importedDefinitions
         })];
     }));
 
-    const getDocument = (fileName = '') => documents[normalizePath(fileName)] || {};
+    const getDocument = (fileName = '') => {
+        const { [normalizePath(fileName)]: document = {} } = documents;
+
+        return document;
+    };
     const getDiagnostics = () => Object.entries(documents).flatMap(([fileName = '', document = {}] = []) => (
-        document.getDiagnostics().map(diagnostic => ({ fileName, ...diagnostic }))
+        (() => {
+            const { getDiagnostics: readDiagnostics = () => [] } = getObject(document);
+
+            return readDiagnostics().map(diagnostic => ({ fileName, ...diagnostic }));
+        })()
     ));
-    const previousAgreements = previousGraph.agreements || {};
+    const { agreements: previousAgreements = {} } = getObject(previousGraph);
+    const { ambiguities: moduleAmbiguities = {} } = getObject(moduleResolution);
     const agreements = Object.fromEntries(Object.entries(normalizedPrograms).map(([fileName = '', program = {}] = []) => [
         fileName,
-        canReuse(fileName) && Object.hasOwn(previousAgreements, fileName)
-            ? previousAgreements[fileName]
-            : getModuleAgreements({
-                fileName,
-                program,
-                moduleExports,
-                ambiguities: moduleResolution.ambiguities,
-                programs: normalizedPrograms,
-                resolve
-            })
+        (() => {
+            const { [fileName]: priorAgreements = false } = previousAgreements;
+
+            return canReuse(fileName) && priorAgreements
+                ? priorAgreements
+                : getModuleAgreements({
+                    fileName,
+                    program,
+                    moduleExports,
+                    ambiguities: moduleAmbiguities,
+                    programs: normalizedPrograms,
+                    resolve
+                });
+        })()
     ]));
     const getAgreements = () => Object.values(agreements).flat();
 

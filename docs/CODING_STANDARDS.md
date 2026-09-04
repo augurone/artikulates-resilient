@@ -55,6 +55,13 @@ Do not use `else`, `else if`, or nested `if` statements in one function. Use
 `!items.length` or `items.length` for zero/non-zero collection checks; preserve
 exact cardinality comparisons such as `items.length === 1`.
 
+Whitespace is part of the recommended configuration. ESLint can autofix
+trailing spaces, mixed or repeated horizontal spaces, missing final newlines,
+and excess blank lines. Executable statements are separated by blank lines;
+function and control-flow braces stay tight; `if` statements are separated
+from following work; return statements have top padding; and redundant
+returns are rejected. Consecutive guard returns remain valid.
+
 Use prototype methods when they state the collection operation:
 
 ```javascript
@@ -62,10 +69,11 @@ const enabled = items.filter(({ enabled = false } = {}) => enabled);
 const labels = enabled.map(({ label = '' } = {}) => label);
 ```
 
-Loops are valid for sequential API work, polling, retries, rate limiting, early
-termination, and detailed control flow. The loop rule recognizes `await`,
-direct `break`/`continue`/`return`/`throw`, and
-`// resilient-allow-loop: reason` as exceptions.
+Loops with `await` or direct `break`/`continue`/`return`/`throw` are valid
+native exceptions: their sequential ordering or control flow is explicit.
+Other retained loops, including accumulator or mutation loops without those
+native semantics, require `// resilient-allow-loop: reason` with a file-local
+explanation.
 
 ## Transformations and effects
 
@@ -134,7 +142,8 @@ side effects, and behavior static syntax cannot prove.
 - Does each value-producing path preserve its intended value family?
 - Can a guard clause terminate irrelevant work earlier?
 - Is a collection operation expressed with a prototype method?
-- If a loop remains, is its sequential or control-flow reason visible?
+- If a loop has neither `await` nor direct loop control, is its retained-pattern
+  reason visible in `resilient-allow-loop: reason`?
 - Are independent async operations grouped with `Promise.all`?
 - Does every promise chain have an owner for rejection?
 - Does every catch handler handle, translate, rethrow, log with context, or

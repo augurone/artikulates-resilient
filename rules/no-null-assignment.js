@@ -1,18 +1,58 @@
+import { getObject, isObject } from './support/object.js';
+
 const isNullLiteral = (node = {}) => {
     const {
         type = '',
         value = {}
-    } = node ?? {};
+    } = getObject(node);
 
     return type === 'Literal' && value === null;
 };
 
-const reportNullAssignment = ({ node = {}, report = () => {} } = {}) => {
-    const safeNode = node ?? {};
-    if (!isNullLiteral(safeNode)) return;
+const getNullLiteral = ({ node = {} } = {}) => {
+    if (!isObject(node)) return {};
+
+    if (isNullLiteral(node)) return node;
+
+    const {
+        type = '',
+        consequent = {},
+        alternate = {},
+        left = {},
+        right = {},
+        expressions = [],
+        properties = [],
+        elements = [],
+        value = {}
+    } = getObject(node);
+    const childNodesByType = {
+        ConditionalExpression: [consequent, alternate],
+        LogicalExpression: [left, right],
+        AssignmentExpression: [left, right],
+        SequenceExpression: expressions,
+        ObjectExpression: properties,
+        ArrayExpression: elements,
+        Property: [value]
+    };
+    const { [type]: childNodes = [] } = childNodesByType;
+    const matches = childNodes
+        .map(child => getNullLiteral({ node: getObject(child) }))
+        .filter(({ type: childType = '' } = {}) => childType);
+    const [firstMatch = {}] = matches;
+
+    return firstMatch;
+};
+
+const reportNullAssignment = ({ node = {}, report } = {}) => {
+    const nullNode = getNullLiteral({ node });
+    const { type: nullType = '' } = getObject(nullNode);
+
+    if (!nullType) return;
+
+    if (typeof report !== 'function') return;
 
     report({
-        node: safeNode,
+        node: nullNode,
         messageId: 'nullAssignment'
     });
 };

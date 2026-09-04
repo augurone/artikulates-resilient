@@ -18,6 +18,7 @@ ruleTester.run('signature-contract-destructuring', rule, {
         { code: 'const getValue = ({ value = [] } = {}) => { const [first = {}] = value; return first; };' },
         { code: 'const getValue = () => { const [{ attr = "" } = {}] = []; return attr; };' },
         { code: 'const getValue = (items = []) => { const { [0]: value = {} } = items; return value; };' },
+        { code: 'const user = { name: "A" }; const propertyName = "name"; const { [propertyName]: name = "" } = user;' },
         { code: 'const getValue = (value) => { const { attr = "" } = value; return attr; };' },
         { code: 'const getValue = ({ value = {} } = {}) => { if (Array.isArray(value)) return value.map(Boolean); return []; };' }
     ],
@@ -41,6 +42,13 @@ ruleTester.run('signature-contract-destructuring', rule, {
         },
         {
             code: 'const getValue = () => ({ profile: { name: "A" } }); const { profile: { nmae } } = getValue();',
+            errors: [{
+                messageId: 'missingProperty',
+                data: { property: 'profile.nmae' }
+            }]
+        },
+        {
+            code: 'const getValue = () => ({ profile: { name: "A" } }); const source = getValue(); const { profile: { nmae } } = source;',
             errors: [{
                 messageId: 'missingProperty',
                 data: { property: 'profile.nmae' }

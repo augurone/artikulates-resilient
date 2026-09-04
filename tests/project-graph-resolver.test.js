@@ -43,6 +43,7 @@ const getProgram = async (code = '', fileName = '') => {
         }]
     });
     await eslint.lintText(code, { filePath: fileName });
+
     return program;
 };
 
@@ -100,6 +101,7 @@ try {
                 resilient: {
                     resolver: ({ source = '' } = {}) => {
                         resolverCalls += 1;
+
                         return source === '@artikulates/page' ? providerFile : '';
                     }
                 }

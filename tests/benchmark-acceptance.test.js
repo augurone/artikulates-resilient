@@ -32,6 +32,7 @@ const getProgram = async (code = '', fileName = 'fixture.js') => {
         }]
     });
     await eslint.lintText(code, { filePath: fileName });
+
     return program;
 };
 
@@ -75,13 +76,29 @@ assert.deepEqual(sharedDiagnostics.map(({ fileName = '' } = {}) => fileName), [
     'consumer-a.js',
     'consumer-b.js'
 ]);
-assert.deepEqual(sharedDiagnostics.map(({ data = {} } = {}) => data.path), [
+assert.deepEqual(sharedDiagnostics.map(({
+    data: { path: diagnosticPath = '' } = {}
+} = {}) => diagnosticPath), [
     'items',
     'label'
 ]);
-assert.equal(sharedSnapshot.contracts['providers/items.js'].getItems.signature.contract.kind, 'object');
+const {
+    contracts: {
+        'providers/items.js': providerContract = {}
+    } = {}
+} = sharedSnapshot;
+const {
+    getItems: {
+        signature: {
+            contract: { kind: providerKind = '' } = {}
+        } = {}
+    } = {}
+} = providerContract;
+assert.equal(providerKind, 'object');
 assert.equal(sharedTree.analyze(), sharedSnapshot);
-assert.equal(sharedTree.getStats().hits, 1);
+const { getStats = false } = sharedTree;
+const { hits = 0 } = getStats.call(sharedTree);
+assert.equal(hits, 1);
 
 const changedProvider = await getProgram(
     'export const getItems = ({ items = [], label = 0 } = {}) => ({ items, label });',
@@ -101,11 +118,29 @@ const changedTree = createProjectTree({
     sourceStates: { 'providers/items.js': 'changed' }
 });
 const changedSnapshot = changedTree.analyze({ previousSnapshot: sharedSnapshot });
-assert.deepEqual(changedSnapshot.reuse.changedFiles, ['providers/items.js']);
-assert.ok(changedSnapshot.reuse.invalidatedFiles.includes('consumer-b.js'));
-assert.deepEqual(changedSnapshot.reuse.reusedFiles, ['stable.js']);
-assert.equal(changedSnapshot.reuse.graphReused, false);
-assert.equal(changedSnapshot.graph.documents['stable.js'], sharedSnapshot.graph.documents['stable.js']);
+const {
+    reuse: {
+        changedFiles = [],
+        invalidatedFiles = [],
+        reusedFiles = [],
+        graphReused = true
+    } = {},
+    graph: {
+        documents: changedDocuments = {}
+    } = {}
+} = changedSnapshot;
+const {
+    graph: {
+        documents: sharedDocuments = {}
+    } = {}
+} = sharedSnapshot;
+const { 'stable.js': changedStableDocument = {} } = changedDocuments;
+const { 'stable.js': sharedStableDocument = {} } = sharedDocuments;
+assert.deepEqual(changedFiles, ['providers/items.js']);
+assert.ok(invalidatedFiles.includes('consumer-b.js'));
+assert.deepEqual(reusedFiles, ['stable.js']);
+assert.equal(graphReused, false);
+assert.equal(changedStableDocument, sharedStableDocument);
 
 const cleanChangedSnapshot = createProjectTree({
     programs: changedPrograms,
@@ -113,26 +148,41 @@ const cleanChangedSnapshot = createProjectTree({
     sourceStates: { 'providers/items.js': 'changed' }
 }).analyze();
 const getDefinitionFacts = ({ definitions = {} } = {}) => Object.fromEntries(
-    Object.entries(definitions).map(([name = '', definition = {}] = []) => [name, {
-        signature: definition.signature,
-        returnContract: definition.returnContract
-    }])
+    Object.entries(definitions).map(([name = '', definition = {}] = []) => {
+        const { signature = {}, returnContract = {} } = definition;
+
+        return [name, { signature, returnContract }];
+    })
 );
-const getSnapshotFacts = ({ snapshot = {} } = {}) => ({
-    projectTree: snapshot.projectTree,
-    activeTree: {
-        ...snapshot.activeTree,
-        programs: Object.keys(snapshot.activeTree.programs || {})
-    },
-    programs: Object.keys(snapshot.programs || {}),
-    contracts: snapshot.contracts,
-    agreements: snapshot.agreements,
-    documents: Object.fromEntries(Object.entries(snapshot.graph.documents || {})
-        .map(([fileName = '', document = {}] = []) => [fileName, getDefinitionFacts(document)])),
-    diagnostics: snapshot.diagnostics.map((diagnostic = {}) => Object.fromEntries(
-        Object.entries(diagnostic).filter(([name = '']) => !['node', 'stack'].includes(name))
-    ))
-});
+const getSnapshotFacts = ({
+    snapshot: {
+        projectTree = {},
+        activeTree = {},
+        programs = {},
+        contracts = {},
+        agreements = {},
+        graph: { documents = {} } = {},
+        diagnostics = []
+    } = {}
+} = {}) => {
+    const { programs: activePrograms = {} } = activeTree;
+
+    return {
+        projectTree,
+        activeTree: {
+            ...activeTree,
+            programs: Object.keys(activePrograms)
+        },
+        programs: Object.keys(programs),
+        contracts,
+        agreements,
+        documents: Object.fromEntries(Object.entries(documents)
+            .map(([fileName = '', document = {}] = []) => [fileName, getDefinitionFacts(document)])),
+        diagnostics: diagnostics.map((diagnostic = {}) => Object.fromEntries(
+            Object.entries(diagnostic).filter(([name = '']) => !['node', 'stack'].includes(name))
+        ))
+    };
+};
 assert.deepEqual(getSnapshotFacts({ snapshot: changedSnapshot }), getSnapshotFacts({
     snapshot: cleanChangedSnapshot
 }));

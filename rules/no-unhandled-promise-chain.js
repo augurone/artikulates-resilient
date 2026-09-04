@@ -13,6 +13,7 @@ const getStaticPropertyName = ({
     } = {}
 } = {}) => {
     if (type !== 'MemberExpression' || computed || propertyType !== 'Identifier') return '';
+
     return name;
 };
 
@@ -37,9 +38,9 @@ const isUnhandledChain = ({ node = {} } = {}) => {
     );
 };
 
-const isDroppedKnownPromise = ({ node = {}, definitions = {} } = {}) => (
-    node.type === 'CallExpression' &&
-    getKind(inferExpression(node, { functions: definitions })) === 'promise'
+const isDroppedKnownPromise = ({ node: { type = '', ...sourceNode } = {}, definitions = {} } = {}) => (
+    type === 'CallExpression' &&
+    getKind(inferExpression({ type, ...sourceNode }, { functions: definitions })) === 'promise'
 );
 
 export default {
@@ -56,6 +57,7 @@ export default {
     },
     create({ report = () => {} } = {}) {
         let definitions = {};
+
         return {
             Program(node = {}) {
                 definitions = getDefinitions(node);

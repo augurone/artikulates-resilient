@@ -20,10 +20,10 @@ const isUndefinedTypeof = (node = {}) => {
     const {
         type = '',
         operator = '',
-        argument = {}
+        argument: { type: argumentType = '' } = {}
     } = node ?? {};
 
-    return type === 'UnaryExpression' && operator === 'typeof' && argument.type !== '';
+    return type === 'UnaryExpression' && operator === 'typeof' && argumentType !== '';
 };
 
 const isUndefinedTypeofTest = ({ left = {}, right = {} } = {}) => (
@@ -53,7 +53,9 @@ export default {
         return {
             BinaryExpression(node = {}) {
                 const { operator = '' } = node;
+
                 if (!['===', '!==', '==', '!='].includes(operator)) return;
+
                 if (!isUndefinedTest(node)) return;
 
                 report({

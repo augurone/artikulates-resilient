@@ -13,6 +13,7 @@ import {
     walk
 } from './infer.js';
 import { unknown } from './model.js';
+import { getObject, hasObjectValue, isObject } from '../support/object.js';
 
 const EXPRESSION_TYPES = [
     'ArrayExpression',
@@ -32,20 +33,27 @@ const EXPRESSION_TYPES = [
 
 const getRange = ({ range = [], ...source } = {}) => {
     if (Array.isArray(range) && range.length === 2) return range;
+
     const { start = -1, end = -1 } = source;
+
     if (start >= 0 && end >= start) return [start, end];
+
     return [];
 };
 
 const containsOffset = ({ node = {}, offset = -1 } = {}) => {
     const [start = -1, end = -1] = getRange(node);
+
     return start >= 0 && end >= start && offset >= start && offset <= end;
 };
 
 const isPropertyIdentifier = ({ node = {} } = {}) => {
     const { parent = {} } = node;
-    if (!parent || typeof parent !== 'object') return false;
+
+    if (!isObject(parent)) return false;
+
     const { type = '', property = {}, key = {} } = parent;
+
     return (
         (type === 'MemberExpression' && property === node) ||
         (type === 'Property' && key === node)
@@ -54,21 +62,29 @@ const isPropertyIdentifier = ({ node = {} } = {}) => {
 
 const isCallCalleeIdentifier = ({ node = {} } = {}) => {
     const { parent = {} } = node;
-    if (!parent || typeof parent !== 'object') return false;
-    return parent.type === 'CallExpression' && parent.callee === node;
+
+    if (!isObject(parent)) return false;
+
+    const { type = '', callee = {} } = parent;
+
+    return type === 'CallExpression' && callee === node;
 };
 
 const getExpressionNodes = (program = {}) => {
     let nodes = [];
     walk(program, (node = {}) => {
         const { type = '' } = node;
+
         if (!EXPRESSION_TYPES.includes(type)) return;
+
         if (
             type === 'Identifier' &&
             (isPropertyIdentifier({ node }) || isCallCalleeIdentifier({ node }))
         ) return;
+
         nodes = [...nodes, node];
     });
+
     return nodes;
 };
 
@@ -77,11 +93,13 @@ const getContainingNodes = ({ nodes = [], offset = -1 } = {}) => nodes
     .sort((left = {}, right = {}) => {
         const [leftStart = 0, leftEnd = 0] = getRange(left);
         const [rightStart = 0, rightEnd = 0] = getRange(right);
+
         return (leftEnd - leftStart) - (rightEnd - rightStart);
     });
 
 const getFrameLocation = (node = {}) => {
     const { loc = {} } = node;
+
     return {
         range: getRange(node),
         loc
@@ -90,13 +108,19 @@ const getFrameLocation = (node = {}) => {
 
 const createFunctionFrame = ({ node = {}, definitions = {} } = {}) => {
     const name = getFunctionName(node);
-    const definition = definitions[name] || {};
+    const {
+        [name]: {
+            signature = {},
+            returnContract = {}
+        } = {}
+    } = definitions;
+
     return {
         kind: 'function',
         name,
         ...getFrameLocation(node),
-        signature: definition.signature || {},
-        returnContract: definition.returnContract || unknown()
+        signature: signature,
+        returnContract: hasObjectValue(returnContract) ? returnContract : unknown()
     };
 };
 
@@ -115,7 +139,11 @@ const createContractDocument = (program = {}, {
 
     const getContractAtOffset = (offset = -1) => {
         const [node = {}] = getContainingNodes({ nodes: expressions, offset });
-        if (!node.type) return { contract: unknown() };
+
+        const { type: nodeType = '' } = getObject(node);
+
+        if (!nodeType) return { contract: unknown() };
+
         return {
             contract: inferExpression(node, getFlowContext({ node, definitions, flows })),
             functionNode: getEnclosingFunction(node),
@@ -125,27 +153,38 @@ const createContractDocument = (program = {}, {
 
     const getSignatureAtOffset = (offset = -1) => {
         const [node = {}] = getContainingNodes({ nodes: functions, offset });
+
         if (!isFunction(node)) return {};
+
         const name = getFunctionName(node);
-        const definition = definitions[name] || {};
+        const {
+            [name]: {
+                signature = {},
+                returnContract = {}
+            } = {}
+        } = definitions;
+
         return {
             name,
             node,
-            returnContract: definition.returnContract || unknown(),
-            signature: definition.signature || {}
+            returnContract: hasObjectValue(returnContract) ? returnContract : unknown(),
+            signature: signature
         };
     };
 
     const getStackAtOffset = (offset = -1) => {
         const contractResult = getContractAtOffset(offset);
         const containingFunctions = getContainingNodes({ nodes: functions, offset }).reverse();
-        const expressionFrame = contractResult.node && contractResult.node.type
+        const { node: contractNode = {}, contract = unknown() } = getObject(contractResult);
+        const { type: contractNodeType = '' } = getObject(contractNode);
+        const expressionFrame = contractNodeType
             ? {
                 kind: 'expression',
-                ...getFrameLocation(contractResult.node),
-                contract: contractResult.contract
+                ...getFrameLocation(contractNode),
+                contract
             }
             : {};
+        const { kind: expressionKind = '' } = expressionFrame;
 
         return {
             fileName,
@@ -157,7 +196,7 @@ const createContractDocument = (program = {}, {
                     ...getFrameLocation(program)
                 },
                 ...containingFunctions.map(node => createFunctionFrame({ node, definitions })),
-                ...(expressionFrame.kind ? [expressionFrame] : [])
+                ...(expressionKind ? [expressionFrame] : [])
             ]
         };
     };
