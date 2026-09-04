@@ -142,7 +142,7 @@ npm run fixtures:check
 npx eslint . --ignore-pattern tests/fixtures
 ```
 
-The package requires Node.js `>=18.18.0` and ESLint `>=9.0.0`.
+The package requires ESLint `^10.9.1` and Node.js `^22.13.0` or `>=24`.
 
 ## Completion checklist
 

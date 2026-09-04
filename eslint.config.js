@@ -1,7 +1,8 @@
 import js from '@eslint/js';
-import * as importPlugin from 'eslint-plugin-import';
-import resilient from 'eslint-plugin-resilient';
+import * as importPlugin from 'eslint-plugin-import-x';
 import globals from 'globals';
+
+import resilient from 'eslint-plugin-resilient';
 
 export default [
     {

@@ -3,6 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { ESLint } from 'eslint';
+
 import resilient from 'eslint-plugin-resilient';
 import { createContractGraph, normalizePath } from 'eslint-plugin-resilient/contracts';
 

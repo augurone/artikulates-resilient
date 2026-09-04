@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { ESLint } from 'eslint';
+
 import {
     createContractGraph,
     getModuleSources

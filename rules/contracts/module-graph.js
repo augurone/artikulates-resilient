@@ -694,7 +694,7 @@ const createContractGraph = ({
             ];
         }));
     let moduleExports = {};
-    let moduleResolution = { ambiguities: {}, exports: {} };
+    let moduleResolution;
     const remaining = Object.keys(normalizedPrograms).length + 1;
 
     for (let iteration = 0; iteration < remaining; iteration += 1) {

@@ -4,6 +4,7 @@ import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 
 import { ESLint } from 'eslint';
+
 import resilient from 'eslint-plugin-resilient';
 import { createContractGraph, createProjectTree } from 'eslint-plugin-resilient/contracts';
 

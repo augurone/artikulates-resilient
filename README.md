@@ -63,8 +63,15 @@ explicit adapters own those boundaries.
 npm install --save-dev eslint eslint-plugin-resilient
 ```
 
-Resilient uses ESLint flat config, requires ESLint 9 or later, and supports
-Node.js 18.18 or later.
+Resilient uses ESLint flat config. The 0.7.0 line requires ESLint 10.9.1 or
+later within ESLint 10 and supports Node.js 22.13+ or 24+.
+
+Compatibility lines are intentionally visible:
+
+| Release line | ESLint | Node.js |
+| --- | --- | --- |
+| 0.6.2 (eat lunch) | 9.x | 18.x |
+| 0.7.0+ (eat greens) | 10.9.1–10.x | 22.13+ or 24+ |
 
 ## Configure
 
@@ -328,6 +335,12 @@ npm run benchmark
 npx eslint tests/fixtures/bad.js --no-ignore --no-warn-ignored
 npm run inspect:stack -- tests/fixtures/bad.js --find "getItems({}).toUpperCase" --diagnostics
 ```
+
+`npm run lint` prints the dependency freshness report after the lint pass. The
+post-lint `npm outdated --long` report is informational: stale dependencies
+remain visible without turning an otherwise successful lint run red. The report
+also runs during `npm run release:check`, because release verification invokes
+the lint script.
 
 The aggregate lint command excludes the deliberately invalid
 `tests/fixtures` directory; run `npx eslint tests/fixtures/bad.js --no-ignore
