@@ -1,4 +1,4 @@
-# Philosophical Heritage of Resilient JavaScript
+# Philosophical Heritage and Innovation of Resilient JavaScript
 
 Resilient JavaScript sits within a long tradition of thinking about
 **program correctness, contracts, invariants, and boundaries**. Its
@@ -288,6 +288,43 @@ static analysis verifies preservation
 
 The established runtime invariant---not an annotation---is the original
 source of truth.
+
+------------------------------------------------------------------------
+
+## The Agreement Engine
+
+These traditions provide important pieces of Resilient's inheritance. The
+synthesis is to treat **agreement** as the primary relationship being checked.
+
+> **A source-derived Agreement Engine for functional native ECMAScript.**
+
+Executable boundaries establish expectations. Operations, returns,
+transformations, effects, failures, and consumers either preserve those
+expectations or disagree with them. Resilient reports known disagreement,
+accepts the unknown, and leaves graceful degradation to the runtime boundary
+that owns the uncertainty.I am excited about howm
+
+The innovation is therefore not the invention of contracts, invariants, or
+coordination. It is their unification as a source-derived agreement relation
+for functional JavaScript: agreement is established at a boundary, carried
+through the program, invalidated by contradiction, and restored by a
+behavior-preserving transformation.
+
+------------------------------------------------------------------------
+
+## A Principle Beyond Software
+
+The same discipline applies beyond programs:
+
+1. Agree wherever possible.
+2. Disagree gracefully.
+3. Allow the unknown to remain unknown.
+
+In software, this means preserving an established agreement, containing a
+known contradiction without pretending it is valid, and refusing to fabricate
+certainty where the evidence is incomplete. In life, it is a way to remain
+cooperative without requiring false consensus and curious without treating
+not-knowing as failure.
 
 ------------------------------------------------------------------------
 

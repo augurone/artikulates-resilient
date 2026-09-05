@@ -148,6 +148,23 @@ When a problem crosses ownership, time, or a runtime boundary, model that
 boundary explicitly. Do not make every local value carry a second algebra when
 the executable boundary already supplies the relevant evidence.
 
+## “Isn't this just contract testing or an agreement pattern?”
+
+Those are related ideas, but they operate at different boundaries.
+
+[Agreement Patterns](https://ceur-ws.org/Vol-635/proceedings-complete.pdf)
+describe patterns for coordinating software components and services through
+agreements. [Consumer-driven contract testing](https://martinfowler.com/articles/microservice-testing/fallback.html)
+checks whether a provider continues to satisfy expectations held by its
+consumers across a service boundary.
+
+Resilient brings the agreement relation inside authored source. Its contracts
+are derived from executable JavaScript and propagated through signatures,
+operations, returns, transformations, effects, failures, and local module
+relationships. A known contradiction is reported; an unknown boundary remains
+unknown. The result is a source-derived Agreement Engine, not a replacement
+for integration tests or a catalog of service-coordination patterns.
+
 ## “Native methods are not a real contract.”
 
 They are executable evidence about the value being used:

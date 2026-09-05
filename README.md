@@ -27,6 +27,14 @@ Resilient is not a runtime validator and it does not own framework concerns.
 Import policy and application architecture remain project rules layered on top
 of Resilient.
 
+Resilient is best understood as a build-time contract and architecture layer
+for functional, flow-oriented native ECMAScript. The medium may be plain
+JavaScript, React, or Next.js; what matters is whether code preserves the
+discipline's explicit boundaries. It does not require a parallel type language,
+union algebra, or compiler. Values that enter through unknown boundaries remain
+unknown and are owned by the runtime boundary that can validate or normalize
+them.
+
 For the practical workflow for explaining a highlighted finding, see
 [`docs/guide/diagnostic-explanations.md`](docs/guide/diagnostic-explanations.md). The
 contract diagnostics add one concise static evidence hint by default when
@@ -57,6 +65,15 @@ boundaries as evidence for static analysis instead of maintaining a second,
 granular annotation system. For Resilient, annotations that merely restate
 those boundaries are an anti-pattern; the executable JavaScript remains the
 runtime contract.
+
+Resilient's design description is:
+
+> **A source-derived Agreement Engine for functional native ECMAScript.**
+
+The engine checks whether the executable boundaries of a program continue to
+agree about values, control flow, transformations, effects, failures, and
+module consumers. It reports known disagreement, accepts unknown information,
+and leaves runtime ownership at the boundary that can establish more evidence.
 
 ## Static contracts from executable code
 
@@ -250,6 +267,13 @@ return path supports a contract. External SDK calls remain unknown boundary
 records and are never evaluated at runtime. Proposed extensions are listed in the
 [`roadmap`](docs/engineering/roadmap.md).
 
+The offset-aware contract surface is also the basis for a future repair
+adapter. A conventional editor hover can lose Resilient's rule context when a
+value is carried through derivative assignments or later reassignment. A
+Resilient-aware editor surface should show the contract valid at the cursor,
+its evidence path, and any contradiction or loss of evidence, then offer only
+behavior-preserving transforms where the project rules make the repair clear.
+
 The same analysis surface is available as the published `resilient-inspect`
 binary after installing the package:
 
@@ -345,8 +369,9 @@ options and the limits of each syntactic check.
 Use the ESLint extension for live diagnostics. The extension resolves the local
 ESLint and Resilient installation from the opened workspace. With the contracts
 preset enabled, local relative import findings are reported in the consumer
-file. An editor adapter can consume the contract document API without coupling
-the core to an editor or to ESLint; no such adapter is included here.
+file. The existing editor remains the presentation layer; a future thin
+Resilient adapter may add contract-aware hovers and code actions without
+replacing the editor's JavaScript service or requiring a general-purpose LSP.
 
 ## Rule documentation
 
