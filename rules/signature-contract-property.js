@@ -9,7 +9,8 @@ export default {
         },
         schema: [],
         messages: {
-            missingProperty: 'Property {{property}} does not exist on this known object contract.'
+            missingProperty: 'Property {{property}} does not exist on this known object contract.',
+            missingPropertyWithEvidence: 'Property {{property}} does not exist on this known object contract{{evidenceHint}}.'
         }
     },
     create(context = {}) {

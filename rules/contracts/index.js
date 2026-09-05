@@ -2,6 +2,7 @@ export {
     contract,
     contradictory,
     describe,
+    getContractShape,
     getContractVariants,
     getKind,
     isEqual,
@@ -17,6 +18,10 @@ export {
     createContractDocument,
     getRange
 } from './document.js';
+
+export {
+    createEvidenceRegistry
+} from './evidence.js';
 
 export {
     getCallSiteDiagnostics,

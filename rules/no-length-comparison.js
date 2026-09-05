@@ -16,15 +16,15 @@ const isZeroLiteral = ({ type = '', value = 0 } = {}) => (
     type === 'Literal' && value === 0
 );
 
-const isZeroLengthEquality = ({
+const isLengthPresenceComparison = ({
     operator = '',
     left = {},
     right = {}
 } = {}) => (
-    ['===', '!=='].includes(operator) && (
-        (isLengthMember(left) && isZeroLiteral(right)) ||
-        (isZeroLiteral(left) && isLengthMember(right))
-    )
+    (['===', '!==', '>'].includes(operator) &&
+        isLengthMember(left) && isZeroLiteral(right)) ||
+    (['===', '!==', '<'].includes(operator) &&
+        isZeroLiteral(left) && isLengthMember(right))
 );
 
 const getLengthNode = ({ left = {}, right = {} } = {}) => (
@@ -43,7 +43,7 @@ export default {
     meta: {
         type: 'suggestion',
         docs: {
-            description: 'Disallow length === 0 in favor of !length',
+            description: 'Disallow length presence comparisons in favor of length truthiness',
             url: 'https://github.com/augurone/artikulates-resilient/blob/main/docs/rules/no-length-comparison.md'
         },
         schema: [],
@@ -57,12 +57,14 @@ export default {
     create({ report = () => {}, sourceCode = {} } = {}) {
         return {
             BinaryExpression(node = {}) {
-                if (!isZeroLengthEquality(node)) return;
+                if (!isLengthPresenceComparison(node)) return;
 
                 const lengthNode = getLengthNode(node);
                 const lengthText = getSourceText({ sourceCode, node: lengthNode });
-                const { operator = '' } = node;
-                const isNonZeroCheck = operator === '!==';
+                const { operator = '', left = {} } = node;
+                const isNonZeroCheck = ['!==', '>'].includes(operator) || (
+                    operator === '<' && isZeroLiteral(left)
+                );
 
                 report({
                     node,

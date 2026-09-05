@@ -1,4 +1,5 @@
 import { getContractDiagnostics } from './diagnostics.js';
+import { createEvidenceRegistry } from './evidence.js';
 import {
     createFunctionFlows,
     getFlowContext
@@ -136,6 +137,28 @@ const createContractDocument = (program = {}, {
     const functions = getFunctionNodes(program);
     const flows = createFunctionFlows({ program, definitions });
     const expressions = getExpressionNodes(program);
+    const evidence = createEvidenceRegistry({
+        fileName,
+        program,
+        expressions,
+        functions,
+        definitions,
+        flows
+    });
+    const {
+        getEvidence: readEvidence = () => [],
+        getEvidenceAtOffset: readEvidenceAtOffset = () => [],
+        getEvidenceForContract: readEvidenceForContract = () => [],
+        getEvidenceIdsForNode = () => []
+    } = evidence;
+    const getEvidenceIds = (node = {}) => getEvidenceIdsForNode({
+        range: getRange(node)
+    });
+    const withEvidence = ({ contract = unknown(), node = {} } = {}) => {
+        const evidenceIds = getEvidenceIds(node);
+
+        return evidenceIds.length ? { ...contract, evidenceIds } : contract;
+    };
 
     const getContractAtOffset = (offset = -1) => {
         const [node = {}] = getContainingNodes({ nodes: expressions, offset });
@@ -145,7 +168,10 @@ const createContractDocument = (program = {}, {
         if (!nodeType) return { contract: unknown() };
 
         return {
-            contract: inferExpression(node, getFlowContext({ node, definitions, flows })),
+            contract: withEvidence({
+                contract: inferExpression(node, getFlowContext({ node, definitions, flows })),
+                node
+            }),
             functionNode: getEnclosingFunction(node),
             node
         };
@@ -163,12 +189,14 @@ const createContractDocument = (program = {}, {
                 returnContract = {}
             } = {}
         } = definitions;
+        const { range: signatureRange = [] } = getObject(node);
 
         return {
             name,
             node,
             returnContract: hasObjectValue(returnContract) ? returnContract : unknown(),
-            signature: signature
+            signature,
+            evidenceIds: getEvidenceIds({ range: signatureRange })
         };
     };
 
@@ -181,7 +209,8 @@ const createContractDocument = (program = {}, {
             ? {
                 kind: 'expression',
                 ...getFrameLocation(contractNode),
-                contract
+                contract: withEvidence({ contract, node: contractNode }),
+                evidenceIds: getEvidenceIds(contractNode)
             }
             : {};
         const { kind: expressionKind = '' } = expressionFrame;
@@ -209,6 +238,8 @@ const createContractDocument = (program = {}, {
         ...diagnostic,
         node,
         ...getFrameLocation(node),
+        evidenceIds: readEvidenceAtOffset(getRange(node)[0])
+            .map(({ id = '' } = {}) => id),
         stack: getStackAtOffset(getRange(node)[0])
     }));
 
@@ -217,6 +248,9 @@ const createContractDocument = (program = {}, {
 
     return {
         definitions,
+        getEvidence: readEvidence,
+        getEvidenceAtOffset: readEvidenceAtOffset,
+        getEvidenceForContract: readEvidenceForContract,
         getContractAtOffset,
         getDiagnostics,
         getDiagnosticsAtOffset,

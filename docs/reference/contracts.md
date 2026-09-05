@@ -31,11 +31,14 @@ The analyzer reports known contradictions:
 - known callable values can carry signatures through aliases, object
   properties, and returned functions;
 - unknown expressions remain unknown;
-- runtime validation, normalization, and behavioral tests remain executable
-  concerns.
+- external data, runtime behavior, and behavioral tests remain outside the
+  static analyzer.
 
 This boundary is deliberate. JavaScript receives dynamic data, and a useful
 static tool must distinguish “proved incompatible” from “not enough evidence.”
+Resilient does not evaluate that dynamic data. If a runtime payload violates a
+source declaration, the payload/data boundary is the failure point; Resilient
+only reports contradictions that are visible in authored source evidence.
 
 ## Public API
 
@@ -66,6 +69,25 @@ signature help, and context-aware diagnostics.
 `getDiagnostics` returns the current contract findings for the document.
 `getDiagnosticsAtOffset` narrows them to the source range under the cursor.
 Each finding includes a rule id, message, range, location, and source stack.
+The same document exposes `getEvidence()`, `getEvidenceAtOffset(offset)`, and
+`getEvidenceForContract(contract)`. Evidence records are stable, AST-free
+provenance records with a source range, scope, contract shape, status, and
+`derivesFrom` IDs. For example, an operation can be traced back to a
+destructuring default and a function return can be traced back to that
+operation. Diagnostics include the relevant `evidenceIds` without changing
+their concise ESLint messages.
+
+Evidence is static source provenance, not confidence and not runtime
+validation. An unresolved SDK-style call may be recorded as an
+`external-data` boundary with an `unknown` contract and an owner, but the
+package does not inspect the SDK implementation or evaluate the returned data.
+For the human and agent workflow around a highlighted finding, see
+[`diagnostic-explanations.md`](../guide/diagnostic-explanations.md). Compact evidence
+hints in contract diagnostics are automatic by default, including when an
+individual contract rule is configured without the preset. Set
+`settings.resilient.evidenceMessages` to `false` after that preset when only
+the original lint wording is desired; full evidence remains a structured API
+and inspector concern.
 
 ## Module graph
 
@@ -190,7 +212,7 @@ This keeps module resolution outside the inference model. Callers can provide
 their own resolver; the default handles relative `.js`, `.jsx`, and
 `index.js` paths. Package aliases, dynamic imports, and filesystem parsing are
 not handled by this package; proposed adapter work is listed in
-[`roadmap.md`](roadmap.md).
+[`roadmap.md`](../engineering/roadmap.md).
 
 The caller supplies an ESTree-compatible program. Parsing, file watching,
 diagnostic presentation, and editor protocol integration remain separate from
@@ -198,8 +220,10 @@ the core.
 
 The bundled `inspect:stack` command is a one-shot adapter around this API. It
 loads the root file's local relative imports, then prints a static stack and
-contract findings at `--find` or `--offset`. It is intended for inspection and
-debugging; it does not replace the full ESLint run and does not watch files.
+contract findings at `--find` or `--offset`. Add `--evidence` to print the
+source evidence at that position; add `--diagnostics` to include findings and
+their evidence IDs. It is intended for inspection and debugging; it does not
+replace the full ESLint run and does not watch files.
 
 The graph remains an Active Tree analyzer, not a project-wide semantic index.
 For a reusable project boundary, `createProjectTree` indexes caller-supplied
@@ -320,7 +344,7 @@ than widened into a union.
 ## Executable fixture contract
 
 The repository's agent-facing fixture contract is recorded in
-[`tests/fixtures/manifest.json`](../tests/fixtures/manifest.json) and checked by
+[`tests/fixtures/manifest.json`](../../tests/fixtures/manifest.json) and checked by
 `npm run fixtures:check`. The deliberately invalid `bad.js` fixture contains
 one labeled section for every public rule; the check executes the fixture and
 verifies that each section produces its matching diagnostic. The checker runs
@@ -350,5 +374,5 @@ Runtime API data, database records, configuration, third-party implementations,
 dynamic imports and properties, unresolved modules, unsupported effects,
 filesystem discovery, parser loading, and LSP behavior belong to runtime
 validation or a separate adapter. They remain unknown in the contract model.
-Proposed extensions are listed in [`roadmap.md`](roadmap.md); none requires a
+Proposed extensions are listed in [`roadmap.md`](../engineering/roadmap.md); none requires a
 parallel type-annotation language in application source.

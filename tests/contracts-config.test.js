@@ -67,7 +67,7 @@ const [sharedAnalysisResult = {}] = await eslint.lintText(
     'const getItems = ({ items = [] } = {}) => items; getItems({ items: "" }).toUpperCase();',
     { filePath: 'contracts-shared-analysis.js' }
 );
-assert.ok(sharedAnalysisResult.messages.length > 0);
+assert.ok(sharedAnalysisResult.messages.length);
 const afterSharedAnalysis = getProjectGraphCacheStats();
 assert.equal(afterSharedAnalysis.builds - beforeSharedAnalysis.builds, 1);
 assert.ok(afterSharedAnalysis.hits > beforeSharedAnalysis.hits);

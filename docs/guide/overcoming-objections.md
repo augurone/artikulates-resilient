@@ -215,6 +215,6 @@ The signature establishes the expectation. The implementation supplies the
 evidence. The analyzer carries that evidence. Policies protect execution and
 ownership. Unknowns remain visible.
 
-See the [contract model](contracts.md), [dialect semantics](semantics.md),
+See the [contract model](../reference/contracts.md), [dialect semantics](../reference/semantics.md),
 [migration playbook](migration-playbook.md), [GitHub repository](https://github.com/augurone/artikulates-resilient),
 and [npm package](https://www.npmjs.com/package/eslint-plugin-resilient).

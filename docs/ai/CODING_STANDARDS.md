@@ -1,8 +1,8 @@
 # Applying the Resilient dialect
 
-The normative definitions are in [`semantics.md`](semantics.md). This page is
+The normative definitions are in [`semantics.md`](../reference/semantics.md). This page is
 the practical reference for writing code in that dialect; individual rule
-behavior and smells are in [`rules/`](rules/).
+behavior and smells are in [`rules/`](../rules/).
 
 ## Function boundaries
 

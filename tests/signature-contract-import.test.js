@@ -55,8 +55,11 @@ try {
         'resilient/signature-contract-operation',
         'resilient/signature-contract-destructuring'
     ]);
-    assert.equal(messages[1].message, 'getItems() is array-like, but .toUpperCase() requires a string-like.');
-    assert.equal(messages[2].message, 'getConfig().items is array-like, but .toUpperCase() requires a string-like.');
+    assert.equal(messages[1].message, 'getItems() is array-like, but .toUpperCase() requires a string-like (static evidence: source at line 3).');
+    assert.match(
+        messages[2].message,
+        /^getConfig\(\)\.items is array-like, but \.toUpperCase\(\) requires a string-like \(static evidence: source(?: at line \d+)?\)\.$/
+    );
     assert.equal(messages[3].message, 'Property summery does not exist on this known object contract.');
     assert.equal(messages[3].messageId, 'missingProperty');
 } finally {

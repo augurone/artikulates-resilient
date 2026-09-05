@@ -774,6 +774,21 @@ const createContractGraph = ({
             return readDiagnostics().map(diagnostic => ({ fileName, ...diagnostic }));
         })()
     ));
+    const getEvidence = () => Object.entries(documents)
+        .flatMap(([fileName = '', document = {}] = []) => {
+            const { getEvidence: readEvidence = () => [] } = getObject(document);
+
+            return readEvidence().map(({
+                id = '',
+                derivesFrom = [],
+                ...record
+            } = {}) => ({
+                ...record,
+                id: `${fileName}:${id}`,
+                derivesFrom: derivesFrom.map(parent => `${fileName}:${parent}`)
+            }));
+        })
+        .sort(({ id: left = '' } = {}, { id: right = '' } = {}) => left.localeCompare(right));
     const { agreements: previousAgreements = {} } = getObject(previousGraph);
     const { ambiguities: moduleAmbiguities = {} } = getObject(moduleResolution);
     const agreements = Object.fromEntries(Object.entries(normalizedPrograms).map(([fileName = '', program = {}] = []) => [
@@ -800,6 +815,7 @@ const createContractGraph = ({
         documents,
         getAgreements,
         getDiagnostics,
+        getEvidence,
         getDocument,
         moduleExports,
         programs,

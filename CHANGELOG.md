@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 0.7.1 — 2026-09-04
+
+- Added the first static contract-evidence slice to the document API. Evidence
+  records expose stable source ranges, scopes, contract shapes, derivation IDs,
+  and external-data boundary ownership without serializing raw AST nodes.
+- Added provenance regression coverage for parameter defaults, operations,
+  return paths, native guards, and unknown SDK-style calls.
+- Added the published `resilient-inspect` CLI and automatic compact evidence
+  hints to contract diagnostics by default, with
+  `settings.resilient.evidenceMessages: false` available for minimal lint output.
+- Extended `no-length-comparison` to reject zero/non-zero presence comparisons
+  such as `length > 0` and prefer direct length truthiness while preserving
+  exact cardinality checks.
+- Kept the release entirely static: Resilient does not evaluate runtime data,
+  integrate runtime validators, or add a runtime client dependency; external
+  data failures remain owned by the application boundary.
+
 ## 0.7.0 — 2026-09-04
 
 - Restored ESLint 10 contract analysis by reading `context.filename`, while
@@ -55,7 +72,7 @@
 
 ## 0.6.1 — 2026-09-02
 
-- Added a rule-by-rule migration playbook in `docs/migration-playbook.md` to
+- Added a rule-by-rule migration playbook in `docs/guide/migration-playbook.md` to
   give the rule set a concrete adoption path and future fix backbone.
 - Added known closed-object missing-property diagnostics for object
   destructuring, while preserving defaults as intentional absence handling and

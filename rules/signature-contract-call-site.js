@@ -11,7 +11,10 @@ export default {
         messages: {
             mismatch: '{{path}} expects {{expected}}, but this call supplies {{actual}}.',
             arity: '{{message}}',
-            excessProperty: 'This call supplies excess property {{path}}.'
+            excessProperty: 'This call supplies excess property {{path}}.',
+            mismatchWithEvidence: '{{path}} expects {{expected}}, but this call supplies {{actual}}{{evidenceHint}}.',
+            arityWithEvidence: '{{message}}{{evidenceHint}}',
+            excessPropertyWithEvidence: 'This call supplies excess property {{path}}{{evidenceHint}}.'
         }
     },
     create(context = {}) {

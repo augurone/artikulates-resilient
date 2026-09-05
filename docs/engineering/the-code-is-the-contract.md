@@ -1,8 +1,8 @@
 # The Code Is the Contract
 
 This document explains why Resilient reads contracts from executable
-JavaScript. The normative dialect is in [`semantics.md`](semantics.md), and
-the analyzer's implementation boundary is in [`contracts.md`](contracts.md).
+JavaScript. The normative dialect is in [`semantics.md`](../reference/semantics.md), and
+the analyzer's implementation boundary is in [`contracts.md`](../reference/contracts.md).
 
 ## The premise
 
@@ -92,7 +92,7 @@ ESTree program
 
 The core is exported independently from `eslint-plugin-resilient/contracts`.
 ESLint is one consumer of the model, not its owner. See
-[`contracts.md`](contracts.md) for the public API, graph behavior, and current
+[`contracts.md`](../reference/contracts.md) for the public API, graph behavior, and current
 limits.
 
 ## Design principles

@@ -54,7 +54,7 @@ const isSafeDeclarationPosition = ({ declaration = {}, functionNode = {} } = {})
 
     return (
         body === functionBody &&
-        statements.length > 0 &&
+        !!statements.length &&
         firstStatement === declaration
     );
 };

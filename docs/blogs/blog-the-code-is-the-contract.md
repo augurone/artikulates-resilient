@@ -44,7 +44,7 @@ The return path produces an array-like value. The later operation is string-like
 
 A contract becomes visible wherever responsibility changes hands. A function receives something. A call makes a demand. A return carries a result forward. An object exposes some things and keeps other things private. An operation reveals what a value is expected to be. A callback, a module, or a branch makes the same kind of promise in a different form.
 
-These are not annotations added beside the program. They are the places where the program declares an expectation in executable form. The full implementation inventory belongs in the [contract documentation](contracts.md); the principle is simpler: where code changes hands, its expectations become visible.
+These are not annotations added beside the program. They are the places where the program declares an expectation in executable form. The full implementation inventory belongs in the [contract documentation](https://github.com/augurone/artikulates-resilient/blob/main/docs/reference/contracts.md); the principle is simpler: where code changes hands, its expectations become visible.
 
 ### Defaults defend execution
 
@@ -174,7 +174,7 @@ The editor should be able to ask the code what it means. That is the model promi
 
 Resilient’s contract core exposes signatures, value families, object shapes, return contracts, source stacks, module agreements, and diagnostics independently of ESLint. ESLint is one consumer of that model, not its owner.
 
-The implementation is open for inspection in the [contract source](https://github.com/augurone/artikulates-resilient/tree/main/rules/contracts), and the public API is documented in the [contract documentation](https://github.com/augurone/artikulates-resilient/blob/main/docs/contracts.md).
+The implementation is open for inspection in the [contract source](https://github.com/augurone/artikulates-resilient/tree/main/rules/contracts), and the public API is documented in the [contract documentation](https://github.com/augurone/artikulates-resilient/blob/main/docs/reference/contracts.md).
 
 Human documentation still matters. It should explain purpose, context, examples, caveats, and external semantics. It should not become an alternate authority that disagrees with the executable boundary.
 
