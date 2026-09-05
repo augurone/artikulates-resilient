@@ -158,6 +158,12 @@ evaluate runtime values or enter client runtime dependencies.
   a possible runtime failure.
 - [ ] Explore documentation output that explains a contract's evidence path
   and its unresolved boundaries for code review and maintenance.
+- [ ] Define an editor-facing contract and repair surface over the existing
+  offset API. A contract-aware hover should resolve the fact valid at the
+  cursor, including derivative variables and reassignment, rather than merely
+  repeat a declaration-wide editor type. A code action may propose a
+  behavior-preserving repair only when the evidence and project rules make the
+  transformation clear; ambiguous or unknown boundaries remain untouched.
 
 Exit evidence: source declarations and external-data ownership are inspectable,
 unknown data remains unknown, and no runtime validator or client dependency is
@@ -170,10 +176,12 @@ contract intent more useful in design and review.
 
 - [ ] Add an IDE contract-visibility track for VS Code and other JavaScript
   editors. Make Resilient's known function, value, return-path, and boundary
-  contracts available where native editor inference widens them to `any`, and
-  keep editor hovers, navigation, and diagnostics consistent with the ESLint
-  and contract-document results. Evaluate a thin editor or language-server
-  adapter rather than adding TypeScript syntax, a runtime validator, or an
+  contracts available where native editor inference widens or loses them,
+  especially across derivative assignments and reassignment. Keep contract
+  hovers, navigation, diagnostics, and constrained repair actions consistent
+  with the ESLint and contract-document results. Prefer a thin VS Code/editor
+  adapter or code-action integration; a general-purpose LSP is not a product
+  prerequisite and must not add TypeScript syntax, a runtime validator, or an
   editor dependency to the contract core.
 - [ ] Explore design-by-contract views: preconditions, postconditions, and
   invariants derived from existing guards, defaults, returns, and failure

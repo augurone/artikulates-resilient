@@ -17,6 +17,27 @@ The goal is not to pretend that dynamic JavaScript is statically complete. The
 goal is to report contradictions where the source provides enough evidence and
 leave the rest for runtime validation, normalization, and tests.
 
+## Agreement as the design center
+
+Resilient is a source-derived Agreement Engine for functional native
+ECMAScript. An agreement is the relationship between the expectation at one
+executable boundary and the behavior observed at the next: a signature and its
+callers, a value and its operation, a return path and its consumers, or a
+transformation and the ownership it preserves.
+
+The engine is strict about known disagreement, accepts unknown information,
+and supports graceful degradation at runtime-owned boundaries. This makes
+agreement a design relation rather than another name for a type assigned to a
+value.
+
+The idea has nearby precedents. [Agreement Patterns](https://ceur-ws.org/Vol-635/proceedings-complete.pdf)
+use agreements to coordinate software components and services, while
+[consumer-driven contract testing](https://martinfowler.com/articles/microservice-testing/fallback.html)
+checks provider behavior against consumer expectations across service
+boundaries. Resilient applies the agreement relation inside authored source:
+the agreement is derived from executable ECMAScript, propagated through its
+actual relationships, and exposed when those relationships disagree.
+
 ```text
 source JavaScript
       │
