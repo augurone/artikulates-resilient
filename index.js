@@ -68,7 +68,7 @@ const createImportsConfig = ({ extensions = defaultExtensions, ...projectOptions
 const plugin = {
     meta: {
         name: 'eslint-plugin-resilient',
-        version: '0.7.2',
+        version: '0.7.3',
         namespace: 'resilient'
     },
     imports: createImportsConfig,

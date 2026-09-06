@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+## 0.7.3 — 2026-09-06
+
+- Clarified the public README for the next release, including 0.7.x
+  compatibility, opt-in configuration layers, project conventions, inspector
+  usage, runtime boundaries, and the documentation map.
+
 ## 0.7.2 — 2026-09-05
 
 - Added `resilient.imports`, a single project-owned import and root resolver
