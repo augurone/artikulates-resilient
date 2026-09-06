@@ -1,5 +1,10 @@
 import * as importPlugin from 'eslint-plugin-import-x';
 
+import {
+    createProjectAdapter,
+    defaultExtensions,
+    normalizeExtensions
+} from './integrations/project.js';
 import noDestructuringFallback from './rules/no-destructuring-fallback.js';
 import noElse from './rules/no-else.js';
 import noLengthComparison from './rules/no-length-comparison.js';
@@ -25,12 +30,48 @@ import signatureContractReturnConsistency from './rules/signature-contract-retur
 
 let configs = {};
 
+const createProjectImportResolver = ({ resolver = () => '' } = {}) => ({
+    interfaceVersion: 3,
+    name: 'eslint-plugin-resilient:project',
+    resolve(modulePath = '', sourceFile = '') {
+        try {
+            const resolvedFile = resolver({
+                source: modulePath,
+                from: sourceFile
+            });
+
+            return resolvedFile
+                ? { found: true, path: resolvedFile }
+                : { found: false };
+        } catch {
+            return { found: false };
+        }
+    }
+});
+
+const createImportsConfig = ({ extensions = defaultExtensions, ...projectOptions } = {}) => {
+    const project = createProjectAdapter({ extensions, ...projectOptions });
+    const importExtensions = normalizeExtensions(extensions);
+    const { resolver = () => '' } = project;
+
+    return {
+        settings: {
+            resilient: project,
+            'import-x/resolver-next': [
+                createProjectImportResolver({ resolver }),
+                importPlugin.createNodeResolver({ extensions: importExtensions })
+            ]
+        }
+    };
+};
+
 const plugin = {
     meta: {
         name: 'eslint-plugin-resilient',
-        version: '0.7.1',
+        version: '0.7.2',
         namespace: 'resilient'
     },
+    imports: createImportsConfig,
     rules: {
         'prefer-signature-destructuring': preferSignatureDestructuring,
         'no-destructuring-fallback': noDestructuringFallback,
@@ -186,5 +227,8 @@ const imports = {
 };
 
 configs = { recommended, contracts, safety, imports };
+
+export { createProjectAdapter };
+export { createImportsConfig };
 
 export default plugin;

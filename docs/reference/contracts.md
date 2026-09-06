@@ -1,8 +1,9 @@
 # Contract analysis
 
-Resilient's contract analyzer is a portable build-time analysis layer over
-ESTree-compatible JavaScript with an editor-facing document API. It infers
-value families and selected object shapes from executable code. It requires no
+Resilient's contract analyzer is a portable static-analysis layer over
+ESTree-compatible JavaScript, providing development feedback and safety checks
+in builds and CI through an editor-facing document API. It infers value
+families and selected object shapes from executable code. It requires no
 annotations and no second source language.
 
 The product dialect that gives those facts meaning is defined in
@@ -145,8 +146,8 @@ integrations. Each local import is classified as `resolved`, `missing`,
 visible to tooling without being converted into a guessed contract.
 
 Resilient does not duplicate generic module-lint policy. Its `imports` preset
-packages the established `eslint-plugin-import` rules for syntax and resolver
-agreement:
+packages the established `eslint-plugin-import-x` rules for syntax and
+resolver agreement:
 
 ```javascript
 import resilient from 'eslint-plugin-resilient';
@@ -177,6 +178,30 @@ export default [{
 
 The same resolver is used for filesystem loading and graph agreement. A
 resolver that throws or returns no path leaves the import unknown.
+
+For project-owned aliases and framework-composed entrypoints, consumers may
+configure the single Resilient import interface:
+
+```javascript
+import resilient from 'eslint-plugin-resilient';
+
+const project = resilient.imports({
+    aliases: { '@': 'src' },
+    entryFiles: ['page'],
+    ancestorFiles: ['layout'],
+    inferredFiles: ['error', 'loading', 'not-found']
+});
+
+export default [resilient.configs.contracts, resilient.configs.imports, project];
+```
+
+The built-in graph fallback handles relative `.js`, `.jsx`, and `index.js`
+paths. The `resilient.imports` adapter additionally defaults to `.mjs` and
+`.cjs`. Its project configuration treats `index.js` as the default entry
+filename, adds aliases, and returns configured ancestor and inferred files as
+additional analysis roots; it does not invent JavaScript call edges between
+those roots. `root` can bound ancestor discovery. The same resolver feeds
+import checks, with ordinary Node/package resolution as the fallback.
 
 The graph is an active implementation path, not only a public helper. When
 `resilient.configs.contracts` is enabled, the call-site and operation ESLint
@@ -366,9 +391,9 @@ propagates those facts through aliases, callback calls, returned functions,
 returned objects, async results, and known native operations.
 
 The graph adapter resolves local relative `.js`, `.jsx`, and `index.js` paths,
-named/default/namespace imports, named and star re-export barrels, and finite
-re-export cycles. A caller can provide a resolver for additional authored
-module layouts.
+configured aliases and extensions, named/default/namespace imports, named and
+star re-export barrels, and finite re-export cycles. A caller can provide a
+resolver for additional authored module layouts.
 
 Runtime API data, database records, configuration, third-party implementations,
 dynamic imports and properties, unresolved modules, unsupported effects,

@@ -120,14 +120,14 @@ ruleTester.run('signature-contract-call-site', rule, {
             code: 'const getTitle = (title) => title; getTitle();',
             errors: [{
                 messageId: 'arity',
-                data: { message: 'Expected at least 1 argument, but got 0.' }
+                data: { message: 'getTitle requires title; provide the argument or add a default to the getTitle signature.' }
             }]
         },
         {
             code: 'const getTitle = (title = "") => title; getTitle("A", "B");',
             errors: [{
                 messageId: 'arity',
-                data: { message: 'Expected at most 1 argument, but got 2.' }
+                data: { message: 'getTitle accepts at most 1 argument, but got 2.' }
             }]
         },
         {
@@ -156,28 +156,28 @@ ruleTester.run('signature-contract-call-site', rule, {
             code: 'const run = callback => callback(); const read = value => value; run(read);',
             errors: [{
                 messageId: 'arity',
-                data: { message: 'Expected at least 1 argument, but got 0.' }
+                data: { message: 'callback requires value; provide the argument or add a default to the callback signature.' }
             }]
         },
         {
             code: 'const run = callback => callback("ready", true); const read = value => value; run(read);',
             errors: [{
                 messageId: 'arity',
-                data: { message: 'Expected at most 1 argument, but got 2.' }
+                data: { message: 'callback accepts at most 1 argument, but got 2.' }
             }]
         },
         {
             code: 'const run = callback => callback(); run(value => value);',
             errors: [{
                 messageId: 'arity',
-                data: { message: 'Expected at least 1 argument, but got 0.' }
+                data: { message: 'callback requires value; provide the argument or add a default to the callback signature.' }
             }]
         },
         {
             code: 'const api = { read: value => value }; const run = callback => callback(); run(api.read);',
             errors: [{
                 messageId: 'arity',
-                data: { message: 'Expected at least 1 argument, but got 0.' }
+                data: { message: 'callback requires value; provide the argument or add a default to the callback signature.' }
             }]
         },
         {
@@ -195,7 +195,7 @@ ruleTester.run('signature-contract-call-site', rule, {
             code: 'const getTitle = (title = "") => title; getTitle("A", 42);',
             errors: [{
                 messageId: 'arity',
-                data: { message: 'Expected at most 1 argument, but got 2.' }
+                data: { message: 'getTitle accepts at most 1 argument, but got 2.' }
             }]
         }
     ]

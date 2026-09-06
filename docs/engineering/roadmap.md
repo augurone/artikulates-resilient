@@ -54,8 +54,8 @@ ESLint-agreement benchmark fixtures. Residual object contracts, lexical
 computed-property reification, runtime-boundary degradation, and clean-run
 equivalence are regression-test coverage rather than claims about the shared
 benchmark workload. Filesystem discovery, parser-backed loading,
-package/workspace aliases, and editor adapters are intentionally not part of
-the foundation.
+package/workspace resolution, and editor adapters are intentionally not part
+of the foundation.
 
 ## Shipped contract expansion: 0.6.0
 
@@ -120,34 +120,55 @@ capability below.
 
 ## 0.7.1 — contract-evidence slice
 
-The next release should bundle the current release-hardening and documentation
-changes with the first contract-evidence implementation. The current
-changes do not independently warrant a version release. The implementation
-plan is [`docs/engineering/evidence-model-plan.md`](evidence-model-plan.md).
+The 0.7.1 release delivered the first contract-evidence implementation. The
+implementation plan and historical release gate are recorded in
+[`docs/engineering/evidence-model-plan.md`](evidence-model-plan.md).
 
 The external-data boundary is already an existing product boundary, not a new
-runtime feature. This release should make the source evidence, expected
-contract, and external-data ownership inspectable. It should not evaluate
-runtime data, add a runtime dependency, import validator results, or create a
-second schema language.
+runtime feature. The release made source evidence, expected contract, and
+external-data ownership inspectable. It did not evaluate runtime data, add a
+runtime dependency, import validator results, or create a second schema
+language.
 
 Release evidence is stable serialized provenance, direct API inspection,
 source/data-boundary fixtures, and proof that evidence does not leak across
 path, identity, mutation, or unknown boundaries.
 
-The first implementation is now present in the unreleased working tree:
-contract documents expose evidence lookup, diagnostics carry evidence IDs,
+Contract documents expose evidence lookup, diagnostics carry evidence IDs,
 graphs aggregate file-qualified evidence, and analysis snapshots retain the
-aggregate list. The remaining release work is to broaden path and identity
-coverage without changing the static-only runtime boundary.
+aggregate list. Future work broadens path and identity coverage without
+changing the static-only runtime boundary.
 
-## 0.7.1+ — contract evidence expansion
+## 0.7.2 — resolver-owned edges and graph hardening
 
-The next adjacent area is extending the inspectability of source contracts and
-external-data ownership. Resilient remains a static analyzer; it does not
-evaluate runtime values or enter client runtime dependencies.
+The 0.7.2 release defines and hardens the edges between project topology and
+contract analysis. The core remains framework-neutral: consumers provide a
+small resolver configuration, while Resilient owns graph construction,
+contract propagation, diagnostics, and conservative invalidation.
 
-- [ ] Extend the 0.7.1 evidence model through source-declared external
+The release includes:
+
+- a single `resilient.imports` configuration for aliases, extensions, project
+  roots, entry filenames, ancestor filenames, and inferred filenames;
+- a framework-neutral project adapter with `index` as the default entry
+  convention and no framework-specific knowledge in the contract engine;
+- passive Project Tree reuse with active root projections, dependency-state
+  invalidation, deleted/late-resolved target handling, and bounded retention;
+- concise contract call-site guidance for required options and safe defaults;
+- AST-local reuse of module metadata, definitions, and documents across
+  overlapping active graph builds without merging active scopes.
+
+This release does not add Next.js knowledge, parser-backed filesystem
+discovery, dynamic-import guesses, runtime validation, or a second type
+language. Those remain adapter or future-roadmap concerns.
+
+## 0.7.2+ — contract evidence expansion and edge hardening
+
+The next adjacent area is extending the inspectability and hardening of source
+contracts and external-data ownership. Resilient remains a static analyzer; it
+does not evaluate runtime values or enter client runtime dependencies.
+
+- [ ] Extend the evidence model through source-declared external
   boundaries and possible failure ownership. Preserve visible source and scope
   for each fact without evaluating the data.
 - [ ] Model boundary notation for external, dynamic, unresolved, and
@@ -216,9 +237,9 @@ diagnostic format are stable.
 
 - [ ] Add a thin CLI/inspector workflow, including a first-run configuration
   command such as `npx resilient init`.
-- [ ] Add project resolution through a resolver boundary for common package,
-  workspace, and alias layouts. Unsupported dynamic and external edges remain
-  unknown until evidence exists.
+- [ ] Extend the project adapter through a resolver boundary for common package
+  and workspace layouts. Unsupported dynamic and external edges remain unknown
+  until evidence exists.
 - [ ] Add parser-backed project loading and filesystem discovery as adapters,
   with explicit parser/config identity in snapshots.
 - [ ] Add GitHub Action and pull-request output based on stable machine-readable

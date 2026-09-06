@@ -35,6 +35,7 @@ for (const testFile of [
     './program-cache.test.js',
     './project-graph-cache.test.js',
     './project-graph-resolver.test.js',
+    './project-adapter.test.js',
     './project-tree.test.js',
     './benchmark-acceptance.test.js',
     './safety-config.test.js',

@@ -9,6 +9,7 @@ import { createContractGraph, normalizePath } from 'eslint-plugin-resilient/cont
 
 import {
     clearProjectGraphCache,
+    createProjectGraphManager,
     getProjectGraphCacheStats,
     loadPrograms
 } from '../rules/contracts/eslint-graph.js';
@@ -16,6 +17,7 @@ import {
 const directory = await mkdtemp(path.join(process.cwd(), '.resilient-resolver-'));
 const providerFile = path.join(directory, 'provider.js');
 const consumerFile = path.join(directory, 'consumer.js');
+const frameworkFile = path.join(directory, 'layout.js');
 let resolverCalls = 0;
 
 const getProgram = async (code = '', fileName = '') => {
@@ -49,7 +51,11 @@ const getProgram = async (code = '', fileName = '') => {
 };
 
 try {
-    await writeFile(providerFile, 'export const getPageView = ({ title = "" } = {}) => title;');
+    await writeFile(
+        providerFile,
+        'export const getPageView = ({ title = "" } = {}) => title;'
+    );
+    await writeFile(frameworkFile, 'export const Layout = ({ children = [] } = {}) => children;');
     await writeFile(
         consumerFile,
         'import { getPageView } from "@artikulates/page"; getPageView({ title: 42 });'
@@ -63,11 +69,18 @@ try {
         ? providerFile
         : '';
     const programs = loadPrograms({
-        context: { settings: { resilient: { resolver } } },
+        context: {
+            settings: {
+                resilient: {
+                    resolver,
+                    roots: ({ fileName = '' } = {}) => fileName === consumerFile ? [frameworkFile] : []
+                }
+            }
+        },
         program: consumerProgram,
         fileName: consumerFile
     });
-    assert.deepEqual(Object.keys(programs).sort(), [consumerFile, providerFile].sort());
+    assert.deepEqual(Object.keys(programs).sort(), [consumerFile, frameworkFile, providerFile].sort());
     const graph = createContractGraph({
         programs,
         resolve: ({ source = '' } = {}) => source === '@artikulates/page'
@@ -75,6 +88,21 @@ try {
             : ''
     });
     assert.equal(graph.getDiagnostics().length, 1);
+
+    const rootedGraph = createProjectGraphManager().getGraph({
+        context: {
+            filename: consumerFile,
+            settings: {
+                resilient: {
+                    resolver,
+                    roots: [frameworkFile]
+                }
+            }
+        },
+        program: consumerProgram,
+        fileName: consumerFile
+    });
+    assert.ok(rootedGraph.programs[normalizePath(frameworkFile)]);
 
     const failedPrograms = loadPrograms({
         context: {

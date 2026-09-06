@@ -7,6 +7,74 @@ import {
 import { contract, isEqual } from './model.js';
 import { getObject, hasObjectValue, isObject } from '../support/object.js';
 
+let definitionCaches = new WeakMap();
+let documentCaches = new WeakMap();
+let importBindingCaches = new WeakMap();
+let moduleSourceCaches = new WeakMap();
+let moduleExportCaches = new WeakMap();
+
+const areReferenceMapsEqual = (left = {}, right = {}) => {
+    const leftNames = Object.keys(left);
+    const rightNames = Object.keys(right);
+
+    return leftNames.length === rightNames.length && leftNames.every((name = '') => {
+        const { [name]: leftValue = false } = left;
+        const { [name]: rightValue = false } = right;
+
+        return Object.is(leftValue, rightValue);
+    });
+};
+
+const getCachedDefinitions = ({ program = {}, externalDefinitions = {} } = {}) => {
+    if (!isObject(program)) return getDefinitions(program, externalDefinitions);
+
+    const entries = definitionCaches.get(program) || [];
+    const cached = entries.find(({ external: cachedExternal = {} } = {}) => (
+        areReferenceMapsEqual(cachedExternal, externalDefinitions)
+    ));
+
+    const { definitions: cachedDefinitions = false } = getObject(cached);
+
+    if (cachedDefinitions) return cachedDefinitions;
+
+    const definitions = getDefinitions(program, externalDefinitions);
+    // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap caches immutable contract inference by AST identity.
+    definitionCaches.set(program, [...entries, { external: externalDefinitions, definitions }]);
+
+    return definitions;
+};
+
+const getCachedDocument = ({
+    fileName = '',
+    program = {},
+    externalDefinitions = {}
+} = {}) => {
+    if (!isObject(program)) return createContractDocument(program, { fileName, externalDefinitions });
+
+    const entries = documentCaches.get(program) || [];
+    const cached = entries.find(({ fileName: cachedFileName = '', external: cachedExternal = {} } = {}) => (
+        cachedFileName === fileName && areReferenceMapsEqual(cachedExternal, externalDefinitions)
+    ));
+
+    const { document: cachedDocument = false } = getObject(cached);
+
+    if (cachedDocument) return cachedDocument;
+
+    const document = createContractDocument(program, { fileName, externalDefinitions });
+    // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap caches immutable contract documents by AST identity.
+    documentCaches.set(program, [...entries, { fileName, external: externalDefinitions, document }]);
+
+    return document;
+};
+
+const clearContractGraphCaches = () => {
+    definitionCaches = new WeakMap();
+    documentCaches = new WeakMap();
+    importBindingCaches = new WeakMap();
+    moduleSourceCaches = new WeakMap();
+    moduleExportCaches = new WeakMap();
+};
+
 const normalizePath = (value = '') => {
     const prefix = value.startsWith('/') ? '/' : '';
     const parts = value
@@ -45,6 +113,10 @@ const resolveModule = ({ from = '', source = '', programs = {} } = {}) => {
 };
 
 const getModuleSources = (program = {}) => {
+    const cachedSources = isObject(program) ? moduleSourceCaches.get(program) : [];
+
+    if (isObject(program) && Array.isArray(cachedSources)) return cachedSources;
+
     let sources = [];
     walk(program, ({ type = '', source = {} } = {}) => {
         if (!['ImportDeclaration', 'ExportNamedDeclaration', 'ExportAllDeclaration'].includes(type)) return;
@@ -54,10 +126,21 @@ const getModuleSources = (program = {}) => {
         if (value) sources = [...sources, value];
     });
 
-    return [...new Set(sources)];
+    const uniqueSources = [...new Set(sources)];
+
+    if (isObject(program)) {
+        // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap caches immutable module metadata by AST identity.
+        moduleSourceCaches.set(program, uniqueSources);
+    }
+
+    return uniqueSources;
 };
 
 const getImportBindings = (program = {}) => {
+    const cachedBindings = isObject(program) ? importBindingCaches.get(program) : [];
+
+    if (isObject(program) && Array.isArray(cachedBindings)) return cachedBindings;
+
     let bindings = [];
     walk(program, ({ type = '', source = {}, specifiers = [] } = {}) => {
         if (type !== 'ImportDeclaration') return;
@@ -86,6 +169,11 @@ const getImportBindings = (program = {}) => {
             }];
         });
     });
+
+    if (isObject(program)) {
+        // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap caches immutable import metadata by AST identity.
+        importBindingCaches.set(program, bindings);
+    }
 
     return bindings;
 };
@@ -263,6 +351,25 @@ const getModuleExportEntries = ({ program = {}, definitions = {} } = {}) => {
     });
 
     return { entries, exportAllSources };
+};
+
+const getCachedModuleExportEntries = ({ program = {}, definitions = {} } = {}) => {
+    if (!isObject(program) || !isObject(definitions)) {
+        return getModuleExportEntries({ program, definitions });
+    }
+
+    const definitionCachesForProgram = moduleExportCaches.get(program) || new WeakMap();
+    const cachedEntries = definitionCachesForProgram.get(definitions);
+
+    if (cachedEntries) return cachedEntries;
+
+    const entries = getModuleExportEntries({ program, definitions });
+    // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap caches immutable export metadata by AST and definition identity.
+    definitionCachesForProgram.set(definitions, entries);
+    // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap indexes immutable export metadata by AST identity.
+    moduleExportCaches.set(program, definitionCachesForProgram);
+
+    return entries;
 };
 
 const getModuleExports = ({ program = {}, definitions = {} } = {}) => {
@@ -471,7 +578,7 @@ const getModuleExportState = ({
         .map(([fileName = '', program = {}] = []) => {
             const { [fileName]: fileDefinitions = {} } = definitions;
 
-            return [fileName, getModuleExportEntries({
+            return [fileName, getCachedModuleExportEntries({
                 program,
                 definitions: fileDefinitions
             })];
@@ -690,7 +797,7 @@ const createContractGraph = ({
 
             return [
                 fileName,
-                canReuse(fileName) ? priorDefinitions : getDefinitions(program)
+                canReuse(fileName) ? priorDefinitions : getCachedDefinitions({ program })
             ];
         }));
     let moduleExports = {};
@@ -713,13 +820,16 @@ const createContractGraph = ({
                     fileName,
                     canReuse(fileName)
                         ? priorDefinitions
-                        : getDefinitions(program, getImportedDefinitions({
-                            fileName,
+                        : getCachedDefinitions({
                             program,
-                            moduleExports,
-                            programs: normalizedPrograms,
-                            resolve
-                        }))
+                            externalDefinitions: getImportedDefinitions({
+                                fileName,
+                                program,
+                                moduleExports,
+                                programs: normalizedPrograms,
+                                resolve
+                            })
+                        })
                 ];
             }));
         const changed = Object.entries(nextDefinitions)
@@ -756,8 +866,9 @@ const createContractGraph = ({
             resolve
         });
 
-        return [fileName, createContractDocument(program, {
+        return [fileName, getCachedDocument({
             fileName,
+            program,
             externalDefinitions: importedDefinitions
         })];
     }));
@@ -824,6 +935,7 @@ const createContractGraph = ({
 };
 
 export {
+    clearContractGraphCaches,
     createContractGraph,
     getImportBindings,
     getModuleAgreements,

@@ -182,6 +182,7 @@ const createContractDocument = (program = {}, {
 
         if (!isFunction(node)) return {};
 
+        // eslint-disable-next-line resilient/signature-contract-call-site -- node is an AST function boundary.
         const name = getFunctionName(node);
         const {
             [name]: {

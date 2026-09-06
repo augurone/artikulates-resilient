@@ -65,6 +65,26 @@ const getReceiverName = ({ object = {} } = {}) => {
     return objectName && propertyName ? `${objectName}.${propertyName}` : 'value';
 };
 
+const getCalleeLabel = ({ callee = {} } = {}) => {
+    const label = getReceiverName({ object: callee });
+
+    return label === 'value' ? '' : label;
+};
+
+const getParameterName = (node = {}) => {
+    const {
+        type = '',
+        name = '',
+        left = {}
+    } = getObject(node);
+
+    if (type === 'Identifier') return name;
+
+    if (type === 'AssignmentPattern') return getParameterName(left);
+
+    return '';
+};
+
 const getArrayMismatches = ({
     expected = {},
     actual = {},
@@ -267,7 +287,7 @@ const getMissingDestructuredProperties = ({ pattern = {}, actual = unknown(), pa
 const getArityDiagnostics = ({ node = {}, definition = {} } = {}) => {
     const { signature = {} } = getObject(definition);
     const { parameters: sourceParameters = [], restIndex = -1 } = getObject(signature);
-    const { arguments: sourceArguments = [] } = getObject(node);
+    const { arguments: sourceArguments = [], callee = {} } = getObject(node);
     const parameters = Array.isArray(sourceParameters) ? sourceParameters : [];
     const args = Array.isArray(sourceArguments) ? sourceArguments : [];
 
@@ -278,17 +298,26 @@ const getArityDiagnostics = ({ node = {}, definition = {} } = {}) => {
         .filter(index => index >= 0);
     const requiredCount = requiredIndexes.length ? Math.max(...requiredIndexes) + 1 : 0;
     const maximumCount = restIndex === -1 ? parameters.length : Number.MAX_SAFE_INTEGER;
+    const calleeLabel = getCalleeLabel({ callee });
+    const missingIndex = requiredIndexes.find(index => index >= args.length);
+    const { [missingIndex]: missingParameter = {} } = parameters;
+    const parameterName = getParameterName(getObject(missingParameter).sourceNode);
+    const functionLabel = calleeLabel || 'This function';
+    const signatureLabel = calleeLabel ? `the ${calleeLabel} signature` : 'its signature';
 
     if (args.length < requiredCount) return [{
         kind: 'arity',
         node,
-        message: `Expected at least ${requiredCount} argument${requiredCount === 1 ? '' : 's'}, but got ${args.length}.`
+        message: parameterName
+            ? `${functionLabel} requires ${parameterName}; provide the argument or add a default to ${signatureLabel}.`
+            : `${functionLabel} requires at least ${requiredCount} argument${requiredCount === 1 ? '' : 's'}, `
+                + `but got ${args.length}; provide the missing argument or add a default to ${signatureLabel}.`
     }];
 
     if (args.length > maximumCount) return [{
         kind: 'arity',
         node,
-        message: `Expected at most ${maximumCount} argument${maximumCount === 1 ? '' : 's'}, but got ${args.length}.`
+        message: `${functionLabel} accepts at most ${maximumCount} argument${maximumCount === 1 ? '' : 's'}, but got ${args.length}.`
     }];
 
     return [];
@@ -426,6 +455,7 @@ const getCallbackCalls = ({ node = {}, callbackNames = [] } = {}) => {
 };
 
 const getArrayCallbackDefinition = ({ callback = {}, context = {} } = {}) => {
+    // eslint-disable-next-line resilient/signature-contract-call-site -- callback is an AST node at this analysis boundary.
     if (isFunction(callback)) return { node: callback, signature: getSignature(callback) };
 
     const { type = '', name = '' } = getObject(callback);
