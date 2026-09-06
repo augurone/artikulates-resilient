@@ -80,19 +80,22 @@ const getResolvedTarget = ({ fileName = '', source = '', programs = {}, resolve 
 
 const createProjectTree = ({
     programs: sourcePrograms = {},
+    edges: sourceEdges = {},
     files: sourceFiles = [],
     roots: defaultRoots = [],
     resolve = resolveModule,
     parserIdentity = '',
     configIdentity = '',
     resolverIdentity = resolve,
-    sourceStates = {}
+    sourceStates = {},
+    analysisCacheLimit = 16
 } = {}) => {
     let analysisCache = new Map();
     let analysisStats = {
         hits: 0,
         misses: 0
     };
+    let latestAnalysis = {};
     const programs = Object.fromEntries(Object.entries(sourcePrograms)
         .map(([fileName = '', program = {}] = []) => [normalizePath(fileName), program]));
     const fileNames = getUniqueSorted([
@@ -101,7 +104,10 @@ const createProjectTree = ({
     ]);
     const indexedFiles = Object.fromEntries(fileNames.map((fileName = '') => {
         const { [fileName]: program = {} } = programs;
-        const edges = getModuleEdges({ fileName, program });
+        const { [fileName]: cachedEdges = false } = sourceEdges;
+        const edges = Array.isArray(cachedEdges)
+            ? cachedEdges
+            : getModuleEdges({ fileName, program });
         const resolvedEdges = edges.map((edge = {}) => {
             const { source = '', kind = '' } = edge;
             const targetFile = kind === 'static'
@@ -318,6 +324,16 @@ const createProjectTree = ({
         });
     };
 
+    const setAnalysisCacheEntry = ({ key = '', snapshot = {} } = {}) => {
+        const entries = [...analysisCache].filter(([existingKey = ''] = []) => existingKey !== key);
+        const boundedLimit = Math.max(1, analysisCacheLimit);
+
+        analysisCache = new Map([
+            ...entries,
+            [key, snapshot]
+        ].slice(-boundedLimit));
+    };
+
     const analyze = ({ roots = defaultRoots, previousSnapshot = {} } = {}) => {
         const analysisKey = getUniqueSorted(roots.map(fileName => normalizePath(fileName))).join('|');
         const cached = analysisCache.get(analysisKey);
@@ -325,6 +341,7 @@ const createProjectTree = ({
         if (cached) {
             const { hits = 0 } = analysisStats;
             analysisStats = { ...analysisStats, hits: hits + 1 };
+            latestAnalysis = cached;
 
             return cached;
         }
@@ -333,15 +350,22 @@ const createProjectTree = ({
         analysisStats = { ...analysisStats, misses: misses + 1 };
         const activeTree = getActiveTree({ roots });
         const { projectTree: previousProjectTree = {} } = getObject(previousSnapshot);
+        const reusableSnapshot = hasObjectValue(previousSnapshot)
+            ? previousSnapshot
+            : latestAnalysis;
+        const { graph: latestGraph = {} } = getObject(reusableSnapshot);
+        const {
+            projectTree: reusableProjectTree = previousProjectTree
+        } = getObject(reusableSnapshot);
         const {
             parserIdentity: previousParserIdentity = '',
             configIdentity: previousConfigIdentity = '',
             resolverIdentity: previousResolverIdentity = ''
-        } = getObject(previousProjectTree);
+        } = getObject(reusableProjectTree);
         const identitiesMatch = Object.is(parserIdentity, previousParserIdentity) &&
             Object.is(configIdentity, previousConfigIdentity) &&
             Object.is(getPublicIdentity(resolverIdentity), previousResolverIdentity);
-        const changedFiles = identitiesMatch ? getChangedFiles({ previousSnapshot }) : fileNames;
+        const changedFiles = identitiesMatch ? getChangedFiles({ previousSnapshot: reusableSnapshot }) : fileNames;
         const invalidation = getInvalidatedFiles({
             changedFiles,
             roots,
@@ -349,8 +373,12 @@ const createProjectTree = ({
             nextConfigIdentity: identitiesMatch ? configIdentity : '__changed__',
             nextResolverIdentity: identitiesMatch ? resolverIdentity : '__changed__'
         });
-        const reusableFiles = getReusableFiles({ previousSnapshot, activeTree, invalidation });
-        const { activeTree: previousActiveTree = {}, graph: previousGraph = {} } = getObject(previousSnapshot);
+        const reusableFiles = getReusableFiles({
+            previousSnapshot: reusableSnapshot,
+            activeTree,
+            invalidation
+        });
+        const { activeTree: previousActiveTree = {}, graph: previousGraph = latestGraph } = getObject(reusableSnapshot);
         const { activeFiles: previousActiveFiles = [] } = getObject(previousActiveTree);
         const { activeFiles = [] } = activeTree;
         const { programs: activePrograms = {} } = getObject(activeTree);
@@ -390,7 +418,8 @@ const createProjectTree = ({
                 graphReused: canReuseGraph
             }
         };
-        analysisCache = new Map([...analysisCache, [analysisKey, snapshot]]);
+        setAnalysisCacheEntry({ key: analysisKey, snapshot });
+        latestAnalysis = snapshot;
 
         return snapshot;
     };

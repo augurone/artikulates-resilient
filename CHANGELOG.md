@@ -1,6 +1,39 @@
 # Changelog
 
-## Unreleased
+## 0.7.2 — 2026-09-05
+
+- Added `resilient.imports`, a single project-owned import and root resolver
+  configuration shared by Resilient's contract graph and `import-x`, so
+  consumers no longer need a separate import resolver configuration.
+- Added the framework-neutral `createProjectAdapter` interface with simple
+  configuration for aliases, extensions, project roots, entry filenames,
+  ancestor filenames, and inferred filenames. The default entry convention is
+  `index`; consumers can describe conventions such as `page`, `layout`,
+  `error`, `not-found`, and other project-owned files without Resilient knowing
+  about a framework.
+- Kept project conventions out of the contract engine. Resolver adapters own
+  path aliases and project roots while the graph consumes only resolved files,
+  preserving a small consumer configuration surface.
+- Split project analysis into a reusable passive graph and active projections.
+  Passive discovery, module edges, parsed programs, and project trees are
+  reused across contract rules; active projections are reused when their file
+  states remain current and are invalidated when dependencies change.
+- Added incremental graph updates for new and deleted resolver targets,
+  bounded project caches, contract-graph document reuse, and per-document
+  diagnostic indexes without changing the depth of contract analysis.
+- Reduced repeated contract-analysis cost by caching AST-local module sources,
+  import bindings, export metadata, definitions, and documents across
+  overlapping active graph builds while preserving dependency-state
+  invalidation and active-root scoping.
+- Preserved unknown and dynamic import edges instead of silently dropping them,
+  and retained conservative invalidation when a previously unresolved local
+  target becomes available.
+- Improved contract diagnostics for common stack patterns with concise
+  call-site guidance, including the required argument and the option to provide
+  a default at the call site, while retaining static evidence hints.
+- Made AST capture depend on a captured `Program` node rather than unrelated
+  parser diagnostics, so valid ASTs remain available when the host reports
+  separate configuration messages.
 
 ## 0.7.1 — 2026-09-04
 
@@ -208,7 +241,7 @@
 - Aligned source-stack queries with known call-expression contracts.
 - Made the agent fixture check behavioral by requiring each labeled rule section
   to produce its matching diagnostic.
-- Added an opt-in `imports` preset backed by `eslint-plugin-import` for generic
+- Added an opt-in `imports` preset backed by `eslint-plugin-import-x` for generic
   unresolved-path, named-export, namespace, and duplicate-export checks.
 - Propagated callable aliases and promise-shaped async returns through local
   and imported contract analysis, with `await` unwrapping.

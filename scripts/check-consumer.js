@@ -81,6 +81,9 @@ import { inferPattern } from 'eslint-plugin-resilient/contracts';
 assert.equal(resilient.meta.name, 'eslint-plugin-resilient');
 assert.equal(resilient.meta.namespace, 'resilient');
 assert.equal(typeof inferPattern, 'function');
+const project = resilient.imports({ aliases: { '@': 'src' } });
+assert.equal(typeof project.settings.resilient.resolver, 'function');
+assert.equal(typeof project.settings.resilient.roots, 'function');
 `;
 
 const main = () => {

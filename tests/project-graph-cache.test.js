@@ -4,7 +4,10 @@ import path from 'node:path';
 
 import { ESLint } from 'eslint';
 
-import { createProjectGraphManager } from 'eslint-plugin-resilient/contracts';
+import {
+    createProjectGraphManager,
+    normalizePath
+} from 'eslint-plugin-resilient/contracts';
 
 import {
     clearContractCaches,
@@ -45,6 +48,11 @@ const getProgram = async (code = '', file = '') => {
 const directory = await mkdtemp(path.join(process.cwd(), '.resilient-graph-'));
 const providerFile = path.join(directory, 'provider.js');
 const consumerFile = path.join(directory, 'consumer.js');
+const lateConsumerFile = path.join(directory, 'late-consumer.js');
+const lateProviderFile = path.join(directory, 'late-provider.js');
+const coveredRootFile = path.join(directory, 'covered-root.js');
+const coveredSharedFile = path.join(directory, 'covered-shared.js');
+const coveredAdditionalRootFile = path.join(directory, 'covered-additional-root.js');
 const context = {
     languageOptions: {
         ecmaVersion: 'latest',
@@ -56,6 +64,12 @@ const manager = createProjectGraphManager();
 
 try {
     await writeFile(providerFile, 'export const getPageView = ({ title = "" } = {}) => title;');
+    await writeFile(
+        coveredRootFile,
+        'import { shared } from "./covered-shared.js"; shared;'
+    );
+    await writeFile(coveredSharedFile, 'export const shared = 1;');
+    await writeFile(coveredAdditionalRootFile, 'export const additional = 2;');
     const consumerProgram = await getProgram(consumerCode, consumerFile);
     const firstPrograms = loadPrograms({
         context,
@@ -67,7 +81,7 @@ try {
         program: consumerProgram,
         fileName: consumerFile
     });
-    assert.equal(firstPrograms[providerFile], secondPrograms[providerFile]);
+    assert.equal(firstPrograms[normalizePath(providerFile)], secondPrograms[normalizePath(providerFile)]);
 
     await writeFile(providerFile, 'export const getPageView = ({ title = "" } = {}) => title.trim();');
     const thirdPrograms = loadPrograms({
@@ -75,7 +89,7 @@ try {
         program: consumerProgram,
         fileName: consumerFile
     });
-    assert.notEqual(firstPrograms[providerFile], thirdPrograms[providerFile]);
+    assert.notEqual(firstPrograms[normalizePath(providerFile)], thirdPrograms[normalizePath(providerFile)]);
 
     const firstGraph = manager.getGraph({
         context,
@@ -123,14 +137,75 @@ try {
         fileName: path.join(directory, 'second-consumer.js')
     });
     assert.equal(boundedManager.getStats().size, 1);
-    assert.notEqual(
-        boundedManager.getGraph({
-            context,
-            program: consumerProgram,
-            fileName: consumerFile
-        }),
-        firstBoundedGraph
+    const evictedBoundedGraph = boundedManager.getGraph({
+        context,
+        program: consumerProgram,
+        fileName: consumerFile
+    });
+    assert.notEqual(evictedBoundedGraph, firstBoundedGraph);
+
+    const coveredRootProgram = await getProgram(
+        'import { shared } from "./covered-shared.js"; shared;',
+        coveredRootFile
     );
+    const coveredSharedProgram = await getProgram(
+        'export const shared = 1;',
+        coveredSharedFile
+    );
+    const coveredManager = createProjectGraphManager();
+    coveredManager.getGraph({
+        context,
+        program: coveredRootProgram,
+        fileName: coveredRootFile
+    });
+    const coveredGraph = coveredManager.getGraph({
+        context: {
+            ...context,
+            settings: {
+                resilient: {
+                    roots: [coveredAdditionalRootFile]
+                }
+            }
+        },
+        program: coveredSharedProgram,
+        fileName: coveredSharedFile
+    });
+    assert.ok(coveredGraph.programs[normalizePath(coveredAdditionalRootFile)]);
+
+    await rm(providerFile);
+    const changedConsumerProgram = await getProgram(consumerCode, consumerFile);
+    const deletedGraph = manager.getGraph({
+        context,
+        program: changedConsumerProgram,
+        fileName: consumerFile
+    });
+    assert.equal(deletedGraph.programs[normalizePath(providerFile)], undefined);
+
+    const lateConsumerProgram = await getProgram(
+        'import { late } from "./late-provider.js"; late;',
+        lateConsumerFile
+    );
+    const lateManager = createProjectGraphManager();
+    const lateContext = {
+        languageOptions: {
+            ecmaVersion: 'latest',
+            sourceType: 'module'
+        }
+    };
+    const unresolvedLateGraph = lateManager.getGraph({
+        context: lateContext,
+        program: lateConsumerProgram,
+        fileName: lateConsumerFile
+    });
+    assert.equal(unresolvedLateGraph.programs[normalizePath(lateProviderFile)], undefined);
+
+    await writeFile(lateProviderFile, 'export const late = 1;');
+    const resolvedLateGraph = lateManager.getGraph({
+        context: lateContext,
+        program: lateConsumerProgram,
+        fileName: lateConsumerFile
+    });
+    assert.ok(resolvedLateGraph.programs[normalizePath(lateProviderFile)]);
     assert.ok(getProgramCacheSize() > 0);
     clearContractCaches();
     assert.equal(getProgramCacheSize(), 0);

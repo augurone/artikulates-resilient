@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-resilient",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Native-JavaScript discipline and contract analysis for explicit code",
   "type": "module",
   "main": "index.js",
@@ -9,7 +9,8 @@
   },
   "exports": {
     ".": "./index.js",
-    "./contracts": "./rules/contracts/index.js"
+    "./contracts": "./rules/contracts/index.js",
+    "./project": "./integrations/project.js"
   },
   "repository": {
     "type": "git",
@@ -21,6 +22,7 @@
   },
   "files": [
     "index.js",
+    "integrations",
     "rules",
     "scripts/inspect-stack.js",
     "docs",

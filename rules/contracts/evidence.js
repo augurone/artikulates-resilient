@@ -94,6 +94,7 @@ const getSubject = ({ fileName = '', node = {}, name = '' } = {}) => {
 
 const getScope = ({ fileName = '', node = {} } = {}) => {
     const functionNode = isFunction(node) ? node : getEnclosingFunction(node);
+    // eslint-disable-next-line resilient/signature-contract-call-site -- functionNode is an AST boundary.
     const functionName = isFunction(functionNode) ? getFunctionName(functionNode) : '';
 
     return {

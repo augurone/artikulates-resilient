@@ -66,10 +66,12 @@ become a guessed contract. It remains unknown until a caller supplies an
 appropriate resolver or evidence adapter.
 
 The compatibility adapter performs this process on demand from an ESLint root
-file. Its default resolver handles local relative `.js`, `.jsx`, and
-`index.js` paths. The contract graph then propagates signatures, returns,
-properties, and re-export agreements across the loaded active files. See
-[`contracts.md`](contracts.md) for the current implementation boundary.
+file. Its built-in fallback handles local relative `.js`, `.jsx`, and
+`index.js` paths. The `resilient.imports` adapter adds configured aliases,
+extensions, and root-scoped ancestor/inferred files; its default extensions
+also include `.mjs` and `.cjs`. The contract graph then propagates signatures,
+returns, properties, and re-export agreements across the loaded active files.
+See [`contracts.md`](contracts.md) for the current implementation boundary.
 
 For ESLint consumers, activation is automatic and lazy: the first contract
 rule invocation activates the internal Project Tree for the current root and
@@ -77,7 +79,7 @@ its statically resolvable local dependency closure. Later contract rules reuse t
 within the same run. Consumers enable the contracts preset; they do not call a
 project-activation API.
 
-## Project Tree strategy for 0.5.0
+## Project Tree strategy
 
 The Project Tree is an index around Active Tree resolution, not an eager request
 to analyze the whole repository.
@@ -148,9 +150,9 @@ The 0.5.0 release implemented the caller-supplied project substrate:
   invalidation closure and clean-run equivalence is tested;
 - ESLint consumes the same contract graph exposed by the snapshot API.
 
-Filesystem-wide discovery, parser-backed loading, package/workspace aliases,
-dynamic imports, and editor or language-server adapters remain deliberately
-outside this release boundary.
+Filesystem-wide discovery, parser-backed loading, package/workspace resolution
+beyond configured aliases, dynamic imports, and editor or language-server
+adapters remain deliberately outside this release boundary.
 
 An LSP, editor extension, or standalone CLI can consume this API later. They are
 adapters; they are not prerequisites for the analysis product.

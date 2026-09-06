@@ -156,15 +156,17 @@ const getDate = () => new Date().toISOString().slice(0, 10);
 
 const getPromotedChangelog = ({ version = '' } = {}) => {
     const changelog = read(changelogPath);
-    const match = /^## Unreleased\s*\n\s*\n([\s\S]*?)(?=\n## |\s*$)/m.exec(changelog);
-    const [fullMatch = '', unreleased = ''] = match ?? [];
+    const match = /^(## (?:Unreleased|[0-9]+\.[0-9]+\.[0-9]+ — Unreleased))\s*\n\s*\n([\s\S]*?)(?=\n## |\s*$)/m.exec(changelog);
+    const [fullMatch = '', heading = '', unreleased = ''] = match ?? [];
 
     if (!fullMatch || !String.prototype.trim.call(unreleased)) {
-        fail('CHANGELOG.md needs a non-empty ## Unreleased section before preparing a release.');
+        fail('CHANGELOG.md needs a non-empty "## Unreleased" or "## x.y.z — Unreleased" section before preparing a release.');
     }
 
     const release = `## ${version} — ${getDate()}\n\n${String.prototype.trim.call(unreleased)}\n\n`;
-    const replacement = `## Unreleased\n\n${release}`;
+    const replacement = heading === '## Unreleased'
+        ? `## Unreleased\n\n${release}`
+        : release;
 
     const { replace = false } = changelog;
 

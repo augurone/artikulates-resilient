@@ -1,14 +1,14 @@
 # Evidence model plan
 
-This is the plan for the next meaningful Resilient feature. The existing
-release-hardening, self-lint, packed-consumer, corpus, and documentation
-changes remain unreleased groundwork. They should bundle with the first
-contract-evidence implementation in 0.7.1.
+This document records the scope and release gate for the first contract-evidence
+slice delivered in Resilient 0.7.1. The evidence vocabulary remains the basis
+for future work defining and hardening source and data-boundary edges.
 
 The external-data boundary described here is not a new boundary in Resilient.
-It has always been part of the product: source contracts are analyzed at build
-time, while runtime data remains outside the analyzer. This feature only makes
-that existing distinction and its source evidence inspectable.
+It has always been part of the product: source contracts provide static
+feedback during development and safety checks in builds and CI, while runtime
+data remains outside the analyzer. This feature only makes that existing
+distinction and its source evidence inspectable.
 
 ## Product claim
 
@@ -307,9 +307,9 @@ Keep tests/fixtures/bad.js as the public-rule diagnostic fixture. Evidence
 fixtures should be separate or clearly labeled integration cases; do not turn
 the all-rules RED fixture into a runtime-boundary integration test.
 
-## Release gate for 0.7.1
+## Release gate used for 0.7.1
 
-The release should claim only the implemented slice:
+The 0.7.1 release claimed only the implemented slice:
 
 - current release-hardening checks remain green;
 - packed-consumer verification remains green;

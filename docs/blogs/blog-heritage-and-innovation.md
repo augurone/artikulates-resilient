@@ -302,7 +302,7 @@ Executable boundaries establish expectations. Operations, returns,
 transformations, effects, failures, and consumers either preserve those
 expectations or disagree with them. Resilient reports known disagreement,
 accepts the unknown, and leaves graceful degradation to the runtime boundary
-that owns the uncertainty.I am excited about howm
+that owns the uncertainty.
 
 The innovation is therefore not the invention of contracts, invariants, or
 coordination. It is their unification as a source-derived agreement relation
