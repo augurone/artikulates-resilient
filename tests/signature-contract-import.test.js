@@ -14,19 +14,22 @@ const providerCode = [
     'export const getTitle = ({ title = "" } = {}) => title;',
     'export const getItems = ({ items = [] } = {}) => items;',
     'export const getConfig = () => ({ items: [] });',
-    'export const getArticle = () => ({ title: "", summary: "" });'
+    'export const getArticle = () => ({ title: "", summary: "" });',
+    'export function choose(a, b) { switch (arguments.length) { case 1: return a; case 2: return b(a); default: throw Error("count"); } }'
 ].join('\n');
 const consumerCode = [
-    'import { getTitle, getItems, getConfig, getArticle } from "./barrel.js";',
+    'import { getTitle, getItems, getConfig, getArticle, choose } from "./barrel.js";',
     'getTitle({ title: 42 });',
     'getItems({}).toUpperCase();',
     'getConfig().items.toUpperCase();',
-    'const { title, summery } = getArticle();'
+    'const { title, summery } = getArticle();',
+    'choose(1);',
+    'choose();'
 ].join('\n');
 
 try {
     await writeFile(providerFile, providerCode);
-    await writeFile(barrelFile, 'export { getTitle, getItems, getConfig, getArticle } from "./provider.js";');
+    await writeFile(barrelFile, 'export { getTitle, getItems, getConfig, getArticle, choose } from "./provider.js";');
     await writeFile(consumerFile, consumerCode);
 
     const eslint = new ESLint({
@@ -53,7 +56,8 @@ try {
         'resilient/signature-contract-call-site',
         'resilient/signature-contract-operation',
         'resilient/signature-contract-operation',
-        'resilient/signature-contract-destructuring'
+        'resilient/signature-contract-destructuring',
+        'resilient/signature-contract-call-site'
     ]);
     assert.equal(messages[1].message, 'getItems() is array-like, but .toUpperCase() requires a string-like (static evidence: source at line 3).');
     assert.match(
@@ -62,6 +66,7 @@ try {
     );
     assert.equal(messages[3].message, 'Property summery does not exist on this known object contract.');
     assert.equal(messages[3].messageId, 'missingProperty');
+    assert.equal(messages[4].messageId, 'arityWithEvidence');
 } finally {
     await rm(directory, { recursive: true, force: true });
 }

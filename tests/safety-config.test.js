@@ -30,7 +30,7 @@ const [result = {}] = await eslint.lintText(`
 `, { filePath: 'safety-fixture.js' });
 
 assert.deepEqual(
-    result.messages.map(({ ruleId = '' } = {}) => ruleId).sort(),
+    result.messages.map(({ ruleId = '' } = {}) => ruleId).toSorted(),
     [
         'resilient/no-silent-catch',
         'resilient/no-unhandled-promise-chain',
@@ -45,7 +45,10 @@ const [loopResult = {}] = await eslint.lintText(
 
 assert.deepEqual(
     loopResult.messages.map(({ ruleId = '' } = {}) => ruleId),
-    ['resilient/prefer-prototype-methods']
+    [
+        'resilient/prefer-prototype-methods',
+        'resilient/prefer-safe-transformations'
+    ]
 );
 
 const [switchLoopResult = {}] = await eslint.lintText(
@@ -55,7 +58,10 @@ const [switchLoopResult = {}] = await eslint.lintText(
 
 assert.deepEqual(
     switchLoopResult.messages.map(({ ruleId = '' } = {}) => ruleId),
-    ['resilient/prefer-prototype-methods']
+    [
+        'resilient/prefer-prototype-methods',
+        'resilient/prefer-safe-transformations'
+    ]
 );
 
 const [handledChainResult = {}] = await eslint.lintText(

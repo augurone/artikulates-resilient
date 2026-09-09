@@ -3,7 +3,7 @@
 Require object destructuring to happen in the function signature instead of
 the function body when that signature is part of the function's contract.
 
-## Smell
+## What this finding means
 
 Extracting a parameter's shape only after entering the body hides the contract
 at the boundary and makes bookkeeping look like business logic. Signature
@@ -87,3 +87,31 @@ prefers:
 - truthy/falsey emptiness checks
 - early returns
 - functional transformations over imperative loops
+
+## Boundaries and non-goals
+
+External callback signatures, full-object forwarding, and dynamic access are
+real boundaries. Do not move destructuring when that would alter the contract.
+
+## Repair recipes
+
+Move the first owned object destructuring into the parameter and add defaults
+there. Review the suggestion rather than applying it blindly.
+
+Parameter use is resolved by lexical binding. The finding and its suggestion
+share one reference result, so nested shadowing cannot add properties to the
+outer signature or claim whole-value forwarding. A whole-value read after
+extraction still retains body placement. A captured whole-value use in a nested
+function also retains body placement, including a later destructuring
+initializer. It keeps the original object available at the callback's own
+execution time; declaration order cannot prove when that callback runs.
+Same-function destructuring initializers are still candidates for signature
+placement. Guarded provider extraction remains
+a separate timing boundary: moving it would advance the provider's getter.
+Existing suggestions retain their ranges and replacement text; they remain
+manual suggestions, never autofixes.
+
+Deferred capture and shadowed-parameter counterexamples are recorded in
+`tests/fixtures/rule-evidence/signature.valid.js` and `signature.invalid.js`;
+`tests/rule-evidence.test.js` also verifies getter count, current values and
+deferred getter failure.

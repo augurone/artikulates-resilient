@@ -3,7 +3,7 @@
 Require bound data to be destructured before use.
 Signature placement is enforced separately by `prefer-signature-destructuring`.
 
-## Smell
+## What this finding means
 
 Repeated member access leaves the data shape implicit at the point of use and
 scatters the boundary contract through the function body. Destructure
@@ -34,3 +34,19 @@ Prototype method calls remain valid because they test the receiver's behavior
 rather than selecting application data.
 The first parameter of a `.reduce` callback is also exempt because it is the
 operation's accumulator, not static input data.
+
+## Boundaries and non-goals
+
+Platform receivers, prototype operations, dynamic forwarding, and reducer
+accumulators remain explicit boundaries rather than application-data reads.
+
+## Repair recipes
+
+Destructure stable application data once, preferably in the function signature.
+See [prefer-signature-destructuring](prefer-signature-destructuring.md).
+
+Bound-data and accumulator facts use lexical scope. A shadowed accumulator
+has its own contract, and a block-local declaration does not classify a
+same-spelled unresolved name outside the block. Defaulted identifier
+accumulators retain the reducer exception. Receiver chains and cardinality
+queries keep their existing timing and receive no rewrite from this rule.

@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "outDir": ".resilient",
+    "skipLibCheck": true,
+    "target": "esnext"
+  },
+  "include": ["./src/**/*.ts", "./test/**/*.ts"],
+  "resilient": {
+    "emit": ["./src/**/*.ts"]
+  }
+}

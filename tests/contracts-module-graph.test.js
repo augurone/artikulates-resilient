@@ -1,35 +1,10 @@
 import assert from 'node:assert/strict';
 
-import { ESLint } from 'eslint';
-
 import { createContractGraph } from 'eslint-plugin-resilient/contracts';
 
-const getProgram = async (code) => {
-    let program = {};
-    const capture = {
-        rules: {
-            program: {
-                create: () => ({
-                    Program: (node) => {
-                        program = node;
-                    }
-                })
-            }
-        }
-    };
-    const eslint = new ESLint({
-        overrideConfigFile: true,
-        overrideConfig: [{
-            plugins: { capture },
-            rules: { 'capture/program': 'error' }
-        }]
-    });
+import { captureProgram } from '../rules/support/eslint-program.js';
 
-    await eslint.lintText(code, { filePath: 'contract-graph.js' });
-
-    return program;
-};
-
+const getProgram = async code => captureProgram(code, { fileName: 'contract-graph.js' });
 const createGraph = async (sources = {}) => createContractGraph({
     programs: Object.fromEntries(await Promise.all(Object.entries(sources)
         .map(async ([fileName = '', code = ''] = []) => [fileName, await getProgram(code)])))
@@ -135,11 +110,37 @@ const contradictoryReturnGraph = await createGraph({
     ].join('\n')
 });
 const contradictoryDiagnostics = contradictoryReturnGraph.getDiagnostics();
-assert.equal(contradictoryDiagnostics.length, 2);
-assert.equal(contradictoryDiagnostics[0].ruleId, 'signature-contract-call-site');
-assert.equal(contradictoryDiagnostics[0].data.path, 'enabled');
-assert.equal(contradictoryDiagnostics[1].ruleId, 'signature-contract-operation');
-assert.equal(contradictoryDiagnostics[1].data.actual, 'null');
+assert.deepEqual(contradictoryDiagnostics.map(({
+    fileName = '',
+    ruleId = '',
+    data = {}
+} = {}) => ({ fileName, ruleId, data })), [
+    {
+        fileName: 'provider.js',
+        ruleId: 'signature-contract-return-consistency',
+        data: { actual: 'string', expected: 'null' }
+    },
+    {
+        fileName: 'provider.js',
+        ruleId: 'signature-contract-return-consistency',
+        data: { actual: 'null', expected: 'string' }
+    },
+    {
+        fileName: 'consumer.js',
+        ruleId: 'signature-contract-call-site',
+        data: { path: 'enabled', expected: 'boolean-like', actual: 'number-like' }
+    },
+    {
+        fileName: 'consumer.js',
+        ruleId: 'signature-contract-operation',
+        data: {
+            receiver: 'getValue()',
+            actual: 'null',
+            method: 'toUpperCase',
+            expected: 'string-like'
+        }
+    }
+]);
 assert.equal(
     contradictoryReturnGraph.moduleExports['provider.js'].getValue.returnContract.kind,
     'unknown'

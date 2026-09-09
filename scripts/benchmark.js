@@ -7,6 +7,9 @@ import { ESLint } from 'eslint';
 
 import resilient from 'eslint-plugin-resilient';
 import { createContractGraph, createProjectTree } from 'eslint-plugin-resilient/contracts';
+import { isFunction } from 'eslint-plugin-resilient/standard/function';
+
+import { captureProgram } from '../rules/support/eslint-program.js';
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const fixtureDirectory = path.join(scriptDirectory, '..', 'tests', 'fixtures', 'benchmark');
@@ -17,46 +20,20 @@ const { version: packageVersion = '' } = JSON.parse(fs.readFileSync(
 
 const getFixtureFiles = (directory = '') => fs.readdirSync(directory, { withFileTypes: true })
     .flatMap((entry = {}) => {
-        // eslint-disable-next-line resilient/prefer-signature-destructuring -- Node's Dirent must remain intact so its predicate keeps the native receiver.
-        const { name = '' } = entry;
+        const { name = '', isDirectory = false } = entry;
         const entryPath = path.join(directory, name);
 
         // Dirent predicates require their receiver, so this is a narrow API boundary.
-        return entry.isDirectory() ? getFixtureFiles(entryPath) : [entryPath];
+        return isFunction(isDirectory) && Reflect.apply(isDirectory, entry, [])
+            ? getFixtureFiles(entryPath)
+            : [entryPath];
     })
     .filter(fileName => fileName.endsWith('.js'))
-    .sort();
+    .toSorted();
 
-const getProgram = async ({ fileName = '', code = '' } = {}) => {
-    let program = {};
-    const capture = {
-        rules: {
-            program: {
-                create: () => ({
-                    Program: (node) => {
-                        program = node;
-                    }
-                })
-            }
-        }
-    };
-    const [result = {}] = await new ESLint({
-        overrideConfigFile: true,
-        overrideConfig: [{
-            languageOptions: {
-                ecmaVersion: 'latest',
-                sourceType: 'module'
-            },
-            plugins: { capture },
-            rules: { 'capture/program': 'error' }
-        }]
-    }).lintText(code || fs.readFileSync(fileName, 'utf8'), { filePath: fileName });
-    const { errorCount = 0 } = result;
-
-    if (errorCount > 0) return {};
-
-    return program;
-};
+const getProgram = async ({ fileName = '', code = '' } = {}) => captureProgram(code || fs.readFileSync(fileName, 'utf8'), {
+    fileName, languageOptions: { ecmaVersion: 'latest', sourceType: 'module' }
+});
 
 const round = (value = 0) => Number(value.toFixed(3));
 

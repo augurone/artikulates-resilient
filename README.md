@@ -1,13 +1,20 @@
 # eslint-plugin-resilient
 
-Resilient is an ESLint plugin for making executable JavaScript contracts
-visible. Signatures, defaults, operations, control flow, return paths, and
-local module relationships provide the evidence; Resilient reports known
-contradictions without adding a second type or annotation language.
+Resilient is a disciplined dialect of standard JavaScript, with a static
+analyzer exposed through ESLint. The code is the contract: signatures define
+boundaries, defaults give absence a usable meaning, operations express demands,
+and return paths carry agreements forward.
 
-It provides static contract feedback during development and safety checks in
-builds and CI. Unknown runtime data remains owned by the application boundary
-that can validate and normalize it.
+The analyzer follows those agreements through local code and modules, reports
+known contradictions, and preserves unknowns. Runtime validation belongs to
+the boundary receiving external data. The rules make optional behavior,
+mutation, and failure ownership explicit during development and in CI.
+
+Necessary exceptions name their rules, scope, and reasons. Project measurement
+counts active findings, suppressed findings, and directive sites separately,
+so recurring justified exceptions can inform how the dialect evolves.
+
+Read the essays behind the approach on [DEV — @augurone](https://dev.to/augurone).
 
 ## Install
 
@@ -15,19 +22,12 @@ that can validate and normalize it.
 npm install --save-dev eslint eslint-plugin-resilient
 ```
 
-Resilient uses ESLint flat config. Version `0.7.x` requires ESLint `10.9.1`
-or later within ESLint 10 and Node.js `22.13+` or `24+`.
+Version `0.7.x` requires ESLint `^10.9.1`, Node.js `^22.13.0 || >=24`,
+and ESLint flat config.
 
 ## Configure
 
-Resilient is organized as opt-in layers:
-
-- `recommended` — the core native-JavaScript discipline;
-- `contracts` — value, shape, return, call-site, and local-module checks;
-- `imports` — generic import-tree checks through `eslint-plugin-import-x`;
-- `safety` — opt-in mutation, failure-handling, and promise-sequencing policy.
-
-The smallest useful setup is:
+Add to `eslint.config.js`:
 
 ```javascript
 import resilient from 'eslint-plugin-resilient';
@@ -38,7 +38,20 @@ export default [
 ];
 ```
 
-Add the import and safety layers when the project wants those policies too:
+| Preset | Checks |
+| --- | --- |
+| `recommended` | Native-JavaScript discipline and formatting. |
+| `contracts` | Value, shape, return, call-site, and local-module agreements. |
+| `imports` | Generic import checks through `eslint-plugin-import-x`. |
+| `safety` | Mutation, failure handling, optional callback guards, and promise ownership. |
+
+Add `resilient.configs.imports` and `resilient.configs.safety` to the array
+when the project wants those policies.
+
+### Project conventions
+
+Relative `.js`, `.jsx`, `.mjs`, `.cjs`, and `index.js` imports work by default.
+For aliases or additional entry conventions, configure `resilient.imports`:
 
 ```javascript
 import resilient from 'eslint-plugin-resilient';
@@ -47,123 +60,162 @@ export default [
     resilient.configs.recommended,
     resilient.configs.contracts,
     resilient.configs.imports,
-    resilient.configs.safety
+    resilient.imports({
+        aliases: { '@': 'src' },
+        root: 'src/app',
+        entryFiles: ['page'],
+        ancestorFiles: ['layout'],
+        inferredFiles: ['error', 'loading', 'not-found']
+    })
 ];
 ```
 
-### Configure project conventions
+`resilient.imports({...})` shares resolution between the contract graph and
+`import-x`; `resilient.configs.imports` enables import diagnostics.
 
-The contract graph follows ordinary relative `.js`, `.jsx`, `.mjs`, `.cjs`,
-and `index.js` paths by default. For project-owned aliases or composed 
-entrypoints, use one `resilient.imports({...})` configuration. It supplies 
-the same project resolver to the contract graph and `import-x`:
+| Option | Purpose / default |
+| --- | --- |
+| `cwd` | Project directory; current working directory. |
+| `aliases` | Project-relative targets, such as `{ '@': 'src' }`. |
+| `extensions` | Candidate extensions; `.js`, `.jsx`, `.mjs`, `.cjs`. |
+| `root` | Optional boundary for ancestor and inferred files. |
+| `entryFiles` | Entry filenames; `['index']`. |
+| `ancestorFiles` | Files discovered beside entries and in ancestor directories. |
+| `inferredFiles` | Additional files discovered beside entries. |
 
-```javascript
-import resilient from 'eslint-plugin-resilient';
-
-const project = resilient.imports({
-    aliases: { '@': 'src' },
-    root: 'src/app',
-    entryFiles: ['page'],
-    ancestorFiles: ['layout'],
-    inferredFiles: ['error', 'global-error', 'loading', 'not-found', 'template', 'default']
-});
-
-export default [
-    resilient.configs.recommended,
-    resilient.configs.contracts,
-    resilient.configs.imports,
-    project
-];
-```
-
-`resilient.imports({...})` configures resolution. `resilient.configs.imports`
-enables the generic import diagnostics; the two serve different purposes.
-
-The project adapter accepts:
-
-- `cwd` — project directory; defaults to the current working directory;
-- `root` — optional project-relative boundary for ancestor and inferred files;
-- `aliases` — project-relative string targets, such as `{ '@': 'src' }`;
-- `extensions` — extensions to try; defaults to `.js`, `.jsx`, `.mjs`, and
-  `.cjs`;
-- `entryFiles` — files that activate project roots; defaults to `['index']`;
-- `ancestorFiles` — files such as `layout` discovered in the entry file's
-  directory and its ancestors;
-- `inferredFiles` — additional project-owned files such as `error` or
-  `not-found` discovered alongside those entries.
-
-If the project uses ordinary `index.js` entries and relative imports, no
-project configuration is needed. Resilient does not guess framework
-conventions, follow dynamic imports, or invent call edges between configured
-root files. Projects with resolution rules beyond this adapter can provide a
-custom resolver through the lower-level API described in the
-[contracts reference](docs/reference/contracts.md#module-graph).
+See the [contracts reference](docs/reference/contracts.md#module-graph) for
+custom resolvers and [tree resolution](docs/reference/tree-resolution.md) for
+analysis scope.
 
 ## See it work
 
-The same contract evidence is available through ESLint and the inspector. This
-intentionally invalid call supplies a number where the signature expects a
-string:
+This call contradicts the signature's string contract:
 
 ```javascript
-const render = ({
-    title = ''
-} = {}) => title.trim();
+const render = ({ title = '' } = {}) => title.trim();
 
-render({ title: 42 }); // reported by signature-contract-call-site
+render({ title: 42 }); // resilient/signature-contract-call-site
 ```
 
-For a focused source probe, run:
+The intentionally invalid
+[bad.js fixture](https://github.com/augurone/artikulates-resilient/blob/main/tests/fixtures/bad.js)
+contains labeled examples for every rule, from individual tokens to effects
+and cross-boundary contradictions. In a repository checkout, see its findings
+and inspect the evidence at a source location:
 
 ```bash
-npx resilient-inspect src/page.js \
-    --find "items.toUpperCase" \
-    --diagnostics \
-    --evidence
+npx eslint tests/fixtures/bad.js
+npx resilient-inspect tests/fixtures/bad.js \
+    --find "items.toUpperCase" --diagnostics --evidence
 ```
 
-The inspector is a one-shot analysis tool for examining a source location. It
-does not evaluate runtime data, watch files, or replace the ESLint run.
+The inspector also accepts `--offset <number>`. It performs one-shot static
+analysis of the selected file and its local relative imports.
 
-## Runtime boundaries
+For patterns and migrations, explore the [guides](docs/guide/):
+[rule-by-rule repairs](docs/guide/migration-playbook.md) and
+[diagnostic explanations](docs/guide/diagnostic-explanations.md).
 
-The safety preset covers safe transformations, non-silent failure handling,
-optional callback guards, and promise ownership. Use `Promise.all` for
-independent work, sequential `await` when ordering or retries matter, and
-`Promise.allSettled` when partial failure is part of the contract.
+## Measure a project
 
-Resilient does not evaluate runtime API data, database records, configuration,
-third-party implementations, dynamic properties, or unsupported effects.
-Validate and normalize those values at the boundary that owns them. Unknown
-values remain unknown rather than becoming guessed contracts.
+Run from the consuming project's root:
+
+```sh
+# Whole project
+npx resilient-measure --report project.json
+
+# Selected targets
+npx resilient-measure --report targets.json 'src/**/*.{js,jsx,mjs,cjs}'
+npx resilient-measure --report targets.json src/page.js src/providers
+
+# Another project and configuration
+npx resilient-measure --project ../my-app --config eslint.config.mjs \
+    --report project.json 'src/**/*.js'
+```
+
+The command uses the project's ESLint configuration, parser, and ignores,
+without fixing source. Target and option paths are relative to `--project`,
+which defaults to the current directory. Omit `--report` to print full JSON;
+with it, the command saves JSON and prints a summary. The report needs a `.json`
+path distinct from measured source and an existing parent directory.
+
+| Report field | Counts |
+| --- | --- |
+| `summary.active` | Visible findings, including configured unused-directive warnings. |
+| `summary.suppressed` | Findings ESLint actually suppressed. |
+| `summary.exceptions.sites` | Disable directive occurrences, including unused sites. |
+| `summary.exceptions.ruleSites` | Named rule entries; a bare disable contributes one wildcard entry. |
+
+Reports include finding locations, directive rules and reasons, source hashes,
+configuration path/hash, and tool versions. Compare the same targets and
+configuration. A directive may suppress several findings or none; its reason
+still needs review.
+
+Exit 0 means measurement completed, even with lint errors. Parse or
+configuration failures return a failing status. Use ESLint as the CI lint gate.
+
+## Migrating to 0.7.4
+
+- Replace legacy `resilient-allow-loop` and `resilient-allow-promise-chain`
+  comments with named ESLint directives and concrete reasons.
+- Loops with `await` or direct control flow now receive loop findings;
+  mutation is checked independently, including inside excepted loops.
+- Update layout overrides and directives to `resilient/operator-linebreak`.
+- Review return consistency: bare returns and reachable fallthrough contribute
+  `undefined`, including guarded callback exits.
+- Callback and destructuring checks follow lexical bindings. Signature
+  suggestions remain manual to preserve getter and deferred-call timing.
+
+See the [migration playbook](docs/guide/migration-playbook.md) for repairs and
+[exception policy](docs/reference/policy.md#p-03-exceptions-and-precedence) for
+named, reasoned directives scoped to one statement or declaration. Resilient's
+repository audit checks directive syntax and scope separately from measurement.
+
+## Optional runtime helpers
+
+```javascript
+import { isObject, hasContent, getObject, modelCheck } from 'eslint-plugin-resilient/standard/object';
+import { isArray, hasArrayContent, validArray } from 'eslint-plugin-resilient/standard/array';
+import { isFunction } from 'eslint-plugin-resilient/standard/function';
+```
+
+Predicates check runtime family or content. `getObject` and `validArray`
+preserve accepted values and return `{}` or `[]` for other inputs.
+`modelCheck` tests attribute membership, including falsey property values.
+Application schema validation remains project-owned.
 
 ## Documentation
 
-- [Contracts reference](docs/reference/contracts.md) — analyzer API, graph
-  behavior, resolver boundaries, evidence, and diagnostics.
-- [Tree resolution](docs/reference/tree-resolution.md) — Project Tree and
-  Active Tree behavior.
-- [Dialect semantics](docs/reference/semantics.md) — the normative discipline.
-- [Rule documentation](docs/rules/) — individual rule behavior and examples.
-- [Guides](docs/guide/) — adoption, migration, objections, and diagnostics.
-- [Roadmap](docs/engineering/roadmap.md) — shipped work and future scope.
-- [Documentation index](docs/) — the complete map by audience.
+| Need | Start here |
+| --- | --- |
+| Patterns and migration | [Guides](docs/guide/) |
+| Rule behavior and options | [Rule pages](docs/rules/) |
+| Structured contracts, evidence, and diagnostics | [Contracts API](docs/reference/contracts.md) |
+| Project resolution | [Tree resolution](docs/reference/tree-resolution.md) |
+| Dialect specification | [Grammar](docs/reference/grammar.md), [Policy](docs/reference/policy.md), [Semantics](docs/reference/semantics.md) |
+| Full documentation map | [Documentation index](docs/README.md) |
+| Release changes | [Changelog](CHANGELOG.md) |
 
 ## Development
 
 ```bash
 npm test
-npm run lint
 npm run fixtures:check
-npm run consumer:check
-npm run release:check
+npm run lint
+git diff --check
 ```
 
-The repository is dogfooded: `npm run lint` excludes the intentionally invalid
-`tests/fixtures` directory, while `npm run fixtures:check` verifies its
-machine-checkable diagnostic coverage. See [AGENTS.md](AGENTS.md) for the full
-maintainer workflow.
+`npm run lint` audits source exceptions and excludes intentionally invalid
+fixtures; `npm run fixtures:check` verifies their expected diagnostics.
+Tests and repository linting include an 8 GB heap allowance.
+Tests report module counts; lint reports each file and its elapsed time.
+`npm run release:check` runs these checks, a fresh packed-package consumer check,
+and a packaging dry run without changing the version.
+
+See [AGENTS.md](https://github.com/augurone/artikulates-resilient/blob/main/AGENTS.md)
+for maintainer requirements and the
+[proof execution runbook](https://github.com/augurone/artikulates-resilient/blob/main/docs/engineering/PROOF_EXECUTION.md)
+for focused tests and verification workflows.
 
 ## License
 

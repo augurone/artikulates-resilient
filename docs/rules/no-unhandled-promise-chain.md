@@ -5,7 +5,7 @@ without a `.catch`, and known promise calls whose result is dropped. A
 rejection from work written this way has no visible local handling or
 ownership.
 
-## Smell
+## What this finding means
 
 An expression-statement promise chain has no visible owner for rejection. The
 failure can disappear from the local control-flow contract even though the
@@ -50,3 +50,13 @@ required third-party or platform chain, keep rejection ownership explicit
 with `.catch`, `return`, assignment, `await`, or `void`. If the chain is
 handled but must remain a chain, the warning-level `prefer-async-await`
 exception comment can suppress the style warning when it includes a reason.
+
+## Boundaries and non-goals
+
+The rule makes rejection ownership visible; it does not prove arbitrary
+thenables or replace runtime behavior tests.
+
+## Repair recipes
+
+Add `.catch`, `await`, `return`, assignment, or `void` according to the work's
+real owner. See [Writing Resilient](../ai/writing-resilient.md).

@@ -5,75 +5,19 @@ import {
     walk
 } from './infer.js';
 import { contract, isEqual } from './model.js';
+import { createProgramMetadataCache } from './program-metadata-cache.js';
+import { createReferenceVariantCache } from './reference-variants.js';
+import { isFunctionType } from '../support/ast-function.js';
 import { getObject, hasObjectValue, isObject } from '../support/object.js';
 
-let definitionCaches = new WeakMap();
-let documentCaches = new WeakMap();
-let importBindingCaches = new WeakMap();
-let moduleSourceCaches = new WeakMap();
 let moduleExportCaches = new WeakMap();
-
-const areReferenceMapsEqual = (left = {}, right = {}) => {
-    const leftNames = Object.keys(left);
-    const rightNames = Object.keys(right);
-
-    return leftNames.length === rightNames.length && leftNames.every((name = '') => {
-        const { [name]: leftValue = false } = left;
-        const { [name]: rightValue = false } = right;
-
-        return Object.is(leftValue, rightValue);
-    });
-};
-
-const getCachedDefinitions = ({ program = {}, externalDefinitions = {} } = {}) => {
-    if (!isObject(program)) return getDefinitions(program, externalDefinitions);
-
-    const entries = definitionCaches.get(program) || [];
-    const cached = entries.find(({ external: cachedExternal = {} } = {}) => (
-        areReferenceMapsEqual(cachedExternal, externalDefinitions)
-    ));
-
-    const { definitions: cachedDefinitions = false } = getObject(cached);
-
-    if (cachedDefinitions) return cachedDefinitions;
-
-    const definitions = getDefinitions(program, externalDefinitions);
-    // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap caches immutable contract inference by AST identity.
-    definitionCaches.set(program, [...entries, { external: externalDefinitions, definitions }]);
-
-    return definitions;
-};
-
-const getCachedDocument = ({
-    fileName = '',
-    program = {},
-    externalDefinitions = {}
-} = {}) => {
-    if (!isObject(program)) return createContractDocument(program, { fileName, externalDefinitions });
-
-    const entries = documentCaches.get(program) || [];
-    const cached = entries.find(({ fileName: cachedFileName = '', external: cachedExternal = {} } = {}) => (
-        cachedFileName === fileName && areReferenceMapsEqual(cachedExternal, externalDefinitions)
-    ));
-
-    const { document: cachedDocument = false } = getObject(cached);
-
-    if (cachedDocument) return cachedDocument;
-
-    const document = createContractDocument(program, { fileName, externalDefinitions });
-    // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap caches immutable contract documents by AST identity.
-    documentCaches.set(program, [...entries, { fileName, external: externalDefinitions, document }]);
-
-    return document;
-};
-
-const clearContractGraphCaches = () => {
-    definitionCaches = new WeakMap();
-    documentCaches = new WeakMap();
-    importBindingCaches = new WeakMap();
-    moduleSourceCaches = new WeakMap();
-    moduleExportCaches = new WeakMap();
-};
+const { get: getCachedDefinitions = undefined, clear: clearDefinitions = undefined } = createReferenceVariantCache(
+    ({ program = {}, externalDefinitions = {} } = {}) => getDefinitions(program, externalDefinitions)
+);
+const { get: getCachedDocument = undefined, clear: clearDocuments = undefined } = createReferenceVariantCache(
+    ({ program = {}, fileName = '', externalDefinitions = {} } = {}) => createContractDocument(program, { fileName, externalDefinitions }),
+    { fileScoped: true }
+);
 
 const normalizePath = (value = '') => {
     const prefix = value.startsWith('/') ? '/' : '';
@@ -112,11 +56,7 @@ const resolveModule = ({ from = '', source = '', programs = {} } = {}) => {
     }) || '';
 };
 
-const getModuleSources = (program = {}) => {
-    const cachedSources = isObject(program) ? moduleSourceCaches.get(program) : [];
-
-    if (isObject(program) && Array.isArray(cachedSources)) return cachedSources;
-
+const readModuleSources = (program = {}) => {
     let sources = [];
     walk(program, ({ type = '', source = {} } = {}) => {
         if (!['ImportDeclaration', 'ExportNamedDeclaration', 'ExportAllDeclaration'].includes(type)) return;
@@ -126,21 +66,13 @@ const getModuleSources = (program = {}) => {
         if (value) sources = [...sources, value];
     });
 
-    const uniqueSources = [...new Set(sources)];
-
-    if (isObject(program)) {
-        // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap caches immutable module metadata by AST identity.
-        moduleSourceCaches.set(program, uniqueSources);
-    }
-
-    return uniqueSources;
+    return [...new Set(sources)];
 };
+const moduleSources = createProgramMetadataCache(readModuleSources);
+const getModuleSources = (program = {}) => moduleSources.get(program);
+const { clear: clearModuleSources = undefined } = moduleSources;
 
-const getImportBindings = (program = {}) => {
-    const cachedBindings = isObject(program) ? importBindingCaches.get(program) : [];
-
-    if (isObject(program) && Array.isArray(cachedBindings)) return cachedBindings;
-
+const readImportBindings = (program = {}) => {
     let bindings = [];
     walk(program, ({ type = '', source = {}, specifiers = [] } = {}) => {
         if (type !== 'ImportDeclaration') return;
@@ -170,12 +102,18 @@ const getImportBindings = (program = {}) => {
         });
     });
 
-    if (isObject(program)) {
-        // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap caches immutable import metadata by AST identity.
-        importBindingCaches.set(program, bindings);
-    }
-
     return bindings;
+};
+const importBindings = createProgramMetadataCache(readImportBindings);
+const getImportBindings = (program = {}) => importBindings.get(program);
+const { clear: clearImportBindings = undefined } = importBindings;
+
+const clearContractGraphCaches = () => {
+    clearDefinitions();
+    clearDocuments();
+    clearImportBindings();
+    clearModuleSources();
+    moduleExportCaches = new WeakMap();
 };
 
 const getImportMap = (program = {}) => Object.fromEntries(getImportBindings(program)
@@ -318,12 +256,7 @@ const getModuleExportEntries = ({ program = {}, definitions = {} } = {}) => {
 
         if (type === 'ExportDefaultDeclaration') {
             const { name: idName = '' } = getObject(declarationId);
-            const localName = idName || declarationName || (
-                ['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression']
-                    .includes(declarationType)
-                    ? 'default'
-                    : ''
-            );
+            const localName = idName || declarationName || (isFunctionType(declarationType) ? 'default' : '');
             const defaultEntries = getLocalExportEntries({
                 exports: [{ exportName: 'default', localName }]
             });
@@ -414,12 +347,21 @@ const getImportedDefinitions = ({
         return [[localName, importedDefinition]];
     }));
 
+const getExportCandidates = (existing = []) => {
+    if (Array.isArray(existing)) return existing;
+
+    if (!hasObjectValue(existing)) return [];
+
+    return [{ definition: existing, priority: 'explicit' }];
+};
+
 const addExportCandidate = ({ candidates = {}, name = '', definition = {}, priority = 'star' } = {}) => {
     if (!name || !definition) return candidates;
 
     const { [name]: existing = [] } = candidates;
+    const existingCandidates = getExportCandidates(existing);
 
-    return { ...candidates, [name]: [...existing, { definition, priority }] };
+    return { ...candidates, [name]: [...existingCandidates, { definition, priority }] };
 };
 
 const getCandidateResolution = (candidates = []) => {
@@ -589,51 +531,40 @@ const getModuleExportState = ({
         .map(fileName => [fileName, {}]));
     const remaining = Object.keys(programs).length + 1;
 
+    // eslint-disable-next-line resilient/prefer-prototype-methods -- Resolve exports and ambiguities against prior-pass state until agreement or the file-count bound.
     for (let iteration = 0; iteration < remaining; iteration += 1) {
-        let candidatesByFile = Object.fromEntries(Object.keys(programs)
-            .map(fileName => [fileName, {}]));
-
-        Object.entries(entries).forEach(([fileName = '', {
-            entries: moduleEntries = {},
-            exportAllSources = []
-        } = {}] = []) => {
-            Object.entries(moduleEntries).forEach(([name = '', entry = {}] = []) => {
-                const { [fileName]: entryCandidates = {} } = candidatesByFile;
-                const nextCandidates = addResolvedEntryCandidate({
-                    moduleName: fileName,
-                    exportName: name,
-                    entry,
-                    candidates: entryCandidates,
-                    resolved,
-                    ambiguities,
-                    programs,
-                    resolve
-                });
-                candidatesByFile = {
-                    ...candidatesByFile,
-                    [fileName]: nextCandidates
-                };
-            });
-
-            exportAllSources.forEach((source = '') => {
-                const { [fileName]: entryCandidates = {} } = candidatesByFile;
-                const nextCandidates = addExportAllCandidates({
+        const candidateDomain = Object.keys(programs).map(fileName => [fileName, {}]);
+        const candidatesByFile = Object.fromEntries([
+            ...candidateDomain,
+            ...Object.entries(entries).map(([fileName = '', {
+                entries: moduleEntries = {},
+                exportAllSources = []
+            } = {}] = []) => {
+                const explicitCandidates = Object.entries(moduleEntries)
+                    .reduce((candidates, [name = '', entry = {}] = []) => addResolvedEntryCandidate({
+                        moduleName: fileName,
+                        exportName: name,
+                        entry,
+                        candidates,
+                        resolved,
+                        ambiguities,
+                        programs,
+                        resolve
+                    }), {});
+                const candidates = exportAllSources.reduce((current, source = '') => addExportAllCandidates({
                     fileName,
                     source,
-                    candidates: entryCandidates,
+                    candidates: current,
                     resolved,
                     programs,
                     resolve
-                });
-                candidatesByFile = {
-                    ...candidatesByFile,
-                    [fileName]: nextCandidates
-                };
-            });
-        });
+                }), explicitCandidates);
 
-        let nextAmbiguities = {};
-        const next = Object.fromEntries(Object.entries(candidatesByFile)
+                return [fileName, candidates];
+            })
+        ]);
+
+        const candidateStates = Object.entries(candidatesByFile)
             .map(([fileName = '', candidates = {}] = []) => {
                 const {
                     exports = {},
@@ -659,13 +590,13 @@ const getModuleExportState = ({
                             }
                             : { exports: currentExports, ambiguities: currentAmbiguities };
                     }, { exports: {}, ambiguities: {} });
-                nextAmbiguities = {
-                    ...nextAmbiguities,
-                    [fileName]: fileAmbiguities
-                };
 
-                return [fileName, exports];
-            }));
+                return [fileName, { exports, ambiguities: fileAmbiguities }];
+            });
+        const next = Object.fromEntries(candidateStates
+            .map(([fileName = '', { exports = {} } = {}] = []) => [fileName, exports]));
+        const nextAmbiguities = Object.fromEntries(candidateStates
+            .map(([fileName = '', { ambiguities = {} } = {}] = []) => [fileName, ambiguities]));
         const changed = Object.keys(programs).some((fileName) => {
             const { [fileName]: previousExports = {} } = resolved;
             const { [fileName]: nextExports = {} } = next;
@@ -804,6 +735,7 @@ const createContractGraph = ({
     let moduleResolution;
     const remaining = Object.keys(normalizedPrograms).length + 1;
 
+    // eslint-disable-next-line resilient/prefer-prototype-methods -- Propagate import-dependent definitions from prior-pass exports until agreement or the file-count bound.
     for (let iteration = 0; iteration < remaining; iteration += 1) {
         moduleResolution = getModuleExportState({
             programs: normalizedPrograms,
@@ -899,7 +831,7 @@ const createContractGraph = ({
                 derivesFrom: derivesFrom.map(parent => `${fileName}:${parent}`)
             }));
         })
-        .sort(({ id: left = '' } = {}, { id: right = '' } = {}) => left.localeCompare(right));
+        .toSorted(({ id: left = '' } = {}, { id: right = '' } = {}) => left.localeCompare(right));
     const { agreements: previousAgreements = {} } = getObject(previousGraph);
     const { ambiguities: moduleAmbiguities = {} } = getObject(moduleResolution);
     const agreements = Object.fromEntries(Object.entries(normalizedPrograms).map(([fileName = '', program = {}] = []) => [

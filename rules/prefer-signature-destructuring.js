@@ -1,77 +1,8 @@
-import {
-    containsIdentifier,
-    getSimpleParamNames,
-    getSimpleParams,
-    getSourceEnd,
-    getSourceStart,
-    hasWholeObjectReference,
-    isDestructuringFromParam
-} from './support/signature-analysis.js';
+import { getBinding, getBindingDefinition, registerBindingSource } from './contracts/binding-evidence.js';
+import { hasDirectCapabilityBinding } from './contracts/flow.js';
+import { getEnclosingFunction } from './contracts/infer.js';
+import { getParameterUsage, getSimpleParams, hasWholeObjectReference } from './support/signature-analysis.js';
 import getSuggestion from './support/signature-suggestion.js';
-
-const getCurrentFunction = (functionStack = []) => {
-    const currentFunctions = functionStack.slice(-1);
-    const [currentFunction = {}] = currentFunctions;
-
-    return currentFunction;
-};
-
-const isPassedLater = ({
-    node = {},
-    paramName = '',
-    calls = []
-} = {}) => calls.some(({ name = '', start = 0 } = {}) => (
-    name === paramName && start > getSourceEnd(node)
-));
-
-const isWholeObjectPassThrough = ({
-    violation: {
-        init = {},
-        paramName = '',
-        paramNode = {},
-        node: violationNode = {}
-    } = {},
-    functionNode = {}
-} = {}) => {
-    return hasWholeObjectReference({
-        node: functionNode,
-        name: paramName,
-        excludedNodes: [paramNode, init],
-        afterNode: violationNode
-    });
-};
-
-const reportViolation = ({
-    violation = {},
-    calls = [],
-    functionNode = {},
-    sourceCode = {},
-    report
-} = {}) => {
-    const {
-        node = {},
-        paramName = ''
-    } = violation;
-
-    if (isPassedLater({ node, paramName, calls })) return;
-
-    if (isWholeObjectPassThrough({ violation, functionNode })) return;
-
-    if (typeof report !== 'function') return;
-
-    report({
-        node,
-        messageId: 'preferSignature',
-        data: {
-            name: paramName
-        },
-        suggest: getSuggestion({
-            violation,
-            functionNode,
-            sourceCode
-        })
-    });
-};
 
 export default {
     meta: {
@@ -89,96 +20,36 @@ export default {
         }
     },
     create({ report = () => {}, sourceCode = {} } = {}) {
-        let functionStack = [];
-        const enterFunction = (node = {}) => {
-            functionStack = [...functionStack, {
-                node,
-                paramNames: getSimpleParamNames(node),
-                params: getSimpleParams(node),
-                violations: [],
-                calls: []
-            }];
-        };
-        const exitFunction = () => {
-            const {
-                node: functionNode = {},
-                violations = [],
-                calls = []
-            } = functionStack.at(-1) ?? {};
-            functionStack = functionStack.slice(0, -1);
-
-            violations.forEach((violation = {}) => reportViolation({
-                violation,
-                calls,
-                functionNode,
-                sourceCode,
-                report
-            }));
-        };
+        registerBindingSource(sourceCode);
 
         return {
-            FunctionDeclaration: enterFunction,
-            'FunctionDeclaration:exit': exitFunction,
-            FunctionExpression: enterFunction,
-            'FunctionExpression:exit': exitFunction,
-            ArrowFunctionExpression: enterFunction,
-            'ArrowFunctionExpression:exit': exitFunction,
-            CallExpression: ({ arguments: nodeArguments = [], ...node } = {}) => {
-                const currentFunction = getCurrentFunction(functionStack);
-                const {
-                    paramNames = [],
-                    calls = []
-                } = currentFunction;
+            VariableDeclarator({ id = {}, init = {}, parent: declaration = {} } = {}) {
+                const { type = '' } = id;
 
-                paramNames.forEach((name = '') => {
-                    if (!nodeArguments.some((argument = {}) => containsIdentifier({ node: argument, name }))) return;
+                if (type !== 'ObjectPattern' || !init) return;
 
-                    const currentIndex = functionStack.length - 1;
-                    functionStack = [
-                        ...functionStack.slice(0, currentIndex),
-                        {
-                            ...currentFunction,
-                            calls: [...calls, {
-                                name,
-                                start: getSourceStart(node)
-                            }]
-                        },
-                        ...functionStack.slice(currentIndex + 1)
-                    ];
+                const functionNode = getEnclosingFunction(declaration);
+                const { type: bindingType = '', node: owner = {} } = getBindingDefinition(getBinding(init));
+
+                if (bindingType !== 'Parameter' || owner !== functionNode) return;
+
+                const { name: paramName = '' } = init;
+                const { node: paramNode = {} } = getSimpleParams(functionNode).find(({ name = '' } = {}) => name === paramName) ?? {};
+
+                if (!Object.keys(paramNode).length || hasDirectCapabilityBinding({ node: id })) return;
+
+                const usage = getParameterUsage({ functionNode, paramNode, init, name: paramName });
+
+                if (hasWholeObjectReference({ ...usage, afterNode: id })) return;
+
+                const violation = { node: id, declaration, init, paramName, paramNode };
+
+                report({
+                    node: id,
+                    messageId: 'preferSignature',
+                    data: { name: paramName },
+                    suggest: getSuggestion({ violation, functionNode, sourceCode, usage })
                 });
-            },
-            VariableDeclarator: ({
-                id = {},
-                init = {},
-                parent: declaration = {}
-            } = {}) => {
-                const currentFunction = getCurrentFunction(functionStack);
-                const {
-                    paramNames = [],
-                    params = [],
-                    violations = []
-                } = currentFunction;
-                const safeInit = init ?? {};
-
-                if (!isDestructuringFromParam({ id, init: safeInit }, paramNames)) return;
-
-                const { name: paramName = '' } = safeInit;
-                const { node: paramNode = {} } = params.find(({ name = '' } = {}) => name === paramName) ?? {};
-                const currentIndex = functionStack.length - 1;
-                functionStack = [
-                    ...functionStack.slice(0, currentIndex),
-                    {
-                        ...currentFunction,
-                        violations: [...violations, {
-                            node: id,
-                            paramName,
-                            declaration: declaration ?? {},
-                            init: safeInit,
-                            paramNode
-                        }]
-                    },
-                    ...functionStack.slice(currentIndex + 1)
-                ];
             }
         };
     }

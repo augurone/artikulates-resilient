@@ -3,7 +3,7 @@
 Disallow `catch` blocks with no executable handling that discard a failure
 without an explanation or an intentional outcome.
 
-## Smell
+## What this finding means
 
 An empty or comment-only catch block severs failure ownership: the caller
 cannot tell whether the failure was handled, expected, translated, or
@@ -60,3 +60,14 @@ continue checking other empty blocks while allowing this rule to own empty
 `catch` diagnostics. This rule is intentionally stricter about comment-only
 catches: a comment documents intent but does not handle, translate, rethrow, or
 return from the failure.
+
+## Boundaries and non-goals
+
+`try`, `catch`, `finally`, and `throw` remain valid. Only a handler that makes
+failure ownership invisible is reported.
+
+## Repair recipes
+
+Return a defined fallback, translate with context, rethrow, or log with
+context. See [Writing Resilient](../ai/writing-resilient.md) for failure
+ownership guidance.

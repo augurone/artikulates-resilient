@@ -2,8 +2,6 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { ESLint } from 'eslint';
-
 import {
     createProjectGraphManager,
     normalizePath
@@ -14,37 +12,9 @@ import {
     loadPrograms
 } from '../rules/contracts/eslint-graph.js';
 import { getProgramCacheSize } from '../rules/contracts/program-cache.js';
+import { captureProgram } from '../rules/support/eslint-program.js';
 
-const getProgram = async (code = '', file = '') => {
-    let program = {};
-    const capture = {
-        rules: {
-            program: {
-                create: () => ({
-                    Program: (node) => {
-                        program = node;
-                    }
-                })
-            }
-        }
-    };
-    const eslint = new ESLint({
-        overrideConfigFile: true,
-        overrideConfig: [{
-            languageOptions: {
-                ecmaVersion: 'latest',
-                sourceType: 'module'
-            },
-            plugins: { capture },
-            rules: { 'capture/program': 'error' }
-        }]
-    });
-
-    await eslint.lintText(code, { filePath: file });
-
-    return program;
-};
-
+const getProgram = async (code = '', file = '') => captureProgram(code, { fileName: file, languageOptions: { ecmaVersion: 'latest', sourceType: 'module' } });
 const directory = await mkdtemp(path.join(process.cwd(), '.resilient-graph-'));
 const providerFile = path.join(directory, 'provider.js');
 const consumerFile = path.join(directory, 'consumer.js');

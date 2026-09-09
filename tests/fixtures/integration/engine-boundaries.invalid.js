@@ -34,4 +34,12 @@ const collectWithSwitch = (items = []) => {
     return result;
 };
 
+const map = new Map();
+map.get('key').add('value');
+const getTarget = () => ({ count: 0 });
+getTarget().count = 1;
+getTarget().count++;
+delete getTarget().count;
+Object.assign(getTarget(), { count: 2 });
+
 void [updateInput, updateResponse, collect, collectWithSwitch];

@@ -28,7 +28,8 @@ export {
     getContractDiagnostics,
     getDestructuringDiagnostics,
     getMismatches,
-    getOperationDiagnostics
+    getOperationDiagnostics,
+    getReturnDiagnostics
 } from './diagnostics.js';
 
 export {

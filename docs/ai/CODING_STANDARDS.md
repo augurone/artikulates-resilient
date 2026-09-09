@@ -1,8 +1,44 @@
 # Applying the Resilient dialect
 
-The normative definitions are in [`semantics.md`](../reference/semantics.md). This page is
-the practical reference for writing code in that dialect; individual rule
-behavior and smells are in [`rules/`](../rules/).
+The normative specification has three parts: [Grammar](../reference/grammar.md),
+[Policy](../reference/policy.md), and [Semantics](../reference/semantics.md).
+This is their AI-facing practical presentation, not an independent rule set.
+Individual rule behavior and smells remain in [`rules/`](../rules/).
+The project documentation is authoritative. Use `rules/contracts` as the senior
+dialect reference and the Artikulates provider tree as the team composition
+reference; do not invent a parallel interpretation from local convenience.
+
+For a first implementation in the dialect, read
+[Writing Resilient from first principles](writing-resilient.md) for boundary
+decisions, complete examples, and a path through the blogs and reference code.
+
+## Decision procedure for agents
+
+0. Return to the normative documents before making a design decision. Read the
+   applicable Grammar, Policy, Semantics, and adapter reference sections, then
+   inspect the closest proven implementation pattern in `rules/contracts`.
+   Documentation and those implementations are the language training set;
+   intuition, convenience, and lower lint counts are not substitutes.
+1. Classify the source form using Grammar G-A (atoms), G-S (structures), and
+   G-T (TypeScript input versus JavaScript target).
+2. Establish meaning using Semantics S-02 through S-06: separate known,
+   unknown, and contradictory evidence; distinguish defaults from validation.
+3. Identify the applicable rule and preset using Policy P-01 and P-02.
+4. Check built-in exceptions, then the narrow boundary mechanism in P-03.
+   An exception never supplies missing evidence or relaxes another rule.
+5. For lowering, inspect S-07 through S-11 and P-04: preserve evaluation order,
+   required arguments, receivers, identity, effects, and failure ownership.
+   Keep unsupported-lowering diagnostics separate from policy findings.
+6. Verify under P-05. Report unknowns, retained exceptions, warnings, and
+   failures; a passing lint result alone does not prove equivalent behavior.
+
+Adapters must speak the dialect themselves: use destructured boundaries,
+direct object construction, explicit agreement states, correct defaults,
+guard-owned absence, and local exceptions. Never add a project-wide or
+file-wide disable, generate suppression comments from lint output, or use
+`--fix` as evidence that a semantic lowering is correct.
+
+These IDs are shared documentation references, not an annotation language.
 
 ## Function boundaries
 
@@ -69,11 +105,11 @@ const enabled = items.filter(({ enabled = false } = {}) => enabled);
 const labels = enabled.map(({ label = '' } = {}) => label);
 ```
 
-Loops with `await` or direct `break`/`continue`/`return`/`throw` are valid
-native exceptions: their sequential ordering or control flow is explicit.
-Other retained loops, including accumulator or mutation loops without those
-native semantics, require `// resilient-allow-loop: reason` with a file-local
-explanation.
+Loops with `await` or direct `break`/`continue`/`return`/`throw` may have a
+semantic reason to remain native, but these are not automatic lint exceptions.
+Unless a completed analyzer-backed retained boundary applies, every retained
+loop requires `// eslint-disable-next-line resilient/prefer-prototype-methods -- reason`
+with a file-local explanation.
 
 ## Transformations and effects
 
@@ -91,8 +127,9 @@ const update = (
 ```
 
 The safety rule rejects direct property updates, mutating methods, and
-`Object.assign`, including on local working values. Configure narrow exceptions
-for draft reducers, caches, DOM objects, refs, and similar mutable boundaries.
+`Object.assign`, including on local working values. Use the owning rule’s supported boundary exceptions for draft reducers, caches,
+DOM objects, and refs. Repository source requires local, explained exceptions
+under [P-03](../reference/policy.md#p-03-exceptions-and-precedence).
 
 ## Async and failure
 
@@ -101,7 +138,7 @@ rate-limited work, and `Promise.allSettled` when every outcome matters.
 
 Promise chains need visible ownership through `.catch`, `return`, assignment,
 `await`, or `void`. Prefer `async`/`await` for ordinary sequential chains, but
-keep required chains with `// resilient-allow-promise-chain: reason`.
+keep required chains with `// eslint-disable-next-line resilient/prefer-async-await -- reason`.
 
 Use `try`, `catch`, `finally`, and `throw` for API failure, cancellation,
 parsing, cleanup, and error boundaries. Do not leave a catch block empty.
@@ -143,7 +180,7 @@ side effects, and behavior static syntax cannot prove.
 - Can a guard clause terminate irrelevant work earlier?
 - Is a collection operation expressed with a prototype method?
 - If a loop has neither `await` nor direct loop control, is its retained-pattern
-  reason visible in `resilient-allow-loop: reason`?
+  reason visible in the adjacent ESLint exception?
 - Are independent async operations grouped with `Promise.all`?
 - Does every promise chain have an owner for rejection?
 - Does every catch handler handle, translate, rethrow, log with context, or

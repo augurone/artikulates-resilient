@@ -1,0 +1,4604 @@
+{
+  "authority": "Derived parsed source and evidence; adjacent directive is authority. Not consulted by lint or production.",
+  "boundaries": [
+    {
+      "file": "transforms/policy/contract.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-falsey-returns"
+      ],
+      "reason": "Unknown or required contracts have no relation result; false would turn missing evidence into a contradiction.",
+      "location": {
+        "line": 53,
+        "column": 5
+      },
+      "range": [
+        1301,
+        1474
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        1479,
+        1546
+      ],
+      "operation": "if (['unknown', 'required'].includes(sourceKind)) return undefined;",
+      "id": 1,
+      "owner": "relateContracts",
+      "family": "Unknown is not contradiction",
+      "observable": "relateContracts returns undefined for unknown/required source or target; false denotes established disagreement.",
+      "disposition": "retain",
+      "proofStatus": "registered local boundary proof",
+      "missingProof": false,
+      "proof": "tests/contract.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-falsey-returns",
+          "check": "Bare return is allowed; null/undefined/void result is reported. AST removal, required compiler omission and unknown relation need their actual consumer law."
+        }
+      ],
+      "probe": "/private/tmp/resilient-optional-capability-probe.json"
+    },
+    {
+      "file": "transforms/policy/contract.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-falsey-returns"
+      ],
+      "reason": "Unknown or required contracts have no relation result; false would turn missing evidence into a contradiction.",
+      "location": {
+        "line": 56,
+        "column": 5
+      },
+      "range": [
+        1552,
+        1725
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        1730,
+        1797
+      ],
+      "operation": "if (['unknown', 'required'].includes(targetKind)) return undefined;",
+      "id": 2,
+      "owner": "relateContracts",
+      "family": "Unknown is not contradiction",
+      "observable": "relateContracts returns undefined for unknown/required source or target; false denotes established disagreement.",
+      "disposition": "retain",
+      "proofStatus": "registered local boundary proof",
+      "missingProof": false,
+      "proof": "tests/contract.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-falsey-returns",
+          "check": "Bare return is allowed; null/undefined/void result is reported. AST removal, required compiler omission and unknown relation need their actual consumer law."
+        }
+      ],
+      "probe": "/private/tmp/resilient-optional-capability-probe.json"
+    },
+    {
+      "file": "transforms/typescript/grammar/final.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Shared Set publishes before guard construction; copying loses caller-visible records.",
+      "location": {
+        "line": 502,
+        "column": 9
+      },
+      "range": [
+        21003,
+        21157
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        21166,
+        21587
+      ],
+      "operation": "agreements.add({\n            action: 'guarded-closed-provider-model',\n            state: 'resolved',\n            owner: 'closed-model-producer',\n            name: capability,\n            site: 'final-closed-provider-consumer',\n            sourceRange: getSourceRange({ typescript, node: declaration }),\n            canonical: `{ ${payloadProperty}, ${collectionProperty}: [] }`,\n            evidence: [reason]\n        });",
+      "id": 3,
+      "owner": "getClosedProviderModelGuardStatements",
+      "family": "Caller-visible agreement report insertion",
+      "observable": "Publish a fresh record to the supplied Set, preserving method Get before record construction, caller identity, insertion order and failure phase.",
+      "disposition": "retain",
+      "proofStatus": "exact closed-result source call and array forwarding, public report cardinality, normal and abrupt placement, local publication necessity proved",
+      "missingProof": false,
+      "proof": "tests/typescript-report-publication.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/grammar/final.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private guard Set carries earlier sibling facts into later visits.",
+      "location": {
+        "line": 1099,
+        "column": 13
+      },
+      "range": [
+        48459,
+        48594
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        48607,
+        48634
+      ],
+      "operation": "guardedSources.add(source);",
+      "id": 4,
+      "owner": "addGuardedSource",
+      "family": "Sequential sibling state",
+      "observable": "Earlier guards/source aliases/bindings update the same state read by later sibling traversal, before reconstruction/trivia changes.",
+      "disposition": "retain",
+      "proofStatus": "registered private-store law and owning-rule finding",
+      "missingProof": false,
+      "proof": "tests/typescript-private-state.test.js; tests/typescript-final-decision-ownership.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/grammar/final.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private guard Set publishes matching aliases in insertion order.",
+      "location": {
+        "line": 1102,
+        "column": 17
+      },
+      "range": [
+        48704,
+        48837
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        48854,
+        48901
+      ],
+      "operation": "if (root === source) guardedSources.add(alias);",
+      "id": 5,
+      "owner": "addGuardedSource",
+      "family": "Sequential sibling state",
+      "observable": "Earlier guards/source aliases/bindings update the same state read by later sibling traversal, before reconstruction/trivia changes.",
+      "disposition": "retain",
+      "proofStatus": "registered private-store law and owning-rule finding",
+      "missingProof": false,
+      "proof": "tests/typescript-private-state.test.js; tests/typescript-final-decision-ownership.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/grammar/final.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private alias Map keeps last-write values and first-insertion order.",
+      "location": {
+        "line": 1127,
+        "column": 17
+      },
+      "range": [
+        49993,
+        50130
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        50147,
+        50195
+      ],
+      "operation": "if (alias) sourceAliases.set(alias, sourceText);",
+      "id": 6,
+      "owner": "recordSourceAliases",
+      "family": "Sequential sibling state",
+      "observable": "Earlier guards/source aliases/bindings update the same state read by later sibling traversal, before reconstruction/trivia changes.",
+      "disposition": "retain",
+      "proofStatus": "registered private-store law and owning-rule finding",
+      "missingProof": false,
+      "proof": "tests/typescript-private-state.test.js; tests/typescript-final-decision-ownership.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/grammar/final.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "no-use-before-define"
+      ],
+      "reason": "Visitor receives the active traversal state.",
+      "location": {
+        "line": 1136,
+        "column": 13
+      },
+      "range": [
+        50619,
+        50715
+      ],
+      "enclosedAst": "VariableDeclaration",
+      "enclosedRange": [
+        50728,
+        50808
+      ],
+      "operation": "const visited = visit(ownedAssignment, block, accumulatorKinds, guardedSources);",
+      "id": 7,
+      "owner": "lowerAccumulatorBlock",
+      "family": "Deferred recursive visitor reference",
+      "observable": "Recursive callback runs after initialization and forwards the exact active node/context/state; declaration spelling/order alone is not early execution.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Covered recursive forwarding already has one owner. Any further declaration reorder needs module-init/early-call and context/failure proof.",
+      "proof": "tests/typescript-final-decision-ownership.test.js",
+      "ruleChecks": [
+        {
+          "rule": "no-use-before-define",
+          "check": "Repository uses default enabled checks, no variable/function disabling option. Deferred recursion remains a report; source-time initialization proof is separate."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/grammar/final.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Shared Set publishes before annotation; copying loses caller-visible records.",
+      "location": {
+        "line": 1269,
+        "column": 13
+      },
+      "range": [
+        56630,
+        56776
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        56789,
+        57315
+      ],
+      "operation": "agreements.add({\n                action: 'slang-required-function-provider-edge',\n                state: 'preserve',\n                owner: 'provider-caller',\n                name: providerMember,\n                site: 'final-provider-edge',\n                sourceRange: getSourceRange({ typescript, node: visited }),\n                factory: recordedFactory,\n                typeText: providerType,\n                evidence: [providerReason],\n                next: 'resolve callability at the actual consumer'\n            });",
+      "id": 8,
+      "owner": "lowerVisitedVariableDeclaration",
+      "family": "Caller-visible agreement report insertion",
+      "observable": "Publish a fresh record to the supplied Set, preserving method Get before record construction, caller identity, insertion order and failure phase.",
+      "disposition": "retain",
+      "proofStatus": "checker source domain, public fact/report cardinality, exact placement and local publication necessity proved",
+      "missingProof": false,
+      "proof": "tests/typescript-report-publication.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/grammar/final.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "no-use-before-define"
+      ],
+      "reason": "The deferred recursive callback forwards exact traversal state after visit is initialized.",
+      "location": {
+        "line": 1438,
+        "column": 9
+      },
+      "range": [
+        64058,
+        64200
+      ],
+      "enclosedAst": "ArrowFunctionExpression",
+      "enclosedRange": [
+        64209,
+        64281
+      ],
+      "operation": "child => visit(child, node, accumulatorKinds, guardedSources, canReturn)",
+      "id": 9,
+      "owner": "visitChildren",
+      "family": "Deferred recursive visitor reference",
+      "observable": "Recursive callback runs after initialization and forwards the exact active node/context/state; declaration spelling/order alone is not early execution.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Covered recursive forwarding already has one owner. Any further declaration reorder needs module-init/early-call and context/failure proof.",
+      "proof": "tests/typescript-final-decision-ownership.test.js",
+      "ruleChecks": [
+        {
+          "rule": "no-use-before-define",
+          "check": "Repository uses default enabled checks, no variable/function disabling option. Deferred recursion remains a report; source-time initialization proof is separate."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/grammar/final.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-falsey-returns"
+      ],
+      "reason": "AST visitor omits only the proved terminal bare return.",
+      "location": {
+        "line": 1599,
+        "column": 13
+      },
+      "range": [
+        70852,
+        70970
+      ],
+      "enclosedAst": "ReturnStatement",
+      "enclosedRange": [
+        70983,
+        71000
+      ],
+      "operation": "return undefined;",
+      "id": 10,
+      "owner": "visit",
+      "family": "TypeScript visitor deletion",
+      "observable": "Returning undefined removes the proved terminal return, type-only module/import clause, or import with no runtime bindings; false is not a valid visitor node.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Existing public output/runtime proofs cover deletion. Exact per-private-owner native false-node rejection is not independently registered.",
+      "proof": "tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-falsey-returns",
+          "check": "Bare return is allowed; null/undefined/void result is reported. AST removal, required compiler omission and unknown relation need their actual consumer law."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/grammar/final.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private name Set records the direct name before alias scans and deduplicates it.",
+      "location": {
+        "line": 1794,
+        "column": 9
+      },
+      "range": [
+        78761,
+        78910
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        78919,
+        78945
+      ],
+      "operation": "if (name) names.add(name);",
+      "id": 11,
+      "owner": "getGuardNames",
+      "family": "Guard evidence accumulation",
+      "observable": "Gather parameter and alias discriminator evidence while retaining nested-function/statement barriers.",
+      "disposition": "retain",
+      "proofStatus": "registered private-store law and owning-rule finding",
+      "missingProof": false,
+      "proof": "tests/typescript-private-state.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/grammar/final.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private name Set records matching aliases in live Map visitation order.",
+      "location": {
+        "line": 1798,
+        "column": 13
+      },
+      "range": [
+        79006,
+        79146
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        79159,
+        79212
+      ],
+      "operation": "if (contains(expression, binding)) names.add(source);",
+      "id": 12,
+      "owner": "getGuardNames",
+      "family": "Guard evidence accumulation",
+      "observable": "Gather parameter and alias discriminator evidence while retaining nested-function/statement barriers.",
+      "disposition": "retain",
+      "proofStatus": "registered private-store law and owning-rule finding",
+      "missingProof": false,
+      "proof": "tests/typescript-private-state.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/grammar/final.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private block guard Set publishes names before later sibling visits.",
+      "location": {
+        "line": 2095,
+        "column": 17
+      },
+      "range": [
+        94261,
+        94398
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        94415,
+        94516
+      ],
+      "operation": "if (childKind === IfStatement) getGuardNames(child, sources).forEach(name => guardedNames.add(name));",
+      "id": 13,
+      "owner": "visit",
+      "family": "Sequential sibling state",
+      "observable": "Earlier guards/source aliases/bindings update the same state read by later sibling traversal, before reconstruction/trivia changes.",
+      "disposition": "retain",
+      "proofStatus": "registered private-store law and owning-rule finding",
+      "missingProof": false,
+      "proof": "tests/typescript-private-state.test.js; tests/typescript-final-decision-ownership.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/grammar/final.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private block source Map preserves overwrite order for later guards.",
+      "location": {
+        "line": 2102,
+        "column": 21
+      },
+      "range": [
+        94698,
+        94835
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        94856,
+        94885
+      ],
+      "operation": "sources.set(binding, source);",
+      "id": 14,
+      "owner": "visit",
+      "family": "Sequential sibling state",
+      "observable": "Earlier guards/source aliases/bindings update the same state read by later sibling traversal, before reconstruction/trivia changes.",
+      "disposition": "retain",
+      "proofStatus": "registered private-store law and owning-rule finding",
+      "missingProof": false,
+      "proof": "tests/typescript-private-state.test.js; tests/typescript-final-decision-ownership.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/grammar/guards.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-prototype-methods"
+      ],
+      "reason": "Guard discovery scans outward blocks after parent Get; prewalking changes failure timing.",
+      "location": {
+        "line": 83,
+        "column": 5
+      },
+      "range": [
+        3393,
+        3548
+      ],
+      "enclosedAst": "WhileStatement",
+      "enclosedRange": [
+        3553,
+        4930
+      ],
+      "operation": "while (current) {\n        const { kind: currentKind = 0, statements = [], parent = false } = current;\n\n        if (currentKind !== Block) {\n            current = parent;\n            continue;\n        }\n\n        const found = statements.some(({ expression = {}, kind: candidateKind = 0 } = {}) => {\n            const { kind: conditionKind = 0, operatorToken = {}, left = {}, right = {} } = expression;\n            const { kind: operatorKind = 0 } = operatorToken;\n\n            if (candidateKind !== IfStatement || conditionKind !== BinaryExpression) return false;\n\n            if (![GreaterThanToken, GreaterThanEqualsToken, LessThanToken, LessThanEqualsToken].includes(operatorKind)) return false;\n\n            return [[left, right], [right, left]].some(([\n                { kind: operandKind = 0, expression: operandExpression = {}, name: operandName = {} } = {},\n                { kind: otherKind = 0 } = {}\n            ] = []) => {\n                const { kind: expressionKind = 0, text: expressionText = '' } = operandExpression;\n                const { text: nameText = '' } = operandName;\n\n                return operandKind === PropertyAccessExpression && expressionKind === Identifier && expressionText === sourceName && nameText === 'length' && otherKind === NumericLiteral;\n            });\n        });\n\n        if (found) return true;\n\n        current = parent;\n    }",
+      "id": 15,
+      "owner": "hasArrayLengthDecision",
+      "family": "Operation-specific short-circuit walk",
+      "observable": "Follow actual parent/statement/static-path order and stop at this owner’s matching block, loop, declaration, return, executor, source-file or bounded depth; not a shared generic walk.",
+      "disposition": "retain",
+      "proofStatus": "registered local operation, consumer and owning-rule proof; no generic law inferred",
+      "missingProof": false,
+      "proof": "tests/typescript-walk-mechanisms.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-prototype-methods",
+          "check": "Rule reports all loop kinds; stopping, await and throw are constraints, not built-in waivers."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/grammar/imports.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-falsey-returns"
+      ],
+      "reason": "undefined removes a type-only import clause",
+      "location": {
+        "line": 27,
+        "column": 5
+      },
+      "range": [
+        805,
+        911
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        916,
+        953
+      ],
+      "operation": "if (clauseTypeOnly) return undefined;",
+      "id": 16,
+      "owner": "updateTypeOnlyImport",
+      "family": "TypeScript visitor deletion",
+      "observable": "Returning undefined removes the proved terminal return, type-only module/import clause, or import with no runtime bindings; false is not a valid visitor node.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Existing public output/runtime proofs cover deletion. Exact per-private-owner native false-node rejection is not independently registered.",
+      "proof": "tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-falsey-returns",
+          "check": "Bare return is allowed; null/undefined/void result is reported. AST removal, required compiler omission and unknown relation need their actual consumer law."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/grammar/imports.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-falsey-returns"
+      ],
+      "reason": "undefined removes an import with no runtime bindings",
+      "location": {
+        "line": 47,
+        "column": 5
+      },
+      "range": [
+        1560,
+        1675
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        1680,
+        1734
+      ],
+      "operation": "if (!defaultImport && !nextBindings) return undefined;",
+      "id": 17,
+      "owner": "updateTypeOnlyImport",
+      "family": "TypeScript visitor deletion",
+      "observable": "Returning undefined removes the proved terminal return, type-only module/import clause, or import with no runtime bindings; false is not a valid visitor node.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Existing public output/runtime proofs cover deletion. Exact per-private-owner native false-node rejection is not independently registered.",
+      "proof": "tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-falsey-returns",
+          "check": "Bare return is allowed; null/undefined/void result is reported. AST removal, required compiler omission and unknown relation need their actual consumer law."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/lowering/declarations.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations",
+        "resilient/prefer-destructured-member-access"
+      ],
+      "reason": "The fresh owner-local binding map is built once before AST traversal.",
+      "location": {
+        "line": 30,
+        "column": 17
+      },
+      "range": [
+        2062,
+        2245
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        2262,
+        2301
+      ],
+      "operation": "owned.set(symbol, bindingNames[index]);",
+      "id": 27,
+      "family": "Checker-backed declaration lifetime",
+      "observable": "The fresh owner-local binding map is built once before AST traversal.",
+      "disposition": "retain",
+      "proofStatus": "focused R2 source and runtime proof",
+      "missingProof": false,
+      "proof": "tests/typescript-hoisted-functions.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The local source operation is required by checker-backed binding identity, evaluation order, or AST statement removal."
+        },
+        {
+          "rule": "resilient/prefer-destructured-member-access",
+          "check": "The local source operation is required by checker-backed binding identity, evaluation order, or AST statement removal."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/lowering/declarations.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "The private entry map is built once before AST traversal.",
+      "location": {
+        "line": 34,
+        "column": 9
+      },
+      "range": [
+        2336,
+        2462
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        2471,
+        2514
+      ],
+      "operation": "entryBindings.set(entryAnchorRange, owned);",
+      "id": 28,
+      "family": "Checker-backed declaration lifetime",
+      "observable": "The private entry map is built once before AST traversal.",
+      "disposition": "retain",
+      "proofStatus": "focused R2 source and runtime proof",
+      "missingProof": false,
+      "proof": "tests/typescript-hoisted-functions.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The local source operation is required by checker-backed binding identity, evaluation order, or AST statement removal."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/lowering/declarations.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-falsey-returns"
+      ],
+      "reason": "Removing a no-write declaration from a statement list preserves its completed scope-entry binding.",
+      "location": {
+        "line": 94,
+        "column": 9
+      },
+      "range": [
+        5359,
+        5520
+      ],
+      "enclosedAst": "ReturnStatement",
+      "enclosedRange": [
+        5529,
+        5546
+      ],
+      "operation": "return undefined;",
+      "id": 29,
+      "family": "Checker-backed declaration lifetime",
+      "observable": "Removing a no-write declaration from a statement list preserves its completed scope-entry binding.",
+      "disposition": "retain",
+      "proofStatus": "focused R2 source and runtime proof",
+      "missingProof": false,
+      "proof": "tests/typescript-hoisted-functions.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-falsey-returns",
+          "check": "The local source operation is required by checker-backed binding identity, evaluation order, or AST statement removal."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/lowering/declared-nullish-results.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-falsey-returns"
+      ],
+      "reason": "Undefined removes the proved sole terminal return from the AST.",
+      "location": {
+        "line": 40,
+        "column": 17
+      },
+      "range": [
+        1908,
+        2034
+      ],
+      "enclosedAst": "ReturnStatement",
+      "enclosedRange": [
+        2051,
+        2068
+      ],
+      "operation": "return undefined;",
+      "id": 30,
+      "owner": "visit",
+      "family": "TypeScript visitor deletion",
+      "observable": "Returning undefined removes the proved terminal return, type-only module/import clause, or import with no runtime bindings; false is not a valid visitor node.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Existing public output/runtime proofs cover deletion. Exact per-private-owner native false-node rejection is not independently registered.",
+      "proof": "tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-falsey-returns",
+          "check": "Bare return is allowed; null/undefined/void result is reported. AST removal, required compiler omission and unknown relation need their actual consumer law."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/lowering/guarded-bindings.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "no-use-before-define"
+      ],
+      "reason": "visitor delegates block nodes back to this lowerer",
+      "location": {
+        "line": 125,
+        "column": 13
+      },
+      "range": [
+        4476,
+        4578
+      ],
+      "enclosedAst": "CallExpression",
+      "enclosedRange": [
+        4591,
+        4643
+      ],
+      "operation": "typescript.visitEachChild(statement, visit, context)",
+      "id": 31,
+      "owner": "lowerBlock",
+      "family": "Deferred recursive visitor reference",
+      "observable": "Recursive callback runs after initialization and forwards the exact active node/context/state; declaration spelling/order alone is not early execution.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Covered recursive forwarding already has one owner. Any further declaration reorder needs module-init/early-call and context/failure proof.",
+      "proof": "tests/typescript-final-decision-ownership.test.js",
+      "ruleChecks": [
+        {
+          "rule": "no-use-before-define",
+          "check": "Repository uses default enabled checks, no variable/function disabling option. Deferred recursion remains a report; source-time initialization proof is separate."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/lowering/guarded-bindings.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-destructuring-defaults"
+      ],
+      "reason": "Absent AST modifiers must remain absent in factory update.",
+      "location": {
+        "line": 138,
+        "column": 13
+      },
+      "range": [
+        4977,
+        5111
+      ],
+      "enclosedAst": "VariableDeclaration",
+      "enclosedRange": [
+        5124,
+        5214
+      ],
+      "operation": "const { kind: statementKind = 0, declarationList = {}, modifiers } = getObject(statement);",
+      "id": 32,
+      "owner": "lowerBlock",
+      "family": "Compiler metadata forwarding",
+      "observable": "Omitted initializer/annotation/optionality/modifier/rest token remains undefined at the existing factory update; supplied fields and provenance are unchanged.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Shared compiler owner tests cover absent/present fields; singular caller update fields still need direct per-operation factory identity proof.",
+      "proof": "tests/typescript-ast-boundary.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-destructuring-defaults",
+          "check": "Rule skips rest itself, callable-invocation and recognized tuple/model/guarded payload patterns. Optional metadata/capability binding is an ordinary property; false is lawful only when its consumer observes guard falsification, not factory absence."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/members/capability-consumers.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Shared Set publishes before function update; copying loses caller-visible records.",
+      "location": {
+        "line": 318,
+        "column": 5
+      },
+      "range": [
+        13290,
+        13441
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        13446,
+        13653
+      ],
+      "operation": "if (agreements instanceof Set) agreements.add({\n        ...contract,\n        action: 'guarded-sort-capability',\n        receiverName,\n        site: 'static-sort-capability-consumer',\n        evidence\n    });",
+      "id": 33,
+      "owner": "lowerSortCapabilityConsumer",
+      "family": "Caller-visible agreement report insertion",
+      "observable": "Publish a fresh record to the supplied Set, preserving method Get before record construction, caller identity, insertion order and failure phase.",
+      "disposition": "retain",
+      "proofStatus": "Completed checker sort-source admission, Policy and placement coverage, exact staged-getter emitter, public report cardinality, local Set timing, generated lint/runtime proof and FPRi81 corpus parity.",
+      "missingProof": false,
+      "proof": "tests/typescript-report-publication.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/members/capability-consumers.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Shared Set publishes before function update; copying loses caller-visible records.",
+      "location": {
+        "line": 448,
+        "column": 5
+      },
+      "range": [
+        19080,
+        19231
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        19236,
+        19435
+      ],
+      "operation": "if (agreements instanceof Set) agreements.add({\n        ...capability,\n        action: 'guarded-direct-capability',\n        alias,\n        site: 'direct-capability-consumer',\n        evidence\n    });",
+      "id": 34,
+      "owner": "lowerDirectCapabilityConsumers",
+      "family": "Caller-visible agreement report insertion",
+      "observable": "Publish a fresh record to the supplied Set, preserving method Get before record construction, caller identity, insertion order and failure phase.",
+      "disposition": "retain",
+      "proofStatus": "complete checker-source admission, Policy, placement, emitter and local Set publication proof",
+      "missingProof": false,
+      "proof": "tests/typescript-report-publication.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/members/exact-projections.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Shared Set reports the built projection; copying loses publication and changes native add timing.",
+      "location": {
+        "line": 50,
+        "column": 9
+      },
+      "range": [
+        2031,
+        2197
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        2206,
+        2404
+      ],
+      "operation": "if (agreements instanceof Set) agreements.add({\n            ...agreement,\n            action: 'exact-callback-projected',\n            alias,\n            site: 'exact-callback-projection'\n        });",
+      "id": 35,
+      "owner": "visit",
+      "family": "Caller-visible agreement report insertion",
+      "observable": "Publish a fresh record to the supplied Set, preserving method Get before record construction, caller identity, insertion order and failure phase.",
+      "disposition": "retain",
+      "proofStatus": "complete exact callback projection source admission, placement, and local publication necessity",
+      "missingProof": "",
+      "proof": "tests/typescript-forward-projection-domain.test.js; tests/typescript-projection-admission.test.js; tests/typescript-report-publication.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/members/exact-provider-forwarding.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Shared Set publishes before replacement construction; copying hides records on compiler failure.",
+      "location": {
+        "line": 24,
+        "column": 9
+      },
+      "range": [
+        1123,
+        1288
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        1297,
+        1444
+      ],
+      "operation": "agreements.add({\n            ...contract,\n            action: 'exact-provider-forwarded',\n            site: 'exact-provider-forwarding'\n        });",
+      "id": 36,
+      "owner": "recordAgreement",
+      "family": "Caller-visible agreement report insertion",
+      "observable": "Publish a fresh record to the supplied Set, preserving method Get before record construction, caller identity, insertion order and failure phase.",
+      "disposition": "retain",
+      "proofStatus": "checker source and exact placement admission, public report cardinality, native timing and local publication necessity proved",
+      "missingProof": false,
+      "proof": "tests/typescript-provider-provenance.test.js; tests/typescript-report-publication.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/members/generic.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-prototype-methods"
+      ],
+      "reason": "Guard discovery stops before SourceFile parent Get; matching guards read parent first.",
+      "location": {
+        "line": 271,
+        "column": 9
+      },
+      "range": [
+        10568,
+        10720
+      ],
+      "enclosedAst": "WhileStatement",
+      "enclosedRange": [
+        10729,
+        11306
+      ],
+      "operation": "while (current && getObject(current).kind !== SourceFileKind2) {\n            const {\n                kind: currKind = 0,\n                condition: currCond = {},\n                expression: currExpr = {},\n                parent: currParent = undefined\n            } = getObject(current);\n\n            if (currKind === ConditionalExpression &&\n                getReadGuardRoot(currCond) === objectName) return true;\n\n            if (currKind === IfStatement &&\n                getReadGuardRoot(currExpr) === objectName) return true;\n\n            current = currParent;\n        }",
+      "id": 37,
+      "owner": "isGuardedRead",
+      "family": "Operation-specific short-circuit walk",
+      "observable": "Follow actual parent/statement/static-path order and stop at this owner’s matching block, loop, declaration, return, executor, source-file or bounded depth; not a shared generic walk.",
+      "disposition": "retain",
+      "proofStatus": "registered local operation, consumer and owning-rule proof; no generic law inferred",
+      "missingProof": false,
+      "proof": "tests/typescript-walk-mechanisms.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-prototype-methods",
+          "check": "Rule reports all loop kinds; stopping, await and throw are constraints, not built-in waivers."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/members/generic.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-destructuring-defaults"
+      ],
+      "reason": "An omitted parameter rest token must remain absent in the factory update.",
+      "location": {
+        "line": 867,
+        "column": 13
+      },
+      "range": [
+        36739,
+        36888
+      ],
+      "enclosedAst": "Property",
+      "enclosedRange": [
+        36901,
+        36915
+      ],
+      "operation": "dotDotDotToken",
+      "id": 38,
+      "owner": "lowerGenericMemberAccess",
+      "family": "Compiler metadata forwarding",
+      "observable": "Omitted initializer/annotation/optionality/modifier/rest token remains undefined at the existing factory update; supplied fields and provenance are unchanged.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Shared compiler owner tests cover absent/present fields; singular caller update fields still need direct per-operation factory identity proof.",
+      "proof": "tests/typescript-ast-boundary.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-destructuring-defaults",
+          "check": "Rule skips rest itself, callable-invocation and recognized tuple/model/guarded payload patterns. Optional metadata/capability binding is an ordinary property; false is lawful only when its consumer observes guard falsification, not factory absence."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/members/index.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-destructuring-defaults"
+      ],
+      "reason": "An omitted parameter rest token must remain absent in the factory update.",
+      "location": {
+        "line": 583,
+        "column": 13
+      },
+      "range": [
+        23320,
+        23469
+      ],
+      "enclosedAst": "Property",
+      "enclosedRange": [
+        23482,
+        23496
+      ],
+      "operation": "dotDotDotToken",
+      "id": 39,
+      "owner": "lowerParameterMemberAccess",
+      "family": "Compiler metadata forwarding",
+      "observable": "Omitted initializer/annotation/optionality/modifier/rest token remains undefined at the existing factory update; supplied fields and provenance are unchanged.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Shared compiler owner tests cover absent/present fields; singular caller update fields still need direct per-operation factory identity proof.",
+      "proof": "tests/typescript-ast-boundary.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-destructuring-defaults",
+          "check": "Rule skips rest itself, callable-invocation and recognized tuple/model/guarded payload patterns. Optional metadata/capability binding is an ordinary property; false is lawful only when its consumer observes guard falsification, not factory absence."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/members/provider-forwarding.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Shared Set reports the built expression; copying loses publication and changes native add timing.",
+      "location": {
+        "line": 52,
+        "column": 9
+      },
+      "range": [
+        2017,
+        2183
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        2192,
+        2378
+      ],
+      "operation": "if (agreements instanceof Set) agreements.add({\n            ...agreement,\n            action: 'provider-forwarded',\n            alias,\n            site: 'provider-forwarding'\n        });",
+      "id": 40,
+      "owner": "visit",
+      "family": "Caller-visible agreement report insertion",
+      "observable": "Publish a fresh record to the supplied Set, preserving method Get before record construction, caller identity, insertion order and failure phase.",
+      "disposition": "retain",
+      "proofStatus": "complete immediate returned-record source admission, placement, and local publication necessity",
+      "missingProof": "",
+      "proof": "tests/typescript-forward-projection-domain.test.js; tests/typescript-projection-admission.test.js; tests/typescript-report-publication.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/members/residual.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-falsey-returns"
+      ],
+      "reason": "Result enters the binding factory initializer slot; false is not an omitted compiler node.",
+      "location": {
+        "line": 197,
+        "column": 9
+      },
+      "range": [
+        7406,
+        7559
+      ],
+      "enclosedAst": "ReturnStatement",
+      "enclosedRange": [
+        7568,
+        7585
+      ],
+      "operation": "return undefined;",
+      "id": 41,
+      "owner": "getDefault",
+      "family": "Optional grammar construction",
+      "observable": "No conditional argument, empty branch, binding initializer, static property alias or aggregate default exists until the owner admits it; native factory absence is not an empty node.",
+      "disposition": "retain",
+      "proofStatus": "registered local operation, consumer and owning-rule proof; no generic law inferred",
+      "missingProof": false,
+      "proof": "tests/typescript-grammar-mechanisms.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-falsey-returns",
+          "check": "Bare return is allowed; null/undefined/void result is reported. AST removal, required compiler omission and unknown relation need their actual consumer law."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/members/residual.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-falsey-returns"
+      ],
+      "reason": "Static array binding omits propertyName; a computed name belongs only to object binding.",
+      "location": {
+        "line": 236,
+        "column": 13
+      },
+      "range": [
+        9289,
+        9440
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        9453,
+        9503
+      ],
+      "operation": "if (staticIndex >= 0 && isArray) return undefined;",
+      "id": 42,
+      "owner": "getPropertyName",
+      "family": "Optional grammar construction",
+      "observable": "No conditional argument, empty branch, binding initializer, static property alias or aggregate default exists until the owner admits it; native factory absence is not an empty node.",
+      "disposition": "retain",
+      "proofStatus": "registered local operation, consumer and owning-rule proof; no generic law inferred",
+      "missingProof": false,
+      "proof": "tests/typescript-grammar-mechanisms.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-falsey-returns",
+          "check": "Bare return is allowed; null/undefined/void result is reported. AST removal, required compiler omission and unknown relation need their actual consumer law."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/members/residual.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-destructuring-defaults"
+      ],
+      "reason": "Absent statement modifiers must stay absent in factory update.",
+      "location": {
+        "line": 388,
+        "column": 13
+      },
+      "range": [
+        15507,
+        15645
+      ],
+      "enclosedAst": "VariableDeclaration",
+      "enclosedRange": [
+        15658,
+        15743
+      ],
+      "operation": "const { kind: stmtKind = 0, declarationList = {}, modifiers } = getObject(statement);",
+      "id": 43,
+      "owner": "lowerMemberInitializer",
+      "family": "Compiler metadata forwarding",
+      "observable": "Omitted initializer/annotation/optionality/modifier/rest token remains undefined at the existing factory update; supplied fields and provenance are unchanged.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Shared compiler owner tests cover absent/present fields; singular caller update fields still need direct per-operation factory identity proof.",
+      "proof": "tests/typescript-ast-boundary.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-destructuring-defaults",
+          "check": "Rule skips rest itself, callable-invocation and recognized tuple/model/guarded payload patterns. Optional metadata/capability binding is an ordinary property; false is lawful only when its consumer observes guard falsification, not factory absence."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/members/residual.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Shared Set publishes before guard construction; copying loses caller-visible records.",
+      "location": {
+        "line": 704,
+        "column": 25
+      },
+      "range": [
+        30585,
+        30739
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        30764,
+        31219
+      ],
+      "operation": "agreements.add({\n                            state: 'known',\n                            owner: 'callback-consumer',\n                            evidence: [reason].filter(Boolean),\n                            canonical,\n                            site: 'residual-callback-argument',\n                            sourceRange: getSourceRange({ typescript, node: argument }),\n                            action: 'guarded-function'\n                        });",
+      "id": 44,
+      "owner": "getExpressionPlan",
+      "family": "Caller-visible agreement report insertion",
+      "observable": "Publish a fresh record to the supplied Set, preserving method Get before record construction, caller identity, insertion order and failure phase.",
+      "disposition": "retain",
+      "proofStatus": "all six static collection callback methods and rejected optional/computed/custom/aliased/parenthesized neighbors have public fact/report cardinality, source-order timing, and local publication proof",
+      "missingProof": "",
+      "proof": "tests/typescript-report-publication.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/members/residual.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-destructuring-defaults"
+      ],
+      "reason": "An AST statement may deliberately omit modifiers; factory update preserves that absence.",
+      "location": {
+        "line": 798,
+        "column": 21
+      },
+      "range": [
+        35062,
+        35226
+      ],
+      "enclosedAst": "Property",
+      "enclosedRange": [
+        35247,
+        35256
+      ],
+      "operation": "modifiers",
+      "id": 45,
+      "owner": "lowerStatementHost",
+      "family": "Compiler metadata forwarding",
+      "observable": "Omitted initializer/annotation/optionality/modifier/rest token remains undefined at the existing factory update; supplied fields and provenance are unchanged.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Shared compiler owner tests cover absent/present fields; singular caller update fields still need direct per-operation factory identity proof.",
+      "proof": "tests/typescript-ast-boundary.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-destructuring-defaults",
+          "check": "Rule skips rest itself, callable-invocation and recognized tuple/model/guarded payload patterns. Optional metadata/capability binding is an ordinary property; false is lawful only when its consumer observes guard falsification, not factory absence."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/members/tuple-consumers.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Shared Set publishes before function update; copying loses caller-visible records.",
+      "location": {
+        "line": 97,
+        "column": 5
+      },
+      "range": [
+        4091,
+        4242
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        4247,
+        4465
+      ],
+      "operation": "if (agreements instanceof Set) agreements.add({\n        action: 'exact-tuple-position',\n        canonical: 'undefined',\n        arity,\n        sourceRange: getSourceRange({ typescript, node }),\n        evidence\n    });",
+      "id": 46,
+      "owner": "lowerExactTupleParameter",
+      "family": "Caller-visible agreement report insertion",
+      "observable": "Publish a fresh record to the supplied Set, preserving method Get before record construction, caller identity, insertion order and failure phase.",
+      "disposition": "retain",
+      "proofStatus": "complete exact-tuple source/Policy/placement matrix, authored-default rejection, defensive stale-fact rejection, and local publication timing",
+      "missingProof": "",
+      "proof": "tests/typescript-report-publication.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/members/tuple-consumers.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Shared lexical reservations precede sibling naming and recursive descent; copies lose collisions.",
+      "location": {
+        "line": 222,
+        "column": 13
+      },
+      "range": [
+        9988,
+        10154
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        10167,
+        10195
+      ],
+      "operation": "occupied.add(containerName);",
+      "id": 47,
+      "owner": "lowerPattern",
+      "family": "Tuple lexical name and nested-binding construction",
+      "observable": "Reserve carrier names before recursive descent and preserve nested pattern/source identities in discovery order.",
+      "disposition": "retain",
+      "proofStatus": "registered local operation, consumer and owning-rule proof; no generic law inferred",
+      "missingProof": false,
+      "proof": "tests/typescript-grammar-mechanisms.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/members/tuple-consumers.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Shared Set publishes before parameter updates; copying hides records on compiler failure.",
+      "location": {
+        "line": 275,
+        "column": 5
+      },
+      "range": [
+        12422,
+        12580
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        12585,
+        12783
+      ],
+      "operation": "if (agreements instanceof Set) agreements.add({\n        action: 'guarded-tuple',\n        canonical,\n        arity,\n        sourceRange: getSourceRange({ typescript, node }),\n        evidence\n    });",
+      "id": 48,
+      "owner": "lowerTupleConsumerBindings",
+      "family": "Caller-visible agreement report insertion",
+      "observable": "Publish a fresh record to the supplied Set, preserving method Get before record construction, caller identity, insertion order and failure phase.",
+      "disposition": "retain",
+      "proofStatus": "guarded tuple call-site signature, authored-default and rejected-neighbor matrix through public Policy/placement, with local publication and compiler-failure timing",
+      "missingProof": "",
+      "proof": "tests/typescript-report-publication.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/policy/defaults.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-falsey-returns"
+      ],
+      "reason": "Unknown canonical form omits the compiler initializer; false changes omitted-field identity.",
+      "location": {
+        "line": 645,
+        "column": 5
+      },
+      "range": [
+        26035,
+        26190
+      ],
+      "enclosedAst": "ReturnStatement",
+      "enclosedRange": [
+        26195,
+        26212
+      ],
+      "operation": "return undefined;",
+      "id": 49,
+      "owner": "getDefaultInitializer",
+      "family": "Optional grammar construction",
+      "observable": "No conditional argument, empty branch, binding initializer, static property alias or aggregate default exists until the owner admits it; native factory absence is not an empty node.",
+      "disposition": "retain",
+      "proofStatus": "registered local operation, consumer and owning-rule proof; no generic law inferred",
+      "missingProof": false,
+      "proof": "tests/typescript-grammar-mechanisms.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-falsey-returns",
+          "check": "Bare return is allowed; null/undefined/void result is reported. AST removal, required compiler omission and unknown relation need their actual consumer law."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/policy/defaults.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-falsey-returns"
+      ],
+      "reason": "Rejected aggregate default enters the parameter initializer slot as true compiler omission.",
+      "location": {
+        "line": 655,
+        "column": 9
+      },
+      "range": [
+        26563,
+        26717
+      ],
+      "enclosedAst": "ReturnStatement",
+      "enclosedRange": [
+        26726,
+        26743
+      ],
+      "operation": "return undefined;",
+      "id": 50,
+      "owner": "getMemberParameterDefault",
+      "family": "Optional grammar construction",
+      "observable": "No conditional argument, empty branch, binding initializer, static property alias or aggregate default exists until the owner admits it; native factory absence is not an empty node.",
+      "disposition": "retain",
+      "proofStatus": "registered local operation, consumer and owning-rule proof; no generic law inferred",
+      "missingProof": false,
+      "proof": "tests/typescript-grammar-mechanisms.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-falsey-returns",
+          "check": "Bare return is allowed; null/undefined/void result is reported. AST removal, required compiler omission and unknown relation need their actual consumer law."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/policy/defaults.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Shared Set publishes the exact returned record; copying loses caller-visible identity and order.",
+      "location": {
+        "line": 718,
+        "column": 5
+      },
+      "range": [
+        29018,
+        29183
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        29188,
+        29267
+      ],
+      "operation": "if (action === 'preserve' && agreements instanceof Set) agreements.add(record);",
+      "id": 51,
+      "owner": "emitBindingAgreement",
+      "family": "Caller-visible agreement report insertion",
+      "observable": "Publish an already-built record to the supplied Set; emitBindingAgreement constructs a fresh record per call before method Get, preserving identity and insertion order.",
+      "disposition": "retain",
+      "proofStatus": "public final-binding matrix covers caller-owned object, guarded union-object and generated arity-array reports, required/known/default rejections, authored initializer ownership, normal/abrupt parity and exact returned-record Set publication",
+      "missingProof": "",
+      "proof": "tests/typescript-report-publication.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Call-local dependency buffer; no AST mutation or prefix copy.",
+      "location": {
+        "line": 70,
+        "column": 13
+      },
+      "range": [
+        2748,
+        2878
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        2891,
+        2934
+      ],
+      "operation": "dependency && dependencies.add(dependency);",
+      "id": 52,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "This call-local dependency set accumulates eager facts without changing TypeScript input.",
+      "location": {
+        "line": 205,
+        "column": 9
+      },
+      "range": [
+        7484,
+        7642
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        7651,
+        7674
+      ],
+      "operation": "dependencies.add(name);",
+      "id": 61,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "The private dependency set removes a declaration's own binding without copying its prefix.",
+      "location": {
+        "line": 223,
+        "column": 13
+      },
+      "range": [
+        8190,
+        8349
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        8362,
+        8388
+      ],
+      "operation": "dependencies.delete(name);",
+      "id": 62,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "The private dependency set removes a declaration's own binding without copying its prefix.",
+      "location": {
+        "line": 243,
+        "column": 9
+      },
+      "range": [
+        8921,
+        9080
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        9089,
+        9115
+      ],
+      "operation": "dependencies.delete(name);",
+      "id": 63,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "This private binding index keeps the first source statement per name.",
+      "location": {
+        "line": 275,
+        "column": 9
+      },
+      "range": [
+        10345,
+        10483
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        10492,
+        10543
+      ],
+      "operation": "if (!byName.has(name)) byName.set(name, statement);",
+      "id": 64,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "This private dependency index records reverse edges without copying each set.",
+      "location": {
+        "line": 303,
+        "column": 13
+      },
+      "range": [
+        11496,
+        11642
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        11655,
+        11697
+      ],
+      "operation": "dependents.get(dependency).add(statement);",
+      "id": 65,
+      "owner": "R13 private dependency index",
+      "family": "Private reverse dependency index",
+      "observable": "The private Set keeps statement identity and insertion order while each edge is recorded once; copying it would change the index cost without changing its owner.",
+      "disposition": "retain",
+      "proofStatus": "R13 focused structural-target and full repository proof",
+      "missingProof": false,
+      "proof": "tests/prefer-safe-transformations.test.js; tests/typescript-ordered-decisions.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The target is a call-result Set owned by this local dependency graph; the exact statement has a narrow adjacent reason."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-prototype-methods"
+      ],
+      "reason": "This private ordered queue consumes one ready statement at a time without recursive prefix copies.",
+      "location": {
+        "line": 314,
+        "column": 5
+      },
+      "range": [
+        11971,
+        12135
+      ],
+      "enclosedAst": "WhileStatement",
+      "enclosedRange": [
+        12140,
+        13412
+      ],
+      "operation": "while (next < queue.length) {\n        const { [next]: statement = {} } = queue;\n\n        next += 1;\n        // eslint-disable-next-line resilient/prefer-safe-transformations -- Call-local topological result buffer preserves statement identity.\n        ordered.push(statement);\n        dependents.get(statement).forEach((dependent) => {\n            const count = remaining.get(dependent) - 1;\n\n            // eslint-disable-next-line resilient/prefer-safe-transformations -- Private remaining-count table; no ordering-state copy.\n            remaining.set(dependent, count);\n\n            if (count !== 0 || queued.has(dependent)) return;\n\n            const insertion = queue.findIndex((candidate, index) => (\n                index >= next && positions.get(candidate) > positions.get(dependent)\n            ));\n            const position = insertion === -1 ? queue.length : insertion;\n\n            // eslint-disable-next-line resilient/prefer-safe-transformations -- Private ordered queue inserts at the prior source-order position.\n            queue.splice(position, 0, dependent);\n            // eslint-disable-next-line resilient/prefer-safe-transformations -- Private queued set prevents duplicate dependency entries.\n            queued.add(dependent);\n        });\n    }",
+      "id": 66,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Call-local topological result buffer preserves statement identity.",
+      "location": {
+        "line": 319,
+        "column": 9
+      },
+      "range": [
+        12248,
+        12383
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        12392,
+        12416
+      ],
+      "operation": "ordered.push(statement);",
+      "id": 67,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private remaining-count table; no ordering-state copy.",
+      "location": {
+        "line": 324,
+        "column": 13
+      },
+      "range": [
+        12545,
+        12668
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        12681,
+        12713
+      ],
+      "operation": "remaining.set(dependent, count);",
+      "id": 68,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private ordered queue inserts at the prior source-order position.",
+      "location": {
+        "line": 334,
+        "column": 13
+      },
+      "range": [
+        13036,
+        13170
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        13183,
+        13220
+      ],
+      "operation": "queue.splice(position, 0, dependent);",
+      "id": 69,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private queued set prevents duplicate dependency entries.",
+      "location": {
+        "line": 336,
+        "column": 13
+      },
+      "range": [
+        13233,
+        13359
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        13372,
+        13394
+      ],
+      "operation": "queued.add(dependent);",
+      "id": 70,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private result buffer retains cyclic statements in source order.",
+      "location": {
+        "line": 343,
+        "column": 9
+      },
+      "range": [
+        13503,
+        13636
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        13645,
+        13701
+      ],
+      "operation": "if (!orderedSet.has(statement)) ordered.push(statement);",
+      "id": 71,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "This private index retains the authored anchor without copying its growing prefix.",
+      "location": {
+        "line": 387,
+        "column": 13
+      },
+      "range": [
+        15143,
+        15294
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        15307,
+        15342
+      ],
+      "operation": "authoredPositions.set(name, index);",
+      "id": 72,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "This private index retains the first eager consumer without copying its prefix.",
+      "location": {
+        "line": 398,
+        "column": 17
+      },
+      "range": [
+        15710,
+        15858
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        15875,
+        15912
+      ],
+      "operation": "firstEagerConsumers.set(name, index);",
+      "id": 73,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "This private placement buffer retains generated statement order without copying a growing prefix.",
+      "location": {
+        "line": 426,
+        "column": 9
+      },
+      "range": [
+        17279,
+        17445
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        17454,
+        17482
+      ],
+      "operation": "atPlacement.push(statement);",
+      "id": 74,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "This private placement map publishes its completed local buffer for the final merge.",
+      "location": {
+        "line": 428,
+        "column": 9
+      },
+      "range": [
+        17491,
+        17644
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        17653,
+        17692
+      ],
+      "operation": "placements.set(placement, atPlacement);",
+      "id": 75,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "This private index records the generated placement without copying its prefix.",
+      "location": {
+        "line": 431,
+        "column": 13
+      },
+      "range": [
+        17789,
+        17936
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        17949,
+        17989
+      ],
+      "operation": "generatedPositions.set(name, placement);",
+      "id": 76,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "This call-local result buffer keeps authored and generated statement identities in placement order.",
+      "location": {
+        "line": 439,
+        "column": 9
+      },
+      "range": [
+        18098,
+        18266
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        18275,
+        18332
+      ],
+      "operation": "result.push(...(placements.get(index) || []), statement);",
+      "id": 77,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "This call-local result buffer appends only the terminal placement bucket.",
+      "location": {
+        "line": 442,
+        "column": 5
+      },
+      "range": [
+        18345,
+        18487
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        18492,
+        18558
+      ],
+      "operation": "result.push(...(placements.get(authoredStatements.length) || []));",
+      "id": 78,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/dependencies.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "This private first-binding index avoids copying its growing prefix.",
+      "location": {
+        "line": 454,
+        "column": 9
+      },
+      "range": [
+        19052,
+        19188
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        19197,
+        19248
+      ],
+      "operation": "if (!byName.has(name)) byName.set(name, statement);",
+      "id": 79,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/understand/imports.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-prototype-methods"
+      ],
+      "reason": "Type-node detection reads parent before type query; SourceFile stops before the query.",
+      "location": {
+        "line": 104,
+        "column": 5
+      },
+      "range": [
+        3362,
+        3514
+      ],
+      "enclosedAst": "WhileStatement",
+      "enclosedRange": [
+        3519,
+        3800
+      ],
+      "operation": "while (parent) {\n        const { kind: parentKind = 0, parent: nextParent = false } = getObject(parent);\n\n        if (parentKind === SourceFileKind3) return false;\n\n        if (typeof isTypeNode === 'function' && isTypeNode(parent)) return true;\n\n        parent = nextParent;\n    }",
+      "id": 89,
+      "owner": "isTypePosition",
+      "family": "Operation-specific short-circuit walk",
+      "observable": "Follow actual parent/statement/static-path order and stop at this owner’s matching block, loop, declaration, return, executor, source-file or bounded depth; not a shared generic walk.",
+      "disposition": "retain",
+      "proofStatus": "registered local operation, consumer and owning-rule proof; no generic law inferred",
+      "missingProof": false,
+      "proof": "tests/typescript-walk-mechanisms.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-prototype-methods",
+          "check": "Rule reports all loop kinds; stopping, await and throw are constraints, not built-in waivers."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/understand/shape.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private preorder buffer preserves identity and statement-complete parameter reads.",
+      "location": {
+        "line": 35,
+        "column": 13
+      },
+      "range": [
+        1961,
+        2112
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        2125,
+        2150
+      ],
+      "operation": "nextFunctions.push(node);",
+      "id": 90,
+      "owner": "collect",
+      "family": "Private source fact construction",
+      "observable": "Collect source function/parameter/union/reference/capability/range/return facts in owning traversal order without mutating source AST.",
+      "disposition": "retain",
+      "proofStatus": "registered private-store law and owning-rule finding",
+      "missingProof": false,
+      "proof": "tests/typescript-private-state.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/understand/shape.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private parameter buffer preserves ordered records with linear construction.",
+      "location": {
+        "line": 134,
+        "column": 25
+      },
+      "range": [
+        5578,
+        5723
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        5748,
+        6320
+      ],
+      "operation": "contracts.push({\n                            parameter: parameterName,\n                            typeText: invokeProvider({\n                                provider: getTypeText,\n                                input: { node: type, sourceFile }\n                            }),\n                            kind: infoKind,\n                            family,\n                            canonical,\n                            optional: !!optional,\n                            requiresGuard: !!requiresGuard,\n                            resolver\n                        });",
+      "id": 91,
+      "owner": "createAnalysis",
+      "family": "Private source fact construction",
+      "observable": "Collect source function/parameter/union/reference/capability/range/return facts in owning traversal order without mutating source AST.",
+      "disposition": "retain",
+      "proofStatus": "registered private-store law and owning-rule finding",
+      "missingProof": false,
+      "proof": "tests/typescript-private-state.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/understand/shape.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private union buffer preserves resolver overwrite order and exact info identity.",
+      "location": {
+        "line": 152,
+        "column": 21
+      },
+      "range": [
+        6419,
+        6568
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        6589,
+        6623
+      ],
+      "operation": "usedUnions.push([resolver, info]);",
+      "id": 92,
+      "owner": "createAnalysis",
+      "family": "Private source fact construction",
+      "observable": "Collect source function/parameter/union/reference/capability/range/return facts in owning traversal order without mutating source AST.",
+      "disposition": "retain",
+      "proofStatus": "registered private-store law and owning-rule finding",
+      "missingProof": false,
+      "proof": "tests/typescript-private-state.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/understand/shape.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private reference buffer preserves seed and union-part order before publication.",
+      "location": {
+        "line": 176,
+        "column": 29
+      },
+      "range": [
+        7671,
+        7820
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        7849,
+        7884
+      ],
+      "operation": "usedObjects.push(partInfoResolver);",
+      "id": 93,
+      "owner": "createAnalysis",
+      "family": "Private source fact construction",
+      "observable": "Collect source function/parameter/union/reference/capability/range/return facts in owning traversal order without mutating source AST.",
+      "disposition": "retain",
+      "proofStatus": "registered private-store law and owning-rule finding",
+      "missingProof": false,
+      "proof": "tests/typescript-private-state.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/understand/source-census.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private preorder ledger retains compiler node identity and linear construction before publication.",
+      "location": {
+        "line": 12,
+        "column": 9
+      },
+      "range": [
+        552,
+        719
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        728,
+        749
+      ],
+      "operation": "records.push(record);",
+      "id": 94,
+      "family": "Private compilation-session construction",
+      "observable": "Private preorder ledger retains compiler node identity and linear construction before publication.",
+      "disposition": "retain",
+      "proofStatus": "registered local boundary proof",
+      "missingProof": false,
+      "proof": "tests/typescript-source-census.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The owning rule reports this private mutation; executable proof protects ordered identity, recursion reentry and failure retry."
+        }
+      ],
+      "owner": "visit"
+    },
+    {
+      "file": "transforms/typescript/understand/type-evidence.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-prototype-methods"
+      ],
+      "reason": "Bounded ancestor traversal skips terminal parent Get and stops parent cycles at 64.",
+      "location": {
+        "line": 129,
+        "column": 9
+      },
+      "range": [
+        4725,
+        4874
+      ],
+      "enclosedAst": "WhileStatement",
+      "enclosedRange": [
+        4883,
+        5139
+      ],
+      "operation": "while (current && depth < 64) {\n            if (functionKinds.includes(getObject(current).kind)) return current;\n\n            const { parent: currentParent = {} } = getObject(current);\n\n            current = currentParent;\n            depth += 1;\n        }",
+      "id": 95,
+      "owner": "getEnclosingFunction",
+      "family": "Operation-specific short-circuit walk",
+      "observable": "Follow actual parent/statement/static-path order and stop at this owner’s matching block, loop, declaration, return, executor, source-file or bounded depth; not a shared generic walk.",
+      "disposition": "retain",
+      "proofStatus": "registered local operation, consumer and owning-rule proof; no generic law inferred",
+      "missingProof": false,
+      "proof": "tests/typescript-walk-mechanisms.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-prototype-methods",
+          "check": "Rule reports all loop kinds; stopping, await and throw are constraints, not built-in waivers."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/understand/type-evidence.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-prototype-methods"
+      ],
+      "reason": "Owner discovery reads loop parent before return; prewalking reads later ancestors too soon.",
+      "location": {
+        "line": 868,
+        "column": 9
+      },
+      "range": [
+        41710,
+        41867
+      ],
+      "enclosedAst": "WhileStatement",
+      "enclosedRange": [
+        41876,
+        42109
+      ],
+      "operation": "while (current) {\n            const { kind = 0, parent = false } = getObject(current);\n\n            if ([ForOfStatement, ForStatement, WhileStatement, DoStatement].includes(kind)) return true;\n\n            current = parent;\n        }",
+      "id": 96,
+      "owner": "hasLiveLoopOwner",
+      "family": "Operation-specific short-circuit walk",
+      "observable": "Follow actual parent/statement/static-path order and stop at this owner’s matching block, loop, declaration, return, executor, source-file or bounded depth; not a shared generic walk.",
+      "disposition": "retain",
+      "proofStatus": "registered local operation, consumer and owning-rule proof; no generic law inferred",
+      "missingProof": false,
+      "proof": "tests/typescript-walk-mechanisms.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-prototype-methods",
+          "check": "Rule reports all loop kinds; stopping, await and throw are constraints, not built-in waivers."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/understand/type-evidence.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private capability Set deduplicates source names outside nested callbacks.",
+      "location": {
+        "line": 939,
+        "column": 13
+      },
+      "range": [
+        44902,
+        45045
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        45058,
+        45086
+      ],
+      "operation": "invoked.add(expressionName);",
+      "id": 97,
+      "owner": "visit",
+      "family": "Private source fact construction",
+      "observable": "Collect source function/parameter/union/reference/capability/range/return facts in owning traversal order without mutating source AST.",
+      "disposition": "retain",
+      "proofStatus": "registered private-store law and owning-rule finding",
+      "missingProof": false,
+      "proof": "tests/typescript-private-state.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/understand/type-evidence.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-prototype-methods"
+      ],
+      "reason": "Function-owner lookup is unbounded and skips terminal parent Get; bounded scans change results.",
+      "location": {
+        "line": 1109,
+        "column": 5
+      },
+      "range": [
+        51176,
+        51337
+      ],
+      "enclosedAst": "WhileStatement",
+      "enclosedRange": [
+        51342,
+        51545
+      ],
+      "operation": "while (current) {\n        const { kind = 0 } = getObject(current);\n\n        if (kinds.includes(kind)) return current;\n\n        const { parent = {} } = getObject(current);\n\n        current = parent;\n    }",
+      "id": 98,
+      "owner": "getEnclosingFunction",
+      "family": "Operation-specific short-circuit walk",
+      "observable": "Follow actual parent/statement/static-path order and stop at this owner’s matching block, loop, declaration, return, executor, source-file or bounded depth; not a shared generic walk.",
+      "disposition": "retain",
+      "proofStatus": "registered local operation, consumer and owning-rule proof; no generic law inferred",
+      "missingProof": false,
+      "proof": "tests/typescript-walk-mechanisms.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-prototype-methods",
+          "check": "Rule reports all loop kinds; stopping, await and throw are constraints, not built-in waivers."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/understand/type-evidence.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-prototype-methods"
+      ],
+      "reason": "Declaration-owner lookup matches initializer identity, then stops self-parent or missing kind.",
+      "location": {
+        "line": 2807,
+        "column": 9
+      },
+      "range": [
+        134286,
+        134446
+      ],
+      "enclosedAst": "WhileStatement",
+      "enclosedRange": [
+        134455,
+        134918
+      ],
+      "operation": "while (current) {\n            const { parent = {} } = getObject(current);\n            const { kind = 0, name = {}, initializer = {} } = getObject(parent);\n            const { kind: nameKind = 0, text = '' } = getObject(name);\n\n            if (kind === VariableDeclaration && initializer === current && nameKind === Identifier && text) return text;\n\n            if (!getObject(parent).kind || parent === current) return '';\n\n            current = parent;\n        }",
+      "id": 99,
+      "owner": "getFunctionOwnerName",
+      "family": "Operation-specific short-circuit walk",
+      "observable": "Follow actual parent/statement/static-path order and stop at this owner’s matching block, loop, declaration, return, executor, source-file or bounded depth; not a shared generic walk.",
+      "disposition": "retain",
+      "proofStatus": "registered local operation, consumer and owning-rule proof; no generic law inferred",
+      "missingProof": false,
+      "proof": "tests/typescript-walk-mechanisms.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-prototype-methods",
+          "check": "Rule reports all loop kinds; stopping, await and throw are constraints, not built-in waivers."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/understand/type-evidence.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-prototype-methods"
+      ],
+      "reason": "Return-spine discovery follows callee/receiver edges; argument and true-arm paths stop.",
+      "location": {
+        "line": 4114,
+        "column": 9
+      },
+      "range": [
+        204878,
+        205031
+      ],
+      "enclosedAst": "WhileStatement",
+      "enclosedRange": [
+        205040,
+        205513
+      ],
+      "operation": "while (current) {\n            const { parent = {} } = getObject(current);\n            const { kind = 0, expression = {}, whenFalse = {} } = getObject(parent);\n\n            if (kind === ReturnStatement && expression === current ||\n                kind === ConditionalExpression && whenFalse === current) return true;\n\n            if (![CallExpression, PropertyAccessExpression].includes(kind) || expression !== current) return false;\n\n            current = parent;\n        }",
+      "id": 100,
+      "owner": "ownsEvaluationSpine",
+      "family": "Operation-specific short-circuit walk",
+      "observable": "Follow actual parent/statement/static-path order and stop at this owner’s matching block, loop, declaration, return, executor, source-file or bounded depth; not a shared generic walk.",
+      "disposition": "retain",
+      "proofStatus": "registered local operation, consumer and owning-rule proof; no generic law inferred",
+      "missingProof": false,
+      "proof": "tests/typescript-walk-mechanisms.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-prototype-methods",
+          "check": "Rule reports all loop kinds; stopping, await and throw are constraints, not built-in waivers."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/understand/type-evidence.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private comment index deduplicates census trivia without mutating source records.",
+      "location": {
+        "line": 4424,
+        "column": 13
+      },
+      "range": [
+        222484,
+        222634
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        222647,
+        222679
+      ],
+      "operation": "commentRanges.set(start, range);",
+      "id": 132,
+      "owner": "Packet 3A directive placement ledger",
+      "family": "Private placement/comment index",
+      "observable": "Retains original comment payload/ranges and exact completed diagnostic owner without mutating source syntax or caller-owned collections.",
+      "disposition": "retain",
+      "proofStatus": "Packet 3A focused placement and necessity proof",
+      "missingProof": false,
+      "proof": "tests/typescript-directive-ownership.test.js; tests/typescript-directive-placement.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Private call-local map preserves identity and ordered placement; no parser-owned or caller-owned object is written."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/understand/type-evidence.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-prototype-methods"
+      ],
+      "reason": "Promise-owner lookup preserves symbol query order and skips the matched executor parent Get.",
+      "location": {
+        "line": 4868,
+        "column": 9
+      },
+      "range": [
+        248509,
+        248667
+      ],
+      "enclosedAst": "WhileStatement",
+      "enclosedRange": [
+        248676,
+        249182
+      ],
+      "operation": "while (ancestor) {\n            const executor = nativePromise(ancestor);\n            const [parameter = {}] = getObject(executor).parameters || [];\n            const { name = {} } = getObject(parameter);\n\n            if (executor && resolverSymbol && getSymbolAtLocation.call(checker, name) === resolverSymbol) {\n                return getConsumerContractKey(ancestor);\n            }\n\n            const { parent: nextAncestor = false } = getObject(ancestor);\n\n            ancestor = nextAncestor;\n        }",
+      "id": 101,
+      "owner": "ownsResolver",
+      "family": "Operation-specific short-circuit walk",
+      "observable": "Follow actual parent/statement/static-path order and stop at this owner’s matching block, loop, declaration, return, executor, source-file or bounded depth; not a shared generic walk.",
+      "disposition": "retain",
+      "proofStatus": "registered local operation, consumer and owning-rule proof; no generic law inferred",
+      "missingProof": false,
+      "proof": "tests/typescript-walk-mechanisms.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-prototype-methods",
+          "check": "Rule reports all loop kinds; stopping, await and throw are constraints, not built-in waivers."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/understand/type-evidence.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private fact Map overwrites an owner range without moving its insertion position.",
+      "location": {
+        "line": 5502,
+        "column": 13
+      },
+      "range": [
+        283551,
+        283701
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        283714,
+        283743
+      ],
+      "operation": "contracts.set(key, contract);",
+      "id": 102,
+      "owner": "visit",
+      "family": "Private source fact construction",
+      "observable": "Collect source function/parameter/union/reference/capability/range/return facts in owning traversal order without mutating source AST.",
+      "disposition": "retain",
+      "proofStatus": "registered private-store law and owning-rule finding",
+      "missingProof": false,
+      "proof": "tests/typescript-private-state.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/understand/type-evidence.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private return buffer preserves node identity and order outside nested callbacks.",
+      "location": {
+        "line": 5899,
+        "column": 17
+      },
+      "range": [
+        304759,
+        304909
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        304926,
+        304943
+      ],
+      "operation": "found.push(node);",
+      "id": 103,
+      "owner": "visit",
+      "family": "Private source fact construction",
+      "observable": "Collect source function/parameter/union/reference/capability/range/return facts in owning traversal order without mutating source AST.",
+      "disposition": "retain",
+      "proofStatus": "registered private-store law and owning-rule finding",
+      "missingProof": false,
+      "proof": "tests/typescript-private-state.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Only synchronous for-of prototype mutation plus configured ignored names/properties bypasses the detector. No ignored lists are configured. Private identity/report state is not automatically exempt."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/understand/type-evidence.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-prototype-methods"
+      ],
+      "reason": "Static member-path discovery queries leaf to root; unknown declarations clear the path and stop.",
+      "location": {
+        "line": 6509,
+        "column": 9
+      },
+      "range": [
+        337859,
+        338021
+      ],
+      "enclosedAst": "WhileStatement",
+      "enclosedRange": [
+        338030,
+        338570
+      ],
+      "operation": "while (getObject(root).kind === PropertyAccessExpression &&\n            !getObject(root).questionDotToken) {\n            const { name: step = {}, expression: parent = {} } = getObject(root);\n            const symbol = checker.getSymbolAtLocation(step);\n            const { declarations: symbolDeclarations = [] } = getObject(symbol);\n\n            if (!symbolDeclarations.length) {\n                path = [];\n                break;\n            }\n\n            path = [getObject(step).text || '', ...path];\n            root = parent;\n        }",
+      "id": 104,
+      "owner": "visit",
+      "family": "Operation-specific short-circuit walk",
+      "observable": "Follow actual parent/statement/static-path order and stop at this owner’s matching block, loop, declaration, return, executor, source-file or bounded depth; not a shared generic walk.",
+      "disposition": "retain",
+      "proofStatus": "registered local operation, consumer and owning-rule proof; no generic law inferred",
+      "missingProof": false,
+      "proof": "tests/typescript-walk-mechanisms.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-prototype-methods",
+          "check": "Rule reports all loop kinds; stopping, await and throw are constraints, not built-in waivers."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/understand/type-evidence.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-prototype-methods"
+      ],
+      "reason": "The first enclosing assignment/target decides the reference role; later ancestors must not override it.",
+      "location": {
+        "line": 6932,
+        "column": 9
+      },
+      "range": [
+        359239,
+        359408
+      ],
+      "enclosedAst": "ForOfStatement",
+      "enclosedRange": [
+        359417,
+        360546
+      ],
+      "operation": "for (const parent of census.ancestors(identifier)) {\n            const { kind = 0, left = {}, operand = {}, initializer = {},\n                operatorToken = {}, operator = -1, expression = {}, argumentExpression = {} } = getObject(parent);\n\n            if (kind === PropertyAccessExpression && expression === child ||\n                kind === ElementAccessExpression && (expression === child || argumentExpression === child) ||\n                kind === ComputedPropertyName) return false;\n\n            if (kind === BinaryExpression && left !== child) return false;\n\n            const { kind: operatorKind = -1 } = getObject(operatorToken);\n\n            if (kind === BinaryExpression && left === child &&\n                operatorKind >= FirstAssignment && operatorKind <= LastAssignment) return true;\n\n            if ([PrefixUnaryExpression, PostfixUnaryExpression].includes(kind) && operand === child &&\n                [PlusPlusToken, MinusMinusToken].includes(operator)) return true;\n\n            if ([ForInStatement, ForOfStatement].includes(kind) && initializer === child) return true;\n\n            child = parent;\n        }",
+      "id": 105,
+      "family": "Checker-backed declaration lifetime",
+      "observable": "The first enclosing assignment/target decides the reference role; later ancestors must not override it.",
+      "disposition": "retain",
+      "proofStatus": "focused R2 source and runtime proof",
+      "missingProof": false,
+      "proof": "tests/typescript-hoisted-functions.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-prototype-methods",
+          "check": "The local source operation is required by checker-backed binding identity, evaluation order, or AST statement removal."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/understand/type-evidence.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-prototype-methods",
+        "prefer-destructuring"
+      ],
+      "reason": "Transparent wrappers must be unwrapped in order before testing direct eval identity.",
+      "location": {
+        "line": 6964,
+        "column": 9
+      },
+      "range": [
+        360815,
+        360987
+      ],
+      "enclosedAst": "WhileStatement",
+      "enclosedRange": [
+        360996,
+        361082
+      ],
+      "operation": "while (transparent.has(getObject(callee).kind)) callee = getObject(callee).expression;",
+      "id": 106,
+      "family": "Checker-backed declaration lifetime",
+      "observable": "Transparent wrappers must be unwrapped in order before testing direct eval identity.",
+      "disposition": "retain",
+      "proofStatus": "focused R2 source and runtime proof",
+      "missingProof": false,
+      "proof": "tests/typescript-hoisted-functions.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-prototype-methods",
+          "check": "The local source operation is required by checker-backed binding identity, evaluation order, or AST statement removal."
+        },
+        {
+          "rule": "prefer-destructuring",
+          "check": "The local source operation is required by checker-backed binding identity, evaluation order, or AST statement removal."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/understand/type-resolution.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "no-use-before-define"
+      ],
+      "reason": "checker contract delegates identifier naming to the shared name helper",
+      "location": {
+        "line": 142,
+        "column": 5
+      },
+      "range": [
+        5014,
+        5136
+      ],
+      "enclosedAst": "VariableDeclaration",
+      "enclosedRange": [
+        5141,
+        5204
+      ],
+      "operation": "const identifierName = getIdentifierName({ typescript, node });",
+      "id": 107,
+      "owner": "getCheckerContract",
+      "family": "Recursive type/declaration resolution",
+      "observable": "Re-enter actual resolver/naming/declaration/member owner with source/target branch, seen set and generic bindings unchanged; branch domains differ.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Existing utility/conditional/generic transform shapes cover behavior. A declaration-order/forwarding consolidation requires initialization and active-resolution/reentrancy/failure proof; no reordering accepted here.",
+      "proof": "tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "no-use-before-define",
+          "check": "Repository uses default enabled checks, no variable/function disabling option. Deferred recursion remains a report; source-time initialization proof is separate."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/understand/type-resolution.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "no-use-before-define"
+      ],
+      "reason": "checker contract resolves declarations through the shared declaration helper",
+      "location": {
+        "line": 207,
+        "column": 5
+      },
+      "range": [
+        7338,
+        7466
+      ],
+      "enclosedAst": "VariableDeclaration",
+      "enclosedRange": [
+        7471,
+        7584
+      ],
+      "operation": "const { kind: declarationKind = 0 } = getDeclaration({\n        declarations,\n        name: identifierName\n    });",
+      "id": 108,
+      "owner": "getCheckerContract",
+      "family": "Recursive type/declaration resolution",
+      "observable": "Re-enter actual resolver/naming/declaration/member owner with source/target branch, seen set and generic bindings unchanged; branch domains differ.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Existing utility/conditional/generic transform shapes cover behavior. A declaration-order/forwarding consolidation requires initialization and active-resolution/reentrancy/failure proof; no reordering accepted here.",
+      "proof": "tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "no-use-before-define",
+          "check": "Repository uses default enabled checks, no variable/function disabling option. Deferred recursion remains a report; source-time initialization proof is separate."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/understand/type-resolution.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "no-use-before-define"
+      ],
+      "reason": "key-of expansion delegates member discovery to the shared type walker",
+      "location": {
+        "line": 540,
+        "column": 9
+      },
+      "range": [
+        17675,
+        17796
+      ],
+      "enclosedAst": "ReturnStatement",
+      "enclosedRange": [
+        17805,
+        18026
+      ],
+      "operation": "return getTypeMembers({\n            typescript,\n            node: type,\n            declarations,\n            seen,\n            typeBindings\n        }).map(member => getName({ typescript, node: member })).filter(Boolean);",
+      "id": 109,
+      "owner": "getLiteralNames",
+      "family": "Recursive type/declaration resolution",
+      "observable": "Re-enter actual resolver/naming/declaration/member owner with source/target branch, seen set and generic bindings unchanged; branch domains differ.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Existing utility/conditional/generic transform shapes cover behavior. A declaration-order/forwarding consolidation requires initialization and active-resolution/reentrancy/failure proof; no reordering accepted here.",
+      "proof": "tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "no-use-before-define",
+          "check": "Repository uses default enabled checks, no variable/function disabling option. Deferred recursion remains a report; source-time initialization proof is separate."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/understand/type-resolution.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-prototype-methods"
+      ],
+      "reason": "Type-parameter ownership reads parent before match; SourceFile skips parameter scanning.",
+      "location": {
+        "line": 1112,
+        "column": 5
+      },
+      "range": [
+        36453,
+        36607
+      ],
+      "enclosedAst": "WhileStatement",
+      "enclosedRange": [
+        36612,
+        37005
+      ],
+      "operation": "while (current) {\n        const currentNode = getObject(current);\n        const { kind = 0, parent: next = null, typeParameters = [] } = currentNode;\n\n        if (kind === SourceFile) return {};\n\n        const parameter = typeParameters.find(({ name: { text = '' } = {} } = {}) => (\n            text === name\n        ));\n\n        if (parameter) return parameter;\n\n        current = next;\n    }",
+      "id": 110,
+      "owner": "getEnclosingTypeParameter",
+      "family": "Operation-specific short-circuit walk",
+      "observable": "Follow actual parent/statement/static-path order and stop at this owner’s matching block, loop, declaration, return, executor, source-file or bounded depth; not a shared generic walk.",
+      "disposition": "retain",
+      "proofStatus": "registered local operation, consumer and owning-rule proof; no generic law inferred",
+      "missingProof": false,
+      "proof": "tests/typescript-walk-mechanisms.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-prototype-methods",
+          "check": "Rule reports all loop kinds; stopping, await and throw are constraints, not built-in waivers."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/understand/type-resolution.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private active keys stop semantic reentry before checker work; completed results are never cached.",
+      "location": {
+        "line": 1791,
+        "column": 9
+      },
+      "range": [
+        59133,
+        59300
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        59309,
+        59365
+      ],
+      "operation": "if (resolutionKey) activeResolutions.add(resolutionKey);",
+      "id": 111,
+      "family": "Private compilation-session construction",
+      "observable": "Private active keys stop semantic reentry before checker work; completed results are never cached.",
+      "disposition": "retain",
+      "proofStatus": "registered local boundary proof",
+      "missingProof": false,
+      "proof": "tests/typescript-private-state.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The owning rule reports this private mutation; executable proof protects ordered identity, recursion reentry and failure retry."
+        }
+      ],
+      "owner": "resolve"
+    },
+    {
+      "file": "transforms/typescript/understand/type-resolution.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Release on normal and abrupt completion preserves retry after a failed recursive resolution.",
+      "location": {
+        "line": 1806,
+        "column": 13
+      },
+      "range": [
+        60088,
+        60249
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        60262,
+        60321
+      ],
+      "operation": "if (resolutionKey) activeResolutions.delete(resolutionKey);",
+      "id": 112,
+      "family": "Private compilation-session construction",
+      "observable": "Release on normal and abrupt completion preserves retry after a failed recursive resolution.",
+      "disposition": "retain",
+      "proofStatus": "registered local boundary proof",
+      "missingProof": false,
+      "proof": "tests/typescript-private-state.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The owning rule reports this private mutation; executable proof protects ordered identity, recursion reentry and failure retry."
+        }
+      ],
+      "owner": "resolve"
+    },
+    {
+      "file": "transforms/typescript/understand/type-resolution.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Weak declaration identity shares active recursion with checker reentry without mutating caller declarations.",
+      "location": {
+        "line": 1821,
+        "column": 5
+      },
+      "range": [
+        60710,
+        60887
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        60892,
+        61003
+      ],
+      "operation": "if (!resolutionContexts.has(declarations)) resolutionContexts.set(declarations, createTypeResolutionContext());",
+      "id": 113,
+      "family": "Private compilation-session construction",
+      "observable": "Weak declaration identity shares active recursion with checker reentry without mutating caller declarations.",
+      "disposition": "retain",
+      "proofStatus": "registered local boundary proof",
+      "missingProof": false,
+      "proof": "tests/typescript-private-state.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The owning rule reports this private mutation; executable proof protects ordered identity, recursion reentry and failure retry."
+        }
+      ],
+      "owner": "getTypeInfo"
+    },
+    {
+      "file": "transforms/utils/ast-boundary.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-destructuring-defaults"
+      ],
+      "reason": "A default changes the native null-statement TypeError message before any factory Get.",
+      "location": {
+        "line": 103,
+        "column": 5
+      },
+      "range": [
+        3078,
+        3239
+      ],
+      "enclosedAst": "VariableDeclaration",
+      "enclosedRange": [
+        3244,
+        3276
+      ],
+      "operation": "const { modifiers } = statement;",
+      "id": 114,
+      "family": "Native compiler failure phase",
+      "observable": "A default changes the native null-statement TypeError message before any factory Get.",
+      "disposition": "retain",
+      "proofStatus": "registered local boundary proof",
+      "missingProof": false,
+      "proof": "tests/typescript-omission-defaults.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-destructuring-defaults",
+          "check": "The explicit-default alternative satisfies the rule but changes the null-input native TypeError message before the factory Get; the differential proof requires the retained raw destructuring."
+        }
+      ]
+    },
+    {
+      "file": "transforms/utils/ast-boundary.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-destructuring-defaults"
+      ],
+      "reason": "Defaults change the native null-element TypeError message before the binding factory Get.",
+      "location": {
+        "line": 119,
+        "column": 5
+      },
+      "range": [
+        3957,
+        4122
+      ],
+      "enclosedAst": "VariableDeclaration",
+      "enclosedRange": [
+        4127,
+        4209
+      ],
+      "operation": "const { dotDotDotToken, propertyName, name = requireDeclarationName() } = element;",
+      "id": 115,
+      "family": "Native compiler failure phase",
+      "observable": "Defaults change the native null-element TypeError message before the binding factory Get.",
+      "disposition": "retain",
+      "proofStatus": "registered local boundary proof",
+      "missingProof": false,
+      "proof": "tests/typescript-omission-defaults.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-destructuring-defaults",
+          "check": "The explicit-default alternative satisfies the rule but changes the null-input native TypeError message before the factory Get; the differential proof requires the retained raw destructuring."
+        }
+      ]
+    },
+    {
+      "file": "transforms/utils/ast-traversal.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "This call-local buffer preserves compiler child order without copying its growing prefix or mutating the parser-owned node.",
+      "location": {
+        "line": 4,
+        "column": 9
+      },
+      "range": [
+        143,
+        335
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        344,
+        365
+      ],
+      "operation": "children.push(child);",
+      "id": 116,
+      "owner": "P14 local scaling buffers",
+      "family": "Private iterative buffer ownership",
+      "observable": "Call-local buffers preserve source order, duplicate handling, identity, and accessor/failure timing without copying growing prefixes.",
+      "disposition": "retain",
+      "proofStatus": "P14 focused scaling and ownership proof",
+      "missingProof": false,
+      "proof": "tests/typescript-ordered-decisions.test.js; tests/typescript-walk-mechanisms.test.js; tests/document-index.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The buffer is created and consumed within one call; it never mutates a parser-owned node, statement, record, or caller-owned collection."
+        }
+      ]
+    },
+    {
+      "id": 133,
+      "owner": "annotateDynamicMemberExceptions",
+      "family": "Completed directive scope ownership",
+      "observable": "Nearest lexical binding decides ownership, including a later declaration that blocks outer lookup.",
+      "disposition": "retain",
+      "proofStatus": "registered local boundary proof",
+      "missingProof": false,
+      "proof": "tests/typescript-directive-ownership.test.js",
+      "file": "transforms/typescript/policy/exceptions.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-prototype-methods"
+      ],
+      "reason": "Nearest lexical binding decides ownership, including a later declaration that blocks outer lookup.",
+      "location": {
+        "line": 300,
+        "column": 13
+      },
+      "range": [
+        14666,
+        14830
+      ],
+      "enclosedAst": "ForOfStatement",
+      "enclosedRange": [
+        14843,
+        16152
+      ],
+      "operation": "for (const localOwner of localOwners) {\n                // These completed scopes can introduce bindings outside a\n                // statement list. Missing ownership proof cannot cross them.\n                if (typescript.isForStatement(localOwner) || typescript.isForInStatement(localOwner) ||\n                    typescript.isForOfStatement(localOwner) || typescript.isCatchClause(localOwner) ||\n                    typescript.isCaseBlock(localOwner) || typescript.isClassLike(localOwner) ||\n                    typescript.isFunctionExpression(localOwner) && getObject(getObject(localOwner).name).text === nodeText) return false;\n\n                const { parameters = [], statements: localStatements = [] } = getObject(localOwner);\n                const localDeclaration = localStatements.find(candidate => getRuntimeBindingNames({ typescript, node: candidate }).includes(nodeText));\n\n                if (localDeclaration) {\n                    const [childOwner = node] = ancestors.slice(ancestors.indexOf(localOwner) + 1);\n\n                    return localStatements.indexOf(localDeclaration) < localStatements.indexOf(childOwner);\n                }\n\n                if (parameters.some(parameter => getRuntimeBindingNames({ typescript, node: parameter }).includes(nodeText))) return true;\n            }"
+    },
+    {
+      "id": 134,
+      "owner": "annotateDynamicMemberExceptions",
+      "family": "Completed directive scope ownership",
+      "observable": "Private visitation set consumes each authored comment once in emitted order.",
+      "disposition": "retain",
+      "proofStatus": "registered local boundary proof",
+      "missingProof": false,
+      "proof": "tests/typescript-directive-ownership.test.js",
+      "file": "transforms/typescript/policy/exceptions.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private visitation set consumes each authored comment once in emitted order.",
+      "location": {
+        "line": 557,
+        "column": 17
+      },
+      "range": [
+        26485,
+        26630
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        26647,
+        26671
+      ],
+      "operation": "seenComments.add(start);"
+    },
+    {
+      "file": "transforms/typescript/policy/exceptions.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private placement ledger combines exact rules and distinct reasons only at the same completed diagnostic owner.",
+      "location": {
+        "line": 626,
+        "column": 9
+      },
+      "range": [
+        30333,
+        30513
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        30522,
+        30610
+      ],
+      "operation": "indexedComments.set(owner, [...existing, ...necessary.map(rule => ({ rule, reason }))]);",
+      "id": 125,
+      "owner": "Packet 3A directive placement ledger",
+      "family": "Private placement/comment index",
+      "observable": "Retains original comment payload/ranges and exact completed diagnostic owner without mutating source syntax or caller-owned collections.",
+      "disposition": "retain",
+      "proofStatus": "Packet 3A focused placement and necessity proof",
+      "missingProof": false,
+      "proof": "tests/typescript-directive-ownership.test.js; tests/typescript-directive-placement.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Private call-local map preserves identity and ordered placement; no parser-owned or caller-owned object is written."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/exceptions.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations",
+        "resilient/prefer-destructured-member-access"
+      ],
+      "reason": "Private collision proof rejects nested function owners whose lexical member scope differs.",
+      "location": {
+        "line": 761,
+        "column": 13
+      },
+      "range": [
+        38901,
+        39105
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        39118,
+        39145
+      ],
+      "operation": "collision.competing = true;",
+      "id": 130,
+      "owner": "Packet 3A directive placement ledger",
+      "family": "Private placement/comment index",
+      "observable": "Retains original comment payload/ranges and exact completed diagnostic owner without mutating source syntax or caller-owned collections.",
+      "disposition": "retain",
+      "proofStatus": "Packet 3A focused placement and necessity proof",
+      "missingProof": false,
+      "proof": "tests/typescript-directive-ownership.test.js; tests/typescript-directive-placement.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Private call-local map preserves identity and ordered placement; no parser-owned or caller-owned object is written."
+        },
+        {
+          "rule": "resilient/prefer-destructured-member-access",
+          "check": "Private call-local map preserves identity and ordered placement; no parser-owned or caller-owned object is written."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/exceptions.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations",
+        "resilient/prefer-destructured-member-access"
+      ],
+      "reason": "Private collision proof rejects competing generated scopes without altering source or caller-owned metadata.",
+      "location": {
+        "line": 767,
+        "column": 13
+      },
+      "range": [
+        39353,
+        39575
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        39588,
+        39615
+      ],
+      "operation": "collision.competing = true;",
+      "id": 127,
+      "owner": "Packet 3A directive placement ledger",
+      "family": "Private placement/comment index",
+      "observable": "Retains original comment payload/ranges and exact completed diagnostic owner without mutating source syntax or caller-owned collections.",
+      "disposition": "retain",
+      "proofStatus": "Packet 3A focused placement and necessity proof",
+      "missingProof": false,
+      "proof": "tests/typescript-directive-ownership.test.js; tests/typescript-directive-placement.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Private call-local map preserves identity and ordered placement; no parser-owned or caller-owned object is written."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/exceptions.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations",
+        "resilient/prefer-destructured-member-access"
+      ],
+      "reason": "Private collision evidence records every completed member so a declaration pair cannot mask another target.",
+      "location": {
+        "line": 834,
+        "column": 13
+      },
+      "range": [
+        42740,
+        42961
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        42974,
+        43035
+      ],
+      "operation": "collision.members = [...collision.members, { node, callee }];",
+      "id": 128,
+      "owner": "Packet 3A directive placement ledger",
+      "family": "Private placement/comment index",
+      "observable": "Retains original comment payload/ranges and exact completed diagnostic owner without mutating source syntax or caller-owned collections.",
+      "disposition": "retain",
+      "proofStatus": "Packet 3A focused placement and necessity proof",
+      "missingProof": false,
+      "proof": "tests/typescript-directive-ownership.test.js; tests/typescript-directive-placement.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Private call-local map preserves identity and ordered placement; no parser-owned or caller-owned object is written."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/exceptions.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations",
+        "resilient/prefer-destructured-member-access"
+      ],
+      "reason": "Private collision proof records the existing retained decision; production never asks ESLint to select rules.",
+      "location": {
+        "line": 843,
+        "column": 13
+      },
+      "range": [
+        43430,
+        43653
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        43666,
+        43837
+      ],
+      "operation": "collision.targets = [...collision.targets, { node, rules: memberRules, reason: 'Get order',\n                scope: new Set([...enclosingScope, ...authoredScope(node)]) }];",
+      "id": 131,
+      "owner": "Packet 3A directive placement ledger",
+      "family": "Private placement/comment index",
+      "observable": "Retains original comment payload/ranges and exact completed diagnostic owner without mutating source syntax or caller-owned collections.",
+      "disposition": "retain",
+      "proofStatus": "Packet 3A focused placement and necessity proof",
+      "missingProof": false,
+      "proof": "tests/typescript-directive-ownership.test.js; tests/typescript-directive-placement.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Private call-local map preserves identity and ordered placement; no parser-owned or caller-owned object is written."
+        },
+        {
+          "rule": "resilient/prefer-destructured-member-access",
+          "check": "Private call-local map preserves identity and ordered placement; no parser-owned or caller-owned object is written."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/exceptions.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Transform-owned identity state carries a placement reason without changing the caller-owned AST node.",
+      "location": {
+        "line": 1039,
+        "column": 9
+      },
+      "range": [
+        54376,
+        54546
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        54555,
+        54589
+      ],
+      "operation": "retainedReasons.set(node, reason);",
+      "id": 87,
+      "owner": "rememberRetainedReason",
+      "family": "Caller-owned AST immutability",
+      "observable": "Placement reasons remain transform-local and keyed by exact node identity without adding a source-node descriptor.",
+      "disposition": "retain",
+      "proofStatus": "registered local boundary proof",
+      "missingProof": false,
+      "proof": "tests/typescript-private-state.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "A private WeakMap stores the reason without mutating the caller-owned AST; immutable reconstruction cannot preserve node-identity correspondence for later placement."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/policy/exceptions.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Original-node provenance needs the same transform-local placement reason.",
+      "location": {
+        "line": 1044,
+        "column": 13
+      },
+      "range": [
+        54692,
+        54834
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        54847,
+        54885
+      ],
+      "operation": "retainedReasons.set(original, reason);",
+      "id": 88,
+      "owner": "rememberRetainedReason",
+      "family": "Caller-owned AST immutability",
+      "observable": "Updated and original compiler nodes resolve the same transform-local reason without changing either node.",
+      "disposition": "retain",
+      "proofStatus": "registered local boundary proof",
+      "missingProof": false,
+      "proof": "tests/typescript-private-state.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "The transform-local WeakMap records original-node provenance while the dedicated proof verifies that no Resilient descriptor is added to captured input nodes."
+        }
+      ]
+    },
+    {
+      "id": 117,
+      "owner": "Completed emission placement",
+      "family": "Compiler-owned layout state",
+      "observable": "Source order, exact compiler identity, literal/comment payloads and directive ownership are preserved.",
+      "disposition": "retain",
+      "proofStatus": "focused layout and placement proof",
+      "missingProof": false,
+      "proof": "tests/typescript-emission-layout.test.js; tests/typescript-directive-ownership.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Private compiler traversal and cache state; no caller-owned runtime state is mutated."
+        }
+      ],
+      "file": "transforms/typescript/grammar/emission-layout.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private traversal work list preserves compiler node identity and source order.",
+      "location": {
+        "line": 48,
+        "column": 9
+      },
+      "range": [
+        2630,
+        2777
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        2786,
+        2803
+      ],
+      "operation": "nodes.push(node);"
+    },
+    {
+      "id": 118,
+      "owner": "Completed emission placement",
+      "family": "Compiler-owned layout state",
+      "observable": "Source order, exact compiler identity, literal/comment payloads and directive ownership are preserved.",
+      "disposition": "retain",
+      "proofStatus": "focused layout and placement proof",
+      "missingProof": false,
+      "proof": "tests/typescript-emission-layout.test.js; tests/typescript-directive-ownership.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Private compiler traversal and cache state; no caller-owned runtime state is mutated."
+        }
+      ],
+      "file": "transforms/typescript/grammar/emission-layout.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private token index preserves exact source node identities.",
+      "location": {
+        "line": 52,
+        "column": 9
+      },
+      "range": [
+        2864,
+        2992
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        3001,
+        3041
+      ],
+      "operation": "if (!children.length) tokens.push(node);"
+    },
+    {
+      "id": 119,
+      "owner": "Completed emission placement",
+      "family": "Compiler-owned layout state",
+      "observable": "Source order, exact compiler identity, literal/comment payloads and directive ownership are preserved.",
+      "disposition": "retain",
+      "proofStatus": "focused layout and placement proof",
+      "missingProof": false,
+      "proof": "tests/typescript-emission-layout.test.js; tests/typescript-directive-ownership.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Private compiler traversal and cache state; no caller-owned runtime state is mutated."
+        }
+      ],
+      "file": "transforms/typescript/grammar/emission-layout.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private range index deduplicates compiler comment spans by source offset.",
+      "location": {
+        "line": 63,
+        "column": 13
+      },
+      "range": [
+        3368,
+        3510
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        3523,
+        3565
+      ],
+      "operation": "comments.set(getObject(range).pos, range);"
+    },
+    {
+      "id": 120,
+      "owner": "Completed emission placement",
+      "family": "Compiler-owned layout state",
+      "observable": "Source order, exact compiler identity, literal/comment payloads and directive ownership are preserved.",
+      "disposition": "retain",
+      "proofStatus": "focused layout and placement proof",
+      "missingProof": false,
+      "proof": "tests/typescript-emission-layout.test.js; tests/typescript-directive-ownership.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Private compiler traversal and cache state; no caller-owned runtime state is mutated."
+        }
+      ],
+      "file": "transforms/typescript/grammar/emission-layout.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private edit map composes coincident grammar insertions and assigns each syntax gap one layout.",
+      "location": {
+        "line": 168,
+        "column": 9
+      },
+      "range": [
+        9367,
+        9531
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        9540,
+        9594
+      ],
+      "operation": "edits.set(key, { start, end, replacement: combined });"
+    },
+    {
+      "id": 121,
+      "owner": "Completed emission placement",
+      "family": "Compiler-owned layout state",
+      "observable": "Source order, exact compiler identity, literal/comment payloads and directive ownership are preserved.",
+      "disposition": "retain",
+      "proofStatus": "focused layout and placement proof",
+      "missingProof": false,
+      "proof": "tests/typescript-emission-layout.test.js; tests/typescript-directive-ownership.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Private compiler traversal and cache state; no caller-owned runtime state is mutated."
+        }
+      ],
+      "file": "transforms/typescript/grammar/emission-layout.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private edit list records disjoint indentation gaps without touching payloads.",
+      "location": {
+        "line": 427,
+        "column": 13
+      },
+      "range": [
+        23173,
+        23320
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        23333,
+        23392
+      ],
+      "operation": "edits.push({ start, end: start + delta, replacement: '' });"
+    },
+    {
+      "file": "transforms/typescript/grammar/emission-layout.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private counter follows completed printer syntax before compiler insertion or erasure.",
+      "location": {
+        "line": 460,
+        "column": 9
+      },
+      "range": [
+        24865,
+        25020
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        25029,
+        25078
+      ],
+      "operation": "if (statement) counters.set(nodeKind, index + 1);",
+      "id": 135,
+      "owner": "completed directive emission layout",
+      "family": "Exact emitted comment placement",
+      "observable": "Preserves authored payloads/scopes/targets, executable tokens and runtime identities.",
+      "disposition": "retain",
+      "proofStatus": "registered local boundary proof",
+      "missingProof": false,
+      "proof": "tests/typescript-directive-placement.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Private syntax/comment placement work buffer; no caller-owned AST mutation or new semantic classification."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/grammar/emission-layout.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Completed trivia and syntax occurrence select the generated boundary; authored-only pairs retain their scopes.",
+      "location": {
+        "line": 471,
+        "column": 21
+      },
+      "range": [
+        25705,
+        25884
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        25905,
+        26083
+      ],
+      "operation": "boundaries.push({ kind: nodeKind, index, generated: `/*${text}*/`,\n                        authored: nextKind === MultiLineCommentTrivia ? `/*${nextText}*/` : `//${nextText}` });",
+      "id": 136,
+      "owner": "completed directive emission layout",
+      "family": "Exact emitted comment placement",
+      "observable": "Preserves authored payloads/scopes/targets, executable tokens and runtime identities.",
+      "disposition": "retain",
+      "proofStatus": "registered local boundary proof",
+      "missingProof": false,
+      "proof": "tests/typescript-directive-placement.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Private syntax/comment placement work buffer; no caller-owned AST mutation or new semantic classification."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/grammar/emission-layout.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private printer counter follows the same completed statement traversal without changing AST metadata.",
+      "location": {
+        "line": 492,
+        "column": 9
+      },
+      "range": [
+        26675,
+        26845
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        26854,
+        26891
+      ],
+      "operation": "printedCounters.set(kind, index + 1);",
+      "id": 137,
+      "owner": "completed directive emission layout",
+      "family": "Exact emitted comment placement",
+      "observable": "Preserves authored payloads/scopes/targets, executable tokens and runtime identities.",
+      "disposition": "retain",
+      "proofStatus": "registered local boundary proof",
+      "missingProof": false,
+      "proof": "tests/typescript-directive-placement.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Private syntax/comment placement work buffer; no caller-owned AST mutation or new semantic classification."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/grammar/emission-layout.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private count admits only completed synthetic trivia with unchanged compiler emission multiplicity.",
+      "location": {
+        "line": 528,
+        "column": 13
+      },
+      "range": [
+        28890,
+        29058
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        29071,
+        29147
+      ],
+      "operation": "completed.set(text.trim(), { ...prior, count: getObject(prior).count + 1 });",
+      "id": 138,
+      "owner": "completed directive emission layout",
+      "family": "Exact emitted comment placement",
+      "observable": "Preserves authored payloads/scopes/targets, executable tokens and runtime identities.",
+      "disposition": "retain",
+      "proofStatus": "registered local boundary proof",
+      "missingProof": false,
+      "proof": "tests/typescript-directive-placement.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Private syntax/comment placement work buffer; no caller-owned AST mutation or new semantic classification."
+        }
+      ]
+    },
+    {
+      "file": "transforms/typescript/grammar/emission-layout.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private line group unions only already coincident emitted directive scopes.",
+      "location": {
+        "line": 561,
+        "column": 9
+      },
+      "range": [
+        30507,
+        30651
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        30660,
+        30745
+      ],
+      "operation": "lines.set(line, [...lines.get(line) || [], { ...range, ...getObject(entry.at(1)) }]);",
+      "id": 139,
+      "owner": "completed directive emission layout",
+      "family": "Exact emitted comment placement",
+      "observable": "Preserves authored payloads/scopes/targets, executable tokens and runtime identities.",
+      "disposition": "retain",
+      "proofStatus": "registered local boundary proof",
+      "missingProof": false,
+      "proof": "tests/typescript-directive-placement.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Private syntax/comment placement work buffer; no caller-owned AST mutation or new semantic classification."
+        }
+      ]
+    },
+    {
+      "id": 122,
+      "owner": "Completed emission placement",
+      "family": "Compiler-owned layout state",
+      "observable": "Source order, exact compiler identity, literal/comment payloads and directive ownership are preserved.",
+      "disposition": "retain",
+      "proofStatus": "focused layout and placement proof",
+      "missingProof": false,
+      "proof": "tests/typescript-emission-layout.test.js; tests/typescript-directive-ownership.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-prototype-methods",
+          "check": "Private compiler traversal and cache state; no caller-owned runtime state is mutated."
+        }
+      ],
+      "file": "transforms/typescript/grammar/emission-layout.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-prototype-methods"
+      ],
+      "reason": "Each layout pass consumes its predecessor; the syntax-size bound rejects nonconvergence without returning partial layout.",
+      "location": {
+        "line": 637,
+        "column": 5
+      },
+      "range": [
+        35003,
+        35190
+      ],
+      "enclosedAst": "ForStatement",
+      "enclosedRange": [
+        35195,
+        35623
+      ],
+      "operation": "for (let pass = 0; pass <= nodes.length; pass += 1) {\n        const next = alignDeclarationContinuations(formatWhitespace(layoutSyntax(result, typescript), typescript), typescript);\n        const { invalid: invalidOutput = false } = readSyntax(next, typescript);\n\n        if (invalidOutput) throw new Error('Emission layout produced invalid JavaScript.');\n\n        if (next === result) return next;\n\n        result = next;\n    }"
+    },
+    {
+      "file": "transforms/typescript/index.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "import/no-useless-path-segments"
+      ],
+      "reason": "Node ESM requires the member grammar entry file; a directory import is unsupported.",
+      "location": {
+        "line": 58,
+        "column": 1
+      },
+      "range": [
+        2988,
+        3134
+      ],
+      "enclosedAst": "ImportDeclaration",
+      "enclosedRange": [
+        2793,
+        3163
+      ],
+      "operation": "import {\n    lowerDiscriminatedSwitchAccess,\n    lowerDynamicArrayDestructuring,\n    lowerLocalMemberAccess,\n    lowerParameterMemberAccess,\n    lowerTupleDestructuring,\n    updateBindingPattern\n// eslint-disable-next-line import/no-useless-path-segments -- Node ESM requires the member grammar entry file; a directory import is unsupported.\n} from './members/index.js';",
+      "id": 18,
+      "owner": "<module>",
+      "family": "Private Node ESM file resolution",
+      "observable": "Explicit private member entry file is a native ESM target; directory import is unsupported and package public entry is not this private module.",
+      "disposition": "retain",
+      "proofStatus": "focused observable evidence",
+      "missingProof": false,
+      "proof": "tests/project-reuse.test.js",
+      "ruleChecks": [
+        {
+          "rule": "import/no-useless-path-segments",
+          "check": "An explicit resolvable file is not permission to change private native ESM resolution; public package self-reference covers a different exported entry."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/index.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-falsey-returns"
+      ],
+      "reason": "undefined removes a type-only namespace declaration",
+      "location": {
+        "line": 795,
+        "column": 25
+      },
+      "range": [
+        33856,
+        33970
+      ],
+      "enclosedAst": "IfStatement",
+      "enclosedRange": [
+        33789,
+        34055
+      ],
+      "operation": "if (nodeKind === ModuleDeclarationKind2 &&\n                        // eslint-disable-next-line resilient/prefer-falsey-returns -- undefined removes a type-only namespace declaration\n                        isTypeOnlyNamespace({ typescript, node })) return undefined;",
+      "id": 19,
+      "owner": "visit",
+      "family": "TypeScript visitor deletion",
+      "observable": "Returning undefined removes the proved terminal return, type-only module/import clause, or import with no runtime bindings; false is not a valid visitor node.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Existing public output/runtime proofs cover deletion. Exact per-private-owner native false-node rejection is not independently registered.",
+      "proof": "tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-falsey-returns",
+          "check": "Bare return is allowed; null/undefined/void result is reported. AST removal, required compiler omission and unknown relation need their actual consumer law."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/index.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-destructuring-defaults"
+      ],
+      "reason": "An omitted initializer must remain absent in the declaration factory update.",
+      "location": {
+        "line": 829,
+        "column": 33
+      },
+      "range": [
+        36207,
+        36359
+      ],
+      "enclosedAst": "Property",
+      "enclosedRange": [
+        36392,
+        36420
+      ],
+      "operation": "initializer: declInitializer",
+      "id": 20,
+      "owner": "visit",
+      "family": "Compiler metadata forwarding",
+      "observable": "Omitted initializer/annotation/optionality/modifier/rest token remains undefined at the existing factory update; supplied fields and provenance are unchanged.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Shared compiler owner tests cover absent/present fields; singular caller update fields still need direct per-operation factory identity proof.",
+      "proof": "tests/typescript-ast-boundary.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-destructuring-defaults",
+          "check": "Rule skips rest itself, callable-invocation and recognized tuple/model/guarded payload patterns. Optional metadata/capability binding is an ordinary property; false is lawful only when its consumer observes guard falsification, not factory absence."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/index.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-destructuring-defaults"
+      ],
+      "reason": "An omitted parameter annotation must remain absent for the TypeScript factory.",
+      "location": {
+        "line": 1042,
+        "column": 29
+      },
+      "range": [
+        47966,
+        48120
+      ],
+      "enclosedAst": "Property",
+      "enclosedRange": [
+        48149,
+        48164
+      ],
+      "operation": "type: paramType",
+      "id": 21,
+      "owner": "visit",
+      "family": "Compiler metadata forwarding",
+      "observable": "Omitted initializer/annotation/optionality/modifier/rest token remains undefined at the existing factory update; supplied fields and provenance are unchanged.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Shared compiler owner tests cover absent/present fields; singular caller update fields still need direct per-operation factory identity proof.",
+      "proof": "tests/typescript-ast-boundary.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-destructuring-defaults",
+          "check": "Rule skips rest itself, callable-invocation and recognized tuple/model/guarded payload patterns. Optional metadata/capability binding is an ordinary property; false is lawful only when its consumer observes guard falsification, not factory absence."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/index.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-destructuring-defaults"
+      ],
+      "reason": "An omitted parameter initializer must remain absent in the factory update.",
+      "location": {
+        "line": 1044,
+        "column": 29
+      },
+      "range": [
+        48194,
+        48344
+      ],
+      "enclosedAst": "Property",
+      "enclosedRange": [
+        48373,
+        48402
+      ],
+      "operation": "initializer: paramInitializer",
+      "id": 22,
+      "owner": "visit",
+      "family": "Compiler metadata forwarding",
+      "observable": "Omitted initializer/annotation/optionality/modifier/rest token remains undefined at the existing factory update; supplied fields and provenance are unchanged.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Shared compiler owner tests cover absent/present fields; singular caller update fields still need direct per-operation factory identity proof.",
+      "proof": "tests/typescript-ast-boundary.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-destructuring-defaults",
+          "check": "Rule skips rest itself, callable-invocation and recognized tuple/model/guarded payload patterns. Optional metadata/capability binding is an ordinary property; false is lawful only when its consumer observes guard falsification, not factory absence."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/index.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-destructuring-defaults"
+      ],
+      "reason": "An omitted optionality token must remain absent in the factory update.",
+      "location": {
+        "line": 1046,
+        "column": 29
+      },
+      "range": [
+        48432,
+        48578
+      ],
+      "enclosedAst": "Property",
+      "enclosedRange": [
+        48607,
+        48640
+      ],
+      "operation": "questionToken: paramQuestionToken",
+      "id": 23,
+      "owner": "visit",
+      "family": "Compiler metadata forwarding",
+      "observable": "Omitted initializer/annotation/optionality/modifier/rest token remains undefined at the existing factory update; supplied fields and provenance are unchanged.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Shared compiler owner tests cover absent/present fields; singular caller update fields still need direct per-operation factory identity proof.",
+      "proof": "tests/typescript-ast-boundary.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-destructuring-defaults",
+          "check": "Rule skips rest itself, callable-invocation and recognized tuple/model/guarded payload patterns. Optional metadata/capability binding is an ordinary property; false is lawful only when its consumer observes guard falsification, not factory absence."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/index.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-destructuring-defaults"
+      ],
+      "reason": "An omitted parameter modifier list must remain absent in the factory update.",
+      "location": {
+        "line": 1049,
+        "column": 29
+      },
+      "range": [
+        48720,
+        48872
+      ],
+      "enclosedAst": "Property",
+      "enclosedRange": [
+        48901,
+        48926
+      ],
+      "operation": "modifiers: paramModifiers",
+      "id": 24,
+      "owner": "visit",
+      "family": "Compiler metadata forwarding",
+      "observable": "Omitted initializer/annotation/optionality/modifier/rest token remains undefined at the existing factory update; supplied fields and provenance are unchanged.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Shared compiler owner tests cover absent/present fields; singular caller update fields still need direct per-operation factory identity proof.",
+      "proof": "tests/typescript-ast-boundary.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-destructuring-defaults",
+          "check": "Rule skips rest itself, callable-invocation and recognized tuple/model/guarded payload patterns. Optional metadata/capability binding is an ordinary property; false is lawful only when its consumer observes guard falsification, not factory absence."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "file": "transforms/typescript/index.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-destructuring-defaults"
+      ],
+      "reason": "An omitted rest token must remain absent in the factory update.",
+      "location": {
+        "line": 1051,
+        "column": 29
+      },
+      "range": [
+        48956,
+        49095
+      ],
+      "enclosedAst": "Property",
+      "enclosedRange": [
+        49124,
+        49159
+      ],
+      "operation": "dotDotDotToken: paramDotDotDotToken",
+      "id": 25,
+      "owner": "visit",
+      "family": "Compiler metadata forwarding",
+      "observable": "Omitted initializer/annotation/optionality/modifier/rest token remains undefined at the existing factory update; supplied fields and provenance are unchanged.",
+      "disposition": "retain",
+      "proofStatus": "partial; explicit obligation remains",
+      "missingProof": "Shared compiler owner tests cover absent/present fields; singular caller update fields still need direct per-operation factory identity proof.",
+      "proof": "tests/typescript-ast-boundary.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-destructuring-defaults",
+          "check": "Rule skips rest itself, callable-invocation and recognized tuple/model/guarded payload patterns. Optional metadata/capability binding is an ordinary property; false is lawful only when its consumer observes guard falsification, not factory absence."
+        }
+      ],
+      "probe": false
+    },
+    {
+      "id": 123,
+      "owner": "Completed emission placement",
+      "family": "Compiler-owned layout state",
+      "observable": "Source order, exact compiler identity, literal/comment payloads and directive ownership are preserved.",
+      "disposition": "retain",
+      "proofStatus": "focused layout and placement proof",
+      "missingProof": false,
+      "proof": "tests/typescript-emission-layout.test.js; tests/typescript-directive-ownership.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-safe-transformations",
+          "check": "Private compiler traversal and cache state; no caller-owned runtime state is mutated."
+        }
+      ],
+      "file": "transforms/typescript/index.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-safe-transformations"
+      ],
+      "reason": "Private Program cache retains each prepared result for the corresponding compiler callback.",
+      "location": {
+        "line": 1663,
+        "column": 13
+      },
+      "range": [
+        78526,
+        78686
+      ],
+      "enclosedAst": "ExpressionStatement",
+      "enclosedRange": [
+        78699,
+        78730
+      ],
+      "operation": "prepared.set(fileName, result);"
+    },
+    {
+      "file": "transforms/typescript/lowering/collection-reconstruction.js",
+      "subsystem": "transforms",
+      "form": "next-line",
+      "rules": [
+        "resilient/prefer-prototype-methods"
+      ],
+      "reason": "Consecutive update discovery stops before later statement Gets; eager snapshots change failures.",
+      "location": {
+        "line": 419,
+        "column": 9
+      },
+      "range": [
+        21398,
+        21560
+      ],
+      "enclosedAst": "WhileStatement",
+      "enclosedRange": [
+        21569,
+        21932
+      ],
+      "operation": "while (cursor < statements.length) {\n            const [statement = {}] = statements.slice(cursor, cursor + 1);\n            const update = getStaticUpdate({ statement, name, collectionType });\n            const { args = [] } = getObject(update);\n\n            if (!args.length) break;\n\n            updates = [...updates, update];\n            cursor += 1;\n        }",
+      "id": 26,
+      "owner": "getContiguousUpdates",
+      "family": "Operation-specific short-circuit walk",
+      "observable": "Follow actual parent/statement/static-path order and stop at this owner’s matching block, loop, declaration, return, executor, source-file or bounded depth; not a shared generic walk.",
+      "disposition": "retain",
+      "proofStatus": "registered local operation, consumer and owning-rule proof; no generic law inferred",
+      "missingProof": false,
+      "proof": "tests/typescript-walk-mechanisms.test.js; tests/typescript-transform.test.js",
+      "ruleChecks": [
+        {
+          "rule": "resilient/prefer-prototype-methods",
+          "check": "Rule reports all loop kinds; stopping, await and throw are constraints, not built-in waivers."
+        }
+      ],
+      "probe": false
+    }
+  ],
+  "removedBoundaries": [
+    {
+      "id": 3,
+      "replacement": "False local AST-candidate outcome; callers retain the exact visited node or omit a guard.",
+      "proof": "tests/typescript-final-rewrite-outcomes.test.js"
+    },
+    {
+      "id": 4,
+      "replacement": "False local AST-candidate outcome; callers retain the exact visited node or omit a guard.",
+      "proof": "tests/typescript-final-rewrite-outcomes.test.js"
+    },
+    {
+      "id": 5,
+      "replacement": "False local AST-candidate outcome; callers retain the exact visited node or omit a guard.",
+      "proof": "tests/typescript-final-rewrite-outcomes.test.js"
+    },
+    {
+      "id": 6,
+      "replacement": "False local AST-candidate outcome; callers retain the exact visited node or omit a guard.",
+      "proof": "tests/typescript-final-rewrite-outcomes.test.js"
+    },
+    {
+      "id": 7,
+      "replacement": "False local AST-candidate outcome; callers retain the exact visited node or omit a guard.",
+      "proof": "tests/typescript-final-rewrite-outcomes.test.js"
+    },
+    {
+      "id": 8,
+      "replacement": "False local AST-candidate outcome; callers retain the exact visited node or omit a guard.",
+      "proof": "tests/typescript-final-rewrite-outcomes.test.js"
+    },
+    {
+      "id": 9,
+      "replacement": "False local AST-candidate outcome; callers retain the exact visited node or omit a guard.",
+      "proof": "tests/typescript-final-rewrite-outcomes.test.js"
+    },
+    {
+      "id": 37,
+      "replacement": "False declined conditional candidate; unwrap and guarded lowering use only fallback/truthiness.",
+      "proof": "tests/typescript-grammar-mechanisms.test.js"
+    },
+    {
+      "id": 38,
+      "replacement": "False omitted branch candidate; statement-array inclusion is truthiness-only.",
+      "proof": "tests/typescript-grammar-mechanisms.test.js"
+    },
+    {
+      "id": 56,
+      "replacement": "One mapped staging record carries the nested pattern and rewritten element without a second mutable array.",
+      "proof": "tests/typescript-grammar-mechanisms.test.js"
+    }
+  ]
+}

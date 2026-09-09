@@ -2,6 +2,101 @@
 
 ## Unreleased
 
+## 0.7.4 — 2026-10-08
+
+### Tools and public APIs
+
+
+
+- Added `resilient-measure` for read-only measurement using a consuming
+  project's ESLint configuration. It reports active and suppressed findings,
+  directive sites, named rules and reasons, per-rule summaries, source hashes,
+  and configuration/version identities. Measure a whole project with
+  `npx resilient-measure --report project.json`, or selected targets with
+  `npx resilient-measure --report targets.json 'src/**/*.js' tests/example.js`.
+  `--project` and `--config` select another project or configuration. Incomplete
+  measurements fail; ordinary lint findings remain report data.
+- Added public `standard/object`, `standard/array`, and `standard/function`
+  subpaths for runtime family, content, normalization, and callable helpers.
+  These are optional imports; linting does not add a runtime client dependency.
+- Added portable return-consistency diagnostics through the contracts API's
+  `getReturnDiagnostics` export and document/graph diagnostic queries, also
+  available through `resilient-inspect --diagnostics`.
+- Consolidated inspector and project-adapter AST capture, preserving file
+  identity and isolating separate capture sessions.
+
+### New and updated rules
+
+- Added `resilient/operator-linebreak` to preserve initializer-leading
+  comments and directive targets while retaining ESLint's ordinary operator
+  layout and fixer. The recommended preset disables the core
+  `operator-linebreak` rule and enables this replacement with the same options.
+  Update rule-specific directives and overrides to the Resilient rule ID.
+- Exempted justified multi-rule `eslint-disable-next-line` comment lines from
+  the recommended preset's `max-len` check.
+- Replaced `resilient-allow-promise-chain` and `resilient-allow-loop` comments
+  with rule-specific ESLint directives. `prefer-prototype-methods` now reports
+  retained loops even when they contain `await`, `break`, `continue`, `return`,
+  or `throw`; necessary ordering boundaries need a narrow directive with a reason.
+- Made `prefer-safe-transformations` independent of loop findings and
+  exceptions. It now reports writes and mutating calls on unnamed receivers,
+  such as `getTarget().field = value` and `map.get(key).add(value)`, while
+  preserving fresh-literal `Object.assign` construction. Named-binding
+  exceptions apply only to named roots; static property exceptions still apply
+  to unnamed receivers.
+- Strengthened optional callback guards and safe-default exemptions with
+  lexical binding, stable alias, and resolved consumer-body evidence. Shadowed
+  names, reassigned bindings, truthy predicate lookalikes, and unresolved
+  forwarded consumers cannot borrow callability. Guarded callable consumers and
+  bounded structural/discriminant payload forms can retain genuine absence
+  without synthetic defaults.
+- Made signature and member-access rules follow lexical parameter and reducer
+  bindings. Signature suggestions preserve full-object forwarding, deferred
+  captures, and guarded getter timing; they remain manual suggestions.
+- Strengthened return consistency to compare surviving normal results,
+  including bare returns and reachable fallthrough as `undefined`. Callable
+  guards no longer waive mixed return families. Throws and async rejection
+  remain failure paths; `finally` preserves captured return evidence or
+  replaces it when the finalizer exits abruptly.
+- Recognized exact shorter-call boundaries handled by an initial
+  `switch (arguments.length)` with self-contained numeric return cases. Other
+  calls retain ordinary arity checks, including uncertain dispatch, inherited
+  or shadowed `arguments`, and returns that read omitted parameters.
+
+### Analysis and rule architecture
+
+- Centralized analysis sessions, lexical identity, callable/member evidence,
+  and binding-pattern queries. Thin rule visitors share those facts instead
+  of repeating name scans or granting module-name exemptions.
+- Composed normal, return, throw, break, and continue outcomes across branches,
+  loops, labels, `catch`, and `finally`. Expression analysis captures receivers,
+  arguments, and returned values at their evaluation phase; opaque effects
+  conservatively invalidate mutable facts instead of retaining stale certainty.
+- Corrected native-call evidence for shadowed globals and aliases, and
+  parameter-default analysis for earlier parameters and body-local shadowing.
+  Known authored callable members take precedence over native method spelling.
+- Consolidated AST traversal, document/diagnostic indexes, dependency lookup,
+  and bounded cache mechanisms while preserving ordering, invalidation,
+  session ownership, and fresh public diagnostic results.
+
+### Documentation and verification
+
+- Expanded rule pages with findings, preferred examples, boundaries, and repair
+  recipes; updated the migration playbook, diagnostic guide, and AI authoring
+  guidance. Added grammar, policy, semantics, and agreement reference maps.
+- Added focused proof families, proof catalog checks, and the source exception
+  audit used by repository linting. The audit validates named rules, reasons,
+  directive forms, and one-statement scope; its inventory is distinct from
+  the active and suppressed finding counts measured in consumer projects.
+- Configured an 8 GB JavaScript heap for the full test suite and repository
+  linting, and added per-module test progress and per-file lint timings during
+  release verification.
+- Isolated the packed consumer check's npm cache and bounded registry retries.
+
+### Experimental tooling
+
+- The new `transforms/` directory is included as unsupported experimental tooling.
+
 ## 0.7.3 — 2026-09-06
 
 - Clarified the public README for the next release, including 0.7.x
@@ -295,7 +390,7 @@
   `no-silent-catch`, `no-unhandled-promise-chain`, and warning-level
   `prefer-async-await`.
 - Made collection loops explicit exceptions when they contain sequential
-  `await`, direct control flow, or a reasoned `resilient-allow-loop` comment;
+  `await`, direct control flow, or a reasoned local ESLint exception;
   documented `Promise.all` as the default for independent async work.
 - Added ownership-aware transformation checks so input, shared, and externally
   owned values are protected while intentional boundaries can be configured.

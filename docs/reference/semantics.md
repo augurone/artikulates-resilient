@@ -1,12 +1,16 @@
 # Resilient semantics
 
-This document defines the meaning of the Resilient JavaScript dialect. It is
-the semantic reference behind the coding standards and individual rule pages.
-The implementation boundary for static inference is described in
-[`contracts.md`](contracts.md); the rule pages describe the barriers and smells
-that enforce this dialect.
+This document defines what Resilient constructs mean. Together with
+[Grammar](grammar.md) (forms) and [Policy](policy.md) (rules and exceptions), it
+is the normative dialect reference. ECMAScript supplies runtime behavior;
+Resilient interprets executable source as contract evidence.
 
-## Semantic layers
+The implementation boundary for static inference is described in
+[`contracts.md`](contracts.md). The [AI guide](../ai/CODING_STANDARDS.md) is a
+compact presentation of the same specification, not a separate authority.
+Section identifiers below are shared reference labels, not source annotations.
+
+## S-01: Semantic layers
 
 Resilient treats executable JavaScript as evidence for four related contracts:
 
@@ -19,7 +23,7 @@ The dialect uses ECMAScript constructs to make those contracts visible. It does
 not add an annotation language or claim that static evidence replaces runtime
 validation.
 
-## Evidence states
+## S-02: Evidence states
 
 Every inferred fact has one of three semantic states:
 
@@ -37,7 +41,7 @@ contradictory contract retains the known conflicting families so downstream
 boundaries can inspect them; it is never treated as a permissive union or as an
 ordinary unknown value.
 
-## External data is outside the analyzer
+## S-03: External data is outside the analyzer
 
 Resilient never evaluates runtime data and never becomes a runtime dependency
 of the client application. A source declaration expresses the contract authored
@@ -50,7 +54,7 @@ consumer may inspect a static boundary marker identifying the expected contract
 and the external-data owner of a possible failure, but that marker is not
 runtime evidence and does not validate, normalize, or repair the data.
 
-## Value contracts
+## S-04: Value contracts
 
 The core value families are:
 
@@ -96,7 +100,7 @@ The canonical empty value is a dialect default for value-producing application
 contracts. It is not a claim that every external value has already been
 normalized.
 
-## Shapes and defaults
+## S-05: Shapes and defaults
 
 Destructuring is the dialect's native shape declaration. Defaults are part of
 the contract, not merely defensive syntax:
@@ -124,19 +128,18 @@ establishes the safe absent value, records the known field, and explicitly
 preserves passthrough keys. Direct object literals and named destructuring
 without a rest element remain closed when their properties are known.
 
-Application-owned function boundaries should expose their shape in the
-signature. External callback signatures, full-object forwarding, dynamic
-properties, and platform APIs have ownership or shape outside the local
-destructuring boundary. Keep those forms intact when destructuring would
-change the contract or hide intent, and record a narrow file-local exception
-when a rule would otherwise report the boundary.
+A signature describes the boundary at the point of invocation. Moving a
+property read from the body into the signature can change its timing, getter
+execution, or receiver binding. The [signature policy](policy.md#p-01-rules)
+therefore preserves external and dynamic boundaries where that move would
+change the contract.
 
-## Absence semantics
+## S-06: Absence semantics
 
 `null` and `undefined` are valid JavaScript values and may be meaningful at an
 external boundary whose contract explicitly permits absence. Inside a normalized,
-value-producing application contract, Resilient prefers one shape-specific
-empty value rather than an unannounced nullish alternative.
+value-producing application contract, the [absence policy](policy.md#p-01-rules)
+selects one shape-specific empty value rather than an unannounced nullish alternative.
 
 That distinction produces four cases:
 
@@ -155,31 +158,46 @@ automatically widened union. Unknown external paths remain unknown to
 Resilient. Source declarations may make the expected contract explicit, but
 Resilient does not evaluate whether runtime data satisfies it.
 
-## Control-flow contracts
+### Content falsification preserves the family
 
-Every conditional, loop, and recursive call adds possible execution paths.
-Resilient prefers guard clauses and early exits because they make rejected
-paths terminate before the main work, reduce nesting, and reduce the state a
-reader or agent must carry through the remaining path.
+For an agreement requiring content, the canonical empty representation `⊥T`
+preserves its runtime family while falsifying its content condition, written
+`!<T>`. Falsification does not mean that the value has the wrong type:
 
-Collection operations should use a prototype method when the operation is
-mapping, filtering, searching, reducing, or otherwise directly expressed by a
-native method. A loop is valid when it carries semantics that a collection
-method would hide:
+```text
+value = ⊥T  ⇒  !<T>     (when T requires content)
 
-- sequential API work;
-- polling or retries;
-- rate limiting;
-- early termination;
-- detailed control flow or ordered effects.
+object:  !hasContent({})  → true
+array:   !([].length)     → true
+text:    !''              → true
+```
 
-The loop barrier is therefore a default for collection transformations, not a
-ban on iteration. `await` and direct `break`/`continue`/`return`/`throw` are
-native loop exceptions because they make sequential or control-flow semantics
-visible in the loop itself. Other retained loop patterns require the explicit
-file-local marker `// resilient-allow-loop: reason`.
+`isObject({})` and `Array.isArray([])` still succeed. Testing `!value` would
+not detect their emptiness: both values are truthy. Use the agreement's own
+content test. The object helper tests own enumerable string-key presence;
+array length tests cardinality; text truthiness tests nonzero length. None
+establishes validity of nested payloads or meaningful text.
 
-## Transformation and ownership contracts
+An empty value may satisfy an agreement that permits empty content. Likewise,
+`0` and `false` may be valid results. A content requirement must come from the
+agreement rather than an invented blanket truthiness requirement. A guard
+owns the consequence of failed content; the empty representation does not
+itself exit a scope. See the [shared notation and examples](resilient-proofs.md#1-vocabulary).
+
+## S-07: Control-flow contracts
+
+Conditionals select paths; `return` terminates the current function; `throw`
+transfers control to an error boundary. A loop's iteration order, direct
+`break`/`continue`, and early exits are observable behavior. A `break` in a
+nested `switch` exits that switch, not the surrounding loop.
+
+Replacing iteration with a collection method must account for the receiver,
+sparse elements, callback arguments, traversal order, and effects. Similar
+looking syntax does not establish equivalent behavior. The preference for
+guards and prototype methods, and retained-loop exceptions, belongs to
+[Policy](policy.md).
+
+## S-08: Transformation and ownership contracts
 
 A transformation produces a new value from an existing value. The default
 dialect makes that transition explicit:
@@ -195,35 +213,35 @@ const update = (
 });
 ```
 
-Direct property updates, mutating methods, and `Object.assign` obscure whether
-the code is transforming a value or changing an object owned elsewhere. The
-safety rule therefore rejects them by default, including on locally created
-working values. Draft reducers, caches, DOM objects, refs, and similar mutable
-boundaries require explicit rule configuration.
+A property update changes the referenced object; aliases can observe that
+change. A returned object spread creates a new outer object but does not deep
+clone nested values. Replacing mutation with copying can therefore change
+identity and shared-state behavior.
 
-The analyzer may still model a rejected update. Understanding the resulting
-value is necessary for later contract analysis; it does not make the policy
-violation valid.
+The analyzer may model an update that policy rejects. Understanding the
+resulting value is necessary for later contract analysis; it does not approve
+the mutation. The default transformation rule and explicit mutable boundaries
+are defined in [Policy](policy.md).
 
-## Async and failure contracts
+## S-09: Async and failure contracts
 
-Independent asynchronous operations should be started together and awaited with
-`Promise.all`. Ordered, dependent, rate-limited, polling, retrying, and
-early-terminating work should remain sequential. `Promise.allSettled` is the
-appropriate expression when every outcome, including failures, belongs to the
-contract.
+Sequential `await` preserves dependency and ordering between operations.
+`Promise.all` aggregates work with rejection on a rejected input;
+`Promise.allSettled` produces each outcome. Grouping calls changes when work
+starts and is not justified merely because both forms return promises.
 
-An expression-statement promise chain must have visible rejection ownership.
-Returning, assigning, awaiting, voiding, or catching a chain makes propagation
-or handling visible. `async` and `await` are the preferred sequential syntax,
-but a required promise chain remains valid when its ownership is explicit.
+Returning a promise propagates it to the caller. Awaiting exposes fulfillment
+or rejection in the current async scope. Catching handles or translates a
+rejection. Assignment and `void` make ownership or deliberate detachment
+visible to the chain rule, but do not themselves install a rejection handler.
 
-`try`, `catch`, `finally`, and `throw` are valid failure-boundary constructs.
-Resilient rejects silent catches, dropped rejection ownership, lost error
-context, inconsistent error contracts, and broken cleanup—not exception syntax
-itself.
+`try`, `catch`, `finally`, and `throw` retain their JavaScript behavior,
+including cleanup and abrupt completion. A rewrite must preserve returned
+values, error context, receiver binding, timing, and cleanup behavior. The
+rules for silent catches, promise ownership, and preferred async syntax are
+in [Policy](policy.md).
 
-## Policy and inference
+## S-10: Policy and inference
 
 The dialect and the analyzer have different jobs:
 
@@ -239,3 +257,35 @@ strict rule should name its boundary and preserve legitimate exceptions.
 
 This is why a rule can reject code even when the analyzer understands it, and
 why an unknown external value is not itself a diagnostic.
+
+## S-11: TypeScript lowering contracts
+
+The [TypeScript adapter](typescript.md) translates source declarations into
+executable target evidence where supported. The portable core analyzer consumes
+ESTree-compatible executable evidence; the TypeScript adapter is a separate
+source-evidence producer that feeds the same dialect. TypeScript names are
+lookup aids, not nominal runtime identities. A model or resolver is emitted
+runtime code; it is distinct from the static analyzer and may deliberately
+normalize values.
+
+Object models are generated for executable shape uses and preserve additional
+attributes. Union resolvers return a stable `{ kind, value }` envelope using
+runtime families. Object branches use a literal discriminator or a unique
+property where available. Ambiguous object branches must not be represented as
+a proven selection of one model. Property membership includes falsey values;
+truthiness is not evidence that a named property exists.
+
+A shape default does not coerce every incoming value. Destructuring defaults
+apply to `undefined`, including missing properties, but not to `null` or `NaN`.
+The adapter's presence-union target defaults and explicit model normalization
+must be distinguished from runtime validation. An unguarded `any` or `unknown`
+boundary remains required unless a supported guard, fallback, or configured
+resolver supplies the missing target evidence.
+
+Lowering must account for required versus optional arguments, overload and
+callback boundaries, evaluation order, function receiver behavior, identity,
+effects, and failure paths. An intentional normalization must be visible in
+the executable boundary. A passing lint result is not proof of behavioral
+equivalence, and current lowering is experimental rather than compiler parity.
+Unsupported lowering diagnostics and conservative unknown boundaries are
+specified in [typescript.md](typescript.md); neither is an ESLint exception.

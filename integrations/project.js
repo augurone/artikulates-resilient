@@ -1,6 +1,7 @@
 import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 
+import { getFileCandidates } from '../rules/support/file-candidates.js';
 import { isObject } from '../rules/support/object.js';
 
 const defaultExtensions = ['.js', '.jsx', '.mjs', '.cjs'];
@@ -17,29 +18,26 @@ const normalizeExtensions = (values = defaultExtensions) => {
     const extensions = Array.isArray(values) ? values : defaultExtensions;
 
     return extensions
-        .filter(extension => typeof extension === 'string' && extension)
+        .filter(extension => typeof extension === 'string' && Boolean(extension))
         .map(extension => extension.startsWith('.') ? extension : `.${extension}`);
 };
 
-const getFile = ({ base = '', extensions = defaultExtensions } = {}) => [
-    base,
-    ...extensions.map(extension => `${base}${extension}`),
-    path.join(base, 'index.js')
-].map(getExistingFile).find(Boolean) || '';
+const getFile = ({ base = '', extensions = defaultExtensions } = {}) => getFileCandidates({ base, extensions })
+    .map(getExistingFile).find(Boolean) || '';
 
 const normalizeNames = (values = []) => (
     Array.isArray(values)
         ? values
-            .filter(value => typeof value === 'string' && value)
+            .filter(value => typeof value === 'string' && Boolean(value))
             .map(value => path.basename(value, path.extname(value)))
         : []
 );
 
 const normalizeAliases = (aliases = {}) => Object.entries(isObject(aliases) ? aliases : {})
-    .filter(([, target = '']) => typeof target === 'string' && target)
+    .filter(([, target = '']) => typeof target === 'string' && Boolean(target))
     .map(([alias = '', target = '']) => [alias.replace(/\/+$/, ''), target])
     .filter(([alias = '']) => alias)
-    .sort(([left = ''], [right = '']) => right.length - left.length);
+    .toSorted(([left = ''], [right = '']) => right.length - left.length);
 
 const getAliasBase = ({ source = '', aliases = [], projectDirectory = '' } = {}) => {
     const [alias = '', target = ''] = aliases.find(([name = '']) => (
@@ -107,6 +105,7 @@ const createProjectAdapter = ({
         let roots = [];
         let directory = path.dirname(normalizedFileName);
 
+        // eslint-disable-next-line resilient/prefer-prototype-methods -- Parent traversal preserves outer-to-inner configuration order and the root-directory stop.
         while (isWithin({ fileName: directory, directory: rootDirectory })) {
             const ancestorRoots = configuredNames
                 .map(name => getFile({

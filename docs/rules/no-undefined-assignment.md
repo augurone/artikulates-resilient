@@ -5,7 +5,7 @@ Flexible data may naturally produce `undefined` while being read, but
 value-producing functions should normalize it to the type-appropriate falsey value
 specified by their contract.
 
-## Smell
+## What this finding means
 
 Explicitly assigning `undefined` makes “missing,” “not produced,” and the
 contract's empty value compete as separate states. The rule keeps undefined
@@ -31,3 +31,13 @@ surrounding contract can determine whether the correct value is `''`, `[]`,
 explicit `undefined` identifiers even when they occur at an external boundary;
 use a local rule override when `undefined` is part of that boundary's contract.
 Explicit `null` assignment is handled by `no-null-assignment`.
+
+## Boundaries and non-goals
+
+Natural reads may produce `undefined`; the rule only rejects explicitly
+creating that application state and does not infer the right default.
+
+## Repair recipes
+
+Choose the boundary's falsey result, omit the assignment, or document one
+narrow exception for an owned external contract.

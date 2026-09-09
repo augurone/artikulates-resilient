@@ -1,24 +1,17 @@
 import fs from 'node:fs';
 
+import { putSingleEvictionCacheEntry } from './bounded-cache.js';
+import { createIdentityIndex } from './identity-index.js';
 import { getObject, isObject } from '../support/object.js';
 
 const PROGRAM_CACHE_LIMIT = 256;
 let programCache = new Map();
-const objectIds = new WeakMap();
-let nextObjectId = 0;
+const getStoredObjectId = createIdentityIndex();
 
 const getObjectId = (value) => {
     if (!value || !['object', 'function'].includes(typeof value)) return 0;
 
-    const existingId = objectIds.get(value);
-
-    if (existingId) return existingId;
-
-    nextObjectId += 1;
-    // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap identity indexing is an internal cache boundary.
-    objectIds.set(value, nextObjectId);
-
-    return nextObjectId;
+    return getStoredObjectId(value);
 };
 
 const getParserOptionsKey = ({ context = {} } = {}) => {
@@ -68,22 +61,9 @@ const hasFileStateChanged = ({ mtimeMs: leftMtimeMs = 0, size: leftSize = 0 } = 
     size: rightSize = 0
 } = {}) => leftMtimeMs !== rightMtimeMs || leftSize !== rightSize;
 
-const setProgramCacheEntry = ({ cacheKey = '', entry = {} } = {}) => {
-    // eslint-disable-next-line resilient/prefer-safe-transformations -- The bounded cache owns this delete before replacement.
-    programCache.delete(cacheKey);
-
-    // eslint-disable-next-line resilient/prefer-safe-transformations -- The bounded cache owns this insertion and does not mutate parsed programs.
-    programCache.set(cacheKey, entry);
-
-    if (programCache.size <= PROGRAM_CACHE_LIMIT) return;
-
-    const oldestKey = programCache.keys().next().value || '';
-
-    if (!oldestKey) return;
-
-    // eslint-disable-next-line resilient/prefer-safe-transformations -- The bounded cache evicts its oldest entry by identity.
-    programCache.delete(oldestKey);
-};
+const setProgramCacheEntry = ({ cacheKey = '', entry = {} } = {}) => putSingleEvictionCacheEntry({
+    map: programCache, key: cacheKey, entry, limit: PROGRAM_CACHE_LIMIT
+});
 
 const loadAndCache = ({ cacheKey = '', fileState = {}, load = () => ({}) } = {}) => {
     const program = load();

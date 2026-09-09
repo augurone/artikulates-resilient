@@ -4,7 +4,7 @@ Disallows zero/non-zero presence comparisons for `.length`. Use the length
 value directly for truthiness. This rule does not police other comparison
 operators or exact cardinality checks.
 
-## Smell
+## What this finding means
 
 Comparing a collection's length to zero or greater-than-zero treats a presence
 decision as a numeric special case and splits the project's emptiness
@@ -25,3 +25,12 @@ The rule targets `length === 0`, `0 === length`, `length !== 0`, `0 !== length`,
 `length > 0`, and `0 < length`. It provides suggestions for the canonical
 `!length` and `length` forms. Exact cardinality checks such as
 `items.length === 1` and `items.length > 1` remain valid.
+
+## Boundaries and non-goals
+
+Only presence checks change; exact cardinality remains a numeric contract.
+
+## Repair recipes
+
+Use `!items.length` for empty and `items.length` for non-empty, or accept the
+provided suggestion when it preserves the source expression.

@@ -8,32 +8,122 @@ import {
     createContractGraph
 } from 'eslint-plugin-resilient/contracts';
 
-const getProgram = async (code, fileName = 'evidence.js') => {
-    let program = {};
-    const capture = {
-        rules: {
-            program: {
-                create: () => ({
-                    Program: (node) => {
-                        program = node;
-                    }
-                })
-            }
-        }
-    };
-    const eslint = new ESLint({
-        overrideConfigFile: true,
-        overrideConfig: [{
-            plugins: { capture },
-            rules: { 'capture/program': 'error' }
-        }]
+import { getLocalAnalysisSession } from '../rules/contracts/analysis-session.js';
+import { createEvidenceRegistry } from '../rules/contracts/evidence.js';
+import { getFlowContext } from '../rules/contracts/flow.js';
+import { inferExpression, walk } from '../rules/contracts/infer.js';
+import {
+    getCallableEvidence,
+    getPredicateEvidence
+} from '../rules/contracts/member-evidence.js';
+import { captureProgram } from '../rules/support/eslint-program.js';
+
+// Distinct admitted AST units may share a parser range; range lookup retains both facts.
+const sameRangeLiteral = Object.freeze({ type: 'Literal', value: 'x', range: [1, 2] });
+const sameRangeArray = Object.freeze({ type: 'ArrayExpression', elements: [], range: [1, 2] });
+const collisionRegistry = createEvidenceRegistry({
+    fileName: 'collision.js', expressions: [sameRangeLiteral, sameRangeArray]
+});
+const collisionIds = collisionRegistry.getEvidence().map(({ id = '' } = {}) => id);
+assert.equal(collisionIds.length, 2);
+assert.deepEqual(collisionRegistry.getEvidenceIdsForNode(sameRangeLiteral), collisionIds);
+assert.deepEqual(collisionRegistry.getEvidenceIdsForNode(sameRangeArray), collisionIds);
+assert.deepEqual(collisionRegistry.getEvidenceIdsForNode({ range: [1, 3] }), []);
+assert.deepEqual(collisionRegistry.getEvidenceIdsForNode({}), []);
+assert.notEqual(collisionRegistry.getEvidenceIdsForNode(sameRangeLiteral), collisionRegistry.getEvidenceIdsForNode(sameRangeLiteral));
+
+const getProgram = async (code, fileName = 'evidence.js') => captureProgram(code, { fileName });
+const getCallQuery = async ({ code = '', match = () => false } = {}) => {
+    const sourceProgram = await getProgram(code, 'callable-evidence.js');
+    const session = getLocalAnalysisSession(sourceProgram);
+    const flows = session.getFlows();
+    let call = {};
+
+    walk(sourceProgram, (node = {}) => {
+        const { type: callType = '' } = call;
+        const { type = '' } = node;
+
+        if (!callType && type === 'CallExpression' && match(node)) call = node;
     });
 
-    await eslint.lintText(code, { filePath: fileName });
+    const { definitions = {} } = session;
+    const context = getFlowContext({ node: call, definitions, flows });
+    const { callee = {} } = call;
+    const { object = {} } = callee;
+    const receiver = inferExpression(object, context);
 
-    return program;
+    return {
+        callable: getCallableEvidence({ callee, receiver, context }),
+        context,
+        node: call
+    };
 };
 
+const authoredCallable = await getCallQuery({
+    code: 'const api = { map: () => "ok" }; api.map();',
+    match: ({ callee = {} } = {}) => {
+        const { property = {} } = callee;
+        const { name = '' } = property;
+
+        return name === 'map';
+    }
+});
+const { callable: authoredEvidence = {} } = authoredCallable;
+assert.equal(authoredEvidence.status, 'known-authored');
+
+const nativeCallable = await getCallQuery({
+    code: 'const NativeObject = Object; NativeObject.entries({});',
+    match: ({ callee = {} } = {}) => {
+        const { property = {} } = callee;
+        const { name = '' } = property;
+
+        return name === 'entries';
+    }
+});
+assert.deepEqual(nativeCallable.callable, {
+    status: 'justified-native',
+    nativeIdentity: 'Object',
+    method: 'entries'
+});
+
+const unknownCallable = await getCallQuery({
+    code: 'const inspect = api => api.map(Boolean);',
+    match: ({ callee = {} } = {}) => {
+        const { property = {} } = callee;
+        const { name = '' } = property;
+
+        return name === 'map';
+    }
+});
+assert.deepEqual(unknownCallable.callable, { status: 'unknown' });
+
+const falsePredicate = await getCallQuery({
+    code: 'const isFunction = value => !!value; const inspect = value => isFunction(value);',
+    match: ({ callee = {} } = {}) => {
+        const { name = '' } = callee;
+
+        return name === 'isFunction';
+    }
+});
+const { node: falsePredicateNode = {}, context: falsePredicateContext = {} } = falsePredicate;
+assert.deepEqual(getPredicateEvidence({ node: falsePredicateNode, context: falsePredicateContext }), {
+    status: 'known-authored',
+    predicateKind: ''
+});
+
+const resolvedPredicate = await getCallQuery({
+    code: 'const isFunction = value => typeof value === "function"; const inspect = value => isFunction(value);',
+    match: ({ callee = {} } = {}) => {
+        const { name = '' } = callee;
+
+        return name === 'isFunction';
+    }
+});
+const { node: resolvedPredicateNode = {}, context: resolvedPredicateContext = {} } = resolvedPredicate;
+assert.deepEqual(getPredicateEvidence({ node: resolvedPredicateNode, context: resolvedPredicateContext }), {
+    status: 'known-authored',
+    predicateKind: 'function'
+});
 const reaches = ({ records = [], from = '', target = '', visited = new Set() } = {}) => {
     if (!from || visited.has(from)) return false;
 
@@ -172,6 +262,63 @@ const { messages: standaloneDefaultMessages = [] } = standaloneDefaultResult;
 const [standaloneDefaultMessage = {}] = standaloneDefaultMessages;
 
 assert.match(standaloneDefaultMessage.message || '', /static evidence: default at line 1/);
+
+const completionEslint = new ESLint({
+    overrideConfigFile: true,
+    overrideConfig: [{
+        plugins: { resilient },
+        languageOptions: { ecmaVersion: 'latest', sourceType: 'module' },
+        settings: { resilient: { evidenceMessages: false } },
+        rules: {
+            'resilient/signature-contract-operation': 'error',
+            'resilient/signature-contract-return-consistency': 'error'
+        }
+    }]
+});
+const completionSources = [
+    'const run = () => { try { return []; } finally { return "ok"; } }; run().trim();',
+    'const run = () => { try { return []; } finally { const done = true; } }; run().map(Boolean);',
+    'const run = () => { let value = "ok"; try { value = []; throw Error("stop"); } catch (error) { return value.map(Boolean); } };',
+    'const run = () => { try { throw Error("stop"); } finally {} return []; }; run().trim();',
+    'const run = () => { outer: for (;;) { break outer; } return "ok"; }; run().trim();',
+    'const run = () => { while (true) { return []; } return "unreachable"; }; run().map(Boolean);'
+];
+const completionResults = await Promise.all(completionSources.map((source, index) => completionEslint.lintText(
+    source,
+    { filePath: `completion-${index}.js` }
+)));
+const completionMessages = completionResults.flatMap(([result = {}] = []) => {
+    const { messages = [] } = result;
+
+    return messages;
+});
+assert.deepEqual(completionMessages, []);
+
+const [conservativeCatchResult = {}] = await completionEslint.lintText(
+    'const run = flag => { let value = "ok"; try { if (flag) maybe(); value = []; maybe(); } catch (error) { return value.map(Boolean); } };',
+    { filePath: 'completion-conservative-catch.js' }
+);
+assert.deepEqual(conservativeCatchResult.messages, []);
+const conservativeCatchProgram = await getProgram(
+    'const run = flag => { let value = "ok"; try { if (flag) maybe(); value = []; maybe(); } catch (error) { return value.map(Boolean); } };',
+    'completion-conservative-catch.js'
+);
+const conservativeCatchSession = getLocalAnalysisSession(conservativeCatchProgram);
+const conservativeCatchFlows = conservativeCatchSession.getFlows();
+let conservativeReceiver = {};
+walk(conservativeCatchProgram, ({ type = '', object = {}, property = {} } = {}) => {
+    const { name = '' } = property;
+
+    if (type === 'MemberExpression' && name === 'map') conservativeReceiver = object;
+});
+const conservativeContext = getFlowContext({
+    node: conservativeReceiver,
+    definitions: conservativeCatchSession.definitions,
+    flows: conservativeCatchFlows
+});
+const conservativeContract = inferExpression({ ...conservativeReceiver }, conservativeContext);
+const { kind: conservativeKind = '' } = conservativeContract;
+assert.equal(conservativeKind, 'unknown');
 
 const optOutEslint = new ESLint({
     overrideConfigFile: true,

@@ -13,6 +13,7 @@ import {
     getProjectGraphCacheStats,
     loadPrograms
 } from '../rules/contracts/eslint-graph.js';
+import { captureProgram } from '../rules/support/eslint-program.js';
 
 const directory = await mkdtemp(path.join(process.cwd(), '.resilient-resolver-'));
 const providerFile = path.join(directory, 'provider.js');
@@ -21,35 +22,10 @@ const frameworkFile = path.join(directory, 'layout.js');
 let resolverCalls = 0;
 
 const getProgram = async (code = '', fileName = '') => {
-    let program = {};
-    const capture = {
-        rules: {
-            program: {
-                create: () => ({
-                    Program: (node) => {
-                        program = node;
-                    }
-                })
-            }
-        }
-    };
     clearProjectGraphCache();
-    const eslint = new ESLint({
-        overrideConfigFile: true,
-        overrideConfig: [{
-            languageOptions: {
-                ecmaVersion: 'latest',
-                sourceType: 'module'
-            },
-            plugins: { capture },
-            rules: { 'capture/program': 'error' }
-        }]
-    });
-    await eslint.lintText(code, { filePath: fileName });
 
-    return program;
+    return captureProgram(code, { fileName, languageOptions: { ecmaVersion: 'latest', sourceType: 'module' } });
 };
-
 try {
     await writeFile(
         providerFile,
@@ -80,7 +56,7 @@ try {
         program: consumerProgram,
         fileName: consumerFile
     });
-    assert.deepEqual(Object.keys(programs).sort(), [consumerFile, frameworkFile, providerFile].sort());
+    assert.deepEqual(Object.keys(programs).toSorted(), [consumerFile, frameworkFile, providerFile].toSorted());
     const graph = createContractGraph({
         programs,
         resolve: ({ source = '' } = {}) => source === '@artikulates/page'

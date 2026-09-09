@@ -5,7 +5,11 @@ import {
     narrowContext
 } from './flow.js';
 import {
+    copyDefinitionMetadata,
+    getChildren,
     getDefinitions,
+    getDefinitionForReference,
+    getDefinitionMetadata,
     getFunctionCallContext,
     getOperationExpectation,
     getPropertyName,
@@ -15,6 +19,7 @@ import {
     isFunction,
     walk
 } from './infer.js';
+import { getCallableEvidence } from './member-evidence.js';
 import {
     contract,
     describe,
@@ -24,12 +29,46 @@ import {
     isKnown,
     unknown
 } from './model.js';
+import { hasAnalysisAccessors } from './reference-variants.js';
 import { getObject, hasObjectValue } from '../support/object.js';
 
 const getMethodName = ({ property = {}, computed = false } = {}) => {
     const { type = '', name = '' } = getObject(property);
 
     return !computed && type === 'Identifier' ? name : '';
+};
+
+const getNamespaceImportNames = (program = {}, visit = walk) => {
+    let names = [];
+
+    visit(program, ({ type = '', specifiers = [] } = {}) => {
+        if (type !== 'ImportDeclaration') return;
+
+        const namespaceNames = specifiers.flatMap(({ type: specifierType = '', local = {} } = {}) => {
+            const { name = '' } = getObject(local);
+
+            return specifierType === 'ImportNamespaceSpecifier' && name ? [name] : [];
+        });
+
+        names = [...names, ...namespaceNames];
+    });
+
+    return new Set(names);
+};
+
+const isNamespaceReceiver = ({ node = {}, namespaceNames = new Set(), bindingIndex = {} } = {}) => {
+    const { type = '', name = '' } = getObject(node);
+
+    if (type !== 'Identifier') return false;
+
+    const { getBinding = false } = getObject(bindingIndex);
+    const binding = typeof getBinding === 'function'
+        ? getBinding(node)
+        : {};
+
+    const { kind = '' } = getObject(binding);
+
+    return hasObjectValue(binding) ? kind === 'import-namespace' : namespaceNames.has(name);
 };
 
 const getNodeType = (node = {}) => {
@@ -284,6 +323,78 @@ const getMissingDestructuredProperties = ({ pattern = {}, actual = unknown(), pa
     });
 };
 
+// A native signature can keep observable length while handling shorter calls
+// explicitly. Only a first, side-effect-free arguments.length dispatch can
+// establish that the particular supplied count has its own normal exit.
+const handlesArgumentCount = ({ definition = {}, count = 0 } = {}) => {
+    const { node = {} } = getObject(definition);
+    const { type: functionType = '', id: functionName = {}, params = [], body = {} } = getObject(node);
+    const { type: bodyType = '', body: statements = [] } = getObject(body);
+
+    if (!['FunctionDeclaration', 'FunctionExpression'].includes(functionType) ||
+        bodyType !== 'BlockStatement' || !Array.isArray(params) || !Array.isArray(statements)) return false;
+
+    const names = params.map(({ type = '', name = '' } = {}) => type === 'Identifier' ? name : '');
+
+    if (getObject(functionName).name === 'arguments' ||
+        names.some(name => !name || name === 'arguments') || new Set(names).size !== names.length) return false;
+
+    let shadowsArguments = false;
+    walk(body, ({ type = '', id = {} } = {}) => {
+        if (!['VariableDeclarator', 'FunctionDeclaration', 'ClassDeclaration'].includes(type)) return;
+
+        walk(id, ({ type: bindingType = '', name = '' } = {}) => {
+            if (bindingType === 'Identifier' && name === 'arguments') shadowsArguments = true;
+        });
+    }, { skipFunctions: true });
+
+    if (shadowsArguments) return false;
+
+    const [dispatch = {}] = statements.filter(({ directive = '' } = {}) => !directive);
+    const { type = '', discriminant = {}, cases = [] } = getObject(dispatch);
+    const { type: selectorType = '', object = {}, property = {}, computed = false } = getObject(discriminant);
+    const { type: objectType = '', name: objectName = '' } = getObject(object);
+    const { type: propertyType = '', name: propertyName = '' } = getObject(property);
+
+    if (type !== 'SwitchStatement' || selectorType !== 'MemberExpression' || computed ||
+        objectType !== 'Identifier' || objectName !== 'arguments' ||
+        propertyType !== 'Identifier' || propertyName !== 'length' || !Array.isArray(cases)) return false;
+
+    const explicitCases = cases.filter(({ test = null } = {}) => Boolean(test));
+    const hasOnlyNumericCases = explicitCases.every(({ test = {} } = {}) => {
+        const { type: testType = '', value = -1 } = getObject(test);
+
+        return testType === 'Literal' && Number.isSafeInteger(value) && value >= 0;
+    });
+
+    if (!hasOnlyNumericCases) return false;
+
+    const matching = explicitCases.filter(({ test = {} } = {}) => getObject(test).value === count);
+
+    if (matching.length !== 1) return false;
+
+    const [matchedCase = {}] = matching;
+    const { consequent = [] } = getObject(matchedCase);
+    const [exit = {}] = consequent;
+
+    if (!Array.isArray(consequent) || consequent.length !== 1 || getObject(exit).type !== 'ReturnStatement') return false;
+
+    const absentNames = new Set(names.slice(count));
+    const readsMissingInput = (value = {}, ownsArguments = true) => {
+        const { type: nodeType = '', name = '', callee = {} } = getObject(value);
+
+        if (nodeType === 'Identifier' && (absentNames.has(name) || ownsArguments && name === 'arguments')) return true;
+
+        if (nodeType === 'CallExpression' && getObject(callee).name === 'eval') return true;
+
+        const nestedOwnsArguments = ownsArguments && !['FunctionDeclaration', 'FunctionExpression'].includes(nodeType);
+
+        return getChildren(value).some(child => readsMissingInput(child, nestedOwnsArguments));
+    };
+
+    return !readsMissingInput(exit);
+};
+
 const getArityDiagnostics = ({ node = {}, definition = {} } = {}) => {
     const { signature = {} } = getObject(definition);
     const { parameters: sourceParameters = [], restIndex = -1 } = getObject(signature);
@@ -305,7 +416,7 @@ const getArityDiagnostics = ({ node = {}, definition = {} } = {}) => {
     const functionLabel = calleeLabel || 'This function';
     const signatureLabel = calleeLabel ? `the ${calleeLabel} signature` : 'its signature';
 
-    if (args.length < requiredCount) return [{
+    if (args.length < requiredCount && !handlesArgumentCount({ definition, count: args.length })) return [{
         kind: 'arity',
         node,
         message: parameterName
@@ -363,9 +474,17 @@ const getSignatureParameters = ({
     return parameters.length ? parameters : [contract];
 };
 
-const getDefinitionsForProgram = ({ program = {}, definitions = {} } = {}) => (
-    Object.keys(definitions).length ? definitions : getDefinitions(program)
-);
+const getDefinitionsForProgram = ({ program = {}, definitions = {} } = {}) => {
+    if (Object.keys(definitions).length) return definitions;
+
+    const metadata = getDefinitionMetadata(definitions);
+
+    const { bindingIndex = {} } = metadata;
+
+    return Object.hasOwn(metadata, 'bindingIndex') && bindingIndex === false
+        ? getDefinitions(program, {}, { bindingIndex: false })
+        : getDefinitions(program);
+};
 
 const getFunctionDefinition = ({ value = {} } = {}) => {
     const {
@@ -414,9 +533,9 @@ const getMemberFunctionDefinition = ({
         : getFunctionDefinition({ value: residualMethod });
 };
 
-const getTopLevelFunctionAliases = ({ program = {}, definitions = {} } = {}) => {
-    let aliases = { ...definitions };
-    walk(program, ({ type = '', id = {}, init = {} } = {}) => {
+const getTopLevelFunctionAliases = ({ program = {}, definitions = {}, visit = walk } = {}) => {
+    let aliases = copyDefinitionMetadata({ source: definitions, target: { ...definitions } });
+    visit(program, ({ type = '', id = {}, init = {} } = {}) => {
         const safeId = getObject(id);
         const safeInit = getObject(init);
         const { type: idType = '', name = '' } = safeId;
@@ -428,7 +547,10 @@ const getTopLevelFunctionAliases = ({ program = {}, definitions = {} } = {}) => 
         const { signature = {} } = getObject(functionDefinition);
 
         if (initType === 'Identifier' && hasObjectValue(signature)) {
-            aliases = { ...aliases, [name]: functionDefinition };
+            aliases = copyDefinitionMetadata({
+                source: aliases,
+                target: { ...aliases, [name]: functionDefinition }
+            });
         }
     }, { skipFunctions: true });
 
@@ -456,25 +578,25 @@ const getCallbackCalls = ({ node = {}, callbackNames = [] } = {}) => {
 
 const getArrayCallbackDefinition = ({ callback = {}, context = {} } = {}) => {
     // eslint-disable-next-line resilient/signature-contract-call-site -- callback is an AST node at this analysis boundary.
-    if (isFunction(callback)) return { node: callback, signature: getSignature(callback) };
+    if (isFunction(callback)) return { node: callback, signature: getSignature(callback, context) };
 
-    const { type = '', name = '' } = getObject(callback);
+    const { type = '' } = getObject(callback);
 
     if (type !== 'Identifier') return {};
 
     const { functions = {} } = getObject(context);
-    const { [name]: definition = {} } = getObject(functions);
 
-    return definition;
+    return getDefinitionForReference({ definitions: functions, node: callback, context });
 };
 
 const getArrayCallbackOperationContexts = ({
     program = {},
     definitions = {},
-    flows = new Map()
+    flows = new Map(),
+    visit = walk
 } = {}) => {
     const contexts = new Map();
-    walk(program, (node = {}) => {
+    visit(program, (node = {}) => {
         const { type = '', callee = {}, arguments: sourceArguments = [] } = getObject(node);
         const args = Array.isArray(sourceArguments) ? sourceArguments : [];
         const { type: calleeType = '', object = {}, property = {}, computed = false } = getObject(callee);
@@ -497,7 +619,7 @@ const getArrayCallbackOperationContexts = ({
         const { element: receiverElement = unknown() } = getObject(receiver);
         const [, reduceInitial = {}] = args;
 
-        if (getKind(receiver) !== 'array') return;
+        if (getKind(getObject(receiver)) !== 'array') return;
 
         const [callback = {}] = args;
         const definition = getArrayCallbackDefinition({ callback, context: callContext });
@@ -568,7 +690,7 @@ const getArrayCallbackDiagnostics = ({ node = {}, context = {} } = {}) => {
     const receiver = inferExpression(object, context);
     const { element: receiverElement = unknown() } = getObject(receiver);
 
-    if (getKind(receiver) !== 'array') return [];
+    if (getKind(getObject(receiver)) !== 'array') return [];
 
     const [callback = {}] = args;
     const definition = getArrayCallbackDefinition({ callback, context });
@@ -757,16 +879,48 @@ const getExpressionContracts = ({ node = {}, context = {} } = {}) => {
     return [inferExpression(source, context)];
 };
 
-const getCallSiteDiagnostics = ({ program = {}, definitions = {}, flows = new Map() } = {}) => {
+// One diagnostic query owns aliases and fallback flows. Direct document queries
+// remain live over public definitions; the ESLint index owns its completed snapshot.
+const createDiagnosticAnalysis = ({ program = {}, definitions = {}, flows = new Map(), visit = walk, completeDefinitions = false } = {}) => {
     const sourceDefinitions = getTopLevelFunctionAliases({
         program,
-        definitions: getDefinitionsForProgram({ program, definitions })
+        definitions: completeDefinitions ? definitions : getDefinitionsForProgram({ program, definitions }),
+        visit
     });
+    const { bindingIndex = {} } = getDefinitionMetadata(sourceDefinitions);
+    let completedFlows;
+    let namespaceNames;
+    const getFlows = () => {
+        if (completedFlows) return completedFlows;
+
+        const { size = 0 } = flows;
+        const result = size ? flows : createFunctionFlows({ program, definitions: sourceDefinitions });
+        completedFlows = result;
+
+        return result;
+    };
+    const getNamespaceNames = () => {
+        if (namespaceNames) return namespaceNames;
+
+        const result = getNamespaceImportNames(program, visit);
+        namespaceNames = result;
+
+        return result;
+    };
+
+    return { bindingIndex, definitions: sourceDefinitions, getFlows, getNamespaceNames };
+};
+
+const getCallSiteDiagnostics = ({
+    program = {}, definitions = {}, flows = new Map(), visit = walk,
+    analysis = createDiagnosticAnalysis({ program, definitions, flows, visit })
+} = {}) => {
+    const { definitions: sourceDefinitions = {} } = analysis;
     let diagnostics = [];
-    walk(program, (node = {}) => {
+    visit(program, (node = {}) => {
         const { type = '', callee = {}, arguments: sourceArguments = [] } = getObject(node);
         const args = Array.isArray(sourceArguments) ? sourceArguments : [];
-        const { type: calleeType = '', name: calleeName = '' } = getObject(callee);
+        const { type: calleeType = '' } = getObject(callee);
 
         if (type !== 'CallExpression') return;
 
@@ -780,13 +934,17 @@ const getCallSiteDiagnostics = ({ program = {}, definitions = {}, flows = new Ma
         const callableDefinitions = hasObjectValue(contextFunctions)
             ? contextFunctions
             : sourceDefinitions;
-        const { [calleeName]: callableDefinition = {} } = getObject(callableDefinitions);
+        const callableDefinition = getDefinitionForReference({
+            definitions: callableDefinitions,
+            node: callee,
+            context
+        });
         let definition = getMemberFunctionDefinition({ callee, context });
 
         if (calleeType === 'Identifier') {
             definition = hasObjectValue(callableDefinition)
                 ? callableDefinition
-                : getFunctionDefinition({ value: inferExpression(callee, context) });
+                : getFunctionDefinition({ value: getObject(inferExpression(callee, context)) });
         }
 
         const { signature = {} } = getObject(definition);
@@ -878,17 +1036,20 @@ const OBJECT_PROPERTIES = new Set([
     'valueOf'
 ]);
 
-const getPropertyDiagnostics = ({ program = {}, definitions = {}, flows = new Map() } = {}) => {
-    const sourceDefinitions = getTopLevelFunctionAliases({
-        program,
-        definitions: getDefinitionsForProgram({ program, definitions })
-    });
-    const { size: flowSize = 0 } = flows;
-    const sourceFlows = flowSize
-        ? flows
-        : createFunctionFlows({ program, definitions: sourceDefinitions });
+const getPropertyDiagnostics = ({
+    program = {}, definitions = {}, flows = new Map(), visit = walk,
+    analysis = createDiagnosticAnalysis({ program, definitions, flows, visit })
+} = {}) => {
+    const {
+        bindingIndex = {},
+        definitions: sourceDefinitions = {},
+        getFlows = undefined,
+        getNamespaceNames = undefined
+    } = analysis;
+    const sourceFlows = getFlows();
+    const namespaceNames = getNamespaceNames();
     let diagnostics = [];
-    walk(program, (node = {}) => {
+    visit(program, (node = {}) => {
         const {
             type = '',
             computed = false,
@@ -904,20 +1065,23 @@ const getPropertyDiagnostics = ({ program = {}, definitions = {}, flows = new Ma
 
         if (OBJECT_PROPERTIES.has(propertyName)) return;
 
+        if (isNamespaceReceiver({ node: sourceObject, namespaceNames, bindingIndex })) return;
+
         const context = getFlowContext({ node, definitions: sourceDefinitions, flows: sourceFlows });
         const receiver = inferExpression(sourceObject, context);
-        const { kind: receiverKind = '' } = receiver;
+        const safeReceiver = getObject(receiver);
+        const { kind: receiverKind = '' } = safeReceiver;
 
-        if (receiverKind !== 'object' || hasOpenResidual(receiver)) return;
+        if (receiverKind !== 'object' || hasOpenResidual(safeReceiver)) return;
 
         const expectedKind = getOperationExpectation({
             kind: receiverKind,
             method: propertyName
         });
 
-        if (expectedKind && expectedKind !== getKind(receiver)) return;
+        if (expectedKind && expectedKind !== receiverKind) return;
 
-        if (hasProperty({ value: receiver, name: propertyName })) return;
+        if (hasProperty({ value: safeReceiver, name: propertyName })) return;
 
         diagnostics = [...diagnostics, {
             ruleId: 'signature-contract-property',
@@ -930,23 +1094,27 @@ const getPropertyDiagnostics = ({ program = {}, definitions = {}, flows = new Ma
 
     return diagnostics;
 };
-const getOperationDiagnostics = ({ program = {}, definitions = {}, flows = new Map() } = {}) => {
-    const sourceDefinitions = getTopLevelFunctionAliases({
-        program,
-        definitions: getDefinitionsForProgram({ program, definitions })
-    });
-    const { size: flowSize = 0 } = flows;
-    const sourceFlows = flowSize
-        ? flows
-        : createFunctionFlows({ program, definitions: sourceDefinitions });
+const getOperationDiagnostics = ({
+    program = {}, definitions = {}, flows = new Map(), visit = walk,
+    analysis = createDiagnosticAnalysis({ program, definitions, flows, visit })
+} = {}) => {
+    const {
+        bindingIndex = {},
+        definitions: sourceDefinitions = {},
+        getFlows = undefined,
+        getNamespaceNames = undefined
+    } = analysis;
+    const sourceFlows = getFlows();
     const callbackContexts = getArrayCallbackOperationContexts({
         program,
         definitions: sourceDefinitions,
-        flows: sourceFlows
+        flows: sourceFlows,
+        visit
     });
+    const namespaceNames = getNamespaceNames();
     let diagnostics = [];
 
-    walk(program, (node = {}) => {
+    visit(program, (node = {}) => {
         const { type = '' } = node;
 
         if (type !== 'MemberExpression') return;
@@ -955,6 +1123,8 @@ const getOperationDiagnostics = ({ program = {}, definitions = {}, flows = new M
         const method = getMethodName(node);
 
         if (!method) return;
+
+        if (isNamespaceReceiver({ node: object, namespaceNames, bindingIndex })) return;
 
         const contexts = callbackContexts.get(node) || [];
         const analysisContexts = contexts.length
@@ -965,12 +1135,13 @@ const getOperationDiagnostics = ({ program = {}, definitions = {}, flows = new M
             .flatMap(getContractVariants)
             .filter(isKnown)
             .forEach((receiver = {}) => {
-                const expected = getOperationExpectation({
-                    kind: getKind(receiver),
-                    method
-                });
+                const {
+                    status = 'unknown',
+                    expectedKind: expected = '',
+                    receiverKind = ''
+                } = getCallableEvidence({ callee: node, receiver, context });
 
-                if (!expected || expected === getKind(receiver)) return;
+                if (status !== 'justified-native' || !expected || expected === receiverKind) return;
 
                 diagnostics = [...diagnostics, {
                     ruleId: 'signature-contract-operation',
@@ -990,21 +1161,26 @@ const getOperationDiagnostics = ({ program = {}, definitions = {}, flows = new M
     return diagnostics;
 };
 
-const getDestructuringDiagnostics = ({ program = {}, definitions = {}, flows = new Map() } = {}) => {
-    const sourceDefinitions = getTopLevelFunctionAliases({
-        program,
-        definitions: getDefinitionsForProgram({ program, definitions })
-    });
-    const { size: flowSize = 0 } = flows;
-    const sourceFlows = flowSize
-        ? flows
-        : createFunctionFlows({ program, definitions: sourceDefinitions });
+const getDestructuringDiagnostics = ({
+    program = {}, definitions = {}, flows = new Map(), visit = walk,
+    analysis = createDiagnosticAnalysis({ program, definitions, flows, visit })
+} = {}) => {
+    const {
+        bindingIndex = {},
+        definitions: sourceDefinitions = {},
+        getFlows = undefined,
+        getNamespaceNames = undefined
+    } = analysis;
+    const sourceFlows = getFlows();
+    const namespaceNames = getNamespaceNames();
     let diagnostics = [];
 
-    walk(program, (node = {}) => {
+    visit(program, (node = {}) => {
         const { type = '', id = {}, init = {} } = getObject(node);
 
         if (type !== 'VariableDeclarator') return;
+
+        if (isNamespaceReceiver({ node: init, namespaceNames, bindingIndex })) return;
 
         const expected = inferPattern(id);
         const { kind: expectedKind = 'unknown' } = getObject(expected);
@@ -1015,10 +1191,11 @@ const getDestructuringDiagnostics = ({ program = {}, definitions = {}, flows = n
 
         const context = getFlowContext({ node: init, definitions: sourceDefinitions, flows: sourceFlows });
         const actual = inferExpression(init, context);
+        const safeActual = getObject(actual);
 
-        if (!isKnown(actual)) return;
+        if (!isKnown(safeActual)) return;
 
-        getMismatches({ expected, actual, node: init }).forEach(({
+        getMismatches({ expected, actual: safeActual, node: init }).forEach(({
             expected: expectedContract = unknown(),
             actual: actualContract = unknown(),
             node: reportNode = init
@@ -1051,12 +1228,127 @@ const getDestructuringDiagnostics = ({ program = {}, definitions = {}, flows = n
     return diagnostics;
 };
 
-const getContractDiagnostics = ({ program = {}, definitions = {}, flows = new Map() } = {}) => [
-    ...getCallSiteDiagnostics({ program, definitions, flows }),
-    ...getOperationDiagnostics({ program, definitions, flows }),
-    ...getDestructuringDiagnostics({ program, definitions, flows }),
-    ...getPropertyDiagnostics({ program, definitions, flows })
-];
+const getComparableReturnContract = ({ functionNode = {}, contract: returnContract = {} } = {}) => {
+    const { async = false } = functionNode;
+
+    if (!async) return returnContract;
+
+    const { kind = '', element = {} } = getObject(returnContract);
+
+    return kind === 'promise' ? element : returnContract;
+};
+
+const getInconsistentReturnBranches = ({ functionNode = {}, flows = new Map() } = {}) => {
+    const flow = getObject(flows.get(functionNode));
+    const { completions = [] } = flow;
+    const { body = {} } = getObject(functionNode);
+    const branches = completions.flatMap((completion = {}) => {
+        const {
+            kind = '', argument = {}, value = unknown(argument),
+            node: returnNode = {}, resultBranches = []
+        } = getObject(completion);
+        const { type: argumentType = '' } = getObject(argument);
+
+        if (kind !== 'return' && kind !== 'normal') return [];
+
+        let captured = resultBranches.length
+            ? resultBranches
+            : [{ node: argumentType ? argument : returnNode, contract: value }];
+
+        if (kind === 'normal') {
+            captured = [{ node: body, contract: contract({ kind: 'undefined', sourceNode: body }) }];
+        }
+
+        return captured.flatMap(({ node = {}, contract: branchContract = unknown(node) } = {}) => (
+            getContractVariants(getComparableReturnContract({ functionNode, contract: branchContract }))
+                .map(variant => ({ node, contract: variant }))));
+    }).filter(({ contract: branchContract = {} } = {}) => isKnown(branchContract))
+        .toSorted((left = {}, right = {}) => {
+            const { node: leftNode = {} } = getObject(left);
+            const { node: rightNode = {} } = getObject(right);
+            const { range: leftRange = [] } = getObject(leftNode);
+            const { range: rightRange = [] } = getObject(rightNode);
+            const { 0: leftStart = Infinity } = leftRange;
+            const { 0: rightStart = Infinity } = rightRange;
+
+            return (leftNode === body ? Infinity : leftStart) - (rightNode === body ? Infinity : rightStart);
+        });
+    const kinds = [...new Set(branches.map(({ contract: branchContract = {} } = {}) => getKind(branchContract)))];
+
+    if (kinds.length < 2) return [];
+
+    const uniqueBranches = branches.reduce((unique = [], branch = {}) => {
+        const { node = {} } = getObject(branch);
+
+        return unique.some(({ node: existingNode = {} } = {}) => existingNode === node)
+            ? unique
+            : [...unique, branch];
+    }, []);
+
+    return uniqueBranches.map(({ node = {}, contract: branchContract = {} } = {}) => ({
+        node,
+        actual: getKind(branchContract),
+        expected: kinds.find(kind => kind !== getKind(branchContract))
+    }));
+};
+
+const getReturnDiagnostics = ({
+    program = {}, definitions = {}, flows = new Map(), functions = [], visit = walk,
+    analysis = createDiagnosticAnalysis({ program, definitions, flows, visit })
+} = {}) => {
+    const { getFlows = undefined } = analysis;
+    const sourceFlows = getFlows();
+    let diagnostics = [];
+    const readFunction = (node = {}) => {
+        if (!isFunction(node)) return;
+
+        const inconsistent = getInconsistentReturnBranches({
+            // eslint-disable-next-line resilient/signature-contract-call-site -- node is an AST function boundary selected by isFunction.
+            functionNode: node,
+            flows: sourceFlows
+        }).map(({ node: reportNode = {}, actual = '', expected = '' } = {}) => ({
+            ruleId: 'signature-contract-return-consistency',
+            messageId: 'inconsistent',
+            message: `This function returns ${actual}, but another return path produces ${expected}.`,
+            data: { actual, expected },
+            node: reportNode
+        }));
+
+        diagnostics = [...diagnostics, ...inconsistent];
+    };
+
+    if (Array.isArray(functions) && functions.length) {
+        functions.forEach(readFunction);
+
+        return diagnostics;
+    }
+
+    visit(program, readFunction);
+
+    return diagnostics;
+};
+
+const getContractDiagnostics = ({
+    program = {}, definitions = {}, flows = new Map(), visit = walk,
+    includeReturnDiagnostics = true, reuse = false
+} = {}) => {
+    const readers = [
+        getCallSiteDiagnostics,
+        getOperationDiagnostics,
+        getDestructuringDiagnostics,
+        getPropertyDiagnostics,
+        ...(includeReturnDiagnostics ? [getReturnDiagnostics] : [])
+    ];
+    const input = { program, definitions, flows, visit };
+
+    // Standalone calls and accessor-backed environments retain each family's
+    // native read/failure phase. A completed plain session shares private setup.
+    if (!reuse || hasAnalysisAccessors(definitions)) return readers.flatMap(read => read(input));
+
+    const analysis = createDiagnosticAnalysis({ ...input, completeDefinitions: true });
+
+    return readers.flatMap(read => read({ ...input, analysis }));
+};
 
 export {
     getCallSiteDiagnostics,
@@ -1066,6 +1358,7 @@ export {
     getOperationDiagnostics,
     getMismatches,
     getPropertyDiagnostics,
+    getReturnDiagnostics,
     getShapeMismatches,
     hasComputedProperty
 };

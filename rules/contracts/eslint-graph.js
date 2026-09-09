@@ -3,6 +3,12 @@ import path from 'node:path';
 
 import { Linter } from 'eslint';
 
+import { clearLocalAnalysisSessions } from './analysis-session.js';
+import { clearBindingSources, registerBindingSource } from './binding-evidence.js';
+import { putSingleEvictionCacheEntry } from './bounded-cache.js';
+import { getDiagnosticIndex, getEvidenceIndex } from './document-index.js';
+import { getEvidenceTrail } from './evidence-trail.js';
+import { createIdentityIndex } from './identity-index.js';
 import {
     clearContractGraphCaches,
     getModuleSources,
@@ -16,44 +22,23 @@ import {
     getProgramCacheSize
 } from './program-cache.js';
 import { createProjectTree, getModuleEdges } from './project-tree.js';
+import { getFileCandidates } from '../support/file-candidates.js';
 import { getObject, hasObjectValue, isObject } from '../support/object.js';
 
-const resolverIds = new WeakMap();
-const programIds = new WeakMap();
-const evidenceIndexes = new WeakMap();
-const diagnosticIndexes = new WeakMap();
+const getStoredResolverId = createIdentityIndex();
+const getStoredProgramId = createIdentityIndex();
 let programDocuments = new WeakMap();
-let nextResolverId = 0;
-let nextProgramId = 0;
 
 const getResolverId = (resolver) => {
     if (typeof resolver !== 'function') return 0;
 
-    const existingId = resolverIds.get(resolver);
-
-    if (existingId) return existingId;
-
-    nextResolverId += 1;
-
-    // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap identity indexing is an internal resolver boundary.
-    resolverIds.set(resolver, nextResolverId);
-
-    return nextResolverId;
+    return getStoredResolverId(resolver);
 };
 
 const getProgramId = (program = {}) => {
     if (!isObject(program)) return 0;
 
-    const existingId = programIds.get(program);
-
-    if (existingId) return existingId;
-
-    nextProgramId += 1;
-
-    // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap identity indexing is an internal AST boundary.
-    programIds.set(program, nextProgramId);
-
-    return nextProgramId;
+    return getStoredProgramId(program);
 };
 
 const getExistingFile = (fileName = '') => {
@@ -68,7 +53,7 @@ const resolveLocalImport = ({ from = '', source = '' } = {}) => {
     if (!from || from.startsWith('<') || !source.startsWith('.')) return '';
 
     const base = path.resolve(path.dirname(from), source);
-    const candidates = [base, `${base}.js`, `${base}.jsx`, path.join(base, 'index.js')];
+    const candidates = getFileCandidates({ base });
 
     return candidates.map(getExistingFile).find(Boolean) || '';
 };
@@ -107,7 +92,7 @@ const getConfiguredRoots = ({ context = {}, fileName = '' } = {}) => {
     const roots = Array.isArray(resolvedRoots) ? resolvedRoots : [];
 
     return [...new Set(roots
-        .filter(root => typeof root === 'string' && root && !root.startsWith('<'))
+        .filter(root => typeof root === 'string' && Boolean(root) && !root.startsWith('<'))
         .map(root => path.resolve(root)))]
         .filter(getExistingFile);
 };
@@ -201,13 +186,14 @@ const getLanguageOptions = ({ context = {} } = {}) => {
     return options;
 };
 
-const parseProgram = ({ code = '', context = {} } = {}) => {
+const parseProgram = ({ code = '', context = {}, fileName = '' } = {}) => {
     let program = {};
     const capture = {
         rules: {
             program: {
-                create: () => ({
+                create: ({ sourceCode = {} } = {}) => ({
                     Program: (node) => {
+                        registerBindingSource(sourceCode, { sourceCode, filename: fileName });
                         program = node;
                     }
                 })
@@ -244,7 +230,7 @@ const getImportedProgram = ({ importedFile = '', context = {} } = {}) => {
             try {
                 const code = fs.readFileSync(importedFile, 'utf8');
 
-                return parseProgram({ code, context });
+                return parseProgram({ code, context, fileName: importedFile });
             } catch {
                 return {};
             }
@@ -292,7 +278,7 @@ const loadPrograms = ({
     const importResolver = getConfiguredResolver({ context, resolver });
     const configuredRoots = getConfiguredRoots({ context, fileName });
     const rootFiles = [...new Set([...additionalRoots, ...configuredRoots])]
-        .filter(root => typeof root === 'string' && root && root !== fileName)
+        .filter(root => typeof root === 'string' && Boolean(root) && root !== fileName)
         .filter(getExistingFile);
     const rootPrograms = rootFiles.flatMap((root) => {
         const rootProgram = getImportedProgram({ importedFile: root, context });
@@ -344,7 +330,7 @@ const getProgramSnapshot = ({
 } = {}) => {
     const normalizedRoot = normalizePath(fileName);
     const files = Object.fromEntries(Object.keys(programs)
-        .sort()
+        .toSorted()
         .map((currentFile = '') => [
             currentFile,
             normalizePath(currentFile) === normalizedRoot
@@ -446,39 +432,13 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
             graph = {},
             snapshot = {}
         } = {}
-    } = {}) => {
-        // eslint-disable-next-line resilient/prefer-safe-transformations -- The bounded cache owns this delete before replacement.
-        graphCache.delete(cacheKey);
+    } = {}) => putSingleEvictionCacheEntry({
+        map: graphCache, key: cacheKey, entry: { graph, snapshot }, limit: graphCacheLimit
+    });
 
-        // eslint-disable-next-line resilient/prefer-safe-transformations -- The bounded cache owns this insertion and does not mutate analysis results.
-        graphCache.set(cacheKey, { graph, snapshot });
-
-        if (graphCache.size <= graphCacheLimit) return;
-
-        const oldestKey = graphCache.keys().next().value || '';
-
-        if (!oldestKey) return;
-
-        // eslint-disable-next-line resilient/prefer-safe-transformations -- The bounded cache evicts its oldest entry by identity.
-        graphCache.delete(oldestKey);
-    };
-
-    const setPassiveGraph = ({ cacheKey = '', entry = {} } = {}) => {
-        // eslint-disable-next-line resilient/prefer-safe-transformations -- The bounded cache owns this delete before replacement.
-        passiveGraphs.delete(cacheKey);
-
-        // eslint-disable-next-line resilient/prefer-safe-transformations -- The bounded cache owns this insertion and does not mutate analysis results.
-        passiveGraphs.set(cacheKey, entry);
-
-        if (passiveGraphs.size <= PASSIVE_GRAPH_LIMIT) return;
-
-        const oldestKey = passiveGraphs.keys().next().value || '';
-
-        if (!oldestKey) return;
-
-        // eslint-disable-next-line resilient/prefer-safe-transformations -- The bounded cache evicts its oldest project index.
-        passiveGraphs.delete(oldestKey);
-    };
+    const setPassiveGraph = ({ cacheKey = '', entry = {} } = {}) => putSingleEvictionCacheEntry({
+        map: passiveGraphs, key: cacheKey, entry, limit: PASSIVE_GRAPH_LIMIT
+    });
 
     const setBoundedMapEntry = ({
         map = new Map(),
@@ -493,6 +453,7 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
         // eslint-disable-next-line resilient/prefer-safe-transformations -- The bounded cache owns this insertion and does not mutate analysis results.
         map.set(key, entry);
 
+        // eslint-disable-next-line resilient/prefer-prototype-methods -- Bounded cache eviction preserves oldest-entry identity and order.
         while (map.size > boundedLimit) {
             const oldestKey = map.keys().next().value || '';
 
@@ -524,7 +485,7 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
 
     const getDiscoveryKey = ({ fileName = '', roots = [] } = {}) => [
         normalizePath(fileName),
-        roots.map(root => normalizePath(root)).sort().join('|')
+        roots.map(root => normalizePath(root)).toSorted().join('|')
     ].join(':');
 
     const getActiveGraphKey = ({ passiveKey = '', version = 0, roots = [] } = {}) => [
@@ -609,6 +570,7 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
             return isCoveredGraph(candidateGraph) ? candidateGraph : {};
         }
 
+        // eslint-disable-next-line resilient/prefer-prototype-methods -- Active graph lookup returns the first covering graph in insertion order.
         for (const activeGraphEntry of activeGraphs.values()) {
             if (!isCoveredGraph(activeGraphEntry)) continue;
 
@@ -626,7 +588,7 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
     } = {}) => {
         const importResolver = getConfiguredResolver({ context, resolver });
         const configuredRoots = getConfiguredRoots({ context, fileName });
-        const roots = [...new Set([fileName, ...configuredRoots].map(normalizePath))].sort();
+        const roots = [...new Set([fileName, ...configuredRoots].map(normalizePath))].toSorted();
         const passiveKey = getPassiveGraphKey({ context, resolver: importResolver });
         let passive = passiveGraphs.get(passiveKey);
 
@@ -730,8 +692,8 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
                 limit: DISCOVERY_LIMIT
             });
         const discoveryChanged = !cachedDiscovery || !areSnapshotsEqual(cachedStates, states) ||
-            JSON.stringify(Object.keys(cachedPrograms).sort())
-            !== JSON.stringify(Object.keys(programs).sort());
+            JSON.stringify(Object.keys(cachedPrograms).toSorted())
+            !== JSON.stringify(Object.keys(programs).toSorted());
         const discoveredUnion = discoveryChanged
             ? [...nextDiscovery.values()].reduce((union, {
                 programs: discoveredPrograms = {},
@@ -934,6 +896,8 @@ const clearContractCaches = () => {
     clearProjectGraphCache();
     clearProgramCache();
     clearContractGraphCaches();
+    clearLocalAnalysisSessions();
+    clearBindingSources();
 };
 
 const getGraphDocument = ({
@@ -968,67 +932,17 @@ const getGraphDocument = ({
     return document;
 };
 
-const getEvidenceIndex = (document = {}) => {
-    const existing = evidenceIndexes.get(document);
+// Called only after a lexical ImportBinding has been established by the rule
+// query. The graph owns resolution, re-exports, ambiguity and invalidation.
+const getImportedRuleDefinition = ({ context = {}, name = '' } = {}) => {
+    const { sourceCode: { ast: program = {} } = {} } = context;
+    const fileName = getFileName({ context });
+    const graph = defaultProjectGraphManager.getGraph({ context, program, fileName });
+    const document = graph.getDocument(fileName);
+    const { definitions = {} } = document;
+    const { [name]: definition = {} } = definitions;
 
-    if (existing) return existing;
-
-    const { getEvidence: readEvidence = () => [] } = getObject(document);
-    const records = readEvidence();
-    const index = {
-        records,
-        byId: new Map(records.map((record = {}) => {
-            const { id = '' } = record;
-
-            return [id, record];
-        }))
-    };
-
-    // eslint-disable-next-line resilient/prefer-safe-transformations -- This WeakMap caches immutable document evidence for repeated diagnostics.
-    evidenceIndexes.set(document, index);
-
-    return index;
-};
-
-const getDiagnosticIndex = (document = {}) => {
-    const existing = diagnosticIndexes.get(document);
-
-    if (existing) return existing;
-
-    const { getDiagnostics: readDiagnostics = () => [] } = getObject(document);
-    const diagnostics = readDiagnostics();
-    const byRule = diagnostics.reduce((index = {}, diagnostic = {}) => {
-        const { ruleId = '' } = diagnostic;
-        const { [ruleId]: current = [] } = index;
-
-        return {
-            ...index,
-            [ruleId]: [...current, diagnostic]
-        };
-    }, {});
-    const index = { diagnostics, byRule };
-
-    // eslint-disable-next-line resilient/prefer-safe-transformations -- This WeakMap caches immutable diagnostics by document.
-    diagnosticIndexes.set(document, index);
-
-    return index;
-};
-
-const getEvidenceTrail = ({ id = '', recordsById = new Map(), visited = new Set() } = {}) => {
-    if (!id || visited.has(id)) return [];
-
-    const nextVisited = new Set([...visited, id]);
-    const record = recordsById.get(id);
-    const { derivesFrom = [] } = getObject(record);
-
-    return [
-        ...(record ? [record] : []),
-        ...derivesFrom.flatMap(parent => getEvidenceTrail({
-            id: parent,
-            recordsById,
-            visited: nextVisited
-        }))
-    ];
+    return definition;
 };
 
 const getEvidenceHint = ({ diagnostic = {}, document = {} } = {}) => {
@@ -1116,5 +1030,6 @@ export {
     getProjectGraphCacheStats,
     createProjectGraphManager,
     getEslintContractDiagnostics,
+    getImportedRuleDefinition,
     loadPrograms
 };

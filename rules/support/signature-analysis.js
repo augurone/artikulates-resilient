@@ -1,4 +1,7 @@
+import { getTraversalEntries } from './ast-traversal.js';
 import { getObject, isObject } from './object.js';
+import { getBinding } from '../contracts/binding-evidence.js';
+import { getEnclosingFunction, isFunction } from '../contracts/infer.js';
 
 const getParamName = ({
     type = '',
@@ -17,10 +20,6 @@ const getParamName = ({
     return leftName;
 };
 
-const getSimpleParamNames = ({ params = [] } = {}) => params
-    .map(getParamName)
-    .filter(Boolean);
-
 const getSimpleParams = ({ params = [] } = {}) => params
     .map((node = {}) => ({
         name: getParamName(node),
@@ -35,18 +34,6 @@ const getSourceText = ({ sourceCode = {}, node = {} } = {}) => {
 
     return getText.call(sourceCode, node);
 };
-
-const isDestructuringFromParam = ({
-    id: { type: idType = '' } = {},
-    init: {
-        type: initType = '',
-        name: initName = ''
-    } = {}
-} = {}, paramNames = []) => (
-    idType === 'ObjectPattern' &&
-    initType === 'Identifier' &&
-    paramNames.includes(initName)
-);
 
 const isNonReferenceIdentifier = ({ node = {} } = {}) => {
     const { parent = {} } = getObject(node);
@@ -122,7 +109,8 @@ const getStaticMemberName = ({ node = {} } = {}) => {
 const getStaticMemberProperties = ({
     node = {},
     name = '',
-    excludedNodes = []
+    excludedNodes = [],
+    references = undefined
 } = {}) => {
     const properties = new Set();
     const memberNodes = [];
@@ -176,20 +164,26 @@ const getStaticMemberProperties = ({
             return;
         }
 
-        Object.entries(currentNode)
-            .filter(([key = '']) => !['parent', 'loc', 'range', 'tokens', 'comments'].includes(key))
-            .forEach(([, value = {}]) => {
-                if (Array.isArray(value)) {
-                    value.forEach((child = {}) => visit(child));
+        getTraversalEntries(currentNode).forEach(([, value = {}]) => {
+            if (Array.isArray(value)) {
+                value.forEach((child = {}) => visit(child));
 
-                    return;
-                }
+                return;
+            }
 
-                visit(value);
-            });
+            visit(value);
+        });
     };
 
-    visit(node);
+    if (Array.isArray(references)) references.forEach((reference) => {
+        if (excludedNodes.includes(reference)) return;
+
+        const { parent = {} } = reference;
+
+        visit(isDirectMemberRead({ node: parent, name }) ? parent : reference);
+    });
+
+    if (!Array.isArray(references)) visit(node);
 
     return {
         properties: [...properties],
@@ -200,58 +194,22 @@ const getStaticMemberProperties = ({
 };
 
 const hasWholeObjectReference = ({
-    node = {},
-    name = '',
-    excludedNodes = [],
-    afterNode: { range: [, afterEnd = 0] = [] } = {}
+    wholeObjectNodes = [],
+    afterNode = {}
 } = {}) => {
-    const { wholeObjectNodes = [] } = getStaticMemberProperties({
-        node,
-        name,
-        excludedNodes
-    });
+    const { range: [, afterEnd = 0] = [] } = afterNode;
+    const owner = getEnclosingFunction(afterNode);
 
     return wholeObjectNodes.some((referenceNode = {}) => {
-        const {
-            parent = {},
-            type = '',
-            computed = false,
-            range: [rangeStart = 0] = []
-        } = getObject(referenceNode);
+        const { parent = {}, type = '', computed = false, range: [rangeStart = 0] = [] } = getObject(referenceNode);
         const { type: parentType = '', init = {}, id = {} } = getObject(parent);
         const { type: idType = '' } = getObject(id);
-        const isDestructuringInitializer = (
-            parentType === 'VariableDeclarator' &&
-            init === referenceNode &&
-            idType === 'ObjectPattern'
-        );
-        const isDynamicMemberReference = type === 'MemberExpression' && computed;
+        const referenceOwner = getEnclosingFunction(referenceNode);
+        const deferred = isFunction(owner) && isFunction(referenceOwner) && referenceOwner !== owner;
+        const isDestructuringInitializer = parentType === 'VariableDeclarator' && init === referenceNode && idType === 'ObjectPattern';
 
-        return !isDestructuringInitializer && (
-            isDynamicMemberReference || rangeStart > afterEnd
-        );
+        return deferred || (!isDestructuringInitializer && ((type === 'MemberExpression' && computed) || rangeStart > afterEnd));
     });
-};
-
-const containsIdentifier = ({ node = {}, name = '' } = {}) => {
-    if (!isObject(node)) return false;
-
-    const source = getObject(node);
-    const { type = '', parent = {}, name: nodeName = '' } = source;
-
-    if (type !== 'Identifier') return Object.entries(source)
-        .filter(([key = '']) => !['parent', 'loc', 'range', 'tokens', 'comments'].includes(key))
-        .some(([, value = {}]) => (
-            Array.isArray(value)
-                ? value.some((child = {}) => containsIdentifier({ node: child, name }))
-                : containsIdentifier({ node: value, name })
-        ));
-
-    const { type: parentType = '', object = {} } = getObject(parent);
-
-    if (parentType === 'MemberExpression' && object === node) return false;
-
-    return nodeName === name;
 };
 
 const getSourceStart = ({
@@ -261,23 +219,25 @@ const getSourceStart = ({
     start ?? (line * 100000 + column)
 );
 
-const getSourceEnd = ({
-    range: [, end = undefined] = [],
-    loc: { end: { line = 0, column = 0 } = {} } = {}
-} = {}) => (
-    end ?? (line * 100000 + column)
-);
+const getParameterUsage = ({ functionNode = {}, paramNode = {}, init = {}, name = '' } = {}) => {
+    const { type = '', left = {} } = paramNode;
+    const binding = getBinding(type === 'AssignmentPattern' ? left : paramNode);
+    const { references = [] } = getObject(binding);
+
+    return getStaticMemberProperties({
+        node: functionNode, name, excludedNodes: [paramNode, init, left],
+        references: references.map(({ identifier = {} } = {}) => identifier)
+            .toSorted((left = {}, right = {}) => getSourceStart(left) - getSourceStart(right))
+    });
+};
 
 export {
-    containsIdentifier,
     getParamName,
-    getSimpleParamNames,
+    getParameterUsage,
     getSimpleParams,
-    getSourceEnd,
     getSourceStart,
     getSourceText,
     getStaticMemberName,
     getStaticMemberProperties,
-    hasWholeObjectReference,
-    isDestructuringFromParam
+    hasWholeObjectReference
 };

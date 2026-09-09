@@ -1,3 +1,5 @@
+import { getChainMethods } from './support/member-chain.js';
+
 const isThenMember = ({
     type = '',
     computed = false,
@@ -11,31 +13,6 @@ const isThenMember = ({
     propertyType === 'Identifier' &&
     name === 'then'
 );
-
-const getStaticPropertyName = ({
-    type = '',
-    computed = false,
-    property: {
-        type: propertyType = '',
-        name = ''
-    } = {}
-} = {}) => {
-    if (type !== 'MemberExpression' || computed || propertyType !== 'Identifier') return '';
-
-    return name;
-};
-
-const getChainMethods = ({ type = '', callee = {} } = {}) => {
-    if (type !== 'CallExpression') return [];
-
-    const method = getStaticPropertyName(callee);
-    const { object = {} } = callee;
-
-    return [
-        ...(method ? [method] : []),
-        ...getChainMethods(object)
-    ];
-};
 
 const getOuterChain = (node = {}) => {
     const { parent = {} } = node;
@@ -64,15 +41,6 @@ const isUnhandledExpression = ({ node = {} } = {}) => {
     );
 };
 
-const hasAllowComment = ({ sourceCode = {}, node = {} } = {}) => {
-    const { getCommentsBefore = false } = sourceCode;
-
-    if (typeof getCommentsBefore !== 'function') return false;
-
-    return getCommentsBefore.call(sourceCode, node)
-        .some(({ value = '' } = {}) => /^\s*resilient-allow-promise-chain\s*:\s*\S/.test(value));
-};
-
 export default {
     meta: {
         type: 'suggestion',
@@ -85,10 +53,10 @@ export default {
             asyncAwait: 'Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.'
         }
     },
-    create({ report = () => {}, sourceCode = {} } = {}) {
+    create({ report = () => {} } = {}) {
         return {
             MemberExpression(node = {}) {
-                if (!isThenMember(node) || hasAllowComment({ sourceCode, node })) return;
+                if (!isThenMember(node)) return;
 
                 const {
                     parent: parentNode = {}

@@ -1,14 +1,12 @@
+import { createAnalysisSession } from './analysis-session.js';
 import { getContractDiagnostics } from './diagnostics.js';
 import { createEvidenceRegistry } from './evidence.js';
+import { getFlowContext } from './flow.js';
 import {
-    createFunctionFlows,
-    getFlowContext
-} from './flow.js';
-import {
-    getDefinitions,
     getEnclosingFunction,
-    getFunctionName,
-    getFunctionNodes,
+    getDefinitionForNode,
+    getDefinitionNameForNode,
+    getDefinitionMetadata,
     inferExpression,
     isFunction,
     walk
@@ -71,9 +69,9 @@ const isCallCalleeIdentifier = ({ node = {} } = {}) => {
     return type === 'CallExpression' && callee === node;
 };
 
-const getExpressionNodes = (program = {}) => {
-    let nodes = [];
-    walk(program, (node = {}) => {
+const getExpressionNodes = (program = {}, visit = walk) => {
+    const nodes = [];
+    visit(program, (node = {}) => {
         const { type = '' } = node;
 
         if (!EXPRESSION_TYPES.includes(type)) return;
@@ -83,7 +81,8 @@ const getExpressionNodes = (program = {}) => {
             (isPropertyIdentifier({ node }) || isCallCalleeIdentifier({ node }))
         ) return;
 
-        nodes = [...nodes, node];
+        // eslint-disable-next-line resilient/prefer-safe-transformations -- Call-local ordered buffer; no AST mutation or prefix copy.
+        nodes.push(node);
     });
 
     return nodes;
@@ -91,7 +90,7 @@ const getExpressionNodes = (program = {}) => {
 
 const getContainingNodes = ({ nodes = [], offset = -1 } = {}) => nodes
     .filter(node => containsOffset({ node, offset }))
-    .sort((left = {}, right = {}) => {
+    .toSorted((left = {}, right = {}) => {
         const [leftStart = 0, leftEnd = 0] = getRange(left);
         const [rightStart = 0, rightEnd = 0] = getRange(right);
 
@@ -108,13 +107,8 @@ const getFrameLocation = (node = {}) => {
 };
 
 const createFunctionFrame = ({ node = {}, definitions = {} } = {}) => {
-    const name = getFunctionName(node);
-    const {
-        [name]: {
-            signature = {},
-            returnContract = {}
-        } = {}
-    } = definitions;
+    const name = getDefinitionNameForNode({ definitions, node });
+    const { signature = {}, returnContract = {} } = getDefinitionForNode({ definitions, node });
 
     return {
         kind: 'function',
@@ -125,25 +119,37 @@ const createFunctionFrame = ({ node = {}, definitions = {} } = {}) => {
     };
 };
 
+const getFunctionOwner = ({ node = {}, definitions = {} } = {}) => {
+    const { bindingIndex = {} } = getDefinitionMetadata(definitions);
+    const { getScope = false } = getObject(bindingIndex);
+
+    if (typeof getScope !== 'function') return getEnclosingFunction(node);
+
+    const find = ({ type = '', node: scopeNode = {}, parent = {} } = {}) => {
+        if (!type) return {};
+
+        return type === 'function' ? scopeNode : find(parent);
+    };
+
+    return find(getScope(node));
+};
+
 const createContractDocument = (program = {}, {
     fileName = '',
     externalDefinitions = {}
 } = {}) => {
-    const localDefinitions = getDefinitions(program, externalDefinitions);
-    const definitions = {
-        ...localDefinitions,
-        ...externalDefinitions
-    };
-    const functions = getFunctionNodes(program);
-    const flows = createFunctionFlows({ program, definitions });
-    const expressions = getExpressionNodes(program);
+    const { canReuseCensus = false, definitions = {}, getFunctions = undefined, getFlows = undefined, visit = undefined } = createAnalysisSession(program, { externalDefinitions });
+    const functions = getFunctions();
+    const flows = getFlows();
+    const expressions = getExpressionNodes(program, visit);
     const evidence = createEvidenceRegistry({
         fileName,
         program,
         expressions,
         functions,
         definitions,
-        flows
+        flows,
+        visit
     });
     const {
         getEvidence: readEvidence = () => [],
@@ -172,7 +178,7 @@ const createContractDocument = (program = {}, {
                 contract: inferExpression(node, getFlowContext({ node, definitions, flows })),
                 node
             }),
-            functionNode: getEnclosingFunction(node),
+            functionNode: getFunctionOwner({ node, definitions }),
             node
         };
     };
@@ -183,14 +189,10 @@ const createContractDocument = (program = {}, {
         if (!isFunction(node)) return {};
 
         // eslint-disable-next-line resilient/signature-contract-call-site -- node is an AST function boundary.
-        const name = getFunctionName(node);
-        const {
-            [name]: {
-                signature = {},
-                returnContract = {}
-            } = {}
-        } = definitions;
-        const { range: signatureRange = [] } = getObject(node);
+        const name = getDefinitionNameForNode({ definitions, node });
+        const sourceNode = getObject(node);
+        const { signature = {}, returnContract = {} } = getDefinitionForNode({ definitions, node: sourceNode });
+        const { range: signatureRange = [] } = sourceNode;
 
         return {
             name,
@@ -203,7 +205,7 @@ const createContractDocument = (program = {}, {
 
     const getStackAtOffset = (offset = -1) => {
         const contractResult = getContractAtOffset(offset);
-        const containingFunctions = getContainingNodes({ nodes: functions, offset }).reverse();
+        const containingFunctions = getContainingNodes({ nodes: functions, offset }).toReversed();
         const { node: contractNode = {}, contract = unknown() } = getObject(contractResult);
         const { type: contractNodeType = '' } = getObject(contractNode);
         const expressionFrame = contractNodeType
@@ -231,16 +233,27 @@ const createContractDocument = (program = {}, {
         };
     };
 
-    const getDiagnostics = () => getContractDiagnostics({
+    const getDiagnosticRecords = ({ includeReturnDiagnostics = true } = {}) => getContractDiagnostics({
         program,
         definitions,
-        flows
+        flows,
+        includeReturnDiagnostics,
+        visit,
+        reuse: canReuseCensus
     }).map(({ node = {}, ...diagnostic } = {}) => ({
         ...diagnostic,
         node,
-        ...getFrameLocation(node),
         evidenceIds: readEvidenceAtOffset(getRange(node)[0])
-            .map(({ id = '' } = {}) => id),
+            .map(({ id = '' } = {}) => id)
+    }));
+    // The four graph-backed rule consumers retain their bounded shared index.
+    // Return consistency uses its portable reader directly so large suppressed
+    // result sets are not retained by every cached project document.
+    const getDiagnosticsForIndex = () => getDiagnosticRecords({ includeReturnDiagnostics: false });
+    const getDiagnostics = () => getDiagnosticRecords().map(({ node = {}, ...diagnostic } = {}) => ({
+        ...diagnostic,
+        node,
+        ...getFrameLocation(node),
         stack: getStackAtOffset(getRange(node)[0])
     }));
 
@@ -254,6 +267,7 @@ const createContractDocument = (program = {}, {
         getEvidenceForContract: readEvidenceForContract,
         getContractAtOffset,
         getDiagnostics,
+        getDiagnosticsForIndex,
         getDiagnosticsAtOffset,
         getSignatureAtOffset,
         getStackAtOffset,

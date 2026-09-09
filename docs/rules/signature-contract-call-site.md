@@ -3,7 +3,7 @@
 Reports known call-site values that contradict a function's destructured
 signature contract.
 
-## Smell
+## What this finding means
 
 A call site that supplies a known incompatible value breaks the boundary
 contract before the function can do useful work. Reporting the contradiction
@@ -80,6 +80,15 @@ contents cannot be inferred statically. It also checks known local function
 arity: calls with too few non-defaulted parameters or too many parameters
 without a rest parameter are reported. Spread arguments remain unknown.
 
+A function may retain its native parameter list while explicitly handling a
+shorter call through a first `switch (arguments.length)`. A numeric case with
+its own return establishes that exact argument count when the case tests are
+side-effect-free and the return does not read an omitted parameter or the
+current call's `arguments` object. Other
+counts, pre-dispatch work, arrow functions with inherited `arguments`, a
+shadowed `arguments` binding, and uncertain case expressions retain the
+ordinary arity check. This applies to local and imported functions alike.
+
 Direct object literals are checked for excess properties when the expected
 object contract is closed. An object rest element is an explicit passthrough
 boundary: `{ title = '', ...rest }` leaves the residual object open, so extra
@@ -88,3 +97,13 @@ Missing properties are not treated as errors here: Resilient defaults are the
 normal absence contract, and intentionally absent function-valued fields may
 use `undefined` to mean “not provided.” Variables and object spreads remain
 open because their complete runtime shape is not established by this rule.
+
+## Boundaries and non-goals
+
+Only known local evidence is checked. Unknown values, spreads, and unresolved
+boundaries remain unknown rather than becoming guessed errors.
+
+## Repair recipes
+
+Correct the supplied value, add the required default at the provider boundary,
+or inspect evidence with the [diagnostic guide](../guide/diagnostic-explanations.md).

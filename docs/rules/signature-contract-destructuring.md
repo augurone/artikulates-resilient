@@ -3,7 +3,7 @@
 Reports known value shapes that contradict an object or array destructuring
 pattern, including a missing property on a known closed object.
 
-## Smell
+## What this finding means
 
 Destructuring with the wrong object-or-array shape assumes a runtime contract
 that the available evidence has already disproved. The rule catches that
@@ -47,3 +47,13 @@ const getValue = (items = []) => {
 ```
 
 The rule is enabled by `resilient.configs.contracts`.
+
+## Boundaries and non-goals
+
+Unknown values and open residual objects are not errors. Defaults deliberately
+own absence, and computed keys remain data-driven boundaries.
+
+## Repair recipes
+
+Correct the known producer shape or the destructuring pattern, then follow the
+evidence path described in the [diagnostic guide](../guide/diagnostic-explanations.md).

@@ -114,7 +114,7 @@ const getContractShape = function getContractShape(source = {}) {
     const safeConflicts = Array.isArray(conflicts) ? conflicts : [];
     const getPropertyShapes = (sourceProperties = {}) => Object.fromEntries(
         Object.entries(getObject(sourceProperties))
-            .sort(([left = ''], [right = '']) => left.localeCompare(right))
+            .toSorted(([left = ''], [right = '']) => left.localeCompare(right))
             .map(([name = '', property = {}] = []) => [
                 name,
                 getContractShape(getObject(property))
@@ -162,7 +162,7 @@ const getContractShape = function getContractShape(source = {}) {
             kind: residualKind,
             state: residualState,
             open: open === true,
-            excluded: [...new Set(safeExcluded)].sort(),
+            excluded: [...new Set(safeExcluded)].toSorted(),
             properties: getPropertyShapes(residualProperties)
         };
     };

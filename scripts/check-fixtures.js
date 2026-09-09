@@ -4,8 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { ESLint } from 'eslint';
 
-// eslint-disable-next-line import/no-useless-path-segments -- The fixture checker intentionally imports the repository entry point.
-import resilient from '../index.js';
+import resilient from 'eslint-plugin-resilient';
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifestPath = path.join(rootDirectory, 'tests', 'fixtures', 'manifest.json');
@@ -80,7 +79,7 @@ const getRuleRegions = ({ manifest = {}, badFixture = '' } = {}) => {
                 offset: sectionOffset || offset
             };
         })
-        .sort(({ offset: left = 0 } = {}, { offset: right = 0 } = {}) => left - right)
+        .toSorted(({ offset: left = 0 } = {}, { offset: right = 0 } = {}) => left - right)
         .map((region = {}) => {
             const { offset: regionOffset = 0 } = region;
             const nextSection = sections

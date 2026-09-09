@@ -29,9 +29,59 @@ ruleTester.run('signature-contract-call-site', rule, {
         { code: 'const api = { collect: (title = "", ...rest) => title }; api.collect("A", 1, 2);' },
         { code: 'const requestGraphQL = ({ variables: { ...variables } = {} } = {}) => variables; requestGraphQL({ variables: { slugs: [], locale: "en-US" } });' },
         { code: 'const toEntry = ({ context: { projectId = "", dataset = "", ...context } = {} } = {}) => context; toEntry({ context: { resolveLinks: false } });' },
-        { code: 'const run = callback => callback("ready", true); run((value, ...rest) => value);' }
+        { code: 'const run = callback => callback("ready", true); run((value, ...rest) => value);' },
+        { code: 'function choose(a, b) { switch (arguments.length) { case 1: return a; case 2: return b(a); default: throw Error("count"); } } choose(1);' },
+        { code: 'function choose(a, b, c) { switch (arguments.length) { case 1: return a; case 2: return b(a); case 3: return c(b(a)); } } choose(1, fn);' },
+        { code: 'function choose(a, b, c) { switch (arguments.length) { case 1: return a; case 2: return function () { return b(arguments[0]); }; case 3: return c(b(a)); } } choose(1, fn);' }
     ],
     invalid: [
+        {
+            code: 'function choose(a, b) { switch (arguments.length) { case 1: return b; case 2: return b(a); } } choose(1);',
+            errors: [{ messageId: 'arity' }]
+        },
+        {
+            code: 'function choose(a, b) { b; switch (arguments.length) { case 1: return a; case 2: return b(a); } } choose(1);',
+            errors: [{ messageId: 'arity' }]
+        },
+        {
+            code: 'function choose(a, b) { switch (arguments.length) { case b: return a; case 1: return a; } } choose(1);',
+            errors: [{ messageId: 'arity' }]
+        },
+        {
+            code: 'function choose(a, b) { switch (arguments.length) { case 1: return eval("b"); case 2: return b(a); } } choose(1);',
+            errors: [{ messageId: 'arity' }]
+        },
+        {
+            code: 'function choose(a, b) { switch (arguments.length) { case 2: return b(a); } } choose(1);',
+            errors: [{ messageId: 'arity' }]
+        },
+        {
+            code: 'function choose(a, b) { switch (arguments.length) { case 1: return arguments[1].value; case 2: return b(a); } } choose(1);',
+            errors: [{ messageId: 'arity' }]
+        },
+        {
+            code: 'function choose(a, b) { switch (arguments.length) { case 1: return () => arguments[1].value; case 2: return b(a); } } choose(1);',
+            errors: [{ messageId: 'arity' }]
+        },
+        {
+            code: 'const choose = (a, b) => { switch (arguments.length) { case 1: return a; case 2: return b(a); } }; choose(1);',
+            errors: [{ messageId: 'arity' }]
+        },
+        {
+            code: 'function choose(a, b) { switch (arguments.length) { case 1: return a; case 2: return b(a); } var arguments = { length: 2 }; } choose(1);',
+            languageOptions: { ecmaVersion: 'latest', sourceType: 'script' },
+            errors: [{ messageId: 'arity' }]
+        },
+        {
+            code: 'function choose(a, b) { switch (arguments.length) { case 1: return a; case 2: return b(a); } var { arguments } = source; } choose(1);',
+            languageOptions: { ecmaVersion: 'latest', sourceType: 'script' },
+            errors: [{ messageId: 'arity' }]
+        },
+        {
+            code: 'function arguments(a, b) { switch (arguments.length) { case 1: return a; case 2: return b(a); } } arguments(1);',
+            languageOptions: { ecmaVersion: 'latest', sourceType: 'script' },
+            errors: [{ messageId: 'arity' }]
+        },
         {
             code: 'const getTitle = ({ title = "" } = {}) => title; getTitle({ title: 42 });',
             errors: [{

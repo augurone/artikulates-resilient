@@ -1,9 +1,11 @@
+import { createIdentityIndex } from './identity-index.js';
 import { walk } from './infer.js';
 import {
     createContractGraph,
     normalizePath,
     resolveModule
 } from './module-graph.js';
+import { getReverseDependents } from './reverse-dependents.js';
 import { getObject, hasObjectValue, isObject } from '../support/object.js';
 const STATIC_MODULE_TYPES = ['ImportDeclaration', 'ExportNamedDeclaration', 'ExportAllDeclaration'];
 
@@ -44,26 +46,16 @@ const getModuleEdges = ({ fileName = '', program = {} } = {}) => {
     return edges;
 };
 
-const getUniqueSorted = (values = []) => [...new Set(values)].sort((left = '', right = '') => (
+const getUniqueSorted = (values = []) => [...new Set(values)].toSorted((left = '', right = '') => (
     left.localeCompare(right)
 ));
 
-const resolverIdentities = new WeakMap();
-let nextResolverIdentity = 0;
+const getStoredResolverIdentity = createIdentityIndex();
 
 const getPublicIdentity = (value = '') => {
     if (typeof value !== 'function') return value;
 
-    const existingIdentity = resolverIdentities.get(value);
-
-    if (existingIdentity) return existingIdentity;
-
-    nextResolverIdentity += 1;
-    const identity = `function:${nextResolverIdentity}`;
-    // eslint-disable-next-line resilient/prefer-safe-transformations -- WeakMap identity registry preserves resolver identity across project snapshots.
-    resolverIdentities.set(value, identity);
-
-    return identity;
+    return `function:${getStoredResolverIdentity(value)}`;
 };
 
 const getResolvedTarget = ({ fileName = '', source = '', programs = {}, resolve = resolveModule } = {}) => {
@@ -134,15 +126,7 @@ const createProjectTree = ({
         }];
     }));
 
-    const reverseDependents = Object.fromEntries(fileNames.map(fileName => [
-        fileName,
-        fileNames.filter((candidate = '') => {
-            const { [candidate]: candidateEntry = {} } = indexedFiles;
-            const { edges = [] } = getObject(candidateEntry);
-
-            return edges.some(({ targetFile = '' } = {}) => targetFile === fileName);
-        })
-    ]));
+    const reverseDependents = getReverseDependents({ fileNames, indexedFiles });
 
     const getActiveTree = ({ roots = defaultRoots } = {}) => {
         const requestedRoots = getUniqueSorted(roots.map(fileName => normalizePath(fileName)));
@@ -204,7 +188,8 @@ const createProjectTree = ({
 
     const getDependents = (changedFiles = []) => {
         const changed = getUniqueSorted(changedFiles);
-        const direct = fileNames.filter(fileName => changed.includes(fileName));
+        const changedSet = new Set(changed);
+        const direct = fileNames.filter(fileName => changedSet.has(fileName));
         const expand = (current = []) => {
             const next = getUniqueSorted([
                 ...current,
@@ -234,6 +219,9 @@ const createProjectTree = ({
             !Object.is(configIdentity, nextConfigIdentity) ||
             !Object.is(resolverIdentity, nextResolverIdentity);
         const { activeFiles = [] } = getObject(activeTree);
+        const { inactiveFiles = [] } = activeTree;
+        const activeFileSet = new Set(activeFiles);
+        const inactiveFileSet = new Set(inactiveFiles);
         const candidateFiles = identityChanged
             ? activeFiles
             : getDependents(normalizedChanged);
@@ -242,16 +230,8 @@ const createProjectTree = ({
         return {
             changedFiles: normalizedChanged,
             invalidatedFiles,
-            activeInvalidatedFiles: invalidatedFiles.filter((fileName) => {
-                const { activeFiles = [] } = activeTree;
-
-                return activeFiles.includes(fileName);
-            }),
-            inactiveChangedFiles: normalizedChanged.filter((fileName) => {
-                const { inactiveFiles = [] } = activeTree;
-
-                return inactiveFiles.includes(fileName);
-            }),
+            activeInvalidatedFiles: invalidatedFiles.filter(fileName => activeFileSet.has(fileName)),
+            inactiveChangedFiles: normalizedChanged.filter(fileName => inactiveFileSet.has(fileName)),
             identityChanged
         };
     };
@@ -308,6 +288,7 @@ const createProjectTree = ({
         const { documents: previousDocuments = {} } = getObject(previousGraph);
         const { activeFiles = [] } = getObject(activeTree);
         const { identityChanged = false, activeInvalidatedFiles = [] } = getObject(invalidation);
+        const invalidatedFileSet = new Set(activeInvalidatedFiles);
 
         return activeFiles.filter((fileName) => {
             const { [fileName]: currentProgram = false } = programs;
@@ -316,7 +297,7 @@ const createProjectTree = ({
 
             return (
                 !identityChanged &&
-                !activeInvalidatedFiles.includes(fileName) &&
+                !invalidatedFileSet.has(fileName) &&
                 !!previousProgram &&
                 previousProgram === currentProgram &&
                 !!previousDocument

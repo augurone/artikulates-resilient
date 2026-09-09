@@ -46,7 +46,7 @@ try {
         rightFile
     ]);
     const result = results.flatMap(({ messages = [] } = {}) => messages);
-    const ruleIds = result.map(({ ruleId = '' } = {}) => ruleId).sort();
+    const ruleIds = result.map(({ ruleId = '' } = {}) => ruleId).toSorted();
 
     assert.deepEqual(ruleIds, [
         'import/export',

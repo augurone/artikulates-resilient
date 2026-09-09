@@ -3,7 +3,7 @@
 Reports access to a property that is absent from a known closed object
 contract.
 
-## Smell
+## What this finding means
 
 A misspelled or removed property can remain valid JavaScript while failing only
 when the code runs. When an object was constructed locally or returned by a
@@ -32,3 +32,13 @@ unknown rather than producing a guessed finding. Inherited `Object.prototype`
 members are allowed.
 
 This is an opt-in contract rule enabled by `resilient.configs.contracts`.
+
+## Boundaries and non-goals
+
+Only statically named properties of known closed objects are checked. Open,
+computed, external, and platform boundaries remain unknown.
+
+## Repair recipes
+
+Correct the property or add it at the known producer boundary. For data-driven
+keys, use computed destructuring with a default as shown above.

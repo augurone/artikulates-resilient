@@ -4,12 +4,12 @@ Prefer collection prototype methods over imperative loop syntax. Use the method
 that states the operation: `map`, `filter`, `reduce`, `some`, `find`, or
 `forEach`.
 
-## Smell
+## What this finding means
 
 An imperative loop can hide whether the operation is mapping, filtering,
 searching, reducing, or merely performing ordered effects. A prototype method
-states the collection operation directly; an exception remains appropriate
-when the loop carries meaningful sequential or control-flow semantics.
+states the collection operation directly. A retained loop needs either a
+completed analyzer-backed boundary or a narrow, reasoned ESLint exception.
 
 ```javascript
 // Incorrect
@@ -24,30 +24,29 @@ for (const item of items) {
 const enabled = items.filter(({ enabled: isEnabled = false } = {}) => isEnabled);
 ```
 
-The rule reports `for`, `for...of`, `for...in`, `while`, and `do...while` unless
-one of these exceptions applies:
+The rule reports `for`, `for...of`, `for...in`, `while`, and `do...while`.
+`await`, `break`, `continue`, `return`, and `throw` are observable constraints,
+not automatic exceptions. They may reject a prototype rewrite or support a
+completed analyzer-backed retained boundary, but they do not silence this rule.
 
-- the loop node contains `await` outside nested functions;
-- the loop contains direct `break` that exits the loop, `continue`, `return`,
-  or `throw` control flow; a bare `break` that exits only a nested `switch`
-  does not qualify;
-- a preceding comment has the form `resilient-allow-loop: reason`.
-
-An `await` loop is an accepted sequential form because its asynchronous
-ordering is explicit. Direct loop control is the other native exception: it
-makes early termination or path control part of the loop's syntax. The rule is
-intentionally syntactic; it does not determine whether a loop is semantically
-a collection transformation. An `await` confined to a nested callback does not
-exempt the surrounding loop. Other retained loops, including accumulator or
-mutation loops without these native exceptions, need an explicit file-local
-exception and reason.
-
-Use a reason when retaining a loop without the native `await` or direct
-loop-control exceptions:
+Use a concrete reason when retaining a loop without a completed analyzer-backed
+boundary:
 
 ```javascript
-// resilient-allow-loop: preserve synchronous API order for each item
+// eslint-disable-next-line resilient/prefer-prototype-methods -- Preserve synchronous API order for each item.
 for (const item of items) {
     send(item);
 }
 ```
+
+## Boundaries and non-goals
+
+The rule does not infer I/O from names, imports, or promise-like values. An
+unproven loop remains a finding. Generated exceptions are permitted only when
+the transform consumes a completed source-range analyzer agreement with one
+exact retained-boundary reason.
+
+## Repair recipes
+
+Choose `map`, `filter`, `reduce`, `some`, `find`, or `forEach` to name the
+operation. Retain the loop only when its ordering or control flow is essential.

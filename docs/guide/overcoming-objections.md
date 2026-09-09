@@ -11,6 +11,15 @@ The signature establishes the expectation. Defaults define absence. Every
 known value, call, return path, property, callback, and operation that follows
 must agree with that expectation. Unknown values remain unknown.
 
+## From an objection to a repair
+
+This guide explains the product position; it is not the landing page for an
+ESLint finding. Start from the rule documentation link exposed by the editor or
+integration, use the rule page's representation and repair recipe, then use the [diagnostic guide](diagnostic-explanations.md)
+for contract evidence. The [migration playbook](migration-playbook.md) turns
+the same principles into staged repository work, while the
+[contract model](../reference/contracts.md) defines the analyzer's evidence.
+
 ## “This is only inference.”
 
 Inference is only one part of the model. A signature establishes the boundary
@@ -231,6 +240,9 @@ boundaries without requiring a second description of the code.
 The signature establishes the expectation. The implementation supplies the
 evidence. The analyzer carries that evidence. Policies protect execution and
 ownership. Unknowns remain visible.
+
+For a concrete finding, return to its rule page rather than applying this
+conceptual guide as a generic rewrite recipe.
 
 See the [contract model](../reference/contracts.md), [dialect semantics](../reference/semantics.md),
 [migration playbook](migration-playbook.md), [GitHub repository](https://github.com/augurone/artikulates-resilient),

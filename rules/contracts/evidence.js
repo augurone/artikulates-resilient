@@ -233,9 +233,9 @@ const getFunctionReturnDependencyKeys = ({
     .map(({ key = '' } = {}) => key)
     .filter(Boolean);
 
-const getBindingDependencies = ({ fileName = '', program = {} } = {}) => {
+const getBindingDependencies = ({ fileName = '', program = {}, visit = walk } = {}) => {
     let dependencies = {};
-    walk(program, (node = {}) => {
+    visit(program, (node = {}) => {
         const { type = '', left = {} } = getObject(node);
         const { type: leftType = '', name = '' } = getObject(left);
 
@@ -295,7 +295,8 @@ const createEvidenceRegistry = ({
     expressions = [],
     functions = [],
     definitions = {},
-    flows = new Map()
+    flows = new Map(),
+    visit = walk
 } = {}) => {
     const expressionEntries = expressions.map((node = {}) => {
         const context = getFlowContext({ node, definitions, flows });
@@ -315,8 +316,8 @@ const createEvidenceRegistry = ({
     const functionKeys = Object.fromEntries(functions
         .map(node => [getFunctionName(node), getSourceKey({ fileName, node })])
         .filter(([name = ''] = []) => Boolean(name)));
-    const bindingDependencies = getBindingDependencies({ fileName, program });
-    let candidates = [];
+    const bindingDependencies = getBindingDependencies({ fileName, program, visit });
+    const candidates = new Map();
     const addCandidate = ({
         kind = '',
         origin = '',
@@ -345,18 +346,21 @@ const createEvidenceRegistry = ({
         };
         const key = getRecordKey(candidate);
 
-        if (!candidates.some(({ key: currentKey = '' } = {}) => currentKey === key)) {
-            candidates = [...candidates, {
+        if (!candidates.has(key)) {
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- Private index retains the first candidate per semantic key in insertion order; public records remain copies.
+            candidates.set(key, {
                 ...candidate,
                 key,
                 anchorKey: getSourceKey({ fileName, node })
-            }];
+            });
         }
 
         return key;
     };
 
-    expressionEntries.forEach(({ node = {}, value = unknown(), key = '' } = {}) => {
+    expressionEntries.forEach((entry = {}) => {
+        const { node = {}, value = unknown(), key = '' } = getObject(entry);
+
         if (isContractEvidence(value)) addCandidate({
             kind: getEvidenceKind(node),
             subject: getSubject({ fileName, node }),
@@ -407,7 +411,7 @@ const createEvidenceRegistry = ({
         });
     });
 
-    walk(program, (node = {}) => {
+    visit(program, (node = {}) => {
         const { type = '', id = {}, init = {} } = getObject(node);
 
         if (type !== 'VariableDeclarator') return;
@@ -451,15 +455,14 @@ const createEvidenceRegistry = ({
         });
     });
 
-    const candidateKeys = (dependencies = []) => dependencies.map((dependency) => {
-        const candidate = candidates.find(({ anchorKey = '', kind = '' } = {}) => (
-            anchorKey === dependency && kind !== 'boundary'
-        ));
-        const { key = '' } = getObject(candidate);
-
-        return key;
-    }).filter(Boolean);
-    const sorted = [...candidates].sort(({ key: left = '' } = {}, { key: right = '' } = {}) => (
+    // Map construction keeps the last duplicate, so reverse insertion order to
+    // retain the prior first non-boundary candidate at each dependency anchor.
+    const anchors = new Map([...candidates.values()].toReversed()
+        .filter(({ kind = '' } = {}) => kind !== 'boundary')
+        .map(({ anchorKey = '', key = '' } = {}) => [anchorKey, key]));
+    const candidateKeys = (dependencies = []) => dependencies
+        .map(dependency => anchors.get(dependency) || '').filter(Boolean);
+    const sorted = [...candidates.values()].toSorted(({ key: left = '' } = {}, { key: right = '' } = {}) => (
         left.localeCompare(right)
     ));
     const ids = new Map(sorted.map(({ key = '' } = {}, index = 0) => [key, `evidence-${index + 1}`]));

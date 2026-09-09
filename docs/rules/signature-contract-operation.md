@@ -2,7 +2,7 @@
 
 Reports known native operations that contradict an inferred value contract.
 
-## Smell
+## What this finding means
 
 Calling a string operation on a collection, or a collection operation on a
 string, is a contract contradiction hidden behind otherwise valid JavaScript
@@ -21,3 +21,13 @@ Known string operations include `trim`, `toLowerCase`, `toUpperCase`, and
 
 Unknown values and methods outside the known operation table are left alone.
 This rule detects contradictions; it does not validate data at runtime.
+
+## Boundaries and non-goals
+
+Only operations with known receiver evidence and known native requirements are
+reported. Unknown and external values remain runtime-boundary concerns.
+
+## Repair recipes
+
+Use an operation that agrees with the known receiver family, or repair the
+producer. Inspect the source chain via the [diagnostic guide](../guide/diagnostic-explanations.md).

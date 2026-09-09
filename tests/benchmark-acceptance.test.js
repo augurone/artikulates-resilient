@@ -1,42 +1,14 @@
 import assert from 'node:assert/strict';
 
-import { ESLint } from 'eslint';
-
 import {
     createContractDocument,
     createProjectTree,
     isKnown
 } from 'eslint-plugin-resilient/contracts';
 
-const getProgram = async (code = '', fileName = 'fixture.js') => {
-    let program = {};
-    const capture = {
-        rules: {
-            program: {
-                create: () => ({
-                    Program: (node) => {
-                        program = node;
-                    }
-                })
-            }
-        }
-    };
-    const eslint = new ESLint({
-        overrideConfigFile: true,
-        overrideConfig: [{
-            languageOptions: {
-                ecmaVersion: 'latest',
-                sourceType: 'module'
-            },
-            plugins: { capture },
-            rules: { 'capture/program': 'error' }
-        }]
-    });
-    await eslint.lintText(code, { filePath: fileName });
+import { captureProgram } from '../rules/support/eslint-program.js';
 
-    return program;
-};
-
+const getProgram = async (code = '', fileName = 'fixture.js') => captureProgram(code, { fileName, languageOptions: { ecmaVersion: 'latest', sourceType: 'module' } });
 const provider = await getProgram(
     'export const getItems = ({ items = [], label = "" } = {}) => ({ items, label });',
     'providers/items.js'

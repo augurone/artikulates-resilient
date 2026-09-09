@@ -15,6 +15,7 @@ import noUndefinedAssignment from './rules/no-undefined-assignment.js';
 import noUndefinedComparison from './rules/no-undefined-comparison.js';
 import noUnguardedCallbackInvocation from './rules/no-unguarded-callback-invocation.js';
 import noUnhandledPromiseChain from './rules/no-unhandled-promise-chain.js';
+import operatorLinebreak from './rules/operator-linebreak.js';
 import preferAsyncAwait from './rules/prefer-async-await.js';
 import preferDestructuredMemberAccess from './rules/prefer-destructured-member-access.js';
 import preferFalseyReturns from './rules/prefer-falsey-returns.js';
@@ -68,11 +69,12 @@ const createImportsConfig = ({ extensions = defaultExtensions, ...projectOptions
 const plugin = {
     meta: {
         name: 'eslint-plugin-resilient',
-        version: '0.7.3',
+        version: '0.7.4',
         namespace: 'resilient'
     },
     imports: createImportsConfig,
     rules: {
+        'operator-linebreak': operatorLinebreak,
         'prefer-signature-destructuring': preferSignatureDestructuring,
         'no-destructuring-fallback': noDestructuringFallback,
         'no-else': noElse,
@@ -140,7 +142,8 @@ const recommended = {
         'semi': ['error', 'always'],
         'arrow-parens': ['error', 'as-needed', { requireForBlockBody: true }],
         'implicit-arrow-linebreak': 'error',
-        'max-len': ['error', { code: 200, tabWidth: 4 }],
+        'max-len': ['error', { code: 200, tabWidth: 4,
+            ignorePattern: '^\\s*// eslint-disable-next-line \\S+(?:, \\S+)+ -- \\S' }],
         'no-multiple-empty-lines': ['error', { max: 1, maxEOF: 0, maxBOF: 0 }],
         'no-trailing-spaces': 'error',
         'no-multi-spaces': 'error',
@@ -158,7 +161,8 @@ const recommended = {
         'no-plusplus': ['error', { allowForLoopAfterthoughts: true }],
         'object-curly-newline': ['error', { consistent: true }],
         'object-curly-spacing': ['error', 'always'],
-        'operator-linebreak': ['error', 'before', { overrides: { '&&': 'after', '||': 'after' } }],
+        'operator-linebreak': 'off',
+        'resilient/operator-linebreak': ['error', 'before', { overrides: { '&&': 'after', '||': 'after' } }],
         'no-use-before-define': ['error', { functions: true }],
         'consistent-return': 'error',
         'constructor-super': 'error',
@@ -214,6 +218,45 @@ const safety = {
     }
 };
 
+const createTypeScriptConfig = ({
+    parser = {},
+    files = ['**/*.{ts,tsx}'],
+    ignores = ['node_modules/**'],
+    parserOptions = {},
+    rules = {}
+} = {}) => {
+    const {
+        parseForESLint = false,
+        parse = false
+    } = parser;
+
+    if (typeof parseForESLint !== 'function' && typeof parse !== 'function') {
+        throw new TypeError('A TypeScript ESLint parser is required.');
+    }
+
+    return {
+        files,
+        ignores,
+        languageOptions: {
+            parser,
+            parserOptions: {
+                ecmaVersion: 'latest',
+                sourceType: 'module',
+                ...parserOptions
+            }
+        },
+        plugins: {
+            resilient: plugin
+        },
+        rules: {
+            ...recommended.rules,
+            ...contracts.rules,
+            ...safety.rules,
+            ...rules
+        }
+    };
+};
+
 const imports = {
     plugins: {
         import: importPlugin
@@ -226,9 +269,10 @@ const imports = {
     }
 };
 
-configs = { recommended, contracts, safety, imports };
+configs = { recommended, contracts, safety, imports, typescript: createTypeScriptConfig };
 
 export { createProjectAdapter };
 export { createImportsConfig };
+export { createTypeScriptConfig };
 
 export default plugin;

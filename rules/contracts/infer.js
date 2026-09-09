@@ -1,3 +1,5 @@
+import { createBindingIndex } from './binding-evidence.js';
+import { getCallableEvidence } from './member-evidence.js';
 import {
     contract,
     getKind,
@@ -6,20 +8,94 @@ import {
     unknown,
     withOptional
 } from './model.js';
+import { isFunctionType } from '../support/ast-function.js';
+import { isTraversalMetadataKey } from '../support/ast-traversal.js';
 import {
     getObject,
     hasObjectValue,
     isObject
 } from '../support/object.js';
 
-const FUNCTION_TYPES = ['ArrowFunctionExpression', 'FunctionDeclaration', 'FunctionExpression'];
-const NON_CHILD_KEYS = new Set(['parent', 'loc', 'range', 'tokens', 'comments']);
 let expressionHandlers = {};
+const definitionMetadata = new WeakMap();
+const definitionOwnerMetadata = new WeakMap();
+
+const getDefinitionMetadata = (definitions = {}) => {
+    if (!isObject(definitions)) return {};
+
+    return definitionMetadata.get(definitions) || {};
+};
+const setDefinitionMetadata = (definitions = {}, metadata = {}) => {
+    if (!isObject(definitions)) return definitions;
+
+    // eslint-disable-next-line resilient/prefer-safe-transformations -- Session-private metadata follows its definitions owner without retaining or mutating the public object.
+    definitionMetadata.set(definitions, metadata);
+
+    return definitions;
+};
+const copyDefinitionMetadata = ({ source = {}, target = {} } = {}) => {
+    const metadata = getDefinitionMetadata(source);
+
+    return hasObjectValue(metadata) ? setDefinitionMetadata(target, metadata) : target;
+};
+const getDefinitionOwnerMetadata = (definition = {}) => (
+    isObject(definition) ? definitionOwnerMetadata.get(definition) || {} : {}
+);
+const setDefinitionOwnerMetadata = (definition = {}, metadata = {}) => {
+    if (!isObject(definition)) return definition;
+
+    // eslint-disable-next-line resilient/prefer-safe-transformations -- Private owner evidence follows a published definition without exposing analyzer identity through its public shape.
+    definitionOwnerMetadata.set(definition, metadata);
+
+    return definition;
+};
+
+const getLexicalBinding = ({ node = {}, context = {} } = {}) => {
+    const { bindingIndex = {} } = getObject(context);
+    const { getBinding = false } = getObject(bindingIndex);
+
+    return typeof getBinding === 'function'
+        ? getBinding(node)
+        : {};
+};
+
+const getBoundValue = ({ node = {}, context = {} } = {}) => {
+    const { name = '' } = getObject(node);
+    const { bindings = {}, bindingValues = new Map() } = getObject(context);
+    const binding = getLexicalBinding({ node, context });
+
+    if (hasObjectValue(binding)) return bindingValues.get(binding) || false;
+
+    const { [name]: value = false } = getObject(bindings);
+
+    return value;
+};
+
+const getBoundFunction = ({ node = {}, context = {} } = {}) => {
+    const { name = '' } = getObject(node);
+    const { functions = {}, functionBindings = new Map() } = getObject(context);
+    const binding = getLexicalBinding({ node, context });
+
+    if (!hasObjectValue(binding)) {
+        const { [name]: definition = {} } = getObject(functions);
+
+        return definition;
+    }
+
+    const definition = functionBindings.get(binding);
+
+    if (definition) return definition;
+
+    const { kind = '' } = binding;
+    const { [name]: importedDefinition = {} } = getObject(functions);
+
+    return ['import', 'import-namespace'].includes(kind) ? importedDefinition : {};
+};
 
 const isFunction = (node = {}) => {
     const { type = '' } = getObject(node);
 
-    return FUNCTION_TYPES.includes(type);
+    return isFunctionType(type);
 };
 
 const isEmptyObjectExpression = (node = {}) => {
@@ -58,7 +134,7 @@ const getChildren = (node = {}) => {
         children.push(value);
     };
     Object.keys(source).forEach((key = '') => {
-        if (NON_CHILD_KEYS.has(key)) return;
+        if (isTraversalMetadataKey(key)) return;
 
         const { [key]: value = {} } = source;
 
@@ -170,13 +246,12 @@ const getCallableContract = ({ definition = {}, sourceNode = {} } = {}) => {
 const inferExpression = (node = {}, context = {}) => {
     const source = getObject(node);
     const { type = '', name = '', right = {}, ...rest } = source;
-    const { bindings = {}, functions = {} } = getObject(context);
-    const { [name]: boundValue = {} } = getObject(bindings);
+    const boundValue = getBoundValue({ node: source, context });
     const { kind: boundKind = '' } = getObject(boundValue);
     const sourceNode = { type, name, right, ...rest };
 
     if (type === 'Identifier') {
-        const { [name]: functionValue = {} } = functions;
+        const functionValue = getBoundFunction({ node: source, context });
 
         return boundKind ? boundValue : getCallableContract({
             definition: functionValue,
@@ -368,13 +443,15 @@ const mergeArgumentDefaults = ({ expected = unknown(), actual = unknown() } = {}
     });
 };
 
-const getFunctionAlias = ({ init = {}, functions = {} } = {}) => {
+const getFunctionAlias = ({ init = {}, functions = {}, context = {} } = {}) => {
     const safeInit = getObject(init);
     const { type = '', name = '' } = safeInit;
 
     if (type !== 'Identifier') return {};
 
-    const { [name]: functionDefinition = {} } = getObject(functions);
+    const functionDefinition = hasObjectValue(context)
+        ? getBoundFunction({ node: safeInit, context })
+        : getObject(functions)[name] || {};
     const { signature = {} } = getObject(functionDefinition);
 
     return hasObjectValue(signature) ? functionDefinition : {};
@@ -389,11 +466,12 @@ const getResolvedContract = (value = unknown()) => {
 const inferAwaitExpression = ({ argument = {}, ...node } = {}, context = {}) => {
     const sourceNode = { argument, ...node };
     const awaited = inferExpression(argument, context);
-    const { kind: awaitedKind = '' } = getObject(awaited);
+    const safeAwaited = getObject(awaited);
+    const { kind: awaitedKind = '' } = safeAwaited;
 
     return awaitedKind === 'promise'
-        ? { ...getResolvedContract(awaited), sourceNode }
-        : awaited;
+        ? { ...getResolvedContract(safeAwaited), sourceNode }
+        : safeAwaited;
 };
 
 const getAsyncReturnContract = ({ value = unknown(), sourceNode = {} } = {}) => contract({
@@ -413,6 +491,20 @@ const getReturnNodes = ({ body = {} } = {}) => {
     }, { skipFunctions: true });
 
     return returns;
+};
+
+const getSurvivingReturnRecords = ({ node = {}, flows = new Map() } = {}) => {
+    if (!flows.has(node)) return false;
+
+    const { returns = [] } = getObject(flows.get(node));
+    const structuralArguments = getReturnNodes(node)
+        .map(({ argument = {} } = {}) => argument);
+    const survivingArguments = returns
+        .map(({ argument = {} } = {}) => argument);
+    const unchanged = structuralArguments.length === survivingArguments.length &&
+        structuralArguments.every(argument => survivingArguments.includes(argument));
+
+    return unchanged ? false : returns;
 };
 
 const getReturnPathExpressions = (node = {}) => {
@@ -438,9 +530,10 @@ const getReturnPathExpressions = (node = {}) => {
     return [source];
 };
 
-const getInferredReturnContract = ({ node = {}, context = {} } = {}) => {
+const getInferredReturnContract = ({ node = {}, context = {}, returns = [], useReturns = false } = {}) => {
     const { async = false } = getObject(node);
-    const values = getReturnNodes(node)
+    const returnRecords = useReturns ? returns : getReturnNodes(node);
+    const values = returnRecords
         .flatMap(({ argument = {} } = {}) => async
             ? getReturnPathExpressions(argument).map(path => inferExpression(path, context))
             : [inferExpression(argument, context)]);
@@ -521,15 +614,17 @@ const inferBinaryExpression = ({ operator = '', ...node } = {}) => {
     return contract({ kind: 'number', sourceNode });
 };
 
-const inferPattern = ({
-    type = '',
-    left = {},
-    right = {},
-    argument = {},
-    properties: sourceProperties = [],
-    elements = [],
-    ...node
-} = {}, { type: defaultType = '', ...defaultNode } = {}, context = {}) => {
+const inferPattern = (pattern = {}, defaultNode = {}, context = {}) => {
+    const {
+        type = '',
+        left = {},
+        right = {},
+        argument = {},
+        properties: sourceProperties = [],
+        elements = [],
+        ...node
+    } = getObject(pattern);
+    const { type: defaultType = '', properties: defaultProperties = [] } = getObject(defaultNode);
     const sourceNode = {
         type,
         left,
@@ -577,11 +672,17 @@ const inferPattern = ({
 
     if (type === 'ArrayPattern') {
         const elementContracts = elements
-            .filter(Boolean)
+            .filter(element => !!element)
             .map(element => inferPattern(element, {}, context));
-        const elementKinds = [...new Set(elementContracts
-            .filter(({ kind = 'unknown' } = {}) => kind !== 'unknown')
-            .map(({ kind = 'unknown' } = {}) => kind))];
+        const collectKinds = ([element = {}, ...remaining] = [], kinds = []) => {
+            if (!elementContracts.length || !hasObjectValue(element)) return kinds;
+
+            const { kind = 'unknown' } = element;
+            const nextKinds = kind === 'unknown' ? kinds : [...kinds, kind];
+
+            return collectKinds(remaining, nextKinds);
+        };
+        const elementKinds = [...new Set(collectKinds(elementContracts))];
 
         return contract({
             kind: 'array',
@@ -602,8 +703,7 @@ const inferPattern = ({
 
     if (!defaultType) return unknown(sourceNode);
 
-    const defaultValue = inferExpression({ type: defaultType, ...defaultNode }, context);
-    const { properties: defaultProperties = [] } = defaultNode;
+    const defaultValue = inferExpression(defaultNode, context);
     const isEmptyObjectDefault = type === 'Identifier' &&
         defaultType === 'ObjectExpression' &&
         !defaultProperties.length;
@@ -708,6 +808,32 @@ const bindPattern = ({
         }, bindings);
 };
 
+const bindPatternIdentities = ({
+    pattern = {},
+    value = unknown(),
+    bindingIndex = {},
+    bindingValues = new Map()
+} = {}) => {
+    const { getBinding = false } = getObject(bindingIndex);
+
+    if (typeof getBinding !== 'function') return bindingValues;
+
+    const namedValues = bindPattern(pattern, value, {});
+    let next = new Map(bindingValues);
+    walk(pattern, (node = {}) => {
+        const { type = '', name = '' } = getObject(node);
+        const binding = type === 'Identifier' ? getBinding(node) : {};
+        const { declaration = {} } = getObject(binding);
+
+        if (!hasObjectValue(binding) || declaration !== node) return;
+
+        const { [name]: boundValue = unknown(node) } = namedValues;
+        next = new Map([...next, [binding, boundValue]]);
+    });
+
+    return next;
+};
+
 const getFunctionName = ({ id = {}, parent = {} } = {}) => {
     const { type = '', name = '' } = getObject(id);
 
@@ -724,35 +850,82 @@ const getFunctionName = ({ id = {}, parent = {} } = {}) => {
     return parentIdName;
 };
 
-const getEnclosingFunction = ({ parent = {} } = {}) => {
-    // eslint-disable-next-line resilient/signature-contract-return-consistency -- AST traversal uses an empty object sentinel when no function encloses the node.
+const getEnclosingFunction = (node = {}) => {
+    const { parent = {} } = getObject(node);
+
     if (!isObject(parent)) return {};
 
     const { type = '' } = parent;
 
-    // eslint-disable-next-line resilient/signature-contract-return-consistency -- AST traversal uses an empty object sentinel when no function encloses the node.
     if (!type) return {};
 
-    // eslint-disable-next-line resilient/signature-contract-return-consistency -- A function AST node is the required identity-preserving result for callers.
     if (isFunction(parent)) return parent;
 
-    // eslint-disable-next-line resilient/signature-contract-return-consistency -- Recursive AST traversal preserves the function-node or empty-sentinel contract.
     return getEnclosingFunction(parent);
 };
 
-const getSignature = ({ params = [] } = {}) => {
-    const parameters = params.map(parameter => inferPattern(parameter));
+const getParameterBindingIndex = ({ functionNode = {}, bindingIndex = {} } = {}) => {
+    const {
+        getBinding = false,
+        getScope = false,
+        getScopeBindings = false
+    } = getObject(bindingIndex);
+    const functionScope = typeof getScope === 'function' ? getScope(functionNode) : {};
+
+    if (typeof getBinding !== 'function' || typeof getScopeBindings !== 'function' ||
+        getObject(functionScope).node !== functionNode) return bindingIndex;
+
+    const resolveOuter = (scope = {}, name = '') => {
+        const { parent = {} } = getObject(scope);
+
+        if (!hasObjectValue(scope)) return {};
+
+        const match = getScopeBindings(scope).find(({ name: bindingName = '' } = {}) => bindingName === name);
+
+        return match || resolveOuter(parent, name);
+    };
+
+    return {
+        ...bindingIndex,
+        getBinding: (node = {}) => {
+            const binding = getBinding(node);
+            const { scope = {}, kind = '' } = getObject(binding);
+            const { name = '' } = getObject(node);
+
+            // Body var/function declarations share the function scope in the
+            // lexical index, but are absent from the parameter environment.
+            return scope === functionScope && !['parameter', 'function-name'].includes(kind)
+                ? resolveOuter(getObject(functionScope).parent, name)
+                : binding;
+        }
+    };
+};
+
+const getSignature = (functionNode = {}, context = {}) => {
+    const { params = [] } = getObject(functionNode);
+    const { bindingIndex = {} } = getObject(context);
+    const parameterIndex = getParameterBindingIndex({ functionNode, bindingIndex });
+    let parameterContext = { ...context, bindingIndex: parameterIndex };
+    const parameters = params.map((parameter = {}) => {
+        const value = inferPattern(parameter, {}, parameterContext);
+        const { bindings = {}, bindingValues = new Map() } = parameterContext;
+
+        parameterContext = {
+            ...parameterContext,
+            bindings: bindPattern(parameter, getObject(value), bindings),
+            bindingValues: bindPatternIdentities({
+                pattern: parameter,
+                value,
+                bindingIndex: parameterIndex,
+                bindingValues
+            })
+        };
+
+        return value;
+    });
     const [rootContract = unknown()] = parameters;
     const restIndex = params.findIndex(({ type = '' } = {}) => type === 'RestElement');
-    let bindings = {};
-    params.forEach((parameter = {}, index = 0) => {
-        const { [index]: parameterContract = unknown() } = parameters;
-        bindings = bindPattern(
-            parameter,
-            parameterContract,
-            bindings
-        );
-    });
+    const { bindings = {} } = parameterContext;
 
     return {
         contract: rootContract,
@@ -771,61 +944,117 @@ const getFunctionNodes = (program = {}) => {
     return functions;
 };
 
-const getFunctionContext = ({ body = {}, ...node } = {}, functions = {}, {
+const getFunctionContext = (functionNode = {}, functions = {}, {
     callStack = [],
     evaluateCalls = true,
     evaluationDepth = 0,
-    initialBindings = {}
+    initialBindings = {},
+    bindingIndex = {},
+    functionBindings = new Map(),
+    flows = new Map()
 } = {}) => {
+    const { body = {}, ...node } = getObject(functionNode);
     const sourceNode = { body, ...node };
-    const signature = getSignature(sourceNode);
+    const signature = getSignature(functionNode, { bindingIndex, functions, functionBindings });
     const { bindings: signatureBindings = {} } = getObject(signature);
+    const { params = [] } = sourceNode;
+    let bindingValues = new Map();
+    params.forEach((parameter = {}, index = 0) => {
+        const { parameters = [] } = signature;
+        const { [index]: parameterValue = unknown(parameter) } = parameters;
+        const { name = '' } = getObject(parameter);
+        const { [name]: initialValue = parameterValue } = initialBindings;
+
+        bindingValues = bindPatternIdentities({
+            pattern: parameter,
+            value: initialValue,
+            bindingIndex,
+            bindingValues
+        });
+    });
+    bindingValues = new Map([...bindingValues].map(([binding = {}, boundValue = unknown()] = []) => {
+        const { name = '' } = binding;
+        const { [name]: initialValue = boundValue } = initialBindings;
+
+        return [binding, Object.hasOwn(initialBindings, name) ? initialValue : boundValue];
+    }));
     let context = {
         bindings: { ...signatureBindings, ...initialBindings },
         functions,
+        bindingIndex,
+        bindingValues,
+        functionBindings,
+        flows,
         callStack,
         evaluateCalls,
         evaluationDepth
     };
     walk(body, ({ type = '', id = {}, init = {} } = {}) => {
         const { type: idType = '', name = '' } = getObject(id);
+        const safeId = getObject(id);
 
         if (type !== 'VariableDeclarator') return;
 
         const value = inferExpression(init, context);
         const {
             bindings: currentBindings = {},
-            functions: currentFunctions = {}
+            bindingValues: currentBindingValues = new Map(),
+            functions: currentFunctions = {},
+            functionBindings: currentFunctionBindings = new Map()
         } = getObject(context);
 
         if (idType !== 'Identifier') {
             context = {
                 ...context,
-                bindings: bindPattern(id, value, currentBindings)
+                bindings: bindPattern(safeId, getObject(value), currentBindings),
+                bindingValues: bindPatternIdentities({
+                    pattern: safeId,
+                    value,
+                    bindingIndex,
+                    bindingValues: currentBindingValues
+                })
             };
 
             return;
         }
 
-        const functionAlias = getFunctionAlias({ init, functions: currentFunctions });
+        const functionAlias = getFunctionAlias({ init, functions: currentFunctions, context });
         const { signature: functionSignature = {} } = getObject(functionAlias);
+        const { getBinding = false } = getObject(bindingIndex);
+        const binding = typeof getBinding === 'function'
+            ? getBinding(safeId)
+            : {};
 
         if (hasObjectValue(functionSignature)) {
+            const nextFunctionBindings = new Map(currentFunctionBindings);
+
+            const completedFunctionBindings = hasObjectValue(binding)
+                ? new Map([...nextFunctionBindings, [binding, functionAlias]])
+                : nextFunctionBindings;
+
             context = {
                 ...context,
                 functions: {
                     ...currentFunctions,
                     [name]: functionAlias
-                }
+                },
+                functionBindings: completedFunctionBindings
             };
         }
 
+        const nextBindingValues = bindPatternIdentities({
+            pattern: safeId,
+            value,
+            bindingIndex,
+            bindingValues: currentBindingValues
+        });
         context = {
             ...context,
             bindings: {
                 ...currentBindings,
                 [name]: value
-            }
+            },
+            bindingValues: nextBindingValues
         };
     }, { skipFunctions: true });
 
@@ -840,20 +1069,34 @@ const getFunctionCallContext = ({
     argumentContext = {},
     callStack = [],
     evaluateCalls = true,
-    evaluationDepth = 0
+    evaluationDepth = 0,
+    bindingIndex = {},
+    functionBindings = new Map()
 } = {}) => {
+    const {
+        bindingIndex: argumentBindingIndex = {},
+        functionBindings: argumentFunctionBindings = new Map(),
+        flows = new Map()
+    } = getObject(argumentContext);
+    const sourceBindingIndex = hasObjectValue(bindingIndex) ? bindingIndex : argumentBindingIndex;
+    const sourceFunctionBindings = functionBindings.size ? functionBindings : argumentFunctionBindings;
     const { node: functionNode = {} } = getObject(definition);
     const { params = [] } = getObject(functionNode);
-    const { parameters = [] } = getSignature(functionNode);
+    const { parameters = [] } = getSignature(functionNode, {
+        bindingIndex: sourceBindingIndex,
+        functions,
+        functionBindings: sourceFunctionBindings
+    });
     const safeArgumentContracts = Array.isArray(argumentContracts)
         ? argumentContracts
         : [];
     let initialBindings = {};
     let initialFunctions = { ...functions };
+    let initialFunctionBindings = new Map(sourceFunctionBindings);
     params.forEach((parameter = {}, index = 0) => {
         const { type: parameterType = '', name: parameterName = '' } = getObject(parameter);
         const { [index]: argument = {} } = args;
-        const { type: argumentType = '', name: argumentName = '' } = getObject(argument);
+        const { type: argumentType = '' } = getObject(argument);
         const { [index]: suppliedContract = false } = safeArgumentContracts;
         const { [index]: parameterContract = unknown() } = parameters;
 
@@ -867,7 +1110,7 @@ const getFunctionCallContext = ({
 
         if (parameterType !== 'Identifier') return;
 
-        const { [argumentName]: knownFunction = {} } = functions;
+        const knownFunction = getBoundFunction({ node: argument, context: argumentContext });
         const functionDefinition = hasObjectValue(knownFunction) ? knownFunction : (() => {
             const functionValue = inferExpression(argument, argumentContext);
             const {
@@ -887,16 +1130,32 @@ const getFunctionCallContext = ({
         })();
         const { signature: functionDefinitionSignature = {} } = getObject(functionDefinition);
 
-        if (hasObjectValue(functionDefinitionSignature)) initialFunctions = {
-            ...initialFunctions,
-            [parameterName]: functionDefinition
-        };
+        if (hasObjectValue(functionDefinitionSignature)) {
+            initialFunctions = {
+                ...initialFunctions,
+                [parameterName]: functionDefinition
+            };
+            const { getBinding = false } = getObject(sourceBindingIndex);
+            const parameterBinding = typeof getBinding === 'function'
+                ? getBinding(parameter)
+                : {};
+
+            initialFunctionBindings = hasObjectValue(parameterBinding)
+                ? new Map([
+                    ...initialFunctionBindings,
+                    [parameterBinding, functionDefinition]
+                ])
+                : initialFunctionBindings;
+        }
     });
     const context = getFunctionContext(functionNode, initialFunctions, {
         callStack,
         evaluateCalls,
         evaluationDepth,
-        initialBindings
+        initialBindings,
+        bindingIndex: sourceBindingIndex,
+        functionBindings: initialFunctionBindings,
+        flows
     });
 
     return context;
@@ -917,7 +1176,7 @@ const getFunctionReturnFromContracts = ({
 
     if (contextEvaluationDepth >= 8) return unknown(node);
 
-    const { parameters = [] } = getSignature(node);
+    const { parameters = [] } = getSignature(node, context);
     const safeArgumentContracts = Array.isArray(argumentContracts)
         ? argumentContracts
         : [];
@@ -931,13 +1190,29 @@ const getFunctionReturnFromContracts = ({
         });
         initialBindings = bindPattern(parameter, actual, initialBindings);
     });
+    const {
+        bindingIndex = {},
+        functionBindings = new Map(),
+        flows = new Map()
+    } = getObject(context);
     const functionContext = getFunctionContext(node, functions, {
         callStack: [...contextCallStack, '<inline-callback>'],
         evaluateCalls: contextEvaluateCalls !== false,
         evaluationDepth: contextEvaluationDepth + 1,
-        initialBindings
+        initialBindings,
+        bindingIndex,
+        functionBindings,
+        flows
     });
-    const inferredReturn = getInferredReturnContract({ node, context: functionContext });
+    const survivingReturns = getSurvivingReturnRecords({ node, flows });
+    const useReturns = Array.isArray(survivingReturns);
+    const returns = Array.isArray(survivingReturns) ? survivingReturns : [];
+    const inferredReturn = getInferredReturnContract({
+        node,
+        context: functionContext,
+        returns,
+        useReturns
+    });
     const { async = false } = getObject(node);
 
     if (!async) return inferredReturn;
@@ -946,7 +1221,7 @@ const getFunctionReturnFromContracts = ({
 };
 
 const getFunctionValueContract = ({ node = {}, context = {} } = {}) => {
-    const signature = getSignature(node);
+    const signature = getSignature(node, context);
     const {
         evaluationDepth: contextEvaluationDepth = 0,
         functions = {},
@@ -968,14 +1243,27 @@ const getFunctionValueContract = ({ node = {}, context = {} } = {}) => {
         }
     });
 
+    const {
+        bindingIndex = {},
+        functionBindings = new Map(),
+        flows = new Map()
+    } = getObject(context);
     const functionContext = getFunctionContext(node, functions, {
         callStack: [...contextCallStack, '<function-value>'],
         evaluateCalls: contextEvaluateCalls !== false,
-        evaluationDepth: contextEvaluationDepth + 1
+        evaluationDepth: contextEvaluationDepth + 1,
+        bindingIndex,
+        functionBindings,
+        flows
     });
+    const survivingReturns = getSurvivingReturnRecords({ node, flows });
+    const useReturns = Array.isArray(survivingReturns);
+    const returns = Array.isArray(survivingReturns) ? survivingReturns : [];
     const inferredReturn = getInferredReturnContract({
         node,
-        context: functionContext
+        context: functionContext,
+        returns,
+        useReturns
     });
     const { async = false } = getObject(node);
     const returnContract = async
@@ -1000,9 +1288,12 @@ const inferFunctionExpression = (node = {}, context = {}) => (
 const getFunctionReturnContract = ({
     functions = {},
     functionValue = {},
+    flowNode = {},
     name = '',
+    identity = name,
     sourceNode = {},
     arguments: args = [],
+    argumentContracts = [],
     callStack = [],
     argumentContext = {},
     evaluateCalls = true,
@@ -1028,34 +1319,59 @@ const getFunctionReturnContract = ({
         node: functionNode = {},
         returnContract: functionReturnContract = {}
     } = getObject(functionContract);
+    const {
+        bindingIndex: functionBindingIndex = {},
+        functionBindings = new Map()
+    } = getDefinitionOwnerMetadata(functionContract);
     const hasReturnContract = hasObjectValue(functionReturnContract);
-    const returnContract = hasReturnContract ? functionReturnContract : unknown(sourceNode);
     const { async = false } = getObject(functionNode);
+    const { flows = new Map() } = getObject(argumentContext);
+    const completedNode = hasObjectValue(flowNode) ? flowNode : functionNode;
+    const survivingReturns = getSurvivingReturnRecords({ node: completedNode, flows });
+    const hasCompletedFlow = Array.isArray(survivingReturns);
+    const returns = Array.isArray(survivingReturns) ? survivingReturns : [];
+    const completedValues = returns.map(({ contract: value = unknown() } = {}) => value);
+    const completedValue = mergeContracts(async ? completedValues.map(getResolvedContract) : completedValues);
+    const completedReturn = async
+        ? getAsyncReturnContract({ value: completedValue, sourceNode })
+        : completedValue;
+    let returnContract = hasReturnContract ? functionReturnContract : unknown(sourceNode);
 
-    if (!hasReturnContract) return unknown(sourceNode);
+    if (hasCompletedFlow) returnContract = completedReturn;
 
-    if (!evaluateCalls || !callStack.length || evaluationDepth >= 8) {
+    if (!hasReturnContract && !hasCompletedFlow) return unknown(sourceNode);
+
+    const shouldEvaluate = callStack.length || (
+        functionKind === 'function' && getKind(returnContract) === 'unknown' && args.length
+    );
+
+    if (!evaluateCalls || !shouldEvaluate || evaluationDepth >= 8) {
         return returnContract;
     }
 
-    if (callStack.includes(name) || callStack.length >= 16 || !hasObjectValue(functionNode)) {
+    if (callStack.includes(identity) || callStack.length >= 16 || !hasObjectValue(functionNode)) {
         return returnContract;
     }
 
-    const nextCallStack = [...callStack, name];
+    const nextCallStack = [...callStack, identity];
     const nextEvaluationDepth = evaluationDepth + 1;
     const context = getFunctionCallContext({
         definition: functionContract,
         functions,
         arguments: args,
+        argumentContracts,
         argumentContext,
         callStack: nextCallStack,
         evaluateCalls,
-        evaluationDepth: nextEvaluationDepth
+        evaluationDepth: nextEvaluationDepth,
+        bindingIndex: functionBindingIndex,
+        functionBindings
     });
     const inferredReturn = getInferredReturnContract({
         node: functionNode,
-        context
+        context,
+        returns,
+        useReturns: hasCompletedFlow
     });
     const { kind: inferredKind = 'unknown' } = getObject(inferredReturn);
     const { kind: fallbackKind = 'unknown' } = getObject(returnContract);
@@ -1073,21 +1389,16 @@ const getFunctionReturnContract = ({
 };
 
 const getCallbackDefinition = ({ callback = {}, context = {} } = {}) => {
-    const { params = [] } = getObject(callback);
-
     if (isFunction(callback)) return {
         node: callback,
-        signature: getSignature({ params })
+        signature: getSignature(callback, context)
     };
 
-    const { type = '', name = '' } = getObject(callback);
+    const { type = '' } = getObject(callback);
 
     if (type !== 'Identifier') return {};
 
-    const { functions = {} } = getObject(context);
-    const { [name]: definition = {} } = getObject(functions);
-
-    return definition;
+    return getBoundFunction({ node: callback, context });
 };
 
 const getCallbackReturnContract = ({
@@ -1136,7 +1447,7 @@ const inferPromiseAll = ({ args = [], context = {}, sourceNode = {} } = {}) => {
     const [values = {}] = args;
     const collection = inferExpression(values, context);
 
-    if (getKind(collection) !== 'array') return unknown(sourceNode);
+    if (getKind(getObject(collection)) !== 'array') return unknown(sourceNode);
 
     const { element = unknown() } = getObject(collection);
     const { kind: elementKind = '', element: resolvedValue = element } = getObject(element);
@@ -1197,14 +1508,42 @@ const inferMemberCall = ({ callee = {}, ...node } = {}, context = {}) => {
     const { object = {}, property = {}, computed = false } = getObject(callee);
     const { arguments: args = [] } = getObject(node);
     const method = computed ? '' : getStaticName(property);
-    const receiver = inferExpression(object, context);
-    const { type: objectType = '', name: objectName = '' } = getObject(object);
+    const { receiverContract = false, argumentContracts = [] } = getObject(context);
+    const receiver = receiverContract || inferExpression(object, context);
+    const callable = getCallableEvidence({ callee, receiver, context });
+    const {
+        status = 'unknown',
+        member = {},
+        nativeIdentity = '',
+        expectedKind = '',
+        receiverKind = ''
+    } = callable;
+    const { kind: memberKind = '', returnContract: memberReturnContract = {} } = getObject(member);
 
-    if (objectType === 'Identifier' && objectName === 'Object' && ['entries', 'keys', 'values'].includes(method)) {
+    if (status === 'known-authored' && memberKind !== 'function' && hasObjectValue(memberReturnContract)) {
+        return memberReturnContract;
+    }
+
+    if (status === 'known-authored') {
+        return getFunctionReturnContract({
+            functionValue: member,
+            sourceNode,
+            arguments: args,
+            argumentContracts,
+            argumentContext: context,
+            evaluateCalls: evaluateCalls !== false,
+            callStack,
+            evaluationDepth
+        });
+    }
+
+    if (status !== 'justified-native') return unknown(sourceNode);
+
+    if (nativeIdentity === 'Object') {
         return contract({ kind: 'array', sourceNode });
     }
 
-    if (objectType === 'Identifier' && objectName === 'Promise' && method === 'resolve') {
+    if (nativeIdentity === 'Promise' && method === 'resolve') {
         const [value = {}] = args;
 
         return contract({
@@ -1214,59 +1553,28 @@ const inferMemberCall = ({ callee = {}, ...node } = {}, context = {}) => {
         });
     }
 
-    if (objectType === 'Identifier' && objectName === 'Promise' && method === 'all') {
+    if (nativeIdentity === 'Promise' && method === 'all') {
         return inferPromiseAll({ args, context, sourceNode });
     }
 
-    if (getKind(receiver) === 'array' && ['map', 'filter', 'some', 'forEach', 'reduce'].includes(method)) {
+    if (expectedKind === 'array' && receiverKind === 'array') {
         return inferArrayMethod({ method, receiver, args, context, sourceNode });
     }
 
-    if (getKind(receiver) === 'regexp' && method === 'test') {
+    if (expectedKind === 'regexp' && receiverKind === 'regexp' && method === 'test') {
         return contract({ kind: 'boolean', sourceNode });
     }
 
-    const { properties = {} } = getObject(receiver);
-    const { [method]: member = {} } = getObject(properties);
-    const { kind: memberKind = '', returnContract = {} } = getObject(member);
-    const hasMemberReturn = hasObjectValue(returnContract);
-
-    if (memberKind === 'function') return getFunctionReturnContract({
-        functionValue: member,
-        sourceNode,
-        arguments: args,
-        argumentContext: context,
-        evaluateCalls: evaluateCalls !== false,
-        callStack,
-        evaluationDepth
-    });
-
-    if (hasMemberReturn) return returnContract;
-
-    if (method === 'some') return contract({ kind: 'boolean', sourceNode });
-
-    if (['trim', 'toLowerCase', 'toUpperCase', 'replaceAll'].includes(method)) {
+    if (expectedKind === 'string' && receiverKind === 'string') {
         return contract({ kind: 'string', sourceNode });
     }
 
     return unknown(sourceNode);
 };
 
-const getBuiltinCallContract = ({ name = '', sourceNode = {} } = {}) => {
-    const kinds = {
-        Boolean: 'boolean',
-        Number: 'number',
-        String: 'string'
-    };
-    const { [name]: builtinKind = '' } = kinds;
-
-    return builtinKind ? contract({ kind: builtinKind, sourceNode }) : unknown(sourceNode);
-};
-
 const inferCallExpression = ({ callee = {}, ...node } = {}, context = {}) => {
     const {
         functions = {},
-        bindings = {},
         callStack = [],
         evaluateCalls = true,
         evaluationDepth = 0
@@ -1274,24 +1582,38 @@ const inferCallExpression = ({ callee = {}, ...node } = {}, context = {}) => {
     const safeCallee = getObject(callee);
     const { type = '', name = '' } = safeCallee;
     const sourceNode = { callee, ...node };
-    const { [name]: boundFunction = false } = getObject(bindings);
-    const { [name]: knownFunction = {} } = getObject(functions);
+    const boundFunction = getBoundValue({ node: safeCallee, context });
+    const knownFunction = getBoundFunction({ node: safeCallee, context });
+    const binding = getLexicalBinding({ node: safeCallee, context });
+    const { id: bindingId = '' } = getObject(binding);
     const { kind: boundKind = '' } = getObject(boundFunction);
     const { signature: knownSignature = {} } = getObject(knownFunction);
     const { arguments: callArguments = [] } = getObject(node);
+    const { argumentContracts = [] } = getObject(context);
+    const {
+        status: callableStatus = 'unknown',
+        returnKind = ''
+    } = getCallableEvidence({ callee: safeCallee, context });
+
+    if (type === 'Identifier' && !hasObjectValue(knownSignature) && callableStatus === 'justified-native') {
+        return contract({ kind: returnKind, sourceNode });
+    }
 
     if (type === 'Identifier' && !hasObjectValue(knownSignature) && boundKind !== 'function' &&
-        !boundFunction) {
-        return getBuiltinCallContract({ name, sourceNode });
+        !hasObjectValue(boundFunction)) {
+        return unknown(sourceNode);
     }
 
     if (type === 'Identifier') {
         return getFunctionReturnContract({
             functions,
-            functionValue: boundKind === 'function' ? boundFunction : knownFunction,
+            functionValue: getObject(boundKind === 'function' ? boundFunction : knownFunction),
+            flowNode: getObject(knownFunction).node,
             name,
+            identity: bindingId || name,
             sourceNode,
             arguments: callArguments,
+            argumentContracts,
             callStack,
             argumentContext: context,
             evaluateCalls,
@@ -1323,23 +1645,17 @@ expressionHandlers = {
 const getDefinition = ({
     definition = {},
     definitions = {},
-    externalDefinitions = {}
+    bindingIndex = {},
+    functionBindings = new Map()
 } = {}) => {
-    const { node = {} } = definition;
-    const matchingDefinitions = Object.entries(definitions)
-        .filter(([, candidate = {}] = []) => {
-            const { node: candidateNode = {} } = getObject(candidate);
-
-            return candidateNode === node;
-        })
-        .map(([name = ''] = []) => name);
-    const [definitionName = ''] = matchingDefinitions;
-    const context = getFunctionContext(node, {
-        ...externalDefinitions,
-        ...definitions
-    }, {
-        callStack: definitionName ? [definitionName] : [],
-        evaluateCalls: false
+    const { node = {}, binding = {}, name = '' } = definition;
+    const { id: bindingId = '' } = getObject(binding);
+    const identity = bindingId || name;
+    const context = getFunctionContext(node, definitions, {
+        callStack: identity ? [identity] : [],
+        evaluateCalls: false,
+        bindingIndex,
+        functionBindings
     });
     const inferredReturn = getInferredReturnContract({ node, context });
     const { async = false } = getObject(node);
@@ -1350,21 +1666,76 @@ const getDefinition = ({
     return { ...definition, context, returnContract };
 };
 
+const publishDefinition = (source = {}) => {
+    const { node = {}, signature = {}, returnContract = unknown(), context = {} } = getObject(source);
+    const {
+        bindings = {},
+        functions: contextFunctions = {},
+        callStack = [],
+        evaluateCalls = true,
+        evaluationDepth = 0
+    } = getObject(context);
+    const functions = Object.fromEntries(Object.entries(getObject(contextFunctions))
+        .map(([functionName = '', definition = {}] = []) => {
+            const {
+                node: functionNode = {},
+                signature: functionSignature = {},
+                returnContract: functionReturn = unknown()
+            } = getObject(definition);
+
+            return [functionName, {
+                node: functionNode,
+                signature: functionSignature,
+                returnContract: functionReturn
+            }];
+        }));
+
+    return {
+        node,
+        signature,
+        returnContract,
+        context: { bindings, functions, callStack, evaluateCalls, evaluationDepth }
+    };
+};
+
 const resolveDefinitions = ({
-    definitions = {},
+    entries = [],
     externalDefinitions = {},
+    bindingIndex = {},
     remaining = 0
 } = {}) => {
-    if (!remaining) return definitions;
+    if (!remaining || !entries.length) return entries;
 
-    const nextDefinitions = Object.fromEntries(Object.entries(definitions)
-        .map(([name = '', definition = {}] = []) => [
-            name,
-            getDefinition({ definition, definitions, externalDefinitions })
-        ]));
-    const changed = Object.entries(nextDefinitions)
-        .some(([name = '', definition = {}] = []) => {
-            const { [name]: previousDefinition = {} } = getObject(definitions);
+    const functionBindings = new Map(entries
+        .filter(({ binding = {} } = {}) => hasObjectValue(binding))
+        .map((definition = {}) => {
+            const { binding = {} } = definition;
+
+            return [binding, definition];
+        }));
+    const { rootScope = {} } = getObject(bindingIndex);
+    const isPublished = ({ name = '', binding = {} } = {}) => {
+        const { scope = {} } = getObject(binding);
+
+        return Boolean(name) && (!hasObjectValue(bindingIndex) || !hasObjectValue(binding) || scope === rootScope);
+    };
+    const localDefinitions = Object.fromEntries(entries
+        .filter(isPublished)
+        .map((definition = {}) => {
+            const { name = '' } = definition;
+
+            return [name, definition];
+        }));
+    const definitions = { ...localDefinitions, ...externalDefinitions };
+    const nextEntries = entries.map(definition => getDefinition({
+        definition,
+        definitions,
+        bindingIndex,
+        functionBindings
+    }));
+    const changed = nextEntries
+        .some((definition = {}, index = 0) => {
+            const { [index]: previousDefinition = {} } = entries;
             const { returnContract: previousReturn = false } = getObject(previousDefinition);
             const { returnContract = false } = getObject(definition);
 
@@ -1376,34 +1747,134 @@ const resolveDefinitions = ({
 
     return changed
         ? resolveDefinitions({
-            definitions: nextDefinitions,
+            entries: nextEntries,
             externalDefinitions,
+            bindingIndex,
             remaining: remaining - 1
         })
-        : nextDefinitions;
+        : nextEntries;
 };
 
-const getDefinitions = (program = {}, externalDefinitions = {}) => {
-    let definitions = {};
-    getFunctionNodes(program)
-        .map(node => ({ node, name: getFunctionName(node) }))
-        .filter(({ name = '' } = {}) => Boolean(name))
-        .forEach(({ node = {}, name = '' } = {}) => {
-            definitions = {
-                ...definitions,
-                [name]: {
-                    node,
-                    signature: getSignature(node),
-                    returnContract: unknown()
-                }
-            };
-        });
+const getFunctionBinding = ({ node = {}, bindingIndex = {} } = {}) => {
+    const { getBinding = false, getParent = false } = getObject(bindingIndex);
 
-    return resolveDefinitions({
-        definitions,
+    if (typeof getBinding !== 'function') return {};
+
+    const { id = {} } = getObject(node);
+    const direct = getBinding(id);
+
+    if (hasObjectValue(direct)) return direct;
+
+    const parent = typeof getParent === 'function' ? getParent(node) : {};
+    const { type = '', id: parentId = {} } = getObject(parent);
+
+    return type === 'VariableDeclarator' ? getBinding(parentId) : {};
+};
+
+const getDefinitionForNode = ({ definitions = {}, node = {} } = {}) => {
+    const { byNode = new Map() } = getDefinitionMetadata(definitions);
+
+    if (byNode.has(node)) return byNode.get(node);
+
+    const name = getFunctionName(node);
+    const { [name]: definition = {} } = getObject(definitions);
+
+    return definition;
+};
+
+const getDefinitionNameForNode = ({ definitions = {}, node = {} } = {}) => {
+    const { namesByNode = new Map() } = getDefinitionMetadata(definitions);
+
+    return namesByNode.get(node) || getFunctionName(node);
+};
+
+const getDefinitionForReference = ({ definitions = {}, node = {}, context = {} } = {}) => {
+    const { bindingIndex: storedBindingIndex = {}, byBinding = new Map() } = getDefinitionMetadata(definitions);
+    const {
+        bindingIndex = storedBindingIndex,
+        functionBindings = byBinding
+    } = getObject(context);
+    const { getBinding = false } = getObject(bindingIndex);
+    const binding = typeof getBinding === 'function' ? getBinding(node) : {};
+
+    if (!hasObjectValue(binding)) {
+        const { name = '' } = getObject(node);
+        const { [name]: definition = {} } = getObject(definitions);
+
+        return definition;
+    }
+
+    const definition = functionBindings.get(binding) || byBinding.get(binding);
+
+    if (definition) return definition;
+
+    const { kind = '', name: bindingName = '' } = binding;
+    const { [bindingName]: importedDefinition = {} } = getObject(definitions);
+
+    return ['import', 'import-namespace'].includes(kind) ? importedDefinition : {};
+};
+
+const getDefinitions = (program = {}, externalDefinitions = {}, {
+    functions = getFunctionNodes(program),
+    bindingIndex = createBindingIndex(program)
+} = {}) => {
+    const entries = functions
+        .map((node = {}) => {
+            const binding = getFunctionBinding({ node, bindingIndex });
+            const { name: bindingName = '' } = getObject(binding);
+            const name = bindingName || getFunctionName(node);
+
+            return { node, name, binding };
+        })
+        .filter(({ name = '' } = {}) => Boolean(name))
+        .map(({ node = {}, name = '', binding = {} } = {}) => ({
+            binding,
+            name,
+            node,
+            signature: getSignature(node, { bindingIndex }),
+            returnContract: unknown()
+        }));
+    const resolved = resolveDefinitions({
+        entries,
         externalDefinitions,
-        remaining: Object.keys(definitions).length + 1
+        bindingIndex,
+        remaining: entries.length + 1
     });
+    const { rootScope = {} } = getObject(bindingIndex);
+    const isPublished = ({ name = '', binding = {} } = {}) => {
+        const { scope = {} } = getObject(binding);
+
+        return Boolean(name) && (!hasObjectValue(bindingIndex) || !hasObjectValue(binding) || scope === rootScope);
+    };
+    const published = new Map(resolved.map((definition = {}) => [definition, publishDefinition(definition)]));
+    const localDefinitions = Object.fromEntries(resolved
+        .filter(isPublished)
+        .map((definition = {}) => {
+            const { name = '' } = definition;
+
+            return [name, published.get(definition)];
+        }));
+    const definitions = localDefinitions;
+    const byBinding = new Map(resolved
+        .filter(({ binding = {} } = {}) => hasObjectValue(binding))
+        .map((definition = {}) => {
+            const { binding = {} } = definition;
+
+            return [binding, published.get(definition)];
+        }));
+    const byNode = new Map(resolved.map((definition = {}) => {
+        const { node = {} } = definition;
+
+        return [node, published.get(definition)];
+    }));
+    const namesByNode = new Map(resolved.map(({ node = {}, name = '' } = {}) => [node, name]));
+
+    published.forEach(definition => setDefinitionOwnerMetadata(definition, {
+        bindingIndex,
+        functionBindings: byBinding
+    }));
+
+    return setDefinitionMetadata(definitions, { bindingIndex, byBinding, byNode, namesByNode });
 };
 
 const getOperationExpectation = ({ kind = 'unknown', method = '' } = {}) => {
@@ -1422,7 +1893,12 @@ const getOperationExpectation = ({ kind = 'unknown', method = '' } = {}) => {
 };
 
 export {
+    copyDefinitionMetadata,
     getChildren,
+    getDefinitionForNode,
+    getDefinitionNameForNode,
+    getDefinitionForReference,
+    getDefinitionMetadata,
     getDefinitions,
     getEnclosingFunction,
     getFunctionContext,

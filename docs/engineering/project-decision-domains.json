@@ -1,0 +1,3846 @@
+{
+  "scope": "Current parsed navigation and finite publication probes, not semantic admission or exception authority. No callable census is an ownership proof.",
+  "authority": "docs/engineering/REARCHITECTURE.md",
+  "analyzerOwnerCatalog": "docs/engineering/REARCHITECTURE.md#analyzer-and-rule-ownership",
+  "acceptedTransformerOwnerCatalog": "docs/engineering/REARCHITECTURE.md#transformer-ownership",
+  "proof": "tests/typescript-decision-store.test.js",
+  "publicationInputs": [
+    "arityReturnContracts",
+    "aritySignatureContracts",
+    "arrayCardinalityContracts",
+    "callableOperationContracts",
+    "callableProviderDispatchContracts",
+    "closedProviderModels",
+    "closedStructuralModels",
+    "collectionReconstructionContracts",
+    "consoleEffectContracts",
+    "consumerContracts",
+    "curriedSelectedTupleContracts",
+    "declarationLifetimeContracts",
+    "declaredNullishResultContracts",
+    "deferredOpaqueFieldContracts",
+    "deferredSelectedPayloadContracts",
+    "deferredSignatureSelectionContracts",
+    "detachedPromiseForwardContracts",
+    "directCapabilityContracts",
+    "exactProjections",
+    "exactProviderForwards",
+    "factoryBindingContracts",
+    "hoistedFunctionContracts",
+    "indexedLocalSelectionContracts",
+    "indexedOperationContracts",
+    "liveArrayVisitationContracts",
+    "liveIteratorPayloadContracts",
+    "liveOwnKeyEnumerationContracts",
+    "loopCarriedRecurrenceContracts",
+    "mutableSelectedLoopContracts",
+    "nativeClassBoundaryContracts",
+    "nativeFunctionContracts",
+    "nullishEqualityContracts",
+    "numericRangeBuilderContracts",
+    "operationalObjectBuilderContracts",
+    "orderedDecisionContracts",
+    "orderedNestedTupleReadContracts",
+    "providerEdges",
+    "providerForwards",
+    "receiverOrderedProjectionContracts",
+    "repeatedParameterReadContracts",
+    "requiredTupleBindingContracts",
+    "resolvedSourceCallContracts",
+    "restArraySelectionContracts",
+    "samePhaseSelectedBindingContracts",
+    "selectedModelContracts",
+    "shortCircuitTupleArgumentContracts",
+    "sortCapabilityContracts",
+    "switchReturnContracts",
+    "typedIgnoredArgumentCallContracts",
+    "unusedBindingContracts"
+  ],
+  "owners": [
+    {
+      "file": "transforms/typescript/understand/source-census.js",
+      "name": "createSourceCensus",
+      "line": 6
+    },
+    {
+      "file": "transforms/typescript/policy/source-agreements.js",
+      "name": "collectDestructuringAgreements",
+      "line": 13
+    },
+    {
+      "file": "transforms/typescript/policy/decision-store.js",
+      "name": "compileDestructuringDecisions",
+      "line": 16
+    },
+    {
+      "file": "transforms/typescript/policy/defaults.js",
+      "name": "getDestructuringAgreement",
+      "line": 246
+    },
+    {
+      "file": "transforms/typescript/understand/placement-evidence.js",
+      "name": "collectPlacementEvidence",
+      "line": 20
+    }
+  ],
+  "semanticRoutes": [
+    {
+      "kind": "arity-return-partition",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/policy/decision-store.js",
+          "line": 131,
+          "range": [
+            9198,
+            9222
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 423,
+          "range": [
+            17606,
+            17630
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 98,
+          "range": [
+            4295,
+            4319
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 158,
+          "range": [
+            7722,
+            7746
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 309,
+          "range": [
+            15057,
+            15081
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "arity-return-selector",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/grammar/final.js",
+          "line": 587,
+          "range": [
+            24456,
+            24479
+          ]
+        },
+        {
+          "file": "transforms/typescript/lowering/arity-returns.js",
+          "line": 26,
+          "range": [
+            1547,
+            1570
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 428,
+          "range": [
+            17785,
+            17808
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 99,
+          "range": [
+            4345,
+            4368
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 159,
+          "range": [
+            7786,
+            7809
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 314,
+          "range": [
+            15321,
+            15344
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "arity-signature-lowering",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/lowering/arity.js",
+          "line": 98,
+          "range": [
+            4490,
+            4516
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/decision-store.js",
+          "line": 125,
+          "range": [
+            8756,
+            8782
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 400,
+          "range": [
+            16687,
+            16713
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 97,
+          "range": [
+            4240,
+            4266
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 157,
+          "range": [
+            7653,
+            7679
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 301,
+          "range": [
+            14710,
+            14736
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "array-cardinality",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/grammar/final.js",
+          "line": 1294,
+          "range": [
+            57697,
+            57716
+          ]
+        },
+        {
+          "file": "transforms/typescript/grammar/final.js",
+          "line": 1486,
+          "range": [
+            66200,
+            66219
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 473,
+          "range": [
+            19431,
+            19450
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 106,
+          "range": [
+            4713,
+            4732
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 166,
+          "range": [
+            8295,
+            8314
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 341,
+          "range": [
+            16598,
+            16617
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "callable-operation",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/members/generic.js",
+          "line": 108,
+          "range": [
+            3849,
+            3869
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/generic.js",
+          "line": 134,
+          "range": [
+            4962,
+            4982
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/generic.js",
+          "line": 337,
+          "range": [
+            14127,
+            14147
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/index.js",
+          "line": 171,
+          "range": [
+            5504,
+            5524
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/index.js",
+          "line": 262,
+          "range": [
+            9420,
+            9440
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/index.js",
+          "line": 361,
+          "range": [
+            13781,
+            13801
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/residual.js",
+          "line": 586,
+          "range": [
+            24374,
+            24394
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/residual.js",
+          "line": 845,
+          "range": [
+            37480,
+            37500
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/decision-store.js",
+          "line": 149,
+          "range": [
+            10680,
+            10700
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 272,
+          "range": [
+            11675,
+            11695
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/exceptions.js",
+          "line": 925,
+          "range": [
+            47575,
+            47595
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 85,
+          "range": [
+            3643,
+            3663
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 145,
+          "range": [
+            6888,
+            6908
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 242,
+          "range": [
+            12333,
+            12353
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "callable-operation-placement",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/policy/decision-store.js",
+          "line": 149,
+          "range": [
+            10716,
+            10746
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 272,
+          "range": [
+            11697,
+            11727
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/exceptions.js",
+          "line": 925,
+          "range": [
+            47597,
+            47627
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 86,
+          "range": [
+            3692,
+            3722
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 146,
+          "range": [
+            6951,
+            6981
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 242,
+          "range": [
+            12356,
+            12386
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "callable-provider-dispatch",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/lowering/callable-provider-dispatch.js",
+          "line": 27,
+          "range": [
+            1416,
+            1444
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 331,
+          "range": [
+            14155,
+            14183
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 123,
+          "range": [
+            5670,
+            5698
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 185,
+          "range": [
+            9634,
+            9662
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 431,
+          "range": [
+            20370,
+            20398
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "closed-provider-model",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/grammar/final.js",
+          "line": 124,
+          "range": [
+            4573,
+            4596
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 296,
+          "range": [
+            12775,
+            12798
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 90,
+          "range": [
+            3881,
+            3904
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 150,
+          "range": [
+            7199,
+            7222
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 263,
+          "range": [
+            13139,
+            13162
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "closed-structural-model",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/grammar/resolvers.js",
+          "line": 445,
+          "range": [
+            15868,
+            15893
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/index.js",
+          "line": 272,
+          "range": [
+            9901,
+            9926
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/index.js",
+          "line": 338,
+          "range": [
+            12622,
+            12647
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 301,
+          "range": [
+            12953,
+            12978
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 620,
+          "range": [
+            25003,
+            25028
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 91,
+          "range": [
+            3927,
+            3952
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 150,
+          "range": [
+            7224,
+            7249
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 151,
+          "range": [
+            7263,
+            7288
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 151,
+          "range": [
+            7290,
+            7315
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 268,
+          "range": [
+            13337,
+            13362
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 2494,
+          "range": [
+            120647,
+            120672
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "collection-reconstruction",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/grammar/final.js",
+          "line": 243,
+          "range": [
+            9920,
+            9947
+          ]
+        },
+        {
+          "file": "transforms/typescript/grammar/final.js",
+          "line": 1303,
+          "range": [
+            58031,
+            58058
+          ]
+        },
+        {
+          "file": "transforms/typescript/grammar/final.js",
+          "line": 1403,
+          "range": [
+            62690,
+            62717
+          ]
+        },
+        {
+          "file": "transforms/typescript/grammar/final.js",
+          "line": 1474,
+          "range": [
+            65549,
+            65576
+          ]
+        },
+        {
+          "file": "transforms/typescript/lowering/callable-provider-dispatch.js",
+          "line": 27,
+          "range": [
+            1446,
+            1473
+          ]
+        },
+        {
+          "file": "transforms/typescript/lowering/collection-reconstruction.js",
+          "line": 124,
+          "range": [
+            6386,
+            6413
+          ]
+        },
+        {
+          "file": "transforms/typescript/lowering/collection-reconstruction.js",
+          "line": 469,
+          "range": [
+            23894,
+            23921
+          ]
+        },
+        {
+          "file": "transforms/typescript/lowering/collection-reconstruction.js",
+          "line": 522,
+          "range": [
+            26442,
+            26469
+          ]
+        },
+        {
+          "file": "transforms/typescript/lowering/collection-reconstruction.js",
+          "line": 613,
+          "range": [
+            30577,
+            30604
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/index.js",
+          "line": 327,
+          "range": [
+            11978,
+            12005
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/index.js",
+          "line": 1227,
+          "range": [
+            46701,
+            46728
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/decision-store.js",
+          "line": 37,
+          "range": [
+            2093,
+            2120
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 329,
+          "range": [
+            14043,
+            14070
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 622,
+          "range": [
+            25072,
+            25099
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 96,
+          "range": [
+            4185,
+            4212
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 140,
+          "range": [
+            6664,
+            6691
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 156,
+          "range": [
+            7593,
+            7620
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 291,
+          "range": [
+            14316,
+            14343
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "console-effect",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/lowering/console-effects.js",
+          "line": 14,
+          "range": [
+            895,
+            911
+          ]
+        },
+        {
+          "file": "transforms/typescript/lowering/console-effects.js",
+          "line": 23,
+          "range": [
+            1224,
+            1240
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 395,
+          "range": [
+            16516,
+            16532
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 296,
+          "range": [
+            14518,
+            14534
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "consumer",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/index.js",
+          "line": 841,
+          "range": [
+            37322,
+            37332
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/exact-provider-forwarding.js",
+          "line": 46,
+          "range": [
+            2106,
+            2116
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/generic.js",
+          "line": 495,
+          "range": [
+            21425,
+            21435
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/index.js",
+          "line": 345,
+          "range": [
+            13025,
+            13035
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/residual.js",
+          "line": 668,
+          "range": [
+            28475,
+            28485
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/tuple-consumers.js",
+          "line": 140,
+          "range": [
+            5883,
+            5893
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 260,
+          "range": [
+            11047,
+            11057
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 82,
+          "range": [
+            3527,
+            3537
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 83,
+          "range": [
+            3572,
+            3582
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 223,
+          "range": [
+            11448,
+            11458
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 676,
+          "range": [
+            33494,
+            33504
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "consumer-callback",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/index.js",
+          "line": 841,
+          "range": [
+            37334,
+            37353
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/exact-provider-forwarding.js",
+          "line": 46,
+          "range": [
+            2118,
+            2137
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/generic.js",
+          "line": 495,
+          "range": [
+            21437,
+            21456
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/index.js",
+          "line": 345,
+          "range": [
+            13037,
+            13056
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/residual.js",
+          "line": 668,
+          "range": [
+            28487,
+            28506
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/tuple-consumers.js",
+          "line": 140,
+          "range": [
+            5862,
+            5881
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 260,
+          "range": [
+            11059,
+            11078
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 83,
+          "range": [
+            3551,
+            3570
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 143,
+          "range": [
+            6773,
+            6792
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 227,
+          "range": [
+            11573,
+            11592
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "curried-selected-tuple-binding",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/members/curried-selected-tuple.js",
+          "line": 32,
+          "range": [
+            1530,
+            1562
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/curried-selected-tuple.js",
+          "line": 37,
+          "range": [
+            1679,
+            1711
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 504,
+          "range": [
+            20578,
+            20610
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 609,
+          "range": [
+            24585,
+            24617
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 112,
+          "range": [
+            5064,
+            5096
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 174,
+          "range": [
+            8842,
+            8874
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 371,
+          "range": [
+            17858,
+            17890
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 4166,
+          "range": [
+            207858,
+            207890
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "declaration-lifetime",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/index.js",
+          "line": 589,
+          "range": [
+            23381,
+            23403
+          ]
+        },
+        {
+          "file": "transforms/typescript/index.js",
+          "line": 810,
+          "range": [
+            34836,
+            34858
+          ]
+        },
+        {
+          "file": "transforms/typescript/lowering/declarations.js",
+          "line": 15,
+          "range": [
+            963,
+            985
+          ]
+        },
+        {
+          "file": "transforms/typescript/lowering/declarations.js",
+          "line": 44,
+          "range": [
+            3017,
+            3039
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 361,
+          "range": [
+            15326,
+            15348
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 129,
+          "range": [
+            6010,
+            6032
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 191,
+          "range": [
+            10050,
+            10072
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 461,
+          "range": [
+            21656,
+            21678
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 7104,
+          "range": [
+            369116,
+            369138
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "declaration-lifetime-reference",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 368,
+          "range": [
+            15553,
+            15585
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/exceptions.js",
+          "line": 62,
+          "range": [
+            2662,
+            2694
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/exceptions.js",
+          "line": 234,
+          "range": [
+            11370,
+            11402
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 130,
+          "range": [
+            6061,
+            6093
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 192,
+          "range": [
+            10117,
+            10149
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 7126,
+          "range": [
+            370450,
+            370482
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "declared-nullish-result",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/grammar/final.js",
+          "line": 1609,
+          "range": [
+            71366,
+            71391
+          ]
+        },
+        {
+          "file": "transforms/typescript/lowering/declared-nullish-results.js",
+          "line": 17,
+          "range": [
+            982,
+            1007
+          ]
+        },
+        {
+          "file": "transforms/typescript/lowering/declared-nullish-results.js",
+          "line": 24,
+          "range": [
+            1262,
+            1287
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 558,
+          "range": [
+            22656,
+            22681
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 122,
+          "range": [
+            5619,
+            5644
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 184,
+          "range": [
+            9569,
+            9594
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 421,
+          "range": [
+            19949,
+            19974
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "deferred-opaque-field-binding",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/index.js",
+          "line": 1227,
+          "range": [
+            58654,
+            58685
+          ]
+        },
+        {
+          "file": "transforms/typescript/index.js",
+          "line": 1230,
+          "range": [
+            58891,
+            58922
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 499,
+          "range": [
+            20392,
+            20423
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 605,
+          "range": [
+            24416,
+            24447
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/exceptions.js",
+          "line": 1109,
+          "range": [
+            58312,
+            58343
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 111,
+          "range": [
+            5003,
+            5034
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 173,
+          "range": [
+            8763,
+            8794
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 366,
+          "range": [
+            17645,
+            17676
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 4080,
+          "range": [
+            203343,
+            203374
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "deferred-selected-payload-binding",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/index.js",
+          "line": 1227,
+          "range": [
+            58617,
+            58652
+          ]
+        },
+        {
+          "file": "transforms/typescript/index.js",
+          "line": 1230,
+          "range": [
+            58854,
+            58889
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 494,
+          "range": [
+            20202,
+            20237
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 110,
+          "range": [
+            4936,
+            4971
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 172,
+          "range": [
+            8678,
+            8713
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 361,
+          "range": [
+            17429,
+            17464
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 3999,
+          "range": [
+            199098,
+            199133
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "deferred-signature-selection",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/grammar/final.js",
+          "line": 2116,
+          "range": [
+            95335,
+            95365
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 341,
+          "range": [
+            14554,
+            14584
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 125,
+          "range": [
+            5787,
+            5817
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 187,
+          "range": [
+            9778,
+            9808
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 441,
+          "range": [
+            20801,
+            20831
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 6626,
+          "range": [
+            344489,
+            344519
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "detached-promise-forward",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/lowering/detached-promise-work.js",
+          "line": 12,
+          "range": [
+            690,
+            716
+          ]
+        },
+        {
+          "file": "transforms/typescript/lowering/detached-promise-work.js",
+          "line": 23,
+          "range": [
+            1066,
+            1092
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 564,
+          "range": [
+            22886,
+            22912
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 426,
+          "range": [
+            20158,
+            20184
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "direct-capability",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/members/capability-consumers.js",
+          "line": 362,
+          "range": [
+            15051,
+            15070
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/exact-provider-forwarding.js",
+          "line": 46,
+          "range": [
+            2066,
+            2085
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/index.js",
+          "line": 341,
+          "range": [
+            12816,
+            12835
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/decision-store.js",
+          "line": 31,
+          "range": [
+            1711,
+            1730
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 270,
+          "range": [
+            11571,
+            11590
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 84,
+          "range": [
+            3596,
+            3615
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 144,
+          "range": [
+            6826,
+            6845
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 233,
+          "range": [
+            11896,
+            11915
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "exact-callback-projection",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/members/exact-projections.js",
+          "line": 26,
+          "range": [
+            1080,
+            1107
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/exact-projections.js",
+          "line": 37,
+          "range": [
+            1576,
+            1603
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/exact-projections.js",
+          "line": 55,
+          "range": [
+            2365,
+            2392
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/exact-provider-forwarding.js",
+          "line": 46,
+          "range": [
+            2139,
+            2166
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/exact-provider-forwarding.js",
+          "line": 51,
+          "range": [
+            2394,
+            2421
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 307,
+          "range": [
+            13189,
+            13216
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 581,
+          "range": [
+            23531,
+            23558
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 92,
+          "range": [
+            3975,
+            4002
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 152,
+          "range": [
+            7329,
+            7356
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 273,
+          "range": [
+            13531,
+            13558
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 1649,
+          "range": [
+            77902,
+            77929
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 1653,
+          "range": [
+            78038,
+            78065
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "exact-provider-forward",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/lowering/guarded-returns.js",
+          "line": 156,
+          "range": [
+            6049,
+            6073
+          ]
+        },
+        {
+          "file": "transforms/typescript/lowering/guarded-returns.js",
+          "line": 159,
+          "range": [
+            6179,
+            6203
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/exact-provider-forwarding.js",
+          "line": 40,
+          "range": [
+            1832,
+            1856
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/exact-provider-forwarding.js",
+          "line": 55,
+          "range": [
+            2615,
+            2639
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/exact-provider-forwarding.js",
+          "line": 79,
+          "range": [
+            3573,
+            3597
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/generic.js",
+          "line": 556,
+          "range": [
+            24432,
+            24456
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/generic.js",
+          "line": 558,
+          "range": [
+            24556,
+            24580
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 318,
+          "range": [
+            13623,
+            13647
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 588,
+          "range": [
+            23763,
+            23787
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 93,
+          "range": [
+            4030,
+            4054
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 153,
+          "range": [
+            7390,
+            7414
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 281,
+          "range": [
+            13910,
+            13934
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 1842,
+          "range": [
+            87114,
+            87138
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 1893,
+          "range": [
+            89921,
+            89945
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 1930,
+          "range": [
+            91881,
+            91905
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "factory-required-binding",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/grammar/final.js",
+          "line": 142,
+          "range": [
+            5542,
+            5568
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 312,
+          "range": [
+            13371,
+            13397
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 94,
+          "range": [
+            4080,
+            4106
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 154,
+          "range": [
+            7457,
+            7483
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 277,
+          "range": [
+            13722,
+            13748
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "hoisted-function-cycle",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/lowering/functions.js",
+          "line": 104,
+          "range": [
+            4291,
+            4315
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 385,
+          "range": [
+            16179,
+            16203
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 133,
+          "range": [
+            6235,
+            6259
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 195,
+          "range": [
+            10326,
+            10350
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 471,
+          "range": [
+            22133,
+            22157
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 7361,
+          "range": [
+            382129,
+            382153
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "hoisted-function-reference",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 390,
+          "range": [
+            16345,
+            16373
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/exceptions.js",
+          "line": 60,
+          "range": [
+            2541,
+            2569
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/exceptions.js",
+          "line": 232,
+          "range": [
+            11271,
+            11299
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 134,
+          "range": [
+            6288,
+            6316
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 196,
+          "range": [
+            10395,
+            10423
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 7387,
+          "range": [
+            383460,
+            383488
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "indexed-local-staged-selection",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/members/indexed-local-selection.js",
+          "line": 23,
+          "range": [
+            1085,
+            1117
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/indexed-local-selection.js",
+          "line": 27,
+          "range": [
+            1234,
+            1266
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 538,
+          "range": [
+            21937,
+            21969
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 608,
+          "range": [
+            24543,
+            24575
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/exceptions.js",
+          "line": 353,
+          "range": [
+            17195,
+            17227
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 118,
+          "range": [
+            5420,
+            5452
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 180,
+          "range": [
+            9296,
+            9328
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 401,
+          "range": [
+            19126,
+            19158
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 5238,
+          "range": [
+            269256,
+            269288
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "indexed-operation",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/policy/decision-store.js",
+          "line": 39,
+          "range": [
+            2229,
+            2248
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 524,
+          "range": [
+            21316,
+            21335
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/exceptions.js",
+          "line": 597,
+          "range": [
+            28786,
+            28805
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/exceptions.js",
+          "line": 825,
+          "range": [
+            42249,
+            42268
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 116,
+          "range": [
+            5306,
+            5325
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 178,
+          "range": [
+            9153,
+            9172
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 391,
+          "range": [
+            18712,
+            18731
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 4516,
+          "range": [
+            228951,
+            228970
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "iterator-payload-local-binding",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/members/iterator-payload.js",
+          "line": 18,
+          "range": [
+            935,
+            967
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/iterator-payload.js",
+          "line": 22,
+          "range": [
+            1056,
+            1088
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 489,
+          "range": [
+            20015,
+            20047
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 603,
+          "range": [
+            24328,
+            24360
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/exceptions.js",
+          "line": 354,
+          "range": [
+            17233,
+            17265
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 109,
+          "range": [
+            4871,
+            4903
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 171,
+          "range": [
+            8600,
+            8632
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 356,
+          "range": [
+            17212,
+            17244
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 3935,
+          "range": [
+            195452,
+            195484
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "live-array-visitation",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/policy/decision-store.js",
+          "line": 49,
+          "range": [
+            2900,
+            2923
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 458,
+          "range": [
+            18895,
+            18918
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 481,
+          "range": [
+            22547,
+            22570
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 7611,
+          "range": [
+            393949,
+            393972
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "live-own-key-enumeration",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 453,
+          "range": [
+            18689,
+            18715
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 104,
+          "range": [
+            4608,
+            4634
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 164,
+          "range": [
+            8151,
+            8177
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 476,
+          "range": [
+            22340,
+            22366
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 7461,
+          "range": [
+            386732,
+            386758
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "loop-carried-recurrence",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 463,
+          "range": [
+            19073,
+            19098
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 486,
+          "range": [
+            22753,
+            22778
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 7725,
+          "range": [
+            399293,
+            399318
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "mutable-selected-loop-binding",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/members/mutable-selected-loop.js",
+          "line": 24,
+          "range": [
+            1165,
+            1196
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/mutable-selected-loop.js",
+          "line": 28,
+          "range": [
+            1336,
+            1367
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/mutable-selected-loop.js",
+          "line": 36,
+          "range": [
+            1658,
+            1689
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 533,
+          "range": [
+            21751,
+            21782
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 607,
+          "range": [
+            24502,
+            24533
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/exceptions.js",
+          "line": 356,
+          "range": [
+            17313,
+            17344
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 117,
+          "range": [
+            5357,
+            5388
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 179,
+          "range": [
+            9221,
+            9252
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 396,
+          "range": [
+            18912,
+            18943
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 5128,
+          "range": [
+            262312,
+            262343
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "native-class-boundary",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/lowering/native-class-boundary.js",
+          "line": 18,
+          "range": [
+            846,
+            869
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 346,
+          "range": [
+            14768,
+            14791
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 126,
+          "range": [
+            5851,
+            5874
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 188,
+          "range": [
+            9855,
+            9878
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 446,
+          "range": [
+            21012,
+            21035
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "native-function-capability",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/lowering/functions.js",
+          "line": 58,
+          "range": [
+            2835,
+            2863
+          ]
+        },
+        {
+          "file": "transforms/typescript/lowering/functions.js",
+          "line": 110,
+          "range": [
+            4469,
+            4497
+          ]
+        },
+        {
+          "file": "transforms/typescript/lowering/functions.js",
+          "line": 113,
+          "range": [
+            4689,
+            4717
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 373,
+          "range": [
+            15740,
+            15768
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 131,
+          "range": [
+            6122,
+            6150
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 193,
+          "range": [
+            10191,
+            10219
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 466,
+          "range": [
+            21891,
+            21919
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 7256,
+          "range": [
+            377245,
+            377273
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "native-function-reference",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 380,
+          "range": [
+            16001,
+            16028
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/exceptions.js",
+          "line": 61,
+          "range": [
+            2602,
+            2629
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/exceptions.js",
+          "line": 233,
+          "range": [
+            11321,
+            11348
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 132,
+          "range": [
+            6179,
+            6206
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 194,
+          "range": [
+            10257,
+            10284
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 7286,
+          "range": [
+            378866,
+            378893
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "nullish-abstract-equality",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/lowering/nullish-equality.js",
+          "line": 26,
+          "range": [
+            1222,
+            1249
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 443,
+          "range": [
+            18324,
+            18351
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 102,
+          "range": [
+            4497,
+            4524
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 162,
+          "range": [
+            8002,
+            8029
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 331,
+          "range": [
+            16179,
+            16206
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "numeric-range-builder",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 468,
+          "range": [
+            19253,
+            19276
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 105,
+          "range": [
+            4662,
+            4685
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 165,
+          "range": [
+            8226,
+            8249
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 491,
+          "range": [
+            22959,
+            22982
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 7805,
+          "range": [
+            403877,
+            403900
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "operational-object-builder",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/policy/decision-store.js",
+          "line": 38,
+          "range": [
+            2161,
+            2189
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/decision-store.js",
+          "line": 47,
+          "range": [
+            2770,
+            2798
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/decision-store.js",
+          "line": 96,
+          "range": [
+            6283,
+            6311
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 448,
+          "range": [
+            18506,
+            18534
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 595,
+          "range": [
+            24020,
+            24048
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/exceptions.js",
+          "line": 358,
+          "range": [
+            17388,
+            17416
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 103,
+          "range": [
+            4552,
+            4580
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 163,
+          "range": [
+            8079,
+            8107
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 336,
+          "range": [
+            16392,
+            16420
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 5335,
+          "range": [
+            275805,
+            275833
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "ordered-decision",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/lowering/guarded-returns.js",
+          "line": 395,
+          "range": [
+            16280,
+            16298
+          ]
+        },
+        {
+          "file": "transforms/typescript/lowering/ordered-decisions.js",
+          "line": 18,
+          "range": [
+            1017,
+            1035
+          ]
+        },
+        {
+          "file": "transforms/typescript/lowering/ordered-decisions.js",
+          "line": 124,
+          "range": [
+            5961,
+            5979
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 351,
+          "range": [
+            14968,
+            14986
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 127,
+          "range": [
+            5906,
+            5924
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 189,
+          "range": [
+            9924,
+            9942
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 451,
+          "range": [
+            21212,
+            21230
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 6758,
+          "range": [
+            350766,
+            350784
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 6799,
+          "range": [
+            352857,
+            352875
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 6814,
+          "range": [
+            353668,
+            353686
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "ordered-nested-tuple-read",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/policy/decision-store.js",
+          "line": 40,
+          "range": [
+            2293,
+            2320
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 519,
+          "range": [
+            21134,
+            21161
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 115,
+          "range": [
+            5247,
+            5274
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 177,
+          "range": [
+            9078,
+            9105
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 386,
+          "range": [
+            18507,
+            18534
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "provider-edge",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/grammar/final.js",
+          "line": 1218,
+          "range": [
+            54591,
+            54606
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 291,
+          "range": [
+            12605,
+            12620
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 89,
+          "range": [
+            3840,
+            3855
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 149,
+          "range": [
+            7145,
+            7160
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 258,
+          "range": [
+            12951,
+            12966
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "provider-forward",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/members/provider-forwarding.js",
+          "line": 31,
+          "range": [
+            1314,
+            1332
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/provider-forwarding.js",
+          "line": 39,
+          "range": [
+            1580,
+            1598
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 286,
+          "range": [
+            12432,
+            12450
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 580,
+          "range": [
+            23503,
+            23521
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 88,
+          "range": [
+            3796,
+            3814
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 148,
+          "range": [
+            7084,
+            7102
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 253,
+          "range": [
+            12767,
+            12785
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 1551,
+          "range": [
+            73377,
+            73395
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "receiver-ordered-projection",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/members/generic.js",
+          "line": 196,
+          "range": [
+            7455,
+            7484
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/index.js",
+          "line": 335,
+          "range": [
+            12419,
+            12448
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/index.js",
+          "line": 1220,
+          "range": [
+            46460,
+            46489
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/residual.js",
+          "line": 530,
+          "range": [
+            22015,
+            22044
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/residual.js",
+          "line": 678,
+          "range": [
+            28922,
+            28951
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 509,
+          "range": [
+            20765,
+            20794
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/exceptions.js",
+          "line": 1093,
+          "range": [
+            57459,
+            57488
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 113,
+          "range": [
+            5128,
+            5157
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 175,
+          "range": [
+            8921,
+            8950
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 376,
+          "range": [
+            18077,
+            18106
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "repeated-parameter-read",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/lowering/guarded-returns.js",
+          "line": 127,
+          "range": [
+            4798,
+            4823
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/generic.js",
+          "line": 485,
+          "range": [
+            20903,
+            20928
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/index.js",
+          "line": 255,
+          "range": [
+            9132,
+            9157
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/selected-models.js",
+          "line": 930,
+          "range": [
+            45755,
+            45780
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 356,
+          "range": [
+            15158,
+            15183
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/exceptions.js",
+          "line": 1117,
+          "range": [
+            58689,
+            58714
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 128,
+          "range": [
+            5954,
+            5979
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 190,
+          "range": [
+            9983,
+            10008
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 456,
+          "range": [
+            21413,
+            21438
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 6890,
+          "range": [
+            357166,
+            357191
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "required-tuple-binding",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/grammar/final.js",
+          "line": 1681,
+          "range": [
+            73786,
+            73810
+          ]
+        },
+        {
+          "file": "transforms/typescript/index.js",
+          "line": 803,
+          "range": [
+            34422,
+            34446
+          ]
+        },
+        {
+          "file": "transforms/typescript/index.js",
+          "line": 1037,
+          "range": [
+            47667,
+            47691
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 478,
+          "range": [
+            19605,
+            19629
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 107,
+          "range": [
+            4760,
+            4784
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 167,
+          "range": [
+            8355,
+            8379
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 346,
+          "range": [
+            16799,
+            16823
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "resolved-source-call",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/lowering/resolved-source-calls.js",
+          "line": 28,
+          "range": [
+            1502,
+            1524
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 553,
+          "range": [
+            22479,
+            22501
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 121,
+          "range": [
+            5575,
+            5597
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 183,
+          "range": [
+            9511,
+            9533
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 416,
+          "range": [
+            19744,
+            19766
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "rest-array-fixed-selection",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/grammar/final.js",
+          "line": 258,
+          "range": [
+            10662,
+            10690
+          ]
+        },
+        {
+          "file": "transforms/typescript/grammar/final.js",
+          "line": 266,
+          "range": [
+            11128,
+            11156
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/rest-array.js",
+          "line": 18,
+          "range": [
+            936,
+            964
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/rest-array.js",
+          "line": 23,
+          "range": [
+            1131,
+            1159
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/decision-store.js",
+          "line": 121,
+          "range": [
+            8337,
+            8365
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 484,
+          "range": [
+            19832,
+            19860
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 599,
+          "range": [
+            24170,
+            24198
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/exceptions.js",
+          "line": 1212,
+          "range": [
+            63394,
+            63422
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 108,
+          "range": [
+            4814,
+            4842
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 168,
+          "range": [
+            8418,
+            8446
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 351,
+          "range": [
+            17003,
+            17031
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 3727,
+          "range": [
+            183997,
+            184025
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "same-phase-selected-binding",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/grammar/final.js",
+          "line": 2026,
+          "range": [
+            90553,
+            90582
+          ]
+        },
+        {
+          "file": "transforms/typescript/grammar/same-phase-selected-binding.js",
+          "line": 25,
+          "range": [
+            1312,
+            1341
+          ]
+        },
+        {
+          "file": "transforms/typescript/grammar/same-phase-selected-binding.js",
+          "line": 41,
+          "range": [
+            2210,
+            2239
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 336,
+          "range": [
+            14356,
+            14385
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 124,
+          "range": [
+            5724,
+            5753
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 186,
+          "range": [
+            9704,
+            9733
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 436,
+          "range": [
+            20584,
+            20613
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 6549,
+          "range": [
+            340107,
+            340136
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "selected-model-read",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/members/index.js",
+          "line": 698,
+          "range": [
+            27446,
+            27467
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/index.js",
+          "line": 716,
+          "range": [
+            28306,
+            28327
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/selected-models.js",
+          "line": 169,
+          "range": [
+            7165,
+            7186
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/selected-models.js",
+          "line": 175,
+          "range": [
+            7473,
+            7494
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 324,
+          "range": [
+            13867,
+            13888
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 589,
+          "range": [
+            23797,
+            23818
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 95,
+          "range": [
+            4141,
+            4162
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 155,
+          "range": [
+            7532,
+            7553
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 286,
+          "range": [
+            14109,
+            14130
+          ]
+        },
+        {
+          "file": "transforms/typescript/understand/type-evidence.js",
+          "line": 2332,
+          "range": [
+            112514,
+            112535
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "short-circuit-tuple-argument",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/policy/decision-store.js",
+          "line": 105,
+          "range": [
+            7073,
+            7103
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 514,
+          "range": [
+            20949,
+            20979
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/exceptions.js",
+          "line": 1100,
+          "range": [
+            57810,
+            57840
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 114,
+          "range": [
+            5185,
+            5215
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 176,
+          "range": [
+            8997,
+            9027
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 381,
+          "range": [
+            18293,
+            18323
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "sort-capability",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/members/capability-consumers.js",
+          "line": 213,
+          "range": [
+            8891,
+            8908
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/exact-provider-forwarding.js",
+          "line": 46,
+          "range": [
+            2087,
+            2104
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/index.js",
+          "line": 341,
+          "range": [
+            12837,
+            12854
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 279,
+          "range": [
+            12133,
+            12150
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/destructuring-agreements.js",
+          "line": 66,
+          "range": [
+            3431,
+            3448
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 87,
+          "range": [
+            3751,
+            3768
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 147,
+          "range": [
+            7024,
+            7041
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 248,
+          "range": [
+            12581,
+            12598
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "switch-no-value-exit",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/policy/decision-store.js",
+          "line": 134,
+          "range": [
+            9459,
+            9481
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 433,
+          "range": [
+            17963,
+            17985
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 100,
+          "range": [
+            4394,
+            4416
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 160,
+          "range": [
+            7858,
+            7880
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 319,
+          "range": [
+            15578,
+            15600
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "switch-terminal-bare-return",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/grammar/final.js",
+          "line": 1595,
+          "range": [
+            70693,
+            70722
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 438,
+          "range": [
+            18140,
+            18169
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 101,
+          "range": [
+            4442,
+            4471
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 161,
+          "range": [
+            7925,
+            7954
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 326,
+          "range": [
+            15906,
+            15935
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "typed-ignored-argument-call",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/grammar/final.js",
+          "line": 1828,
+          "range": [
+            80120,
+            80149
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 548,
+          "range": [
+            22295,
+            22324
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 120,
+          "range": [
+            5524,
+            5553
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 182,
+          "range": [
+            9430,
+            9459
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 411,
+          "range": [
+            19535,
+            19564
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "unused-binding",
+      "interpretation": "Compiled once by compileDestructuringDecisions through getDestructuringAgreement; placement consumes the completed store.",
+      "references": [
+        {
+          "file": "transforms/typescript/grammar/unused-bindings.js",
+          "line": 16,
+          "range": [
+            891,
+            907
+          ]
+        },
+        {
+          "file": "transforms/typescript/members/index.js",
+          "line": 88,
+          "range": [
+            2527,
+            2543
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/defaults.js",
+          "line": 543,
+          "range": [
+            22124,
+            22140
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 119,
+          "range": [
+            5483,
+            5499
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 181,
+          "range": [
+            9373,
+            9389
+          ]
+        },
+        {
+          "file": "transforms/typescript/policy/source-agreements.js",
+          "line": 406,
+          "range": [
+            19333,
+            19349
+          ]
+        }
+      ]
+    }
+  ]
+}
