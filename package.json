@@ -62,6 +62,7 @@
   ],
   "scripts": {
     "lint": "node scripts/audit-eslint-exceptions.js && DEBUG=eslint:eslint,eslint:eslint-helpers node node_modules/eslint/bin/eslint.js . --ignore-pattern tests/fixtures",
+    "lint:javascript": "node scripts/audit-eslint-exceptions.js && DEBUG=eslint:eslint,eslint:eslint-helpers node node_modules/eslint/bin/eslint.js . --ignore-pattern transforms --ignore-pattern 'tests/typescript-*' --ignore-pattern tests/fixtures --ignore-pattern tests/proofs",
     "postlint": "node scripts/report-outdated.js",
     "test": "node --max-old-space-size=8192 tests/run.js",
     "test:javascript": "node tests/run.js --family javascript",
