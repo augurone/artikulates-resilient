@@ -1,4 +1,5 @@
 import { selectProofs } from './proof-families.js';
+import { clearContractCaches } from '../rules/contracts/eslint-graph.js';
 import { assertSupportedRuntime } from '../scripts/proof-runtime.js';
 
 assertSupportedRuntime();
@@ -11,6 +12,7 @@ let completed = 0;
 for (const testFile of proofs) {
     process.stdout.write(`[${completed + 1}/${total}] ${testFile}\n`);
     await import(testFile);
+    clearContractCaches();
     completed += 1;
 }
 

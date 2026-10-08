@@ -28,6 +28,7 @@ import { getObject, hasObjectValue, isObject } from '../support/object.js';
 const getStoredResolverId = createIdentityIndex();
 const getStoredProgramId = createIdentityIndex();
 let programDocuments = new WeakMap();
+let activeRuleProgram = false;
 
 const getResolverId = (resolver) => {
     if (typeof resolver !== 'function') return 0;
@@ -890,6 +891,7 @@ const defaultProjectGraphManager = createProjectGraphManager();
 const clearProjectGraphCache = () => {
     defaultProjectGraphManager.reset();
     programDocuments = new WeakMap();
+    activeRuleProgram = false;
 };
 const getProjectGraphCacheStats = () => defaultProjectGraphManager.getStats();
 const clearContractCaches = () => {
@@ -900,11 +902,25 @@ const clearContractCaches = () => {
     clearBindingSources();
 };
 
+// Rule visitors share project analysis on one AST. Once a different
+// AST is queried, release the previous file's project graphs and variants.
+// Keep weak local sessions and binding sources: rule creation may already have
+// registered the new file's scope evidence before its first project query.
+const pruneRuleAnalysis = (program = {}) => {
+    if (!isObject(program) || activeRuleProgram === program) return;
+
+    clearProjectGraphCache();
+    clearProgramCache();
+    clearContractGraphCaches();
+    activeRuleProgram = program;
+};
+
 const getGraphDocument = ({
     context = {},
     program = {},
     fileName = ''
 } = {}) => {
+    pruneRuleAnalysis(program);
     const cached = isObject(program) ? programDocuments.get(program) : false;
     const {
         fileName: cachedFileName = '',
@@ -1031,5 +1047,6 @@ export {
     createProjectGraphManager,
     getEslintContractDiagnostics,
     getImportedRuleDefinition,
+    pruneRuleAnalysis,
     loadPrograms
 };

@@ -224,7 +224,7 @@ the build and through the ESLint IDE extension.
 Consumers do not manage project activation. On the first contract-rule
 invocation in an ESLint run, the adapter activates its internal project
 analysis for that root and its statically resolvable local dependency closure.
-Subsequent contract rules in the same run reuse the graph; changed source or
+Subsequent contract rules on the same source AST reuse the graph; changed source or
 resolver identity causes a rebuild. This activation is lazy and transparent to
 the consumer because ESLint does not provide a separate workspace-activation
 hook.
@@ -239,7 +239,11 @@ own a project boundary can create an isolated manager with
 createProjectGraphManager().
 
 The default adapter caches are bounded LRU caches: at most 256 parsed programs
-and 16 complete project graphs are retained. getProgramCacheSize() and
+and 16 complete project graphs are retained. When rule queries move to another
+source AST, including another file or autofix pass, the adapter prunes project
+graphs, parsed programs, and definition/document variants. Current-file local
+sessions and registered binding evidence retain their separate weak ownership.
+getProgramCacheSize() and
 getProjectGraphCacheStats() expose the current retained sizes. A host that
 owns a project or watch-session boundary should call clearContractCaches()
 when that boundary ends or changes; it clears both AST and graph retention in

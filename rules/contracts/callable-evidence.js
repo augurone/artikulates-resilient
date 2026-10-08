@@ -2,7 +2,7 @@ import {
     getBinding, getBindingDefinition, getBindingOrigin, getBindingContext, isSameBinding,
     isStableBinding, isStableReference, registerBindingSource
 } from './binding-evidence.js';
-import { getImportedRuleDefinition } from './eslint-graph.js';
+import { getImportedRuleDefinition, pruneRuleAnalysis } from './eslint-graph.js';
 import { hasCallableCapability } from './flow.js';
 import { getEnclosingFunction, isFunction as isFunctionNode } from './infer.js';
 import { isSynchronousFunctionPredicate } from './member-evidence.js';
@@ -15,6 +15,8 @@ const consumers = [
 
 const createCallableEvidence = (context = {}) => {
     const { sourceCode = {} } = context;
+    const { ast: program = {} } = sourceCode;
+    pruneRuleAnalysis(program);
     registerBindingSource(sourceCode, context);
     const resolveFunction = (identifier = {}) => {
         const binding = getBindingOrigin(getBinding(identifier));

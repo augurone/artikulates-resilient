@@ -72,6 +72,14 @@ try {
     assert.doesNotThrow(() => assertMatchingRuntime({ expected: { arch, platform, node } }));
     assert.deepEqual(selectProofs([]), testFiles);
     assert.ok(selectProofs(['--family', 'operations']).includes('./proof-execution.test.js'));
+    const javascriptProofs = selectProofs(['--family', 'javascript']);
+    assert.ok(javascriptProofs.includes('./operator-linebreak.test.js'));
+    assert.ok(javascriptProofs.includes('./project-measurement.test.js'));
+    assert.ok(javascriptProofs.includes('./project-graph-resolver.test.js'));
+    assert.ok(javascriptProofs.includes('./inspection-execution.test.js'));
+    assert.deepEqual(javascriptProofs, testFiles.filter(file => ![
+        './typescript-', './tuple-return-', './artifact-', './catalog-', './proof-corpus-', './project-dogfood-'
+    ].some(prefix => file.startsWith(prefix))));
     assert.throws(() => selectProofs(['--family', 'missing']), /Usage/u);
     assert.throws(() => selectProofs(['--family', 'rules', 'extra']), /Usage/u);
     const { status = 0, stderr = '' } = spawnSync(process.execPath, [new URL('./run.js', import.meta.url).pathname, '--family', 'missing'], { encoding: 'utf8' });

@@ -128,6 +128,11 @@ const testFiles = [
 ];
 
 const familyPrefixes = Object.freeze({
+    javascript: ['operator-', 'no-', 'prefer-', 'signature-', 'rule-', 'recommended-', 'safety-', 'imports-', 'plugin-',
+        'array-', 'function-', 'object-', 'value-', 'analyzer-', 'contracts-', 'contract.', 'document-', 'program-',
+        'variant-', 'flow-', 'graph-', 'bounded-', 'project-reuse.', 'project-edge-', 'project-query-', 'project-graph-',
+        'project-adapter.', 'project-tree.', 'project-measurement.', 'module-resolution-', 'benchmark-', 'integration-',
+        'eslint-exception-', 'documentation-', 'proof-execution.', 'inspection-'],
     transformer: ['typescript-', 'tuple-return-'],
     operations: ['artifact-', 'proof-', 'inspection-', 'project-adapter', 'project-measurement-', 'module-resolution-',
         'benchmark-', 'integration-', 'eslint-exception-', 'project-dogfood-', 'documentation-', 'catalog-'],

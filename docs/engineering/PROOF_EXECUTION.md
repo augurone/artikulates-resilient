@@ -10,6 +10,9 @@ are a separate workflow, not an additional packet gate.
 ## Focused proofs
 
 `npm test` retains the complete, ordered, sequential module list.
+`npm run test:javascript` selects rules, analyzer, measurement, inspection, and
+standard helper proofs for GitHub CI, excluding lowering and artifact proofs.
+CI also runs fixtures; full repository lint and release verification stay local.
 `npm test -- --family operations` (also `npm run test:operations`) selects the
 operational proofs in that same order. Other families are `transformer`,
 `analyzer`, `rules` and `standard`. Some integration proofs belong to more than

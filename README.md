@@ -207,10 +207,13 @@ git diff --check
 
 `npm run lint` audits source exceptions and excludes intentionally invalid
 fixtures; `npm run fixtures:check` verifies their expected diagnostics.
-Tests and repository linting include an 8 GB heap allowance.
+Tests include an 8 GB heap allowance; repository lint uses Node's default heap.
 Tests report module counts; lint reports each file and its elapsed time.
 `npm run release:check` runs these checks, a fresh packed-package consumer check,
-and a packaging dry run without changing the version.
+and a packaging dry run without changing the version. GitHub CI runs
+`npm run test:javascript` and `npm run fixtures:check` on the checkout with
+Node 24.x. This covers rules, analyzer, measurement, inspection, and
+standard helpers; full lowering, repository lint, and packaging checks stay local.
 
 See [AGENTS.md](https://github.com/augurone/artikulates-resilient/blob/main/AGENTS.md)
 for maintainer requirements and the

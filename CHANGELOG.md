@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.7.5 — 2026-10-08
+
+- Prune retained contract-analysis graphs, parsed programs, and definition/document
+  variants when ESLint moves to another source AST. Rules still share one analysis
+  for the current file, including its binding evidence. Repository lint no longer
+  needs an 8 GB heap override.
+- Clear contract caches between completed proof modules. GitHub CI runs the
+  JavaScript tests and rule/integration fixtures on the checkout with Node 24.x.
+  Full lowering, repository lint, packed-consumer checks, and packaging
+  verification remain local in `npm run release:check`.
+
 ## 0.7.4 — 2026-10-08
 
 ### Tools and public APIs

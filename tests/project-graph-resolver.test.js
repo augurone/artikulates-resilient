@@ -10,7 +10,9 @@ import { createContractGraph, normalizePath } from 'eslint-plugin-resilient/cont
 import {
     clearProjectGraphCache,
     createProjectGraphManager,
+    getImportedRuleDefinition,
     getProjectGraphCacheStats,
+    getProgramCacheSize,
     loadPrograms
 } from '../rules/contracts/eslint-graph.js';
 import { captureProgram } from '../rules/support/eslint-program.js';
@@ -123,6 +125,32 @@ try {
         result.messages.map(({ ruleId = '' } = {}) => ruleId),
         ['resilient/signature-contract-call-site']
     );
+
+    // A completed file must not lend its imported ASTs and project variants to
+    // every subsequent lint input. Rules on the next AST still share one build.
+    assert.ok(getProgramCacheSize() > 0);
+    const providerProgram = await captureProgram('export const getPageView = ({ title = "" } = {}) => title;', { fileName: providerFile });
+    const nestedDefinition = getImportedRuleDefinition({
+        context: { sourceCode: { ast: providerProgram }, filename: providerFile },
+        name: 'getPageView'
+    });
+    assert.equal(nestedDefinition.node.type, 'ArrowFunctionExpression');
+    assert.ok(getProjectGraphCacheStats().size > 1);
+    const beforeNextFile = getProjectGraphCacheStats();
+    const [nextResult = {}] = await eslint.lintText(
+        'const getTitle = ({ title = "" } = {}) => title; getTitle({ title: 42 });',
+        { filePath: path.join(directory, 'next.js') }
+    );
+    assert.deepEqual(nextResult.messages.map(({ ruleId = '' } = {}) => ruleId), ['resilient/signature-contract-call-site']);
+    assert.equal(getProgramCacheSize(), 0);
+    const afterNextFile = getProjectGraphCacheStats();
+    assert.equal(afterNextFile.builds - beforeNextFile.builds, 1);
+    assert.ok(afterNextFile.hits > beforeNextFile.hits);
+    assert.equal(afterNextFile.size, 1);
+
+    const [revisitedResult = {}] = await eslint.lintFiles([consumerFile]);
+    assert.deepEqual(revisitedResult.messages, result.messages);
+    assert.ok(getProgramCacheSize() > 0);
 } finally {
     await rm(directory, { recursive: true, force: true });
 }
