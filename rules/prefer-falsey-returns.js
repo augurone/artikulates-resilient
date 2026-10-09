@@ -80,8 +80,7 @@ export default {
             ReturnStatement({ argument = {} } = {}) {
                 reportFalseyNodes({ node: argument, report });
             },
-            ArrowFunctionExpression(node = {}) {
-                const { body = {} } = node;
+            ArrowFunctionExpression({ body = {} } = {}) {
                 const { type: bodyType = '' } = body;
 
                 if (bodyType === 'BlockStatement') return;

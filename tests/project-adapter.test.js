@@ -2,8 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-// eslint-disable-next-line import/no-useless-path-segments -- The test imports the package entry point directly.
-import resilient, { createProjectAdapter } from '../index.js';
+import resilient, { createProjectAdapter } from 'eslint-plugin-resilient';
 
 const directory = await mkdtemp(path.join(process.cwd(), '.resilient-project-'));
 const appDirectory = path.join(directory, 'src', 'app');
@@ -67,7 +66,6 @@ try {
 
     const invalidAliases = createProjectAdapter({
         cwd: directory,
-        // eslint-disable-next-line resilient/signature-contract-call-site -- Deliberately tests invalid aliases input.
         aliases: ['@']
     });
     assert.equal(invalidAliases.resolver({

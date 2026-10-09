@@ -2,37 +2,15 @@ import assert from 'node:assert/strict';
 
 import { ESLint } from 'eslint';
 
+import resilient from 'eslint-plugin-resilient';
 import {
     createContractDocument,
     createContractGraph
 } from 'eslint-plugin-resilient/contracts';
 
-const getProgram = async (code) => {
-    let program = {};
-    const capture = {
-        rules: {
-            program: {
-                create: () => ({
-                    Program: (node) => {
-                        program = node;
-                    }
-                })
-            }
-        }
-    };
-    const eslint = new ESLint({
-        overrideConfigFile: true,
-        overrideConfig: [{
-            plugins: { capture },
-            rules: { 'capture/program': 'error' }
-        }]
-    });
+import { captureProgram } from '../rules/support/eslint-program.js';
 
-    await eslint.lintText(code, { filePath: 'contract-document.js' });
-
-    return program;
-};
-
+const getProgram = async code => captureProgram(code, { fileName: 'contract-document.js' });
 const code = 'const getTitle = ({ title = "" } = {}) => title; getTitle({ title: 42 });';
 const program = await getProgram(code);
 const document = createContractDocument(program, { fileName: 'contract-document.js' });
@@ -74,6 +52,13 @@ assert.equal(diagnostics[0].ruleId, 'signature-contract-call-site');
 assert.equal(diagnostics[0].data.path, 'title');
 assert.equal(diagnostics[0].data.actual, 'number-like');
 assert.equal(document.getDiagnosticsAtOffset(valueOffset).length, 1);
+
+const arityCode = 'function choose(a, b) { switch (arguments.length) { case 1: return a; case 2: return b(a); default: throw Error("count"); } } choose(1); choose();';
+const arityProgram = await getProgram(arityCode);
+const arityDocument = createContractDocument(arityProgram, { fileName: 'arity.js' });
+const arityFindings = arityDocument.getDiagnostics().filter(({ ruleId = '' } = {}) => ruleId === 'signature-contract-call-site');
+assert.equal(arityFindings.length, 1);
+assert.equal(arityFindings[0].messageId, 'arity');
 
 const nestedCode = 'const outer = value => { const inner = (item = "") => item.trim(); return inner(value); };';
 const nestedProgram = await getProgram(nestedCode);
@@ -222,3 +207,111 @@ const { missing: foundMissing = false } = missingProviderExports;
 assert.equal(!!foundMissing, false);
 assert.equal(missingGraph.getDocument('consumer-missing.js').definitions.missing, undefined);
 assert.equal(missingGraph.getDocument('consumer-missing.js').getDiagnostics().length, 0);
+
+// Analyzer facts follow lexical bindings, so renaming an unrelated shadow does
+// not change the outer operation and block-local declarations cannot replace it.
+const getOperationMessages = async (source = '') => {
+    const sourceDocument = createContractDocument(await getProgram(source));
+
+    return sourceDocument.getDiagnostics()
+        .filter(({ ruleId = '' } = {}) => ruleId === 'signature-contract-operation')
+        .map(({ message = '' } = {}) => message);
+};
+const outerString = "const value = 'ok'; { const value = []; } value.trim();";
+const renamedShadow = "const value = 'ok'; { const inner = []; } value.trim();";
+assert.deepEqual(await getOperationMessages(outerString), []);
+assert.deepEqual(await getOperationMessages(renamedShadow), []);
+assert.deepEqual(await getOperationMessages(
+    "const value = 'ok'; { const value = []; } value.map(Boolean);"
+), ['value is string-like, but .map() requires a array-like.']);
+
+const shadowedFunction = 'const read = () => "ok"; const wrap = () => { const read = () => []; return read(); }; const consume = () => read().trim();';
+const renamedFunctionShadow = 'const read = () => "ok"; const wrap = () => { const localRead = () => []; return localRead(); }; const consume = () => read().trim();';
+assert.deepEqual(await getOperationMessages(shadowedFunction), []);
+assert.deepEqual(await getOperationMessages(renamedFunctionShadow), []);
+
+const namespaceShadow = "import * as api from 'external'; const inspect = (api = 'ok') => api.map(Boolean);";
+assert.deepEqual(await getOperationMessages(namespaceShadow), [
+    'api is string-like, but .map() requires a array-like.'
+]);
+
+// Writes to an outer identity survive block exit even though declarations in
+// that block disappear from the public name-oriented view.
+assert.deepEqual(await getOperationMessages(
+    "let value = 'ok'; { value = []; const local = 1; } value.trim();"
+), ['value is array-like, but .trim() requires a string-like.']);
+
+const catchShadow = "const error = 'ok'; try { throw []; } catch (error) { error.map(Boolean); } error.map(Boolean);";
+assert.deepEqual(await getOperationMessages(catchShadow), [
+    'error is string-like, but .map() requires a array-like.'
+]);
+
+// Function frames and signatures are selected by function-node identity, not
+// by the spelling shared with another lexical definition.
+const identityFrameCode = 'const read = () => "outer"; const wrap = () => { const read = () => []; return read(); };';
+const identityFrameDocument = createContractDocument(await getProgram(identityFrameCode));
+const innerReadOffset = identityFrameCode.indexOf('() => []') + 6;
+const innerSignature = identityFrameDocument.getSignatureAtOffset(innerReadOffset);
+assert.equal(innerSignature.name, 'read');
+assert.equal(innerSignature.returnContract.kind, 'array');
+
+// All five public contract families share the portable diagnostic readers.
+// Source ordering makes the document, graph and ESLint presentation order
+// directly comparable as well as proving their locations agree.
+const familyCode = [
+    'const takes = ({ title = "" } = {}) => title;',
+    'takes({ title: 42 });',
+    '[].toUpperCase();',
+    'const { missing } = { present: "" };',
+    '({ present: "" }).missing;',
+    'const choose = flag => { if (flag) return []; return "ok"; };'
+].join('\n');
+const familyProgram = await getProgram(familyCode);
+const familyDocument = createContractDocument(familyProgram, { fileName: 'families.js' });
+const familyGraph = createContractGraph({ programs: { 'families.js': familyProgram } });
+const summarizePortable = (records = []) => records.map(({
+    ruleId = '',
+    loc: { start: { line = 0, column = -1 } = {} } = {}
+} = {}) => ({ ruleId, line, column: column + 1 }));
+const familyDiagnostics = familyDocument.getDiagnostics();
+const documentSummary = summarizePortable(familyDiagnostics);
+const graphSummary = summarizePortable(familyGraph.getDiagnostics());
+const contractEslint = new ESLint({
+    overrideConfigFile: true,
+    overrideConfig: [{
+        ...resilient.configs.contracts,
+        settings: { resilient: { evidenceMessages: false } }
+    }]
+});
+const [familyLint = {}] = await contractEslint.lintText(familyCode, { filePath: 'families.js' });
+const eslintSummary = familyLint.messages.map(({
+    ruleId = '',
+    line = 0,
+    column = 0
+} = {}) => ({
+    ruleId: ruleId.replace('resilient/', ''),
+    line,
+    column
+}));
+const expectedFamilyOrder = [
+    'signature-contract-call-site',
+    'signature-contract-operation',
+    'signature-contract-destructuring',
+    'signature-contract-property',
+    'signature-contract-return-consistency',
+    'signature-contract-return-consistency'
+];
+assert.deepEqual(documentSummary.map(({ ruleId = '' } = {}) => ruleId), expectedFamilyOrder);
+assert.deepEqual(graphSummary, documentSummary);
+assert.deepEqual(eslintSummary, documentSummary);
+assert.deepEqual(
+    familyDiagnostics.slice(-2).map(({ data = {} } = {}) => data),
+    [
+        { actual: 'array', expected: 'string' },
+        { actual: 'string', expected: 'array' }
+    ]
+);
+assert.equal(
+    familyDocument.getDiagnosticsAtOffset(familyCode.indexOf('return []') + 'return '.length)[0].ruleId,
+    'signature-contract-return-consistency'
+);

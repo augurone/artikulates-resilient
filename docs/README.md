@@ -1,58 +1,68 @@
-# Documentation index
+# Documentation
 
-Resilient's documentation is organized by audience and job. Start with the
-root [`README.md`](../README.md) for installation and the public package
-surface; use this index when you need the deeper material.
+Start with the [package README](../README.md) for installation and configuration.
+Use this index for rules, analyzer behavior, measurement, and migration.
 
-## Start here
+## Use Resilient
 
-- [`guide/`](guide/) — adopter workflows, migration, diagnostic explanations,
-  and objections.
-- [`reference/`](reference/) — the normative dialect, analyzer/API behavior,
-  tree resolution, and the individual [`rules/`](rules/) pages.
-- [`ai/`](ai/) — the short coding standards and the agent-learning evaluation
-  protocol.
-- [`engineering/`](engineering/) — evidence-model design, diagnostic corpus,
-  benchmarks, and the project roadmap.
-- [`engineering/the-code-is-the-contract.md`](engineering/the-code-is-the-contract.md)
-  — the technical “Code Is the Contract” model.
-- [`blogs/blog-the-code-is-the-contract.md`](blogs/blog-the-code-is-the-contract.md)
-  — the readable version for sharing.
+| Task | Start here |
+| --- | --- |
+| Install and configure presets | [Package README](../README.md#configure) |
+| Learn preferred patterns and migrate existing code | [Migration playbook](guide/migration-playbook.md) |
+| Explain a finding and trace its evidence | [Diagnostic explanations](guide/diagnostic-explanations.md) |
+| Check rule triggers, options, and exceptions | [Rule pages](rules/) |
+| Measure a project or selected targets | [Measurement commands and report fields](../README.md#measure-a-project) |
+| Adopt the 0.7.4 rule changes | [Migration summary](../README.md#migrating-to-074), [changelog](../CHANGELOG.md) |
+| Write new code in the dialect | [Writing Resilient](ai/writing-resilient.md), [coding standards](ai/CODING_STANDARDS.md) |
+| Understand the design choices | [Overcoming objections](guide/overcoming-objections.md) |
 
-## Recommended reading paths
+The intentionally invalid
+[bad.js fixture](https://github.com/augurone/artikulates-resilient/blob/main/tests/fixtures/bad.js)
+has labeled examples for every rule. The [package README](../README.md#see-it-work)
+shows how to lint it and inspect source evidence from a repository checkout.
 
-### New adopter
+## Analyzer and integrations
 
-1. [`README.md`](../README.md)
-2. [`guide/diagnostic-explanations.md`](guide/diagnostic-explanations.md)
-3. [`guide/migration-playbook.md`](guide/migration-playbook.md)
-4. [`rules/`](rules/)
+| Task | Reference |
+| --- | --- |
+| Query contracts, signatures, source stacks, and evidence | [Contracts API](reference/contracts.md#public-api) |
+| Read call-site, destructuring, operation, property, and return diagnostics | [Contracts API](reference/contracts.md#public-api), [diagnostic map](guide/diagnostic-explanations.md#contract-diagnostic-map) |
+| Configure aliases, local imports, and project conventions | [Module graph](reference/contracts.md#module-graph) |
+| Understand active analysis scope and invalidation | [Tree resolution](reference/tree-resolution.md) |
+| Import runtime family and content helpers | [Optional runtime helpers](../README.md#optional-runtime-helpers) |
 
-### Engineer implementing the dialect
+## Specification
 
-1. [`reference/semantics.md`](reference/semantics.md)
-2. [`reference/contracts.md`](reference/contracts.md)
-3. [`reference/tree-resolution.md`](reference/tree-resolution.md)
-4. [`rules/`](rules/)
+| Question | Reference |
+| --- | --- |
+| Which source forms express an agreement? | [Grammar](reference/grammar.md) |
+| Which rules, presets, and exceptions apply? | [Policy](reference/policy.md) |
+| What do source evidence and boundaries mean? | [Semantics](reference/semantics.md) |
+| What are the underlying agreement obligations? | [Generic algebra](reference/resilient-algebra-invariants-generic.md), [ECMAScript algebra](reference/resilient-algebra-invariants.md) |
+| What must a preservation proof establish? | [Proof obligations](reference/resilient-proofs.md) |
+| How do the references relate? | [Agreement map](reference/AGREEMENT_MAP.md) |
 
-### AI agent or coding assistant
+Rule pages and guides apply the specification. The contracts reference describes
+implemented analyzer support; the proof obligations are a working formalism.
 
-1. [`../AGENTS.md`](../AGENTS.md)
-2. [`ai/CODING_STANDARDS.md`](ai/CODING_STANDARDS.md)
-3. [`reference/semantics.md`](reference/semantics.md)
-4. [`guide/migration-playbook.md`](guide/migration-playbook.md)
-5. [`ai/agent-learning-evaluation.md`](ai/agent-learning-evaluation.md)
+## Maintainers
 
-### Maintainer or evaluator
+- [AGENTS.md](https://github.com/augurone/artikulates-resilient/blob/main/AGENTS.md): repository requirements and verification gate.
+- [Analyzer and rule ownership](https://github.com/augurone/artikulates-resilient/blob/main/docs/engineering/REARCHITECTURE.md#analyzer-and-rule-ownership): implementation responsibilities and lifecycle boundaries.
+- [Focused tests](https://github.com/augurone/artikulates-resilient/blob/main/docs/engineering/PROOF_EXECUTION.md#focused-proofs) and [proof coverage](https://github.com/augurone/artikulates-resilient/blob/main/docs/engineering/PROOF_EXECUTION.md#proof-coverage-and-maintenance): test families, fixtures, and verification surfaces.
 
-1. [`engineering/roadmap.md`](engineering/roadmap.md)
-2. [`engineering/evidence-model-plan.md`](engineering/evidence-model-plan.md)
-3. [`engineering/diagnostic-corpus.md`](engineering/diagnostic-corpus.md)
-4. [`ai/agent-learning-evaluation.md`](ai/agent-learning-evaluation.md)
-5. [`CHANGELOG.md`](../CHANGELOG.md)
+Engineering plans, recovery logs, and audit catalogs are maintainer working
+material. Consumer behavior is documented in the README, guides, rule pages,
+and contracts reference.
 
-The technical essay in
-[`engineering/the-code-is-the-contract.md`](engineering/the-code-is-the-contract.md)
-explains the model for engineers and agents. The narrative blog in
-[`blogs/blog-the-code-is-the-contract.md`](blogs/blog-the-code-is-the-contract.md)
-is intended for reading and sharing.
+## Background and package contents
+
+Read the essays on [DEV — @augurone](https://dev.to/augurone).
+[Architecture research](reference/research.md),
+[boundary agreement](reference/resilient-boundary-agreement-contractual-totality.md),
+and [async resolution ownership](reference/resilient-async-resolution-ownership.md)
+provide design context.
+
+The npm package includes this index and the `guide/`, `rules/`, `ai/`, and
+`reference/` directories. Engineering records, blog sources, and drafts stay
+in the repository.

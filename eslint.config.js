@@ -8,7 +8,10 @@ import resilient from 'eslint-plugin-resilient';
 
 export default [
     {
-        ignores: ['node_modules/**']
+        // Reference prose is not executable source. Keep it out of every
+        // repository lint invocation even if a future Markdown processor is
+        // installed.
+        ignores: ['node_modules/**', 'docs/**', '**/*.md', 'tests/proofs/fp-ts/checkout/**']
     },
     js.configs.recommended,
     {
@@ -63,7 +66,8 @@ export default [
             'semi': ['error', 'always'],
             'arrow-parens': ['error', 'as-needed', { requireForBlockBody: true }],
             'implicit-arrow-linebreak': 'error',
-            'max-len': ['error', { code: 200, tabWidth: 4 }],
+            'max-len': ['error', { code: 200, tabWidth: 4,
+                ignorePattern: '^\\s*// eslint-disable-next-line \\S+(?:, \\S+)+ -- \\S' }],
             'no-multiple-empty-lines': ['error', { max: 1, maxEOF: 0, maxBOF: 0 }],
             'no-trailing-spaces': 'error',
             'no-multi-spaces': 'error',
@@ -81,7 +85,7 @@ export default [
             'no-plusplus': ['error', { allowForLoopAfterthoughts: true }],
             'object-curly-newline': ['error', { consistent: true }],
             'object-curly-spacing': ['error', 'always'],
-            'operator-linebreak': ['error', 'before', { overrides: { '&&': 'after', '||': 'after' } }],
+            'resilient/operator-linebreak': ['error', 'before', { overrides: { '&&': 'after', '||': 'after' } }],
             'no-use-before-define': ['error', { functions: true }],
             'consistent-return': 'error',
             'lines-between-class-members': ['error'],

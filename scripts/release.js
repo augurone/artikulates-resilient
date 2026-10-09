@@ -43,11 +43,18 @@ const compareVersions = (left = '', right = '') => {
     const a = parseVersion(left);
     const b = parseVersion(right);
 
-    for (const key of ['major', 'minor', 'patch']) {
+    const differingComponent = ['major', 'minor', 'patch'].find((key = '') => {
         const { [key]: leftValue = 0 } = a;
         const { [key]: rightValue = 0 } = b;
 
-        if (leftValue !== rightValue) return leftValue - rightValue;
+        return leftValue !== rightValue;
+    }) || '';
+
+    if (differingComponent) {
+        const { [differingComponent]: leftValue = 0 } = a;
+        const { [differingComponent]: rightValue = 0 } = b;
+
+        return leftValue - rightValue;
     }
 
     const { prerelease: leftPrerelease = '' } = a;
@@ -142,6 +149,7 @@ const verify = () => {
     run('npm', ['run', 'fixtures:check']);
     run('npm', ['test']);
     run('npm', ['run', 'lint']);
+    run('git', ['diff', '--check']);
     run('npm', ['run', 'consumer:check']);
 
     const temporaryCache = fs.mkdtempSync(path.join(os.tmpdir(), 'resilient-release-cache-'));

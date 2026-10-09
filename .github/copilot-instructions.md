@@ -2,12 +2,34 @@
 
 Before changing code, read:
 
+- [docs/reference/grammar.md](../docs/reference/grammar.md)
+- [docs/reference/policy.md](../docs/reference/policy.md)
 - [docs/reference/semantics.md](../docs/reference/semantics.md)
+- [docs/ai/writing-resilient.md](../docs/ai/writing-resilient.md)
 - [docs/ai/CODING_STANDARDS.md](../docs/ai/CODING_STANDARDS.md)
 - [AGENTS.md](../AGENTS.md)
 
 Those files define the dialect, operational examples, and agent workflow. Do
-not create a competing set of coding rules here.
+not create a competing set of coding rules here. Before your first Resilient
+implementation or review, use the first-principles guide to establish input
+ownership, result agreement, absence behavior, and failure ownership. Follow
+its blog and code references where the dialect differs from your familiar
+JavaScript or TypeScript assumptions.
+
+For lowering recovery, follow the bounded-packet, protected-evidence and
+independent-review requirements in the
+[recovery execution contract](../docs/engineering/LOWERING_RECOVERY_EXECUTION_CONTRACT_2026-10-05.md). The
+[recovery plan](../docs/engineering/LOWERING_RECOVERY_PLAN_2026-10-05.md)
+is a queue, not authorization to execute every packet. Work only within the
+selected phase's file/owner and behavior contract; minor fixes and failed gates
+do not expand it. The first phase produces read-only reconciliation and an
+unapplied patch proposal, then stops before implementation or corpus execution.
+Delegates inherit that same boundary. Independent review must inspect the
+actual diff and evidence before implementation acceptance.
+Use the plan's evidence checklist: a successful process or `--verify` result
+alone does not establish acceptance. The final integrated snapshot, complete
+file/test sets, exact raw runtime bytes and report contents must satisfy it.
+Do not execute archived measurement wrappers against their original evidence.
 
 ## Non-negotiable checks
 
@@ -37,17 +59,28 @@ or `hasObjectValue` utilities.
 
 Legitimate boundaries remain valid: external callback signatures, full-object
 forwarding, dynamic APIs, DOM objects, refs, caches, draft reducers, and
-meaningful sequential loops. For collection loops, `await` and direct
-`break`/`continue`/`return`/`throw` are native exceptions; other retained loops
-need `// resilient-allow-loop: reason`. Use the supported rule options or
-exception comments rather than inventing a new suppression form.
+meaningful sequential loops. A loop's `await` or direct control flow does not
+relax the rule. Use the narrow forms and concrete semantic reasons defined in
+[Policy P-03](../docs/reference/policy.md#p-03-exceptions-and-precedence).
+Legacy `resilient-allow` markers are not accepted.
 
 ## Before completing a change
 
+Follow [AGENTS.md](../AGENTS.md) and the current
+[acceptance record](../docs/engineering/REARCHITECTURE.md). Develop focused
+proofs first; run the complete gate for a material packet, repair failures and
+restart it before corpus measurement only within the authorized scope. Preserve
+and report an out-of-scope blocker before attempting its repair. Release checks
+are a separate workflow. A selected read-only phase ends at its stated boundary;
+these commands do not authorize advancing to implementation.
+
 ```bash
+set -e
+set -o pipefail
 npm test
 npm run fixtures:check
 npx eslint . --ignore-pattern tests/fixtures
+git diff --check
 ```
 
 The intentionally invalid [bad.js](../tests/fixtures/bad.js) fixture contains

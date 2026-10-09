@@ -2,10 +2,16 @@ const isObject = value => Object.prototype.toString.call(value) === '[object Obj
 
 const getObject = value => isObject(value) ? value : {};
 
-const hasObjectValue = (ob = {}) => isObject(ob) && !!(Object.keys(ob).length);
+const hasContent = (value = {}) => isObject(value) && !!(Object.keys(value).length);
+
+const hasObjectValue = hasContent;
+
+const modelCheck = (attr, model) => !!attr && isObject(model) && attr in model;
 
 export {
     getObject,
+    hasContent,
     hasObjectValue,
-    isObject
+    isObject,
+    modelCheck
 };

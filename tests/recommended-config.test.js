@@ -32,7 +32,7 @@ const styleResult = await lint([
 ].join('\n'));
 
 assert.deepEqual(
-    styleResult.messages.map(({ ruleId = '' } = {}) => ruleId).sort(),
+    styleResult.messages.map(({ ruleId = '' } = {}) => ruleId).toSorted(),
     ['func-style', 'prefer-const']
 );
 
@@ -63,6 +63,6 @@ const invalidResult = await lint([
 ].join('\n'));
 
 assert.deepEqual(
-    invalidResult.messages.map(({ ruleId = '' } = {}) => ruleId).sort(),
+    invalidResult.messages.map(({ ruleId = '' } = {}) => ruleId).toSorted(),
     ['resilient/no-else', 'resilient/no-length-comparison']
 );

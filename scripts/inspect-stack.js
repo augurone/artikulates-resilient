@@ -3,44 +3,19 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { ESLint } from 'eslint';
-
 import {
     createContractGraph,
     getModuleSources
 } from 'eslint-plugin-resilient/contracts';
+
+import { createProgramCapture } from '../rules/support/eslint-program.js';
+import { getFileCandidates } from '../rules/support/file-candidates.js';
 
 const getArgument = ({ options = [], name = '', fallback = '' } = {}) => {
     const index = options.indexOf(name);
     const { [index + 1]: next = fallback } = options;
 
     return index >= 0 ? next || fallback : fallback;
-};
-
-const getProgram = async ({ code = '', fileName = '' } = {}) => {
-    let program = {};
-    const capture = {
-        rules: {
-            capture: {
-                create: () => ({
-                    Program: (node) => {
-                        program = node;
-                    }
-                })
-            }
-        }
-    };
-    const eslint = new ESLint({
-        overrideConfigFile: true,
-        overrideConfig: [{
-            plugins: { capture },
-            rules: { 'capture/capture': 'error' }
-        }]
-    });
-
-    await eslint.lintText(code, { filePath: fileName });
-
-    return program;
 };
 
 const getDisplayName = (fileName = '') => path.relative(process.cwd(), fileName) || path.basename(fileName);
@@ -59,7 +34,8 @@ const getLocalImportFile = async ({ fileName = '', source = '' } = {}) => {
     if (!source.startsWith('.')) return '';
 
     const base = path.resolve(path.dirname(fileName), source);
-    const candidates = [base, `${base}.js`, `${base}.jsx`, path.join(base, 'index.js')];
+    const candidates = getFileCandidates({ base });
+    // eslint-disable-next-line resilient/prefer-prototype-methods -- Extension probing preserves Node resolution order.
     for (const candidate of candidates) {
         const existingFile = await getExistingFile(candidate);
 
@@ -70,6 +46,7 @@ const getLocalImportFile = async ({ fileName = '', source = '' } = {}) => {
 };
 
 const loadWorkspace = async ({ fileName = '' } = {}) => {
+    const captureProgram = createProgramCapture();
     const rootFile = path.resolve(fileName);
     const rootDisplayName = getDisplayName(rootFile);
     const pending = [{ fileName: rootFile, displayName: rootDisplayName }];
@@ -78,6 +55,7 @@ const loadWorkspace = async ({ fileName = '' } = {}) => {
     let programs = {};
     let rootCode = '';
 
+    // eslint-disable-next-line resilient/prefer-prototype-methods -- Breadth-first workspace discovery preserves import traversal order.
     while (pendingIndex < pending.length) {
         const { [pendingIndex]: current = {} } = pending;
         const { fileName: currentFile = '', displayName = '' } = current;
@@ -85,24 +63,25 @@ const loadWorkspace = async ({ fileName = '' } = {}) => {
 
         if (visited.has(currentFile)) continue;
 
-        // eslint-disable-next-line resilient/prefer-safe-transformations -- This private traversal set records visited files and never mutates source data.
+        // eslint-disable-next-line resilient/prefer-safe-transformations -- The private per-workspace visited index avoids copying prior filenames at every discovery and is never published.
         visited.add(currentFile);
         const code = await fs.readFile(currentFile, 'utf8');
 
         if (currentFile === rootFile) rootCode = code;
 
-        const program = await getProgram({ code, fileName: displayName });
+        const program = await captureProgram(code, { fileName: displayName });
         programs = {
             ...programs,
             [displayName]: program
         };
         const sources = getModuleSources(program);
+        // eslint-disable-next-line resilient/prefer-prototype-methods -- Import resolution appends discovered modules in source order.
         for (const source of sources) {
             const importedFile = await getLocalImportFile({ fileName: currentFile, source });
 
             if (!importedFile) continue;
 
-            // eslint-disable-next-line resilient/prefer-safe-transformations -- This private BFS queue is append-only and owns its traversal state.
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- The private live BFS queue appends discoveries without copying the growing frontier or publishing traversal state.
             pending.push({
                 fileName: importedFile,
                 displayName: getDisplayName(importedFile)

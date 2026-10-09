@@ -4,7 +4,7 @@ Disallows explicitly assigning `null` as a generic application value. Nullish
 values may describe absence at an external boundary, but contract values use
 the type-appropriate falsey value appropriate to their shape instead.
 
-## Smell
+## What this finding means
 
 Assigning `null` as a generic application value introduces a second absence
 representation beside the contract's shape-specific falsey value. That makes
@@ -27,3 +27,14 @@ surrounding contract can determine whether the correct value is `''`, `[]`,
 explicit `null` literals inside assigned expressions as well as direct
 assignments, even when they occur at an external boundary; use a local rule
 override when `null` is part of that boundary's contract.
+
+## Boundaries and non-goals
+
+An owned external boundary may genuinely use `null`; normalize it there or
+retain a narrow, reasoned exception. The rule does not invent a replacement.
+
+## Repair recipes
+
+Choose the falsey value required by the executable boundary, or remove the
+assignment. Use [diagnostic explanations](../guide/diagnostic-explanations.md)
+to classify an external boundary.

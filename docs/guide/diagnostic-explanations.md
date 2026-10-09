@@ -5,6 +5,12 @@ what authored source contract is contradicted, where the contradiction is,
 and what operation or boundary is involved. It does not claim to have
 evaluated runtime data.
 
+Every Resilient rule exposes its canonical page through ESLint documentation
+metadata. IDEs and other integrations can link that metadata to the rule page,
+which explains the finding, shows the preferred representation, names its
+boundaries, and links to its repair recipe. This guide is the shared second
+step for diagnostics that carry static evidence.
+
 ## The three-step workflow
 
 Start with the ordinary lint result:
@@ -96,6 +102,20 @@ export default [
     }
 ];
 ```
+
+The documentation link and the evidence hint have different jobs: the link
+answers what the rule requires and how to represent the repair; the hint
+identifies the first useful source fact. Keep both when sharing a diagnostic.
+
+## Contract diagnostic map
+
+| Finding family | Rule page | Repair path |
+| --- | --- | --- |
+| Known call disagrees with a signature | [Call site](../rules/signature-contract-call-site.md) | Repair the supplied value or provider default, then trace evidence. |
+| Destructuring contradicts a known shape | [Destructuring](../rules/signature-contract-destructuring.md) | Repair the producer shape or binding pattern. |
+| Native operation rejects a known receiver | [Operation](../rules/signature-contract-operation.md) | Use an agreeing operation or repair the producer. |
+| Property is absent from a closed object | [Property](../rules/signature-contract-property.md) | Correct the name or provider shape. |
+| Known return paths disagree | [Return consistency](../rules/signature-contract-return-consistency.md) | Normalize all known paths to one family. |
 
 ## How to classify the result
 

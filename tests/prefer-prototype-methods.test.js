@@ -29,12 +29,7 @@ const ruleTester = new RuleTester({
 ruleTester.run('prefer-prototype-methods', rule, {
     valid: [
         { code: 'const enabled = items.filter(item => item.enabled);' },
-        { code: 'const poll = async () => { while (true) await wait(); };' },
-        { code: 'for (const item of items) { if (item.done) break; process(item); }' },
-        { code: 'for (const item of items) { if (!item.enabled) continue; process(item); }' },
-        { code: 'outer: for (const item of items) { switch (item.kind) { case "done": break outer; default: process(item); } }' },
-        { code: 'const getFirstDone = () => { for (const item of items) { if (item.done) return item; process(item); } };' },
-        { code: '// resilient-allow-loop: sequential API work\nfor (const item of items) process(item);' }
+        { code: '// eslint-disable-next-line rule-to-test/prefer-prototype-methods -- Preserve the external contract.\nfor (const item of items) process(item);' }
     ],
     invalid: [
         {
@@ -54,6 +49,22 @@ ruleTester.run('prefer-prototype-methods', rule, {
             errors: [{ messageId: 'prototypeMethod' }]
         },
         {
+            code: 'const poll = async () => { while (true) await wait(); };',
+            errors: [{ messageId: 'prototypeMethod' }]
+        },
+        {
+            code: 'for (const item of items) { if (item.done) break; process(item); }',
+            errors: [{ messageId: 'prototypeMethod' }]
+        },
+        {
+            code: 'for (const item of items) { if (!item.enabled) continue; process(item); }',
+            errors: [{ messageId: 'prototypeMethod' }]
+        },
+        {
+            code: 'const getFirstDone = () => { for (const item of items) { if (item.done) return item; process(item); } };',
+            errors: [{ messageId: 'prototypeMethod' }]
+        },
+        {
             code: 'for (const item of items) { const process = async () => await wait(item); process(); }',
             errors: [{ messageId: 'prototypeMethod' }]
         },
@@ -62,7 +73,7 @@ ruleTester.run('prefer-prototype-methods', rule, {
             errors: [{ messageId: 'prototypeMethod' }]
         },
         {
-            code: '// resilient-allow-loop\nfor (const item of items) process(item);',
+            code: '// resilient-allow-loop: legacy marker has no effect\nfor (const item of items) process(item);',
             errors: [{ messageId: 'prototypeMethod' }]
         }
     ]

@@ -36,6 +36,15 @@ ruleTester.run('signature-contract-operation', rule, {
         { code: 'const inspect = () => { const items = ["a"]; return items.map(item => item.toUpperCase()).map(Boolean); };' },
         { code: 'const makeHandler = () => (value = "") => value.trim(); const handler = makeHandler(); handler("value").toUpperCase();' },
         { code: 'const api = { read: () => "value" }; api.read().toUpperCase();' },
+        { code: 'const api = { map: () => "ok" }; api.map().trim();' },
+        { code: 'const run = api => { const value = api.toUpperCase(); return value.map(Boolean); };' },
+        { code: 'const Object = { entries: () => "ok" }; const value = Object.entries(); value.toUpperCase();' },
+        { code: 'const Promise = { resolve: () => "ok" }; const inspect = async () => (await Promise.resolve(1)).toUpperCase();' },
+        { code: 'const NativeArray = Array; const inspect = (value = {}) => NativeArray.isArray(value) ? value.map(Boolean) : [];' },
+        { code: 'const NativeString = String; NativeString(1).toUpperCase();' },
+        { code: 'const String = () => []; String().map(Boolean);' },
+        { code: 'let NativeObject = Object; NativeObject = custom; const value = NativeObject.entries(); value.toUpperCase();' },
+        { code: "import * as E from './Either.js'; E.map(value, mapper);" },
         { code: 'const inspect = () => { const items = ["a"]; return items.filter(item => item).map(Boolean); };' },
         { code: 'const inspect = () => { const items = [1]; const total = items.reduce((sum, item) => sum, 0); return total.toFixed(); };' },
         { code: 'const inspect = () => [1].reduce((sum, item) => sum.toUpperCase(), "");' },
@@ -60,6 +69,26 @@ ruleTester.run('signature-contract-operation', rule, {
         { code: 'const inspect = value => value.toUpperCase();' }
     ],
     invalid: [
+        {
+            code: 'const NativeObject = Object; NativeObject.entries({}).toUpperCase();',
+            errors: [{ messageId: 'mismatch' }]
+        },
+        {
+            code: 'const NativePromise = Promise; const inspect = async () => (await NativePromise.resolve([])).toUpperCase();',
+            errors: [{ messageId: 'mismatch' }]
+        },
+        {
+            code: 'const Array = { isArray: value => !!value }; const inspect = (value = {}) => Array.isArray(value) ? value.map(Boolean) : [];',
+            errors: [{ messageId: 'mismatch' }]
+        },
+        {
+            code: 'const NativeString = String; NativeString(1).map(Boolean);',
+            errors: [{ messageId: 'mismatch' }]
+        },
+        {
+            code: 'const String = () => []; String().toUpperCase();',
+            errors: [{ messageId: 'mismatch' }]
+        },
         {
             code: 'const inspect = ({ items = [] } = {}) => items.toUpperCase();',
             errors: [{

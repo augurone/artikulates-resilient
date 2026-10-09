@@ -1,33 +1,6 @@
-import {
-    getDefinitions,
-    inferExpression
-} from './contracts/infer.js';
-import { getKind } from './contracts/model.js';
-
-const getStaticPropertyName = ({
-    type = '',
-    computed = false,
-    property: {
-        type: propertyType = '',
-        name = ''
-    } = {}
-} = {}) => {
-    if (type !== 'MemberExpression' || computed || propertyType !== 'Identifier') return '';
-
-    return name;
-};
-
-const getChainMethods = ({ type = '', callee = {} } = {}) => {
-    if (type !== 'CallExpression') return [];
-
-    const method = getStaticPropertyName(callee);
-    const { object = {} } = callee;
-
-    return [
-        ...(method ? [method] : []),
-        ...getChainMethods(object)
-    ];
-};
+import { getLocalAnalysisSession } from './contracts/analysis-session.js';
+import { inferExpression } from './contracts/infer.js';
+import { getChainMethods } from './support/member-chain.js';
 
 const isUnhandledChain = ({ node = {} } = {}) => {
     const methods = getChainMethods(node);
@@ -38,10 +11,13 @@ const isUnhandledChain = ({ node = {} } = {}) => {
     );
 };
 
-const isDroppedKnownPromise = ({ node: { type = '', ...sourceNode } = {}, definitions = {} } = {}) => (
-    type === 'CallExpression' &&
-    getKind(inferExpression({ type, ...sourceNode }, { functions: definitions })) === 'promise'
-);
+const isDroppedKnownPromise = ({ node: { type = '', ...sourceNode } = {}, definitions = {} } = {}) => {
+    if (type !== 'CallExpression') return false;
+
+    const { kind = 'unknown' } = inferExpression({ type, ...sourceNode }, { functions: definitions });
+
+    return kind === 'promise';
+};
 
 export default {
     meta: {
@@ -60,7 +36,7 @@ export default {
 
         return {
             Program(node = {}) {
-                definitions = getDefinitions(node);
+                ({ definitions = {} } = getLocalAnalysisSession(node));
             },
             ExpressionStatement({ expression = {} } = {}) {
                 if (!isUnhandledChain({ node: expression }) && !isDroppedKnownPromise({

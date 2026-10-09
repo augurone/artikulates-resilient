@@ -16,7 +16,7 @@ ruleTester.run('prefer-async-await', rule, {
         { code: 'request().finally(cleanup);' },
         { code: 'request().then(handle);' },
         { code: 'request().then(handle).finally(cleanup);' },
-        { code: '// resilient-allow-promise-chain: third-party API\nrequest().then(handle);' }
+        { code: '// eslint-disable-next-line rule-to-test/prefer-async-await -- Preserve the external contract.\nrequest().then(handle).catch(report);' }
     ],
     invalid: [
         {
@@ -24,7 +24,7 @@ ruleTester.run('prefer-async-await', rule, {
             errors: [{ messageId: 'asyncAwait' }]
         },
         {
-            code: '// resilient-allow-promise-chain\nrequest().then(handle).catch(report);',
+            code: '// resilient-allow-promise-chain: legacy marker has no effect\nrequest().then(handle).catch(report);',
             errors: [{ messageId: 'asyncAwait' }]
         }
     ]

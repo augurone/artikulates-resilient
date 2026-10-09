@@ -1,8 +1,4 @@
-const FUNCTION_TYPES = [
-    'ArrowFunctionExpression',
-    'FunctionDeclaration',
-    'FunctionExpression'
-];
+import { isFunctionType } from './support/ast-function.js';
 
 const hasNestedIfAncestor = ({ node: { parent: ancestor = {} } = {} } = {}) => {
     if (!ancestor) return false;
@@ -11,7 +7,7 @@ const hasNestedIfAncestor = ({ node: { parent: ancestor = {} } = {} } = {}) => {
 
     if (ancestorType === 'IfStatement') return true;
 
-    if (FUNCTION_TYPES.includes(ancestorType)) return false;
+    if (isFunctionType(ancestorType)) return false;
 
     return hasNestedIfAncestor({ node: ancestor });
 };

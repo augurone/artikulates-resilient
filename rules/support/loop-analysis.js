@@ -1,3 +1,5 @@
+import { isFunctionType } from './ast-function.js';
+import { extendTraversalPath, someTraversalChild } from './ast-traversal.js';
 import {
     getObject,
     hasObjectValue,
@@ -12,12 +14,6 @@ const LOOP_TYPES = [
     'DoWhileStatement'
 ];
 
-const FUNCTION_TYPES = [
-    'ArrowFunctionExpression',
-    'FunctionDeclaration',
-    'FunctionExpression'
-];
-
 const LOOP_CONTROL_TYPES = [
     'BreakStatement',
     'ContinueStatement',
@@ -26,16 +22,13 @@ const LOOP_CONTROL_TYPES = [
 ];
 
 const isAncestor = ({ ancestor = {}, node = {} } = {}) => {
-    let current = node;
+    if (!hasObjectValue(node)) return false;
 
-    while (hasObjectValue(current)) {
-        if (current === ancestor) return true;
+    if (node === ancestor) return true;
 
-        const { parent = {} } = current;
-        current = parent;
-    }
+    const { parent = {} } = node;
 
-    return false;
+    return isAncestor({ ancestor, node: parent });
 };
 
 const getLabeledAncestor = ({ node = {}, name = '' } = {}) => {
@@ -78,15 +71,11 @@ const hasAwaitExpression = (node = {}, seen = new Set(), root = true) => {
     if (type === 'AwaitExpression') return true;
 
     // Await in a callback does not make the surrounding collection loop sequential.
-    if (!root && FUNCTION_TYPES.includes(type)) return false;
+    if (!root && isFunctionType(type)) return false;
 
-    const nextSeen = new Set([...seen, node]);
+    const nextSeen = extendTraversalPath(seen, node);
 
-    return Object.entries(properties)
-        .filter(([key = '']) => !['parent', 'loc', 'range', 'tokens', 'comments'].includes(key))
-        .some(([, value = {}]) => Array.isArray(value)
-            ? value.some(child => hasAwaitExpression(child, nextSeen, false))
-            : hasAwaitExpression(value, nextSeen, false));
+    return someTraversalChild(properties, child => hasAwaitExpression(child, nextSeen, false));
 };
 
 const hasLoopControl = (
@@ -102,7 +91,7 @@ const hasLoopControl = (
 
     if (!root && LOOP_TYPES.includes(type)) return false;
 
-    if (!root && FUNCTION_TYPES.includes(type)) return false;
+    if (!root && isFunctionType(type)) return false;
 
     if (type === 'BreakStatement') {
         return isLoopBreak({ node, rootNode, switchDepth });
@@ -110,55 +99,14 @@ const hasLoopControl = (
 
     if (LOOP_CONTROL_TYPES.includes(type)) return true;
 
-    const nextSeen = new Set([...seen, node]);
+    const nextSeen = extendTraversalPath(seen, node);
     const nextSwitchDepth = switchDepth + (type === 'SwitchStatement' ? 1 : 0);
 
-    return Object.entries(properties)
-        .filter(([key = '']) => !['parent', 'loc', 'range', 'tokens', 'comments'].includes(key))
-        .some(([, value = {}]) => Array.isArray(value)
-            ? value.some(child => hasLoopControl(child, nextSeen, false, nextSwitchDepth, rootNode))
-            : hasLoopControl(value, nextSeen, false, nextSwitchDepth, rootNode));
-};
-
-const hasAllowComment = ({ sourceCode = {}, node = {} } = {}) => {
-    const { getCommentsBefore = false } = sourceCode;
-
-    if (typeof getCommentsBefore !== 'function') return false;
-
-    return getCommentsBefore.call(sourceCode, node)
-        .some(({ value = '' } = {}) => /^\s*resilient-allow-loop\s*:\s*\S/.test(value));
-};
-
-const hasLoopException = ({ sourceCode = {}, node = {} } = {}) => (
-    hasAwaitExpression(node) ||
-    hasLoopControl(node) ||
-    hasAllowComment({ sourceCode, node })
-);
-
-const getEnclosingLoop = ({ node = {} } = {}) => {
-    const { parent = {} } = getObject(node);
-    const { type: parentType = '' } = getObject(parent);
-
-    if (!hasObjectValue(parent) || !parentType) return {};
-
-    if (LOOP_TYPES.includes(parentType)) return parent;
-
-    if (FUNCTION_TYPES.includes(parentType)) return {};
-
-    return getEnclosingLoop({ node: parent });
-};
-
-const isCoveredByLoopRule = ({ sourceCode = {}, node = {} } = {}) => {
-    const loop = getEnclosingLoop({ node });
-    const { type: loopType = '' } = loop;
-
-    return Boolean(loopType) && !hasLoopException({ sourceCode, node: loop });
+    return someTraversalChild(properties, child => hasLoopControl(child, nextSeen, false, nextSwitchDepth, rootNode));
 };
 
 export {
     LOOP_TYPES,
-    hasAllowComment,
     hasAwaitExpression,
-    hasLoopControl,
-    isCoveredByLoopRule
+    hasLoopControl
 };

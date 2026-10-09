@@ -1,4 +1,4 @@
-import { isCoveredByLoopRule } from './support/loop-analysis.js';
+import { getStaticPropertyName } from './support/member-chain.js';
 import { getObject } from './support/object.js';
 
 const MUTATING_METHODS = new Set([
@@ -23,19 +23,6 @@ const getRootIdentifier = ({ type = '', object = {}, expression = {}, ...node } 
     if (type === 'MemberExpression') return getRootIdentifier(object);
 
     return type === 'Identifier' ? { type, ...node } : {};
-};
-
-const getStaticPropertyName = ({
-    type = '',
-    computed = false,
-    property: {
-        type: propertyType = '',
-        name = ''
-    } = {}
-} = {}) => {
-    if (type !== 'MemberExpression' || computed || propertyType !== 'Identifier') return '';
-
-    return name;
 };
 
 const getMutationTarget = ({ node = {} } = {}) => {
@@ -75,7 +62,12 @@ const getMutationTarget = ({ node = {} } = {}) => {
         calleeObjectType === 'Identifier' &&
         calleeObjectName === 'Object' &&
         getStaticPropertyName(safeCallee) === 'assign'
-    ) return firstArgument;
+    ) {
+        const { type: targetType = '' } = getObject(firstArgument);
+
+        return targetType === 'ObjectExpression' || targetType === 'ArrayExpression'
+            ? {} : firstArgument;
+    }
 
     const method = getStaticPropertyName(safeCallee);
 
@@ -107,8 +99,10 @@ const isIgnored = ({ name = '', property = '', options = {} } = {}) => {
     } = options;
 
     return (
-        ignoredParameters.includes(name) ||
-        ignoredBindings.includes(name) ||
+        (Boolean(name) && (
+            ignoredParameters.includes(name) ||
+            ignoredBindings.includes(name)
+        )) ||
         Boolean(property && ignoredProperties.includes(property))
     );
 };
@@ -143,31 +137,30 @@ export default {
             additionalProperties: false
         }],
         messages: {
-            mutation: 'Prefer a safe transformation for "{{name}}"; return a new value instead of mutating it.'
+            mutation: 'Prefer a safe transformation for "{{name}}"; return a new value instead of mutating it.',
+            unnamedMutation: 'Prefer a safe transformation for this value; return a new value instead of mutating it.'
         }
     },
     create({
         report = () => {},
-        sourceCode = {},
         options: [options = {}] = []
     } = {}) {
         const reportMutation = (node = {}) => {
             const target = getMutationTarget({ node });
+            const { type: targetType = '' } = getObject(target);
+
+            if (!targetType) return;
+
             const root = getRootIdentifier(target);
             const { name = '' } = root;
-
-            if (!name) return;
-
-            if (isCoveredByLoopRule({ sourceCode, node })) return;
-
             const property = getMutationProperty(node);
 
             if (isIgnored({ name, property, options })) return;
 
             report({
                 node,
-                messageId: 'mutation',
-                data: { name }
+                messageId: name ? 'mutation' : 'unnamedMutation',
+                ...(name ? { data: { name } } : {})
             });
         };
 

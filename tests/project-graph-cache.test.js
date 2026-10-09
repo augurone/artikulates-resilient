@@ -2,10 +2,9 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { ESLint } from 'eslint';
-
 import {
     createProjectGraphManager,
+    createProjectTree,
     normalizePath
 } from 'eslint-plugin-resilient/contracts';
 
@@ -14,37 +13,9 @@ import {
     loadPrograms
 } from '../rules/contracts/eslint-graph.js';
 import { getProgramCacheSize } from '../rules/contracts/program-cache.js';
+import { captureProgram } from '../rules/support/eslint-program.js';
 
-const getProgram = async (code = '', file = '') => {
-    let program = {};
-    const capture = {
-        rules: {
-            program: {
-                create: () => ({
-                    Program: (node) => {
-                        program = node;
-                    }
-                })
-            }
-        }
-    };
-    const eslint = new ESLint({
-        overrideConfigFile: true,
-        overrideConfig: [{
-            languageOptions: {
-                ecmaVersion: 'latest',
-                sourceType: 'module'
-            },
-            plugins: { capture },
-            rules: { 'capture/program': 'error' }
-        }]
-    });
-
-    await eslint.lintText(code, { filePath: file });
-
-    return program;
-};
-
+const getProgram = async (code = '', file = '') => captureProgram(code, { fileName: file, languageOptions: { ecmaVersion: 'latest', sourceType: 'module' } });
 const directory = await mkdtemp(path.join(process.cwd(), '.resilient-graph-'));
 const providerFile = path.join(directory, 'provider.js');
 const consumerFile = path.join(directory, 'consumer.js');
@@ -110,6 +81,12 @@ try {
         size: 1
     });
 
+    manager.reset({ passive: false });
+    const retainedGraph = manager.getGraph({ context, program: consumerProgram, fileName: consumerFile });
+    assert.notEqual(retainedGraph, firstGraph);
+    assert.equal(retainedGraph.programs[normalizePath(providerFile)], firstGraph.programs[normalizePath(providerFile)]);
+    assert.deepEqual(retainedGraph.getDiagnostics(), firstGraph.getDiagnostics());
+
     await writeFile(providerFile, 'export const getPageView = ({ title = 0 } = {}) => title;');
     const thirdGraph = manager.getGraph({
         context,
@@ -120,10 +97,48 @@ try {
     assert.equal(thirdGraph.getDiagnostics().length, 0);
     assert.deepEqual(manager.getStats(), {
         hits: 1,
-        misses: 2,
-        builds: 2,
+        misses: 3,
+        builds: 3,
         size: 1
     });
+
+    const tree = createProjectTree({ programs: thirdGraph.programs });
+    const whole = tree.analyze({ roots: [consumerFile] });
+    const selected = tree.analyze({ roots: [consumerFile], documentFiles: [consumerFile] });
+    assert.deepEqual(Object.keys(selected.graph.documents), [consumerFile]);
+    assert.deepEqual(Object.keys(whole.graph.documents).toSorted(), [consumerFile, providerFile].toSorted());
+    assert.deepEqual(selected.diagnostics, whole.diagnostics.filter(({ fileName = '' } = {}) => fileName === consumerFile));
+    assert.deepEqual(selected.graph.definitions[consumerFile], whole.graph.definitions[consumerFile]);
+    assert.equal(tree.analyze({ roots: [consumerFile] }), whole);
+    assert.equal(tree.analyze({ roots: [consumerFile], documentFiles: [consumerFile] }), selected);
+
+    const currentManager = createProjectGraphManager({ currentFileOnly: true });
+    const currentContext = { ...context, sourceCode: { text: consumerCode } };
+    const originalCurrent = currentManager.getGraph({ context: currentContext, program: consumerProgram, fileName: consumerFile });
+    currentManager.reset({ passive: false });
+    const replacementProgram = await getProgram(consumerCode, consumerFile);
+    const replacedCurrent = currentManager.getGraph({ context: currentContext, program: replacementProgram, fileName: consumerFile });
+    assert.equal(replacedCurrent.programs[consumerFile], replacementProgram);
+    assert.notEqual(replacedCurrent.programs[consumerFile], originalCurrent.programs[consumerFile]);
+    assert.equal(replacedCurrent.programs[providerFile], originalCurrent.programs[providerFile]);
+
+    await writeFile(consumerFile, consumerCode);
+    const sharedRootsManager = createProjectGraphManager({ currentFileOnly: true });
+    const sharedRootsContext = { ...currentContext, settings: { resilient: { roots: [consumerFile, providerFile] } } };
+    const sharedConsumer = sharedRootsManager.getGraph({ context: sharedRootsContext, program: consumerProgram, fileName: consumerFile });
+    const sharedProvider = sharedRootsManager.getGraph({
+        context: { ...sharedRootsContext, sourceCode: { text: 'export const getPageView = ({ title = 0 } = {}) => title;' } },
+        program: sharedConsumer.programs[providerFile],
+        fileName: providerFile
+    });
+    assert.deepEqual(Object.keys(sharedConsumer.documents), [consumerFile]);
+    assert.deepEqual(Object.keys(sharedProvider.documents), [providerFile]);
+    assert.equal(sharedProvider.programs[providerFile], sharedConsumer.programs[providerFile]);
+    assert.deepEqual(Object.keys(sharedRootsManager.getGraph({
+        context: sharedRootsContext,
+        program: consumerProgram,
+        fileName: consumerFile
+    }).documents), [consumerFile]);
 
     const boundedManager = createProjectGraphManager({ graphCacheLimit: 1 });
     const firstBoundedGraph = boundedManager.getGraph({

@@ -10,9 +10,12 @@ import { createContractGraph, normalizePath } from 'eslint-plugin-resilient/cont
 import {
     clearProjectGraphCache,
     createProjectGraphManager,
+    getImportedRuleDefinition,
     getProjectGraphCacheStats,
+    getProgramCacheSize,
     loadPrograms
 } from '../rules/contracts/eslint-graph.js';
+import { captureProgram } from '../rules/support/eslint-program.js';
 
 const directory = await mkdtemp(path.join(process.cwd(), '.resilient-resolver-'));
 const providerFile = path.join(directory, 'provider.js');
@@ -21,35 +24,10 @@ const frameworkFile = path.join(directory, 'layout.js');
 let resolverCalls = 0;
 
 const getProgram = async (code = '', fileName = '') => {
-    let program = {};
-    const capture = {
-        rules: {
-            program: {
-                create: () => ({
-                    Program: (node) => {
-                        program = node;
-                    }
-                })
-            }
-        }
-    };
     clearProjectGraphCache();
-    const eslint = new ESLint({
-        overrideConfigFile: true,
-        overrideConfig: [{
-            languageOptions: {
-                ecmaVersion: 'latest',
-                sourceType: 'module'
-            },
-            plugins: { capture },
-            rules: { 'capture/program': 'error' }
-        }]
-    });
-    await eslint.lintText(code, { filePath: fileName });
 
-    return program;
+    return captureProgram(code, { fileName, languageOptions: { ecmaVersion: 'latest', sourceType: 'module' } });
 };
-
 try {
     await writeFile(
         providerFile,
@@ -80,7 +58,7 @@ try {
         program: consumerProgram,
         fileName: consumerFile
     });
-    assert.deepEqual(Object.keys(programs).sort(), [consumerFile, frameworkFile, providerFile].sort());
+    assert.deepEqual(Object.keys(programs).toSorted(), [consumerFile, frameworkFile, providerFile].toSorted());
     const graph = createContractGraph({
         programs,
         resolve: ({ source = '' } = {}) => source === '@artikulates/page'
@@ -147,6 +125,40 @@ try {
         result.messages.map(({ ruleId = '' } = {}) => ruleId),
         ['resilient/signature-contract-call-site']
     );
+
+    // Completing a file releases active analysis while validated parsed
+    // dependencies remain reusable. Rules on the next AST share one build.
+    assert.ok(getProgramCacheSize() > 0);
+    const providerProgram = await captureProgram('export const getPageView = ({ title = "" } = {}) => title;', { fileName: providerFile });
+    const nestedDefinition = getImportedRuleDefinition({
+        context: { sourceCode: { ast: providerProgram }, filename: providerFile },
+        name: 'getPageView'
+    });
+    assert.equal(nestedDefinition.node.type, 'ArrowFunctionExpression');
+    assert.ok(getProjectGraphCacheStats().size > 1);
+    const retainedPrograms = getProgramCacheSize();
+    const beforeNextFile = getProjectGraphCacheStats();
+    const [nextResult = {}] = await eslint.lintText(
+        'const getTitle = ({ title = "" } = {}) => title; getTitle({ title: 42 });',
+        { filePath: path.join(directory, 'next.js') }
+    );
+    assert.deepEqual(nextResult.messages.map(({ ruleId = '' } = {}) => ruleId), ['resilient/signature-contract-call-site']);
+    assert.equal(getProgramCacheSize(), retainedPrograms);
+    const afterNextFile = getProjectGraphCacheStats();
+    assert.equal(afterNextFile.builds - beforeNextFile.builds, 1);
+    assert.ok(afterNextFile.hits > beforeNextFile.hits);
+    assert.equal(afterNextFile.size, 1);
+
+    const [revisitedResult = {}] = await eslint.lintFiles([consumerFile]);
+    assert.deepEqual(revisitedResult.messages, result.messages);
+    assert.ok(getProgramCacheSize() > 0);
+
+    await writeFile(providerFile, 'export const getPageView = ({ title = 0 } = {}) => title;');
+    const [changedProviderResult = {}] = await eslint.lintFiles([consumerFile]);
+    assert.deepEqual(changedProviderResult.messages, []);
+    await rm(providerFile);
+    const [deletedProviderResult = {}] = await eslint.lintFiles([consumerFile]);
+    assert.deepEqual(deletedProviderResult.messages, []);
 } finally {
     await rm(directory, { recursive: true, force: true });
 }

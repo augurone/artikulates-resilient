@@ -1,8 +1,7 @@
 import { getObject } from './object.js';
 import {
     getSourceText,
-    getStaticMemberName,
-    getStaticMemberProperties
+    getStaticMemberName
 } from './signature-analysis.js';
 import {
     getAddedPropertyNames,
@@ -62,12 +61,12 @@ const isSafeDeclarationPosition = ({ declaration = {}, functionNode = {} } = {})
 const getSuggestion = ({
     violation = {},
     functionNode = {},
-    sourceCode = {}
+    sourceCode = {},
+    usage = {}
 } = {}) => {
     const {
         node: pattern = {},
         declaration = {},
-        init = {},
         paramName = '',
         paramNode = {}
     } = violation;
@@ -82,11 +81,7 @@ const getSuggestion = ({
         properties = [],
         memberNodes = [],
         hasUnsafeReference = false
-    } = getStaticMemberProperties({
-        node: functionNode,
-        name: paramName,
-        excludedNodes: [paramNode, init]
-    });
+    } = usage;
 
     if (hasUnsafeReference) return [];
 

@@ -1,9 +1,4 @@
-import {
-    LOOP_TYPES,
-    hasAllowComment,
-    hasAwaitExpression,
-    hasLoopControl
-} from './support/loop-analysis.js';
+import { LOOP_TYPES } from './support/loop-analysis.js';
 
 const reportLoop = ({ report, node = {} } = {}) => {
     if (typeof report !== 'function') return;
@@ -26,18 +21,10 @@ export default {
             prototypeMethod: 'Prefer a collection prototype method such as map, filter, reduce, some, find, or forEach over an imperative loop.'
         }
     },
-    create({ report = () => {}, sourceCode = {} } = {}) {
+    create({ report = () => {} } = {}) {
         return LOOP_TYPES.reduce((visitors = {}, loopType = '') => ({
             ...visitors,
-            [loopType]: (node = {}) => {
-                if (
-                    hasAwaitExpression(node) ||
-                    hasLoopControl(node) ||
-                    hasAllowComment({ sourceCode, node })
-                ) return;
-
-                reportLoop({ report, node });
-            }
+            [loopType]: (node = {}) => reportLoop({ report, node })
         }), {});
     }
 };

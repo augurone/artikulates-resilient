@@ -1,74 +1,14 @@
-import { getEnclosingFunction, walk } from './contracts/infer.js';
+import { getArrayBindingFact, getObjectBindingFact } from './contracts/binding-patterns.js';
+import { createCallableEvidence } from './contracts/callable-evidence.js';
 import { getObject } from './support/object.js';
 
-const isAssignmentPattern = ({ type = '' } = {}) => type === 'AssignmentPattern';
-
-const isRestElement = ({ type = '' } = {}) => type === 'RestElement';
-
-const isUseStateResult = ({ parent = {} } = {}) => {
-    const {
-        type = '',
-        id = {},
-        init = {}
-    } = getObject(parent);
-    const { type: idType = '' } = getObject(id);
-    const {
-        type: initType = '',
-        callee = {}
-    } = getObject(init);
-    const {
-        type: calleeType = '',
-        name = ''
-    } = getObject(callee);
-
-    return (
-        type === 'VariableDeclarator' &&
-        idType === 'ArrayPattern' &&
-        initType === 'CallExpression' &&
-        calleeType === 'Identifier' &&
-        name === 'useState'
-    );
-};
-
-const isDirectlyInvoked = ({
-    node: {
-        value: {
-            type: valueType = '',
-            name: valueName = ''
-        } = {},
-        parent = {}
-    } = {}
-} = {}) => {
-    if (valueType !== 'Identifier') return false;
-
-    const functionNode = getEnclosingFunction({ parent });
-    const { body: functionBody = {} } = functionNode;
-
-    if (!functionBody) return false;
-
-    let invoked = false;
-    walk(functionBody, ({
-        type = '',
-        callee: {
-            type: calleeType = '',
-            name = ''
-        } = {}
-    } = {}) => {
-        if (type === 'CallExpression' && calleeType === 'Identifier' && name === valueName) {
-            invoked = true;
-        }
-    }, { skipFunctions: true });
-
-    return invoked;
-};
-
-const reportMissingDefault = ({ node = {}, report } = {}) => {
-    const { value: sourceValue = node, parent = {} } = getObject(node);
+const reportMissingDefault = ({ node = {}, report, hasGuardedUse = undefined } = {}) => {
+    const { value: sourceValue = node } = getObject(node);
     const value = getObject(sourceValue);
 
-    if (isAssignmentPattern(value) || isRestElement(value)) return;
+    const { type = '' } = value;
 
-    if (isDirectlyInvoked({ node: { value, parent } })) return;
+    if (['AssignmentPattern', 'RestElement'].includes(type) || hasGuardedUse(value)) return;
 
     if (typeof report !== 'function') return;
 
@@ -90,23 +30,20 @@ export default {
             safeDefault: 'Provide an explicit default for this destructured value.'
         }
     },
-    create({ report = () => {} } = {}) {
+    create(context = {}) {
+        const { report = () => {} } = context;
+        const { hasGuardedUse = undefined } = createCallableEvidence(context);
+
         return {
-            'ObjectPattern > Property': (node = {}) => {
-                reportMissingDefault({
-                    node,
-                    report
-                });
+            'ObjectPattern > Property'(node = {}) {
+                if (getObjectBindingFact(node)) return;
+
+                reportMissingDefault({ node, report, hasGuardedUse });
             },
             ArrayPattern({ elements = [], ...node } = {}) {
-                if (isUseStateResult(node)) return;
+                if (getArrayBindingFact({ ...node, elements })) return;
 
-                elements
-                    .filter(Boolean)
-                    .forEach((element = {}) => reportMissingDefault({
-                        node: element,
-                        report
-                    }));
+                elements.filter(Boolean).forEach(element => reportMissingDefault({ node: element, report, hasGuardedUse }));
             }
         };
     }

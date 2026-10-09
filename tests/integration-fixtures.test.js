@@ -5,10 +5,10 @@ import { fileURLToPath } from 'node:url';
 
 import { ESLint } from 'eslint';
 
+import resilient from 'eslint-plugin-resilient';
 import { createContractGraph } from 'eslint-plugin-resilient/contracts';
 
-// eslint-disable-next-line import/no-useless-path-segments -- Integration tests intentionally import the repository entry point.
-import resilient from '../index.js';
+import { captureProgram } from '../rules/support/eslint-program.js';
 
 const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = file => fs.readFileSync(path.join(rootDirectory, file), 'utf8');
@@ -29,36 +29,7 @@ const getRuleIds = ({ messages = [] } = {}) => messages.map(({ ruleId = '' } = {
 const getFixtureContract = ({ file = '' } = {}) => manifest.integrationFixtures
     .find(({ file: fixtureFile = '' } = {}) => fixtureFile === file) || {};
 
-const getProgram = async ({ code = '', file = '' } = {}) => {
-    let program = {};
-    const capture = {
-        rules: {
-            program: {
-                create: () => ({
-                    Program: (node) => {
-                        program = node;
-                    }
-                })
-            }
-        }
-    };
-    const eslint = new ESLint({
-        overrideConfigFile: true,
-        overrideConfig: [{
-            languageOptions: {
-                ecmaVersion: 'latest',
-                sourceType: 'module'
-            },
-            plugins: { capture },
-            rules: { 'capture/program': 'error' }
-        }]
-    });
-
-    await eslint.lintText(code, { filePath: file });
-
-    return program;
-};
-
+const getProgram = async ({ code = '', file = '' } = {}) => captureProgram(code, { fileName: file, languageOptions: { ecmaVersion: 'latest', sourceType: 'module' } });
 const getFixturePrograms = async ({ file = '', files = [] } = {}) => {
     const fixtureFiles = [file, ...files];
 

@@ -2,6 +2,7 @@
   "version": 1,
   "agentFixture": "tests/fixtures/bad.js",
   "ruleHighlights": [
+    { "rule": "operator-linebreak", "heading": "operator-linebreak" },
     { "rule": "no-destructuring-fallback", "heading": "no-destructuring-fallback" },
     { "rule": "no-else", "heading": "no-else" },
     { "rule": "no-length-comparison", "heading": "no-length-comparison" },
@@ -29,15 +30,15 @@
     {
       "file": "tests/fixtures/integration/engine-boundaries.valid.js",
       "kind": "valid",
-      "covers": ["cache", "api-response", "url-search-params", "ref", "graph-accumulator", "reducer"],
+      "covers": ["cache", "api-response", "url-search-params", "ref", "unnamed-ref-property-exception", "graph-accumulator", "reducer", "guarded-implicit-completion"],
       "expectedDiagnostics": []
     },
     {
       "file": "tests/fixtures/integration/engine-boundaries.invalid.js",
       "kind": "invalid",
-      "covers": ["input-mutation", "external-response-data", "callback-accumulator", "switch-local-break"],
+      "covers": ["input-mutation", "external-response-data", "callback-accumulator", "switch-local-break", "retained-loop-mutation", "unnamed-method-target", "unnamed-property-target", "unnamed-assign-target"],
       "expectedDiagnostics": [
-        { "ruleId": "resilient/prefer-safe-transformations", "count": 3 },
+        { "ruleId": "resilient/prefer-safe-transformations", "count": 9 },
         { "ruleId": "resilient/prefer-prototype-methods", "count": 1 }
       ]
     },
@@ -73,7 +74,7 @@
       "covers": ["barrel-contract", "argument-contract", "return-contract", "async-contract", "callback-contract"],
       "expectedDiagnostics": [
         { "ruleId": "resilient/signature-contract-call-site", "count": 5 },
-        { "ruleId": "resilient/signature-contract-operation", "count": 4 }
+        { "ruleId": "resilient/signature-contract-operation", "count": 3 }
       ]
     },
     {
@@ -92,6 +93,37 @@
         { "localName": "missing", "importedName": "missing", "kind": "missing" },
         { "localName": "value", "importedName": "value", "kind": "ambiguous" },
         { "localName": "external", "importedName": "*", "kind": "unknown" }
+      ]
+    },
+    {
+      "file": "tests/fixtures/rule-evidence/signature.valid.js",
+      "kind": "valid",
+      "covers": ["deferred-whole-object", "getter-timing"],
+      "expectedDiagnostics": []
+    },
+    {
+      "file": "tests/fixtures/rule-evidence/signature.invalid.js",
+      "kind": "invalid",
+      "covers": ["shadowed-parameter", "owned-signature-binding"],
+      "expectedDiagnostics": [
+        { "ruleId": "resilient/prefer-signature-destructuring", "count": 2 }
+      ]
+    },
+    {
+      "file": "tests/fixtures/rule-evidence/consumers.valid.js",
+      "files": ["tests/fixtures/rule-evidence/operations.js"],
+      "kind": "valid",
+      "covers": ["guarded-consumer", "renamed-import", "immutable-alias", "guarded-callback"],
+      "expectedDiagnostics": []
+    },
+    {
+      "file": "tests/fixtures/rule-evidence/consumers.invalid.js",
+      "files": ["tests/fixtures/rule-evidence/operations.js", "tests/fixtures/rule-evidence/function.js"],
+      "kind": "invalid",
+      "covers": ["unguarded-consumer", "shadowed-import", "unguarded-sibling"],
+      "expectedDiagnostics": [
+        { "ruleId": "resilient/prefer-safe-destructuring-defaults", "count": 3 },
+        { "ruleId": "resilient/no-unguarded-callback-invocation", "count": 1 }
       ]
     }
   ]

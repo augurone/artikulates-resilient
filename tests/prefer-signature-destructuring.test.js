@@ -28,6 +28,9 @@ ruleTester.run('prefer-signature-destructuring', rule, {
         },
         {
             code: 'const inspect = (context) => { const { name = "" } = context; return context[key] || name; };'
+        },
+        {
+            code: 'const lift = (F, value) => { const { of: FOf } = F; if (!isFunction(FOf)) return; return FOf(value); };'
         }
 
     ],
@@ -108,6 +111,10 @@ ruleTester.run('prefer-signature-destructuring', rule, {
         {
             code: 'const getName = (user) => { const { name = "" } = user; function id() { return "local"; } return `${user.id}:${name}`; };',
             errors: [{ messageId: 'preferSignature' }]
+        },
+        {
+            code: 'const lift = (F, value) => { const { of: FOf } = F; return FOf(value); };',
+            errors: [{ messageId: 'preferSignature', suggestions: 1 }]
         }
     ]
 });

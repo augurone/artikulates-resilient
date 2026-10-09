@@ -23,6 +23,7 @@ ruleTester.run('signature-contract-property', rule, {
         { code: 'const user = { name: "A" }; user.toString();' },
         { code: 'const isSlug = value => /^[a-z0-9/-]+$/.test(value);' },
         { code: 'const pattern = /^[a-z]+$/; pattern.test(value);' },
+        { code: "import * as E from './Either.js'; E.right;" },
         { code: 'const read = ({ variables: { ...variables } = {} } = {}) => variables.test;' }
     ],
     invalid: [

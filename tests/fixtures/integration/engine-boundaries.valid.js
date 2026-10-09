@@ -61,6 +61,9 @@ const updateRef = (visibleCountRef, count = 0) => {
     return visibleCountRef;
 };
 
+const getRef = () => ({ current: 0 });
+getRef().current = 1;
+
 const update = (
     { count = 0, ...state } = {},
     { value = '' } = {}
@@ -69,6 +72,22 @@ const update = (
     count: count + 1,
     value
 });
+
+export const read = ({ action } = {}) => {
+    const value = [];
+
+    if (typeof action !== 'function') return value;
+
+    try {
+        action(value);
+    } catch {
+        return [];
+    }
+
+    return value;
+};
+
+export const guardedCallbackResult = read({ action: value => value });
 
 const response = createResponse();
 response.headers.set('Cache-Control', 'no-store');

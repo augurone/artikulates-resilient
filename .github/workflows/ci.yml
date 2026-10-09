@@ -7,9 +7,6 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [22.13.x, 24.x]
 
     steps:
       - name: Checkout
@@ -18,11 +15,17 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: '24.x'
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run release checks
-        run: npm run release:check
+      - name: JavaScript source lint
+        run: npm run lint:javascript
+
+      - name: JavaScript tests
+        run: npm run test:javascript
+
+      - name: Rule and integration fixtures
+        run: npm run fixtures:check

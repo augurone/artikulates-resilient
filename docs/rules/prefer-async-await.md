@@ -3,7 +3,7 @@
 Warn when a promise `.then(...)` callback chain is used where `async` and
 `await` usually make sequencing and failure flow easier to inspect.
 
-## Smell
+## What this finding means
 
 A callback chain can scatter sequencing and failure flow across nested
 functions, making the actual operation order harder to inspect. The warning
@@ -31,6 +31,16 @@ required by an API, a stream-like interface, or a deliberate contract, explain
 the exception immediately before the `.then` member:
 
 ```javascript
-// resilient-allow-promise-chain: required by the stream adapter
+// eslint-disable-next-line resilient/prefer-async-await -- Required by the stream adapter.
 stream.then(handleChunk).catch(reportError);
 ```
+
+## Boundaries and non-goals
+
+This is a warning because conversion can change timing, receiver, return, and
+failure behavior. A required chain remains valid with a narrow reasoned exception.
+
+## Repair recipes
+
+Use `await` for ordered work, `Promise.all` for independent work, and
+`Promise.allSettled` when every outcome matters.

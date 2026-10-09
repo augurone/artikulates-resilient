@@ -25,7 +25,9 @@ ruleTester.run('signature-contract-destructuring', rule, {
         { code: 'const getValue = (items = []) => { const { [0]: value = {} } = items; return value; };' },
         { code: 'const user = { name: "A" }; const propertyName = "name"; const { [propertyName]: name = "" } = user;' },
         { code: 'const getValue = (value) => { const { attr = "" } = value; return attr; };' },
-        { code: 'const getValue = ({ value = {} } = {}) => { if (Array.isArray(value)) return value.map(Boolean); return []; };' }
+        { code: "import * as API from './api.js'; const { read } = API; read;" },
+        { code: 'const getValue = ({ value = {} } = {}) => { if (Array.isArray(value)) return value.map(Boolean); return []; };' },
+        { code: 'const collect = source => { const output = new Map(); for (const [key, value] of source) output.set(key, value); return output; };' }
     ],
     invalid: [
         {

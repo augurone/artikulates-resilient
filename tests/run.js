@@ -1,43 +1,19 @@
-// resilient-allow-loop: test modules must load sequentially so failures remain isolated and ordered.
-for (const testFile of [
-    './no-destructuring-fallback.test.js',
-    './no-else.test.js',
-    './no-length-comparison.test.js',
-    './no-null-assignment.test.js',
-    './object-utils.test.js',
-    './no-silent-catch.test.js',
-    './no-unguarded-callback-invocation.test.js',
-    './no-unhandled-promise-chain.test.js',
-    './prefer-async-await.test.js',
-    './no-nested-if.test.js',
-    './no-undefined-assignment.test.js',
-    './no-undefined-comparison.test.js',
-    './prefer-destructured-member-access.test.js',
-    './prefer-falsey-returns.test.js',
-    './prefer-prototype-methods.test.js',
-    './prefer-safe-transformations.test.js',
-    './prefer-safe-destructuring-defaults.test.js',
-    './prefer-signature-destructuring.test.js',
-    './plugin-meta.test.js',
-    './recommended-config.test.js',
-    './signature-contract-call-site.test.js',
-    './signature-contract-destructuring.test.js',
-    './signature-contract-import.test.js',
-    './signature-contract-operation.test.js',
-    './signature-contract-property.test.js',
-    './signature-contract-return-consistency.test.js',
-    './contracts-config.test.js',
-    './contracts-diagnostics.test.js',
-    './contracts-evidence.test.js',
-    './contracts-document.test.js',
-    './contracts-module-graph.test.js',
-    './imports-config.test.js',
-    './program-cache.test.js',
-    './project-graph-cache.test.js',
-    './project-graph-resolver.test.js',
-    './project-adapter.test.js',
-    './project-tree.test.js',
-    './benchmark-acceptance.test.js',
-    './safety-config.test.js',
-    './integration-fixtures.test.js'
-]) await import(testFile);
+import { selectProofs } from './proof-families.js';
+import { clearContractCaches } from '../rules/contracts/eslint-graph.js';
+import { assertSupportedRuntime } from '../scripts/proof-runtime.js';
+
+assertSupportedRuntime();
+
+const proofs = selectProofs(process.argv.slice(2));
+const { length: total = 0 } = proofs;
+let completed = 0;
+
+// eslint-disable-next-line resilient/prefer-prototype-methods -- Test modules load sequentially so top-level fixtures remain isolated.
+for (const testFile of proofs) {
+    process.stdout.write(`[${completed + 1}/${total}] ${testFile}\n`);
+    await import(testFile);
+    clearContractCaches();
+    completed += 1;
+}
+
+process.stdout.write(`Passed ${completed} test modules.\n`);

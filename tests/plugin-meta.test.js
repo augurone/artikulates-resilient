@@ -35,6 +35,10 @@ Object.entries(publicRules).forEach(([name = '', rule = {}]) => {
     assert.ok(url);
     assert.ok(Array.isArray(schema));
     assert.ok(Object.keys(messages).length);
+    const documentPath = new URL(url).pathname.replace('/augurone/artikulates-resilient/blob/main/', '../');
+
+    assert.ok(fs.existsSync(new URL(documentPath, import.meta.url)), url);
+    Object.values(messages).forEach((message = '') => assert.equal(message.includes(url), false, name));
     assert.equal(typeof create, 'function', name);
 });
 
@@ -53,3 +57,16 @@ Object.entries(publicRules).forEach(([name = '', rule = {}]) => {
             assert.ok(publicRuleNames.has(ruleId.slice('resilient/'.length)), ruleId);
         });
 });
+
+const typeScriptConfig = configs.typescript({
+    parser: { parseForESLint: () => ({}) }
+});
+
+assert.deepEqual(typeScriptConfig.files, ['**/*.{ts,tsx}']);
+const {
+    languageOptions: { parser: configuredParser = {} } = {}
+} = typeScriptConfig;
+const { parseForESLint = false } = configuredParser;
+assert.equal(typeof parseForESLint, 'function');
+assert.equal(typeScriptConfig.rules['resilient/signature-contract-call-site'], 'error');
+assert.equal(typeScriptConfig.rules['resilient/no-unguarded-callback-invocation'], 'error');
