@@ -126,8 +126,8 @@ try {
         ['resilient/signature-contract-call-site']
     );
 
-    // A completed file must not lend its imported ASTs and project variants to
-    // every subsequent lint input. Rules on the next AST still share one build.
+    // Completing a file releases active analysis while validated parsed
+    // dependencies remain reusable. Rules on the next AST share one build.
     assert.ok(getProgramCacheSize() > 0);
     const providerProgram = await captureProgram('export const getPageView = ({ title = "" } = {}) => title;', { fileName: providerFile });
     const nestedDefinition = getImportedRuleDefinition({
@@ -136,13 +136,14 @@ try {
     });
     assert.equal(nestedDefinition.node.type, 'ArrowFunctionExpression');
     assert.ok(getProjectGraphCacheStats().size > 1);
+    const retainedPrograms = getProgramCacheSize();
     const beforeNextFile = getProjectGraphCacheStats();
     const [nextResult = {}] = await eslint.lintText(
         'const getTitle = ({ title = "" } = {}) => title; getTitle({ title: 42 });',
         { filePath: path.join(directory, 'next.js') }
     );
     assert.deepEqual(nextResult.messages.map(({ ruleId = '' } = {}) => ruleId), ['resilient/signature-contract-call-site']);
-    assert.equal(getProgramCacheSize(), 0);
+    assert.equal(getProgramCacheSize(), retainedPrograms);
     const afterNextFile = getProjectGraphCacheStats();
     assert.equal(afterNextFile.builds - beforeNextFile.builds, 1);
     assert.ok(afterNextFile.hits > beforeNextFile.hits);
@@ -151,6 +152,13 @@ try {
     const [revisitedResult = {}] = await eslint.lintFiles([consumerFile]);
     assert.deepEqual(revisitedResult.messages, result.messages);
     assert.ok(getProgramCacheSize() > 0);
+
+    await writeFile(providerFile, 'export const getPageView = ({ title = 0 } = {}) => title;');
+    const [changedProviderResult = {}] = await eslint.lintFiles([consumerFile]);
+    assert.deepEqual(changedProviderResult.messages, []);
+    await rm(providerFile);
+    const [deletedProviderResult = {}] = await eslint.lintFiles([consumerFile]);
+    assert.deepEqual(deletedProviderResult.messages, []);
 } finally {
     await rm(directory, { recursive: true, force: true });
 }

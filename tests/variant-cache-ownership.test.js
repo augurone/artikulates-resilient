@@ -4,11 +4,12 @@ import { loadInternalModule } from './internal-module.js';
 import { areReferenceMapsEqual } from '../rules/contracts/reference-variants.js';
 
 const owner = await loadInternalModule({ file: 'rules/contracts/module-graph.js', exports: [
-    'getCachedDefinitions', 'getCachedDocument', 'getCachedModuleExportEntries'
+    'getCachedDefinitions', 'getCachedRuleDefinitions', 'getCachedDocument', 'getCachedModuleExportEntries'
 ] });
 const {
     clearContractGraphCaches = undefined,
     getCachedDefinitions = undefined,
+    getCachedRuleDefinitions = undefined,
     getCachedDocument = undefined,
     getCachedModuleExportEntries = undefined
 } = owner;
@@ -35,6 +36,7 @@ assert.deepEqual(comparisonReads, ['left', 'right']);
 
 const variants = [
     { name: 'definitions', read: getCachedDefinitions },
+    { name: 'definitions', read: getCachedRuleDefinitions },
     { name: 'documents', read: getCachedDocument }
 ];
 variants.forEach(({ read = undefined, name = '' } = {}) => {
@@ -134,6 +136,16 @@ variants.forEach(({ read = undefined, name = '' } = {}) => {
     assert.equal(read({ program: clearingProgram, externalDefinitions: innerQuery }), afterClear);
     assert.equal(read({ program: clearingProgram, externalDefinitions: outerQuery }), prior);
 });
+
+// Retained passive ASTs must not keep every historical ESLint environment.
+// Whole-project API variants preserve their existing independent lifecycle.
+const boundedProgram = Object.freeze({ type: 'Program', body: Object.freeze([]) });
+const environments = Array.from({ length: 8 }, (_, id) => Object.freeze({ value: Object.freeze({ id }) }));
+const publicVariants = environments.map(externalDefinitions => getCachedDefinitions({ program: boundedProgram, externalDefinitions }));
+const ruleVariants = environments.map(externalDefinitions => getCachedRuleDefinitions({ program: boundedProgram, externalDefinitions }));
+assert.equal(getCachedDefinitions({ program: boundedProgram, externalDefinitions: environments[0] }), publicVariants[0]);
+assert.notEqual(getCachedRuleDefinitions({ program: boundedProgram, externalDefinitions: environments[0] }), ruleVariants[0]);
+assert.equal(getCachedRuleDefinitions({ program: boundedProgram, externalDefinitions: environments[6] }), ruleVariants[6]);
 
 clearContractGraphCaches();
 const fileProgram = Object.freeze({ type: 'Program', body: Object.freeze([]) });

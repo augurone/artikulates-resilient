@@ -14,6 +14,12 @@ let moduleExportCaches = new WeakMap();
 const { get: getCachedDefinitions = undefined, clear: clearDefinitions = undefined } = createReferenceVariantCache(
     ({ program = {}, externalDefinitions = {} } = {}) => getDefinitions(program, externalDefinitions)
 );
+// Retained passive ASTs need a cap on definition environments per AST
+// so superseded active inputs cannot accumulate through those retained keys.
+const { get: getCachedRuleDefinitions = undefined, clear: clearRuleDefinitions = undefined } = createReferenceVariantCache(
+    ({ program = {}, externalDefinitions = {} } = {}) => getDefinitions(program, externalDefinitions),
+    { limit: 4 }
+);
 const { get: getCachedDocument = undefined, clear: clearDocuments = undefined } = createReferenceVariantCache(
     ({ program = {}, fileName = '', externalDefinitions = {} } = {}) => createContractDocument(program, { fileName, externalDefinitions }),
     { fileScoped: true }
@@ -108,9 +114,13 @@ const importBindings = createProgramMetadataCache(readImportBindings);
 const getImportBindings = (program = {}) => importBindings.get(program);
 const { clear: clearImportBindings = undefined } = importBindings;
 
+const clearContractDocumentCaches = () => {
+    clearDocuments();
+};
 const clearContractGraphCaches = () => {
     clearDefinitions();
-    clearDocuments();
+    clearRuleDefinitions();
+    clearContractDocumentCaches();
     clearImportBindings();
     clearModuleSources();
     moduleExportCaches = new WeakMap();
@@ -707,7 +717,8 @@ const createContractGraph = ({
     programs = {},
     resolve = resolveModule,
     previousGraph = {},
-    reusableFiles = []
+    reusableFiles = [],
+    documentFiles = false
 } = {}) => {
     const normalizedPrograms = Object.fromEntries(Object.entries(programs)
         .map(([fileName = '', program = {}] = []) => [normalizePath(fileName), program]));
@@ -716,6 +727,7 @@ const createContractGraph = ({
         documents: previousDocuments = {}
     } = getObject(previousGraph);
     const reusable = new Set(reusableFiles);
+    const readDefinitions = Array.isArray(documentFiles) ? getCachedRuleDefinitions : getCachedDefinitions;
     const canReuse = (fileName = '') => {
         const { [fileName]: previousDefinition = false } = previousDefinitions;
         const { [fileName]: previousDocument = false } = previousDocuments;
@@ -728,7 +740,7 @@ const createContractGraph = ({
 
             return [
                 fileName,
-                canReuse(fileName) ? priorDefinitions : getCachedDefinitions({ program })
+                canReuse(fileName) ? priorDefinitions : readDefinitions({ program })
             ];
         }));
     let moduleExports = {};
@@ -752,7 +764,7 @@ const createContractGraph = ({
                     fileName,
                     canReuse(fileName)
                         ? priorDefinitions
-                        : getCachedDefinitions({
+                        : readDefinitions({
                             program,
                             externalDefinitions: getImportedDefinitions({
                                 fileName,
@@ -785,7 +797,10 @@ const createContractGraph = ({
 
     moduleExports = resolvedExports;
 
-    const documents = Object.fromEntries(Object.entries(normalizedPrograms).map(([fileName = '', program = {}] = []) => {
+    const selectedDocuments = Array.isArray(documentFiles) ? new Set(documentFiles.map(normalizePath)) : false;
+    const documentPrograms = Object.entries(normalizedPrograms)
+        .filter(([fileName = ''] = []) => !selectedDocuments || selectedDocuments.has(fileName));
+    const documents = Object.fromEntries(documentPrograms.map(([fileName = '', program = {}] = []) => {
         const { [fileName]: priorDocument = {} } = previousDocuments;
 
         if (canReuse(fileName)) return [fileName, priorDocument];
@@ -867,6 +882,7 @@ const createContractGraph = ({
 };
 
 export {
+    clearContractDocumentCaches,
     clearContractGraphCaches,
     createContractGraph,
     getImportBindings,

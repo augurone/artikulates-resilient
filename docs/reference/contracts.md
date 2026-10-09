@@ -238,11 +238,18 @@ hit, miss, build, and entry counts for integration measurements; callers that
 own a project boundary can create an isolated manager with
 createProjectGraphManager().
 
-The default adapter caches are bounded LRU caches: at most 256 parsed programs
-and 16 complete project graphs are retained. When rule queries move to another
-source AST, including another file or autofix pass, the adapter prunes project
-graphs, parsed programs, and definition/document variants. Current-file local
-sessions and registered binding evidence retain their separate weak ownership.
+The default parsed-program cache holds at most 256 entries, and the graph manager
+holds at most 16 complete project graphs. Passive discovery is separately bounded
+to eight configurations and 256 root selections per configuration; the adapter's
+definition cache holds at most four environments per AST. When rule queries move
+to another source AST, including another file or autofix pass, the adapter releases
+completed active graphs and document/evidence variants while retaining validated
+passive dependencies.
+Each lint input uses its current AST. The adapter prepares only that file's
+document, resolving its contracts through the full active import closure;
+public whole-project analysis still prepares every document and finding.
+Current-file local sessions and registered binding evidence retain their separate
+weak ownership.
 getProgramCacheSize() and
 getProjectGraphCacheStats() expose the current retained sizes. A host that
 owns a project or watch-session boundary should call clearContractCaches()

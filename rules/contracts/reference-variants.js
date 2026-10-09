@@ -26,7 +26,7 @@ const areReferenceMapsEqual = (left = {}, right = {}) => {
 
 // Live reference maps are intentional: selection reads both environments on
 // every lookup. This is not the export cache's definitions-identity law.
-const createReferenceVariantCache = (build, { fileScoped = false } = {}) => {
+const createReferenceVariantCache = (build, { fileScoped = false, limit = Infinity } = {}) => {
     let variants = new WeakMap();
     const get = ({ program = {}, fileName = '', externalDefinitions = {} } = {}) => {
         const input = { program, fileName, externalDefinitions };
@@ -43,7 +43,7 @@ const createReferenceVariantCache = (build, { fileScoped = false } = {}) => {
 
         const result = build(input);
         // eslint-disable-next-line resilient/prefer-safe-transformations -- Publish against captured entries: failed builds retry, outer reentry wins, and in-build reset retains prior variants.
-        variants.set(program, [...entries, { fileName, external: externalDefinitions, result }]);
+        variants.set(program, [...entries, { fileName, external: externalDefinitions, result }].slice(-limit));
 
         return result;
     };

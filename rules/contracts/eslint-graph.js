@@ -10,6 +10,7 @@ import { getDiagnosticIndex, getEvidenceIndex } from './document-index.js';
 import { getEvidenceTrail } from './evidence-trail.js';
 import { createIdentityIndex } from './identity-index.js';
 import {
+    clearContractDocumentCaches,
     clearContractGraphCaches,
     getModuleSources,
     normalizePath
@@ -418,7 +419,7 @@ const GRAPH_CACHE_LIMIT = 16;
 const PASSIVE_GRAPH_LIMIT = 8;
 const DISCOVERY_LIMIT = 256;
 
-const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {}) => {
+const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT, currentFileOnly = false } = {}) => {
     let graphCache = new Map();
     let passiveGraphs = new Map();
     let stats = {
@@ -489,10 +490,11 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
         roots.map(root => normalizePath(root)).toSorted().join('|')
     ].join(':');
 
-    const getActiveGraphKey = ({ passiveKey = '', version = 0, roots = [] } = {}) => [
+    const getActiveGraphKey = ({ passiveKey = '', version = 0, roots = [], fileName = '' } = {}) => [
         passiveKey,
         version,
-        roots.join('|')
+        roots.join('|'),
+        ...(currentFileOnly ? [normalizePath(fileName)] : [])
     ].join(':');
 
     const getPassiveTree = ({
@@ -540,9 +542,11 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
             activeFiles = [],
             roots: activeRoots = [],
             states: activeStates = {},
-            fileStates: activeFileStates = {}
+            fileStates: activeFileStates = {},
+            graph: { documents = {} } = {}
         } = {}) => {
             const { [normalizedFileName]: activeState = false } = activeStates;
+            const { [normalizedFileName]: currentDocument = false } = documents;
 
             const rootsMatch = areSnapshotsEqual(
                 { roots: activeRoots },
@@ -550,6 +554,8 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
             );
 
             if (!rootsMatch || !activeFiles.includes(normalizedFileName)) return false;
+
+            if (currentFileOnly && !currentDocument) return false;
 
             if (!areFileStatesCurrent({
                 fileNames: activeFiles,
@@ -623,7 +629,8 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
         const activeCacheKey = getActiveGraphKey({
             passiveKey,
             version: passiveVersion,
-            roots
+            roots,
+            fileName
         });
         const candidateGraph = passiveActiveGraphs.get(activeCacheKey) || {};
         const coveredGraph = getCoveredGraph({
@@ -665,7 +672,9 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
                 programs: cachedPrograms
             })
             : {};
-        const hasValidDiscovery = cachedDiscovery && !requiresDiscovery && areSnapshotsEqual(cachedStates, currentCachedStates);
+        const { [fileName]: cachedCurrentProgram = false } = cachedPrograms;
+        const hasValidDiscovery = cachedDiscovery && cachedCurrentProgram === program && !requiresDiscovery &&
+            areSnapshotsEqual(cachedStates, currentCachedStates);
         const programs = hasValidDiscovery
             ? cachedPrograms
             : loadPrograms({
@@ -795,7 +804,8 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
         const cacheKey = getActiveGraphKey({
             passiveKey,
             version: currentPassiveVersion,
-            roots
+            roots,
+            fileName
         });
         const cached = graphCache.get(cacheKey);
         const { graph: cachedGraph = {} } = getObject(cached);
@@ -826,7 +836,7 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
         passive = treePassive;
         setPassiveGraph({ cacheKey: passiveKey, entry: passive });
         const { analyze = () => ({}) } = getObject(projectTree);
-        const analysis = analyze({ roots });
+        const analysis = analyze({ roots, ...(currentFileOnly && { documentFiles: [normalizePath(fileName)] }) });
         const {
             activeTree = {},
             graph = {}
@@ -871,9 +881,14 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
         return graph;
     };
 
-    const reset = () => {
+    const reset = ({ passive = true } = {}) => {
         graphCache = new Map();
-        passiveGraphs = new Map();
+        passiveGraphs = passive
+            ? new Map()
+            : new Map([...passiveGraphs].map(([key = '', entry = {}] = []) => [
+                key,
+                { ...entry, activeGraphs: new Map(), tree: false }
+            ]));
     };
     const getStats = () => ({
         ...stats,
@@ -887,7 +902,7 @@ const createProjectGraphManager = ({ graphCacheLimit = GRAPH_CACHE_LIMIT } = {})
     return { reset, getGraph, getStats, recordHit };
 };
 
-const defaultProjectGraphManager = createProjectGraphManager();
+const defaultProjectGraphManager = createProjectGraphManager({ currentFileOnly: true });
 const clearProjectGraphCache = () => {
     defaultProjectGraphManager.reset();
     programDocuments = new WeakMap();
@@ -902,16 +917,17 @@ const clearContractCaches = () => {
     clearBindingSources();
 };
 
-// Rule visitors share project analysis on one AST. Once a different
-// AST is queried, release the previous file's project graphs and variants.
+// Rule visitors share project analysis on one AST. On the next lint input,
+// release active graphs and document variants while retaining bounded passive
+// discovery, parsed dependencies, and their validated definition variants.
 // Keep weak local sessions and binding sources: rule creation may already have
 // registered the new file's scope evidence before its first project query.
 const pruneRuleAnalysis = (program = {}) => {
     if (!isObject(program) || activeRuleProgram === program) return;
 
-    clearProjectGraphCache();
-    clearProgramCache();
-    clearContractGraphCaches();
+    defaultProjectGraphManager.reset({ passive: false });
+    programDocuments = new WeakMap();
+    clearContractDocumentCaches();
     activeRuleProgram = program;
 };
 

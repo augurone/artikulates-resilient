@@ -4,10 +4,12 @@
 
 ## 0.7.5 — 2026-10-08
 
-- Prune retained contract-analysis graphs, parsed programs, and definition/document
-  variants when ESLint moves to another source AST. Rules still share one analysis
-  for the current file, including its binding evidence. Repository lint no longer
-  needs an 8 GB heap override.
+- Release completed active graphs and document/evidence analysis when ESLint
+  moves to another source AST, while retaining bounded passive discovery,
+  parsed dependencies, and definition variants. Rules share one analysis of
+  the current file without preparing diagnostics and evidence for every imported
+  file. Cross-module contracts and whole-project API results are preserved.
+  Repository lint uses Node's default heap.
 - Clear contract caches between completed proof modules. GitHub CI runs the
   JavaScript source lint, tests (including dogfood, catalog, and artifact checks),
   and rule/integration fixtures on the checkout with Node 24.x.

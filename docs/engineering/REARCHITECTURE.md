@@ -739,6 +739,14 @@ stable captured guards, provider getters and async failure ownership retain
 separate proofs. Sharing a cache or visitor is lawful only when its identity,
 mutation, stopping, unknown and failure laws agree.
 
+The ESLint manager retains bounded passive discovery and parsed dependencies
+between source ASTs, while releasing active graphs and document/evidence
+variants. Its definition cache retains at most four environments per AST.
+Each lint input uses its current AST, even when its text is unchanged; changed
+and deleted dependencies invalidate discovery. ESLint requests the current
+file's document while still resolving contracts across the full active import
+closure. Public whole-project queries retain all documents and findings.
+
 Public APIs can expose mutable results and accessor-backed input. Snapshot
 copies, live queries and parser/session ownership must preserve those existing
 contracts. Do not replace them with a universal cache or mutable origin graph.

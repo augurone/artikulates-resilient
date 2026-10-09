@@ -315,8 +315,11 @@ const createProjectTree = ({
         ].slice(-boundedLimit));
     };
 
-    const analyze = ({ roots = defaultRoots, previousSnapshot = {} } = {}) => {
-        const analysisKey = getUniqueSorted(roots.map(fileName => normalizePath(fileName))).join('|');
+    const analyze = ({ roots = defaultRoots, previousSnapshot = {}, documentFiles = false } = {}) => {
+        const rootKey = getUniqueSorted(roots.map(fileName => normalizePath(fileName))).join('|');
+        const analysisKey = Array.isArray(documentFiles)
+            ? JSON.stringify([rootKey, getUniqueSorted(documentFiles.map(normalizePath))])
+            : rootKey;
         const cached = analysisCache.get(analysisKey);
 
         if (cached) {
@@ -364,15 +367,18 @@ const createProjectTree = ({
         const { activeFiles = [] } = activeTree;
         const { programs: activePrograms = {} } = getObject(activeTree);
         const sameActiveTree = JSON.stringify(previousActiveFiles) === JSON.stringify(activeFiles);
+        const { documentFiles: previousDocumentFiles = false } = getObject(reusableSnapshot);
+        const sameDocumentSelection = JSON.stringify(previousDocumentFiles) === JSON.stringify(documentFiles);
         const canReuseGraph = hasObjectValue(previousGraph) && sameActiveTree &&
-            reusableFiles.length === activeFiles.length;
+            sameDocumentSelection && reusableFiles.length === activeFiles.length;
         const graph = canReuseGraph
             ? previousGraph
             : createContractGraph({
                 programs: activePrograms,
                 resolve,
                 previousGraph,
-                reusableFiles
+                reusableFiles,
+                documentFiles
             });
         const {
             moduleExports = {},
@@ -383,6 +389,7 @@ const createProjectTree = ({
         } = getObject(graph);
         const { invalidatedFiles = [] } = getObject(invalidation);
         const snapshot = {
+            ...(Array.isArray(documentFiles) && { documentFiles }),
             projectTree: getProjectSnapshot(),
             activeTree,
             programs: activePrograms,
