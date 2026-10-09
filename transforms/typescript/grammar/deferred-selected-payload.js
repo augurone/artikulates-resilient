@@ -1,19 +1,20 @@
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getMemberAlias } from './member-access.js';
-import { getObject } from '../../../rules/support/object.js';
 
 const createDeferredSelectedPayloadBinding = ({
     typescript = {}, node = {}, contract = {}, occupied = new Set(), context = {}
 } = {}) => {
     const { factory = {}, NodeFlags: { Const: ConstKind = 0 } = {} } = typescript;
     const { callbackRange = '', readRange = '', receiverName = '', propertyName = '' } = getObject(contract);
-    const { body = {}, parameters = [], modifiers = [], typeParameters = [], type = undefined } = getObject(node);
-    const { getOriginalNode = false } = typescript;
-    const original = typeof getOriginalNode === 'function' ? getOriginalNode(node) : node;
+    const { body = {}, parameters = [], modifiers = [], typeParameters = [], type } = getObject(node);
+    const { getOriginalNode } = typescript;
+    const original = isFunction(getOriginalNode) ? getOriginalNode(node) : node;
     const { pos = -1, end = -1 } = getObject(original);
     let replaced = false;
     const alias = getMemberAlias({ objectName: receiverName, propertyName, occupied });
     const replace = (child = {}) => {
-        const source = typeof getOriginalNode === 'function' ? getOriginalNode(child) : child;
+        const source = isFunction(getOriginalNode) ? getOriginalNode(child) : child;
         const { pos: readPos = -1, end: readEnd = -1 } = getObject(source);
 
         if (`${readPos}:${readEnd}` === readRange) {

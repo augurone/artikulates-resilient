@@ -1,0 +1,604 @@
+[
+  {
+    "rule": "no-else",
+    "source": "const getValue = (value) => { if (!value) return \"\"; return value; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "no-else",
+    "source": "const getValue = (value) => { if (!value) return \"\"; else if (value) return value; return \"\"; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "messageId": "noElse"
+      }
+    ]
+  },
+  {
+    "rule": "no-nested-if",
+    "source": "const outer = (value) => { if (!value) return () => { if (value) return true; return false; }; return () => false; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "no-nested-if",
+    "source": "const getValue = (value) => { if (value) { if (value) return true; } return false; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "messageId": "nestedIf"
+      }
+    ]
+  },
+  {
+    "rule": "operator-linebreak",
+    "source": "export const empty =\n    // authored comment\n    new Map();",
+    "options": [
+      "before",
+      {
+        "overrides": {
+          "&&": "after",
+          "||": "after"
+        }
+      }
+    ],
+    "expected": []
+  },
+  {
+    "rule": "operator-linebreak",
+    "source": "const value =\n    /* authored comment */ initialize();",
+    "options": [
+      "before",
+      {
+        "overrides": {
+          "&&": "after",
+          "||": "after"
+        }
+      }
+    ],
+    "expected": []
+  },
+  {
+    "rule": "operator-linebreak",
+    "source": "let value =\n    /* first\n       second */\n    initialize();",
+    "options": [
+      "before",
+      {
+        "overrides": {
+          "&&": "after",
+          "||": "after"
+        }
+      }
+    ],
+    "expected": []
+  },
+  {
+    "rule": "operator-linebreak",
+    "source": "var value =\n    // first\n    /* second */\n    initialize();",
+    "options": [
+      "before",
+      {
+        "overrides": {
+          "&&": "after",
+          "||": "after"
+        }
+      }
+    ],
+    "expected": []
+  },
+  {
+    "rule": "operator-linebreak",
+    "source": "const { value } =\n    // authored comment\n    initialize();",
+    "options": [
+      "before",
+      {
+        "overrides": {
+          "&&": "after",
+          "||": "after"
+        }
+      }
+    ],
+    "expected": []
+  },
+  {
+    "rule": "operator-linebreak",
+    "source": "const [value] =\n    // authored comment\n    initialize();",
+    "options": [
+      "before",
+      {
+        "overrides": {
+          "&&": "after",
+          "||": "after"
+        }
+      }
+    ],
+    "expected": []
+  },
+  {
+    "rule": "operator-linebreak",
+    "source": "const first = 1, second =\n    // authored comment\n    initialize();",
+    "options": [
+      "before",
+      {
+        "overrides": {
+          "&&": "after",
+          "||": "after"
+        }
+      }
+    ],
+    "expected": []
+  },
+  {
+    "rule": "operator-linebreak",
+    "source": "const run = () => {\n    const value =\n        // authored comment\n        initialize();\n    return value;\n};",
+    "options": [
+      "before",
+      {
+        "overrides": {
+          "&&": "after",
+          "||": "after"
+        }
+      }
+    ],
+    "expected": []
+  },
+  {
+    "rule": "operator-linebreak",
+    "source": "for (let value =\n    // authored comment\n    initialize(); value; ) break;",
+    "options": [
+      "before",
+      {
+        "overrides": {
+          "&&": "after",
+          "||": "after"
+        }
+      }
+    ],
+    "expected": []
+  },
+  {
+    "rule": "operator-linebreak",
+    "source": "const value = // authored comment\n    initialize();",
+    "options": [
+      "before",
+      {
+        "overrides": {
+          "&&": "after",
+          "||": "after"
+        }
+      }
+    ],
+    "expected": []
+  },
+  {
+    "rule": "operator-linebreak",
+    "source": "const value =\n    // authored comment\n    (initialize());",
+    "options": [
+      "before",
+      {
+        "overrides": {
+          "&&": "after",
+          "||": "after"
+        }
+      }
+    ],
+    "expected": []
+  },
+  {
+    "rule": "operator-linebreak",
+    "source": "const value =\r\n    // authored comment\r\n    initialize();",
+    "options": [
+      "before",
+      {
+        "overrides": {
+          "&&": "after",
+          "||": "after"
+        }
+      }
+    ],
+    "expected": []
+  },
+  {
+    "rule": "operator-linebreak",
+    "source": "const value =     // authored comment     initialize();",
+    "options": [
+      "before",
+      {
+        "overrides": {
+          "&&": "after",
+          "||": "after"
+        }
+      }
+    ],
+    "expected": []
+  },
+  {
+    "rule": "operator-linebreak",
+    "source": "const value =\n    initialize();",
+    "options": [
+      "before",
+      {
+        "overrides": {
+          "&&": "after",
+          "||": "after"
+        }
+      }
+    ],
+    "output": "const value\n    = initialize();",
+    "expected": [
+      {
+        "messageId": "operatorAtBeginning"
+      }
+    ]
+  },
+  {
+    "rule": "prefer-falsey-returns",
+    "source": "const performSideEffect = () => { doSomething(); return; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "prefer-falsey-returns",
+    "source": "const read = undefined => undefined; read(\"ready\");",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "prefer-falsey-returns",
+    "source": "const read = undefined => { return undefined; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "prefer-falsey-returns",
+    "source": "const read = (undefined, value) => value ? undefined : (value || undefined);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "prefer-falsey-returns",
+    "source": "const read = async undefined => await (0, undefined);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "prefer-falsey-returns",
+    "source": "const read = (undefined, value) => value = undefined;",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "prefer-falsey-returns",
+    "source": "const read = () => { const undefined = \"ready\"; return () => undefined; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "prefer-falsey-returns",
+    "source": "const read = () => { return undefined; var undefined = \"ready\"; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "prefer-falsey-returns",
+    "source": "const read = ({ undefined }) => undefined;",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "prefer-falsey-returns",
+    "source": "import undefined from \"ordinary\"; const read = () => undefined;",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "prefer-falsey-returns",
+    "source": "const read = () => { try { run(); } catch (undefined) { return undefined; } };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "prefer-falsey-returns",
+    "source": "const read = function undefined() { return undefined; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "prefer-falsey-returns",
+    "source": "var undefined = \"ready\"; const read = () => undefined;",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "prefer-falsey-returns",
+    "source": "const getValue = (value) => value ? value : null;",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "messageId": "falseyReturn"
+      }
+    ]
+  },
+  {
+    "rule": "prefer-falsey-returns",
+    "source": "const getValue = () => null;",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "messageId": "falseyReturn"
+      }
+    ]
+  },
+  {
+    "rule": "prefer-falsey-returns",
+    "source": "const getValue = () => undefined;",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "messageId": "falseyReturn"
+      }
+    ]
+  },
+  {
+    "rule": "prefer-falsey-returns",
+    "source": "const local = undefined => undefined; const read = () => { return undefined; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "messageId": "falseyReturn"
+      }
+    ]
+  },
+  {
+    "rule": "prefer-falsey-returns",
+    "source": "const read = undefined => null;",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "messageId": "falseyReturn"
+      }
+    ]
+  },
+  {
+    "rule": "prefer-falsey-returns",
+    "source": "const read = undefined => void undefined;",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "messageId": "falseyReturn"
+      }
+    ]
+  },
+  {
+    "rule": "prefer-prototype-methods",
+    "source": "const enabled = items.filter(item => item.enabled);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "prefer-prototype-methods",
+    "source": "// eslint-disable-next-line rule-to-test/prefer-prototype-methods -- Preserve the external contract.\nfor (const item of items) process(item);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [],
+    "pluginName": "rule-to-test"
+  },
+  {
+    "rule": "prefer-prototype-methods",
+    "source": "for (const item of items) process(item);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "messageId": "prototypeMethod"
+      }
+    ]
+  },
+  {
+    "rule": "prefer-prototype-methods",
+    "source": "for (let index = 0; index < items.length; index += 1) process(items[index]);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "messageId": "prototypeMethod"
+      }
+    ]
+  },
+  {
+    "rule": "prefer-prototype-methods",
+    "source": "while (items.length) items.pop();",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "messageId": "prototypeMethod"
+      }
+    ]
+  },
+  {
+    "rule": "prefer-prototype-methods",
+    "source": "do { process(items.pop()); } while (items.length);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "messageId": "prototypeMethod"
+      }
+    ]
+  },
+  {
+    "rule": "prefer-prototype-methods",
+    "source": "const poll = async () => { while (true) await wait(); };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "messageId": "prototypeMethod"
+      }
+    ]
+  },
+  {
+    "rule": "prefer-prototype-methods",
+    "source": "for (const item of items) { if (item.done) break; process(item); }",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "messageId": "prototypeMethod"
+      }
+    ]
+  },
+  {
+    "rule": "prefer-prototype-methods",
+    "source": "for (const item of items) { if (!item.enabled) continue; process(item); }",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "messageId": "prototypeMethod"
+      }
+    ]
+  },
+  {
+    "rule": "prefer-prototype-methods",
+    "source": "const getFirstDone = () => { for (const item of items) { if (item.done) return item; process(item); } };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "messageId": "prototypeMethod"
+      }
+    ]
+  },
+  {
+    "rule": "prefer-prototype-methods",
+    "source": "for (const item of items) { const process = async () => await wait(item); process(); }",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "messageId": "prototypeMethod"
+      }
+    ]
+  },
+  {
+    "rule": "prefer-prototype-methods",
+    "source": "for (const item of items) { switch (item.kind) { case \"done\": break; default: process(item); } }",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "messageId": "prototypeMethod"
+      }
+    ]
+  },
+  {
+    "rule": "prefer-prototype-methods",
+    "source": "// resilient-allow-loop: legacy marker has no effect\nfor (const item of items) process(item);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "messageId": "prototypeMethod"
+      }
+    ]
+  }
+]

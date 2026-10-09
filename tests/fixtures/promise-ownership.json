@@ -1,0 +1,377 @@
+[
+  {
+    "name": "finally form",
+    "source": "request().finally(cleanup);",
+    "findings": 1
+  },
+  {
+    "name": "catch-only native result",
+    "source": "Promise.resolve().catch(report);",
+    "findings": 0
+  },
+  {
+    "name": "assigned expression chain",
+    "source": "result=request().then(handle);",
+    "findings": 0
+  },
+  {
+    "name": "literal-computed catch owns the static chain",
+    "source": "request().then(handle)[\"catch\"](report);",
+    "findings": 0
+  },
+  {
+    "name": "literal-computed then shares the static trigger",
+    "source": "request()[\"then\"](handle);",
+    "findings": 1
+  },
+  {
+    "name": "then property alone is not a called chain",
+    "source": "request().then;",
+    "findings": 0
+  },
+  {
+    "name": "nested argument catch does not own outer chain",
+    "source": "request().then(()=>nested().catch(report));",
+    "findings": 1
+  },
+  {
+    "name": "local then spelling still has syntactic obligation",
+    "source": "({then(){return 1;}}).then();",
+    "findings": 1
+  },
+  {
+    "name": "optional chain preserves visible ownership form",
+    "source": "request()?.then(handle);",
+    "findings": 1
+  },
+  {
+    "name": "renamed async function",
+    "source": "const renamed=async()=>true;renamed();",
+    "findings": 1
+  },
+  {
+    "name": "async declaration",
+    "source": "async function load(){}load();",
+    "findings": 1
+  },
+  {
+    "name": "hoisted async declaration",
+    "source": "load();async function load(){}",
+    "findings": 1
+  },
+  {
+    "name": "async anonymous immediate call",
+    "source": "(async()=>1)();",
+    "findings": 1
+  },
+  {
+    "name": "async function expression immediate call",
+    "source": "(async function(){return 1;})();",
+    "findings": 1
+  },
+  {
+    "name": "async generator is not a promise",
+    "source": "const stream=async function*(){yield 1;};stream();",
+    "findings": 0
+  },
+  {
+    "name": "sync generator is not a promise",
+    "source": "const stream=function*(){yield 1;};stream();",
+    "findings": 0
+  },
+  {
+    "name": "async aliases",
+    "source": "const load=async()=>1;const alias=load;const renamed=alias;renamed();",
+    "findings": 1
+  },
+  {
+    "name": "async inside sync declaration body",
+    "source": "function start(){const load=async()=>1;load();}",
+    "findings": 1
+  },
+  {
+    "name": "async call inside async body",
+    "source": "const load=async()=>1;const run=async()=>{load();};",
+    "findings": 1
+  },
+  {
+    "name": "async assigned",
+    "source": "const load=async()=>1;const result=load();",
+    "findings": 0
+  },
+  {
+    "name": "async returned",
+    "source": "const load=async()=>1;const run=()=>load();",
+    "findings": 0
+  },
+  {
+    "name": "async awaited",
+    "source": "const load=async()=>1;const run=async()=>{await load();};",
+    "findings": 0
+  },
+  {
+    "name": "async detached",
+    "source": "const load=async()=>1;void load();",
+    "findings": 0
+  },
+  {
+    "name": "unknown supplied callable cannot borrow default",
+    "source": "const run=(load=async()=>1)=>load();run(external);",
+    "findings": 0
+  },
+  {
+    "name": "actual async supplied to forwarder",
+    "source": "const run=load=>load();run(async()=>1);",
+    "findings": 1
+  },
+  {
+    "name": "rewritten binding remains unknown",
+    "source": "let load=async()=>1;load=()=>1;load();",
+    "findings": 0
+  },
+  {
+    "name": "written const counterexample retires identity",
+    "source": "const load=async()=>1;load=()=>1;load();",
+    "findings": 0
+  },
+  {
+    "name": "forwarded local promise",
+    "source": "const load=async()=>1;const run=()=>load();run();",
+    "findings": 1
+  },
+  {
+    "name": "returned alias promise",
+    "source": "const load=async()=>1;const run=()=>{const result=load();return result;};run();",
+    "findings": 1
+  },
+  {
+    "name": "known beside unknown",
+    "source": "const load=async()=>1;const run=()=>flag?load():external;run();",
+    "findings": 1
+  },
+  {
+    "name": "known beside scalar",
+    "source": "const load=async()=>1;const run=()=>flag?load():1;run();",
+    "findings": 1
+  },
+  {
+    "name": "unreachable promise alternative excluded",
+    "source": "const load=async()=>1;const run=()=>false?load():1;run();",
+    "findings": 0
+  },
+  {
+    "name": "finally replaces promise result",
+    "source": "const load=async()=>1;const run=()=>{try{return load();}finally{return 1;}};run();",
+    "findings": 0
+  },
+  {
+    "name": "argument throws before async invocation",
+    "source": "const fail=()=>{throw 1;};const load=async()=>1;load(fail());",
+    "findings": 0
+  },
+  {
+    "name": "async body throw still returns promise",
+    "source": "const load=async()=>{throw 1;};load();",
+    "findings": 1
+  },
+  {
+    "name": "async parameter failure still returns promise",
+    "source": "const load=async(value=fail())=>value;load();",
+    "findings": 1
+  },
+  {
+    "name": "local async method",
+    "source": "({async load(){return 1;}}).load();",
+    "findings": 1
+  },
+  {
+    "name": "local sync method",
+    "source": "({load(){return 1;}}).load();",
+    "findings": 0
+  },
+  {
+    "name": "stored mutable method evidence retires",
+    "source": "const obj={async load(){}};patch(obj);obj.load();",
+    "findings": 0
+  },
+  {
+    "name": "async factory forwarding fields",
+    "source": "const load=async()=>1;const run=()=>({result:load()}).result;run();",
+    "findings": 1
+  },
+  {
+    "name": "native resolve",
+    "source": "Promise.resolve([]);",
+    "findings": 1
+  },
+  {
+    "name": "native reject",
+    "source": "Promise.reject([]);",
+    "findings": 1
+  },
+  {
+    "name": "native all",
+    "source": "Promise.all([]);",
+    "findings": 1
+  },
+  {
+    "name": "native allSettled",
+    "source": "Promise.allSettled([]);",
+    "findings": 1
+  },
+  {
+    "name": "native race",
+    "source": "Promise.race([]);",
+    "findings": 1
+  },
+  {
+    "name": "native any",
+    "source": "Promise.any([]);",
+    "findings": 1
+  },
+  {
+    "name": "native alias",
+    "source": "const P=Promise;const Q=P;Q.resolve(1);",
+    "findings": 1
+  },
+  {
+    "name": "native alias before initialization remains unknown",
+    "source": "Q.resolve();const Q=Promise;",
+    "findings": 0
+  },
+  {
+    "name": "native alias capture before initialization remains unknown",
+    "source": "const run=()=>P.resolve();run();const P=Promise;",
+    "findings": 0
+  },
+  {
+    "name": "native namespace shadow",
+    "source": "const Promise={resolve:()=>1};Promise.resolve(1);",
+    "findings": 0
+  },
+  {
+    "name": "shadowed namespace still owns async method",
+    "source": "const Promise={resolve:async()=>1};Promise.resolve(1);",
+    "findings": 1
+  },
+  {
+    "name": "native parameter shadow",
+    "source": "const run=Promise=>{Promise.resolve(1);};",
+    "findings": 0
+  },
+  {
+    "name": "native property replacement",
+    "source": "Promise.resolve=()=>1;Promise.resolve(1);",
+    "findings": 0
+  },
+  {
+    "name": "native alias property replacement",
+    "source": "const P=Promise;P.resolve=()=>1;Promise.resolve(1);",
+    "findings": 0
+  },
+  {
+    "name": "native escape",
+    "source": "patch(Promise);Promise.resolve(1);",
+    "findings": 0
+  },
+  {
+    "name": "reflected prototype invalidation",
+    "source": "Object.getPrototypeOf(Promise).resolve=()=>1;Promise.resolve(1);",
+    "findings": 0
+  },
+  {
+    "name": "detached native method needs receiver",
+    "source": "const resolve=Promise.resolve;resolve(1);",
+    "findings": 0
+  },
+  {
+    "name": "native constructor",
+    "source": "new Promise(resolve=>resolve(1));",
+    "findings": 1
+  },
+  {
+    "name": "native constructor alias",
+    "source": "const P=Promise;new P(resolve=>resolve(1));",
+    "findings": 1
+  },
+  {
+    "name": "native constructor rejects noncallable executor",
+    "source": "new Promise(0);",
+    "findings": 0
+  },
+  {
+    "name": "native constructor rejects absent executor",
+    "source": "new Promise();",
+    "findings": 0
+  },
+  {
+    "name": "native constructor argument throw",
+    "source": "const fail=()=>{throw 1;};new Promise(fail());",
+    "findings": 0
+  },
+  {
+    "name": "native constructor executor throw is rejection",
+    "source": "new Promise(()=>{throw 1;});",
+    "findings": 1
+  },
+  {
+    "name": "native factory argument failure",
+    "source": "const fail=()=>{throw 1;};Promise.resolve(fail());",
+    "findings": 0
+  },
+  {
+    "name": "native factory forwarding",
+    "source": "const run=()=>Promise.resolve(1);run();",
+    "findings": 1
+  },
+  {
+    "name": "dynamic lookup hides outer async binding",
+    "source": "const load=async()=>1;function run(){eval(\"var load=()=>1\");load();}",
+    "findings": 0
+  },
+  {
+    "name": "dynamic lookup hides native namespace",
+    "source": "function run(){eval(\"var Promise={resolve:()=>1}\");Promise.resolve();}",
+    "findings": 0
+  },
+  {
+    "name": "ordinary function returns scalar",
+    "source": "const run=()=>1;run();",
+    "findings": 0
+  },
+  {
+    "name": "generic return remains unknown",
+    "source": "const run=value=>value;run(external);",
+    "findings": 0
+  },
+  {
+    "name": "literal async callee survives direct eval uncertainty",
+    "source": "eval(input);(async()=>1)();",
+    "findings": 1
+  },
+  {
+    "name": "nested shadowed async spelling remains unknown",
+    "source": "const run=async()=>1;const outer=run=>{run();};outer(external);",
+    "findings": 0
+  },
+  {
+    "name": "named async expression self identity",
+    "source": "const run=async function again(){again();};run();",
+    "findings": 2
+  },
+  {
+    "name": "captured promise value remains unsupported",
+    "source": "const run=async()=>1;const p=run();escape(p);const forward=()=>p;forward();",
+    "findings": 0
+  },
+  {
+    "name": "actual caller owns the forwarded async result",
+    "source": "const invoke=action=>action();const run=async()=>1;invoke(run);",
+    "findings": 1
+  },
+  {
+    "name": "returned promise brand survives local member escape",
+    "source": "const load=async()=>1;const run=()=>{const p=load();escape(p);return p;};run();",
+    "findings": 1
+  }
+]

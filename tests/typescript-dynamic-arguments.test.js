@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { runInNewContext } from 'node:vm';
+import test from 'node:test';
 
-import { ESLint } from 'eslint';
+import { ESLint, Linter } from 'eslint';
 import typescript from 'typescript';
 
 import resilient from 'eslint-plugin-resilient';
@@ -17,6 +17,7 @@ import {
     collectIndexedOperationContracts,
     collectNativeFunctionContracts
 } from '../transforms/typescript/understand/type-evidence.js';
+import { observeModule } from './support/module.js';
 
 const directory = await mkdtemp(path.join(tmpdir(), 'resilient-dynamic-arguments-'));
 const fileName = path.join(directory, 'arguments.ts');
@@ -166,10 +167,10 @@ try {
     assert.equal(arityFixed.errorCount, 0, JSON.stringify(arityFixed.messages));
     const executeArity = (text = '') => {
         const { outputText = '' } = typescript.transpileModule(text, {
-            compilerOptions: { module: typescript.ModuleKind.CommonJS, target: typescript.ScriptTarget.ESNext }
+            compilerOptions: { module: typescript.ModuleKind.ESNext, target: typescript.ScriptTarget.ESNext }
         });
 
-        return runInNewContext(`${outputText}\n(() => {
+        return observeModule({ code: outputText, probe: `(namespace) => {
             const failure = new Error('iterator acquired');
             const iterator = Object.getOwnPropertyDescriptor(Array.prototype, Symbol.iterator);
             const inherited = Object.getOwnPropertyDescriptor(Array.prototype, '0');
@@ -178,19 +179,19 @@ try {
             try {
                 const first = function first() {};
                 return JSON.stringify({
-                    mutateOmitted: exports.mutate(first),
-                    mutatePresent: exports.mutate(first, function second() {}),
-                    fall: exports.fall(first, function second() {}),
-                    omitted: exports.explicit(first),
-                    explicit: exports.explicit(first, undefined),
-                    lengths: exports.lengths
+                    mutateOmitted: namespace.mutate(first),
+                    mutatePresent: namespace.mutate(first, function second() {}),
+                    fall: namespace.fall(first, function second() {}),
+                    omitted: namespace.explicit(first),
+                    explicit: namespace.explicit(first, undefined),
+                    lengths: namespace.lengths
                 });
             } finally {
                 Object.defineProperty(Array.prototype, Symbol.iterator, iterator);
                 if (inherited) Object.defineProperty(Array.prototype, '0', inherited);
                 else delete Array.prototype[0];
             }
-        })()`, { exports: {} });
+        }` });
     };
 
     assert.equal(executeArity(arityCode), executeArity(aritySource),
@@ -265,11 +266,11 @@ try {
     assert.match(privateCode, /_resilientArgs\.length/u);
     const observePrivate = (text = '') => {
         const { outputText = '' } = typescript.transpileModule(text, {
-            compilerOptions: { module: typescript.ModuleKind.CommonJS, target: typescript.ScriptTarget.ESNext }
+            compilerOptions: { module: typescript.ModuleKind.ESNext, target: typescript.ScriptTarget.ESNext }
         });
 
-        return runInNewContext(`${outputText}\nJSON.stringify(exports.results, (_key, value) => typeof value === 'function' ? value.name : value)`,
-            { exports: {} });
+        return observeModule({ code: outputText,
+            probe: `(namespace) => JSON.stringify(namespace.results, (_key, value) => typeof value === 'function' ? value.name : value)` });
     };
 
     assert.equal(observePrivate(privateCode), observePrivate(privateSource));
@@ -429,3 +430,87 @@ try {
 } finally {
     await rm(directory, { recursive: true, force: true });
 }
+
+test('public overload returns retain arity, provided identities and owned exceptions across local function results', async () => {
+    const code = [
+        'type Provider<A> = { read: () => A };',
+        'type Dense<A> = ReadonlyArray<A> & { readonly 0: A };',
+        'const pair = <A>(left: Provider<A>, right: Provider<A>): Dense<A> =>',
+        '    ((first: Provider<A>) => (second: Provider<A>) => [first.read(), second.read()] as const)(left)(right);',
+        'export function combine<A>(left: Provider<A>): (right: Provider<A>) => Dense<A>;',
+        'export function combine<A>(left: Provider<A>, right: Provider<A>): Dense<A>;',
+        'export function combine<A>(left: Provider<A>, right?: Provider<A>): Dense<A> | ((right: Provider<A>) => Dense<A>) {',
+        '    if (right === undefined) return next => pair(left, next);',
+        '    return pair(left, right);',
+        '}',
+        'const record = <A>(left: Provider<A>, right: Provider<A>) =>',
+        '    ((first: Provider<A>) => (second: Provider<A>) => ({ left: first.read(), right: second.read() }))(left)(right);',
+        'export function packet<A>(left: Provider<A>): (right: Provider<A>) => { left: A; right: A };',
+        'export function packet<A>(left: Provider<A>, right: Provider<A>): { left: A; right: A };',
+        'export function packet<A>(left: Provider<A>, right?: Provider<A>): { left: A; right: A } | ((right: Provider<A>) => { left: A; right: A }) {',
+        '    function combine(enabled: boolean) { if (enabled) return 1; return []; }',
+        '    void combine;',
+        '    return right === undefined ? next => record(left, next) : record(left, right);',
+        '}',
+        'export function irregular(left: number): () => number[];',
+        'export function irregular(left: number, right: number): number[];',
+        'export function irregular(left: number, right?: number): number[] | (() => number[]) {',
+        '    if (right === undefined) return () => [left];',
+        '    if (left > 0) return () => [right];',
+        '    return [left, right];',
+        '}'
+    ].join('\n');
+    const name = 'arity-return-values.ts';
+    const options = { strict: true, target: typescript.ScriptTarget.ESNext, module: typescript.ModuleKind.ESNext };
+    const sourceFile = typescript.createSourceFile(name, code, typescript.ScriptTarget.ESNext, true);
+    const host = typescript.createCompilerHost(options);
+    const program = typescript.createProgram([name], options, {
+        ...host, getSourceFile: (file, version, ...rest) => file === name ? sourceFile : host.getSourceFile(file, version, ...rest)
+    });
+    assert.deepEqual(typescript.getPreEmitDiagnostics(program).map(({ messageText = '' } = {}) => (
+        typescript.flattenDiagnosticMessageText(messageText, '\n')
+    )), []);
+    const { code: output = '', diagnostics = [] } = createTypeScriptTransformer({ typescript, program,
+        standard: { object: import.meta.resolve('eslint-plugin-resilient/standard/object') } }).transform({ code, fileName: name });
+    assert.deepEqual(diagnostics, []);
+    const profile = [resilient.configs.recommended, resilient.configs.contracts, resilient.configs.safety];
+    const linter = new Linter();
+    const messages = linter.verify(output, profile);
+    const { output: fixed = '', messages: fixedMessages = [] } = linter.verifyAndFix(output, profile);
+    const { outputText: native = '' } = typescript.transpileModule(code, { compilerOptions: options });
+    const modules = await Promise.all([native, output, fixed].map(code => import(`data:text/javascript,${encodeURIComponent(code)}`)));
+    modules.forEach((module) => {
+        ['combine', 'packet'].forEach((name) => {
+            let events = [];
+            const first = { identity: 'first' };
+            const second = { identity: 'second' };
+            const failure = new Error('second provider Get');
+            const provider = (value, label = '') => ({ get read() {
+                events = [...events, label];
+
+                return () => value;
+            } });
+            const left = provider(first, 'left');
+            const right = provider(second, 'right');
+            const invoke = Reflect.get(module, name);
+            const partial = invoke(left);
+            assert.deepEqual(events, []);
+            const values = [partial(right), invoke(left, right), invoke(left, undefined)(right)];
+            values.forEach((value) => {
+                const pair = name === 'combine' ? value : [Reflect.get(value, 'left'), Reflect.get(value, 'right')];
+                assert.equal(pair.at(0), first);
+                assert.equal(pair.at(1), second);
+            });
+            assert.deepEqual(events, ['left', 'right', 'left', 'right', 'left', 'right']);
+            assert.throws(() => invoke(left, { get read() { throw failure; } }), error => error === failure);
+            assert.deepEqual(events, ['left', 'right', 'left', 'right', 'left', 'right', 'left']);
+        });
+    });
+    [messages, fixedMessages].forEach(messages => assert.deepEqual(messages.map(({ ruleId = '', message = '' } = {}) => ({ ruleId, message })), [
+        { ruleId: 'resilient/signature-contract-return-consistency', message: 'This function returns number, but another return path produces array.' },
+        { ruleId: 'resilient/signature-contract-return-consistency', message: 'This function returns array, but another return path produces number.' },
+        { ruleId: 'resilient/signature-contract-return-consistency', message: 'This function returns function, but another return path produces array.' },
+        { ruleId: 'resilient/signature-contract-return-consistency', message: 'This function returns function, but another return path produces array.' },
+        { ruleId: 'resilient/signature-contract-return-consistency', message: 'This function returns array, but another return path produces function.' }
+    ]));
+});

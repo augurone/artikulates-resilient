@@ -70,6 +70,19 @@ const argumentLayout = formatResilientOutput(commentedArguments, typescript);
 assert.equal(formatResilientOutput(argumentLayout, typescript), argumentLayout);
 assert.deepEqual(linter.verify(argumentLayout, { rules: { ...mechanical, 'no-unused-vars': 'error' } }), []);
 
+// A compiler newline and its following indent are one layout operation. The
+// directive owns the closing line, so rejecting the newline must also reject
+// its indent instead of accumulating spaces on every subsequent pass.
+const retainedClosingLine = [
+    'export const read = source => ({ stable: 1, selected: (',
+    '    // eslint-disable-next-line no-unused-vars -- This fixture observes a retained parameter directive before a same-line closing object brace.',
+    '    ({ unused }) => 0)(source) });'
+].join('\n');
+const retainedClosingOutput = formatResilientOutput(retainedClosingLine, typescript);
+assert.equal(formatResilientOutput(retainedClosingOutput, typescript), retainedClosingOutput);
+assert.deepEqual(linter.verify(retainedClosingOutput, { rules: { 'no-unused-vars': 'error' } }), []);
+assert.equal(linter.getSuppressedMessages().length, 1);
+
 const payloadSource = [
     'export const quoted = "https://host/(x) => x /* text */";',
     'export const pattern = /https?:\\/\\/[^/]+\\/(?:x|y)/g;',
@@ -117,6 +130,32 @@ assert.equal(formatResilientOutput(moduleOrder, typescript), moduleOrder, 'Autho
 assert.equal(formatResilientOutput(payloadSource), payloadSource, 'Missing compiler rejects layout.');
 
 assert.equal(formatResilientOutput('const = ;', typescript), 'const = ;');
+
+// Exact text shares syntax only within one formatter invocation. Changed
+// stages must parse their own text, and a later call must use its own compiler.
+[
+    { code: 'export const value = 1;\n', limit: 1 },
+    { code: 'export const value=1;\n', limit: 2 },
+    { code: cases[2], limit: 3 }
+].forEach(({ code = '', limit = 0 }) => {
+    const parsed = new Map();
+    const compiler = {
+        ...typescript,
+        createSourceFile: (fileName, text, ...options) => {
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- Private proof counter observes explicit parses without modifying compiler nodes or formatter text.
+            parsed.set(text, (parsed.get(text) || 0) + 1);
+
+            return typescript.createSourceFile(fileName, text, ...options);
+        }
+    };
+    const output = formatResilientOutput(code, compiler);
+    assert.equal(output, formatResilientOutput(code, typescript));
+    assert.equal(parsed.size <= limit, true, 'Explicit parses stay bounded by changed text.');
+    assert.equal([...parsed.values()].every(count => count === 1), true, 'Unchanged stages share their syntax snapshot.');
+    const previous = parsed.get(output) || 0;
+    assert.equal(formatResilientOutput(output, compiler), output);
+    assert.equal(parsed.get(output), previous + 1, 'Syntax never leaks into a later invocation.');
+});
 
 assert.match(formatResilientOutput('export const f = () => { for (;;) { break; } };', typescript), /for \(;;\)/u);
 assert.match(formatResilientOutput("import { read } from 'vendor';\nimport { local } from './local.js';\n", typescript), /vendor';\n\nimport/u);
@@ -263,12 +302,6 @@ assert.throws(() => formatResilientOutput('export const value = 1;\n', {
         dispose() {}
     })
 }), /produced invalid JavaScript/u);
-
-const layoutProofCases = [
-    ...cases, annotated, longCall, nextLineCall, commentedArguments, payloadSource,
-    moduleOrder, ...comments, ...deepCases, ...directiveCases, ...restrictedLines, timingSource
-];
-export { layoutProofCases };
 
 let slowPasses = 0;
 const settlingCompiler = {

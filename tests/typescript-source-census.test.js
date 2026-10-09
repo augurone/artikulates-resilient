@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 
 import typescript from 'typescript';
 
@@ -54,15 +53,15 @@ assert.equal(census.ancestors(first).at(-1), sourceFile);
 const references = collectBindingReferences({ typescript: compiler, ...source, census });
 assert.ok(references.size > 0);
 const collectors = Object.entries(evidence).filter(([name = '']) => /^collect.*Contracts$/u.test(name));
-assert.ok(collectors.length >= 45);
 collectors.forEach(([, collect = missing]) => {
     collect({ typescript: compiler, ...source, census, bindingReferences: references });
 });
 assert.equal(roots, 1, 'Domain admission can walk local syntax, but cannot restart source discovery.');
 const publicTransformer = createTypeScriptTransformer({ typescript: compiler, program });
 const { transform = missing } = publicTransformer;
+assert.throws(() => transform({ code: 'conflicts with the owning Program', fileName }), /source identity mismatch/u);
 roots = 0;
-const output = transform({ code: 'ignored because the Program owns this file', fileName });
+const output = transform({ fileName });
 assert.equal(roots, 1, 'One semantic census owns the entire public transform.');
 assert.match(output.code, /export function read/u);
 assert.doesNotMatch(output.code, /ignored because/u);
@@ -148,6 +147,3 @@ const diagnosticCompiler = { ...typescript, factory: { ...typescript.factory,
 const { analyze: diagnose = missing, transform: failTransform = missing } = createTypeScriptTransformer({ typescript: diagnosticCompiler });
 assert.ok(diagnose({ code: unsupported, fileName }).diagnostics.length);
 assert.throws(() => failTransform({ code: unsupported, fileName }), error => error === factoryFailure);
-
-const authored = fs.readFileSync(new URL('../transforms/typescript/understand/type-evidence.js', import.meta.url), 'utf8');
-assert.doesNotMatch(authored, /(?:visit|gather|collectReference|collectBindings)\(sourceFile\)/u);

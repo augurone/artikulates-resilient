@@ -1,31 +1,34 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds } from '../../utils/ast-boundary.js';
-import { getTypeText } from '../understand/type-evidence.js';
+import { getSourceBinding } from '../understand/source-bindings.js';
 
-const hasGuardFor = ({ typescript = {}, node = {}, sourceFile = {}, name = '' } = {}) => {
-    let guarded = false;
-    const { BinaryExpression: BinaryExpressionKind2 = -1 } = getSyntaxKinds(typescript);
+// An authored presence observation retains the source binding. It supplies no
+// callable/array admission and never inspects generated text or helper names.
+const hasGuardFor = ({ typescript = {}, node = {}, binding = {}, checker = {} } = {}) => {
+    const { Identifier = -1, TypeOfExpression = -1, BinaryExpression = -1,
+        StringLiteral = -1, EqualsEqualsEqualsToken = -1, ExclamationEqualsEqualsToken = -1,
+        AmpersandAmpersandToken = -1 } = getSyntaxKinds(typescript);
+    const symbol = getSourceBinding({ typescript, node: binding, checker });
 
-    const visit = (child) => {
-        if (guarded || !child) return;
+    if (!symbol) return false;
 
-        const { kind: childKind = 0 } = getObject(child);
+    const matches = candidate => getObject(candidate).kind === Identifier &&
+        getSourceBinding({ typescript, node: candidate, checker }) === symbol;
+    const observes = ({ kind = 0, left = {}, right = {}, operatorToken: { kind: operator = 0 } = {} } = {}) => {
+        if (kind !== BinaryExpression) return false;
 
-        const text = getTypeText({ node: child, sourceFile });
+        if (operator === AmpersandAmpersandToken && matches(left)) return true;
 
-        guarded = guarded || childKind === BinaryExpressionKind2 && (
-            text.includes(`typeof ${name}`) ||
-            text.includes(`Array.isArray(${name})`) ||
-            text.includes(`isFunction(${name})`) ||
-            text.includes(`${name} &&`)
-        );
+        if (![EqualsEqualsEqualsToken, ExclamationEqualsEqualsToken].includes(operator)) return false;
 
-        typescript.forEachChild(child, visit);
+        return [[left, right], [right, left]].some(([probe = {}, literal = {}] = []) =>(
+            getObject(probe).kind === TypeOfExpression && matches(getObject(probe).expression) &&
+            getObject(literal).kind === StringLiteral));
     };
+    const visit = child => observes(child) || !!typescript.forEachChild(child, visit);
 
-    visit(node);
-
-    return guarded;
+    return Boolean(node && visit(node));
 };
 
 const hasObservedAbsenceFor = ({ typescript = {}, node = {}, parameter = {}, checker = {} } = {}) => {
@@ -50,14 +53,14 @@ const hasObservedAbsenceFor = ({ typescript = {}, node = {}, parameter = {}, che
     } = getSyntaxKinds(typescript);
     const { name: parameterName = {} } = getObject(parameter);
     const { text: paramText = '' } = getObject(parameterName);
-    const { getSymbolAtLocation = false, getResolvedSignature = false } = getObject(checker);
-    const symbol = typeof getSymbolAtLocation === 'function' ? getSymbolAtLocation.call(checker, parameterName) : false;
+    const { getResolvedSignature = false } = getObject(checker);
+    const symbol = getSourceBinding({ typescript, node: parameterName, checker });
     const isParameter = (value) => {
         const { kind = 0, text = '' } = getObject(value);
 
         return kind === IdentifierKind2 &&
             text === paramText &&
-            (!symbol || (typeof getSymbolAtLocation === 'function' && getSymbolAtLocation.call(checker, value) === symbol));
+            Boolean(symbol) && getSourceBinding({ typescript, node: value, checker }) === symbol;
     };
     const observes = (child) => {
         const {
@@ -81,8 +84,8 @@ const hasObservedAbsenceFor = ({ typescript = {}, node = {}, parameter = {}, che
             : {};
         {
             const { declaration = {} } = resolved;
-            const { getSourceFile = false, parameters = [] } = getObject(declaration);
-            const declarationSource = typeof getSourceFile === 'function'
+            const { getSourceFile, parameters = [] } = getObject(declaration);
+            const declarationSource = isFunction(getSourceFile)
                 ? getSourceFile.call(declaration)
                 : {};
             const { isDeclarationFile: external = false } = getObject(declarationSource);
@@ -105,7 +108,8 @@ const hasObservedAbsenceFor = ({ typescript = {}, node = {}, parameter = {}, che
         const absence = (value) => {
             const { kind = 0, text = '' } = getObject(value);
 
-            return (kind === IdentifierKind2 && text === 'undefined') ||
+            return (kind === IdentifierKind2 && text === 'undefined' &&
+                !getSourceBinding({ typescript, node: value })) ||
                 kind === NullKeywordKind3 ||
                 kind === VoidExpressionKind2;
         };
@@ -125,36 +129,7 @@ const hasObservedAbsenceFor = ({ typescript = {}, node = {}, parameter = {}, che
     return !!node && !!visit(node);
 };
 
-const hasOptionalFallbackFor = ({ typescript = {}, node = {}, sourceFile = {}, name = '' } = {}) => {
-    let optional = false;
-    const { IfStatement = -1 } = getSyntaxKinds(typescript);
-
-    const visit = (child) => {
-        if (optional || !child) return;
-
-        const {
-            kind: childKind = 0,
-            expression: childExpr = {},
-            thenStatement: childThen = {}
-        } = getObject(child);
-
-        const condition = getTypeText({ node: childExpr, sourceFile });
-        const consequent = getTypeText({ node: childThen, sourceFile });
-
-        optional = childKind === IfStatement &&
-            condition.includes(`!hasContent(${name})`) &&
-            consequent.includes('return {}');
-
-        typescript.forEachChild(child, visit);
-    };
-
-    visit(node);
-
-    return optional;
-};
-
 export {
     hasGuardFor,
-    hasObservedAbsenceFor,
-    hasOptionalFallbackFor
+    hasObservedAbsenceFor
 };

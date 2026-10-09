@@ -1,4 +1,5 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds } from '../../utils/ast-boundary.js';
 
 // One original semantic tree per analysis. Tokens and JSDoc are deliberately
@@ -20,6 +21,8 @@ const createSourceCensus = ({ typescript = {}, sourceFile = {} } = {}) => {
 
         return [node, record];
     }));
+    const byParent = Map.groupBy(records, ({ parent = false } = {}) => parent);
+    const children = node => (byParent.get(byNode.get(node)) || []).map(({ node = {} } = {}) => node);
     const select = (...kinds) => kinds.flatMap(kind => byKind.get(kind) || [])
         .toSorted(({ order: left = 0 } = {}, { order: right = 0 } = {}) => left - right)
         .map(({ node = {} } = {}) => node);
@@ -32,7 +35,7 @@ const createSourceCensus = ({ typescript = {}, sourceFile = {} } = {}) => {
         return parent ? ascend(getObject(parent)) : [];
     };
 
-    return { sourceFile, select, ancestors };
+    return { sourceFile, select, ancestors, children };
 };
 
 const collectBindingReferences = ({
@@ -40,15 +43,15 @@ const collectBindingReferences = ({
     census = createSourceCensus({ typescript, sourceFile })
 } = {}) => {
     const { Identifier = -1, ShorthandPropertyAssignment = -1 } = getSyntaxKinds(typescript);
-    const { getSymbolAtLocation = false, getShorthandAssignmentValueSymbol = false } = getObject(checker);
+    const { getSymbolAtLocation, getShorthandAssignmentValueSymbol } = getObject(checker);
 
-    if (typeof getSymbolAtLocation !== 'function') return new Map();
+    if (!isFunction(getSymbolAtLocation)) return new Map();
 
     const symbolOf = (node = {}) => {
         const { parent = {} } = getObject(node);
 
         return getObject(parent).kind === ShorthandPropertyAssignment &&
-            typeof getShorthandAssignmentValueSymbol === 'function'
+            isFunction(getShorthandAssignmentValueSymbol)
             ? getShorthandAssignmentValueSymbol.call(checker, parent)
             : getSymbolAtLocation.call(checker, node);
     };

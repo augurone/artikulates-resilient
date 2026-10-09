@@ -1,9 +1,12 @@
-import { getObject, isObject } from '../../../rules/support/object.js';
-import { getContractFamily, lookupMember, normalizeContract, projectMembers, reduceContracts, relateContracts } from '../../policy/contract.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject, isObject } from '../../../analysis/host/object.js';
+import { getContractFamily, getContractRelation, getRelationState, lookupMember, normalizeContract, projectMembers, reduceContracts } from '../../policy/contract.js';
 import { getNodeText, getSyntaxKinds } from '../../utils/ast-boundary.js';
+import { getChildren } from '../../utils/ast-traversal.js';
 import { hasTypeChecker } from '../../utils/compiler-shape.js';
 import { getBindingReason } from '../policy/binding-reason.js';
 import { createResolverPolicy } from '../policy/resolvers.js';
+import { createSourceCensus } from './source-census.js';
 
 const requireCompilerMember = (name = '') => {
     throw new TypeError(`Missing TypeScript compiler agreement for ${name}`);
@@ -11,9 +14,9 @@ const requireCompilerMember = (name = '') => {
 
 const isUnionType = (type) => {
     const candidate = getObject(type);
-    const { isUnion = false } = candidate;
+    const { isUnion } = candidate;
 
-    return typeof isUnion === 'function' && isUnion.call(candidate);
+    return isFunction(isUnion) && isUnion.call(candidate);
 };
 
 const primitiveKinds = ({ typescript = {} } = {}) => {
@@ -188,12 +191,13 @@ const getCheckerContract = ({
 
     const [firstPart = {}] = definedParts;
     const { flags: firstFlags = 0 } = firstPart;
-    const { getCallSignatures = false } = firstPart;
+    const { getCallSignatures } = firstPart;
     const hasCallSignature = definedParts.length === 1 &&
-        typeof getCallSignatures === 'function' &&
+        isFunction(getCallSignatures) &&
         !!firstPart.getCallSignatures().length;
 
-    if (identifierName === 'Function' || hasCallSignature) return {
+    // eslint-disable-next-line no-use-before-define -- Native declaration identity is queried only after module initialization.
+    if (getNativeUtilityName({ typescript, node, declarations, checker: activeChecker }) === 'Function' || hasCallSignature) return {
         kind: 'function',
         check: getFamilyCheck('function'),
         optional: parts.length !== definedParts.length,
@@ -211,8 +215,8 @@ const getCheckerContract = ({
     });
     const isObjectType = definedParts.length === 1 && objectFlags && !!(firstFlags & objectFlags) && !declarationKind;
     const isArrayType = definedParts.length === 1 &&
-        ((typeof isArrayTypeFunction === 'function' && isArrayTypeFunction(firstPart)) ||
-            (typeof isTupleTypeFunction === 'function' && isTupleTypeFunction(firstPart)));
+        ((isFunction(isArrayTypeFunction) && isArrayTypeFunction(firstPart)) ||
+            (isFunction(isTupleTypeFunction) && isTupleTypeFunction(firstPart)));
 
     if (isArrayType) return {
         kind: 'array',
@@ -252,10 +256,10 @@ const getCheckerTypeNode = ({
     } = getSyntaxKinds(typescript);
     const { NodeBuilderFlags: { NoTruncation = 0 } = {} } = typescript;
     const { kind = 0 } = node;
-    const { typeToTypeNode = false } = activeChecker;
+    const { typeToTypeNode } = activeChecker;
 
     if (!hasTypeChecker(activeChecker) ||
-        typeof typeToTypeNode !== 'function' ||
+        !isFunction(typeToTypeNode) ||
         ![IndexedAccessType, ImportType].includes(kind)) return {};
 
     const type = activeChecker.getTypeAtLocation(node);
@@ -292,9 +296,13 @@ const getLiteralPredicate = ({
     return {};
 };
 
+// eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An absent literal payload stays undefined; false, zero and empty text are distinct literal values.
+const getLiteralValue = ({ value } = {}) => value;
+
 const getLiteralCheck = (options = {}) => {
     const predicate = getLiteralPredicate(options);
-    const { kind = '', value = undefined } = predicate;
+    const { kind = '' } = predicate;
+    const value = getLiteralValue(predicate);
 
     return kind ? `VALUE === ${JSON.stringify(value)}` : '';
 };
@@ -468,17 +476,157 @@ const getDeclaration = ({ declarations = {}, name = '', fallback = {} } = {}) =>
     return declarationKind ? declaration : fallback;
 };
 
+// Native utility recipes apply only to the compiler's actual bound declaration.
+// The standalone adapter binds the same compiler library source; authored and
+// checker-resolved local declarations always take precedence.
+const compilerLibraries = new WeakMap();
+const getCompilerLibrary = (typescript = {}) => {
+    if (compilerLibraries.has(typescript)) return compilerLibraries.get(typescript);
+
+    const { getDefaultLibFilePath, ScriptTarget: { Latest = 0 } = {}, sys: { readFile } = {} } = typescript;
+    const libraryPath = isFunction(getDefaultLibFilePath)
+        ? getDefaultLibFilePath({}).replace(/[^/\\]+$/u, 'lib.es5.d.ts') : '';
+    const text = libraryPath && isFunction(readFile) ? readFile(libraryPath) || '' : '';
+    const source = text ? typescript.createSourceFile(libraryPath, text, Latest, true) : {};
+    const { statements = [] } = source;
+    const declarations = new Map(statements.filter(({ name = {} } = {}) => getObject(name).text)
+        .map((declaration) => {
+            const { name: { text = '' } = {} } = declaration;
+
+            return [text, declaration];
+        }));
+    const library = { libraryPath, declarations };
+    // eslint-disable-next-line resilient/prefer-safe-transformations -- Compiler identity owns one private immutable library binding snapshot.
+    compilerLibraries.set(typescript, library);
+
+    return library;
+};
+const getBoundTypeDeclaration = ({ typescript = {}, node = {}, declarations = {},
+    checker = {}, name = '' } = {}) => {
+    const { __checker: cachedChecker = checker, __boundTypeDeclarations: recordedBindings = false } = declarations;
+    const activeChecker = hasTypeChecker(checker) ? checker : cachedChecker;
+    const { getSymbolAtLocation, getAliasedSymbol } = activeChecker;
+    const { typeName = node, parent: nodeParent = false } = node;
+
+    if (recordedBindings) return recordedBindings.get(node) || recordedBindings.get(typeName) || {};
+
+    if (nodeParent && isFunction(getSymbolAtLocation)) {
+        const symbol = getSymbolAtLocation.call(activeChecker, typeName);
+        const { SymbolFlags: { Alias = 0 } = {} } = typescript;
+        const { flags = 0 } = getObject(symbol);
+        const resolved = symbol && Alias && flags & Alias && isFunction(getAliasedSymbol)
+            ? getAliasedSymbol.call(activeChecker, symbol) : symbol;
+        const { declarations: bindings = [] } = getObject(resolved);
+        const [binding = {}] = bindings;
+
+        return binding;
+    }
+
+    let current = nodeParent;
+    // eslint-disable-next-line resilient/prefer-prototype-methods -- Lexical lookup stops at the nearest actual declaration owner.
+    while (current) {
+        const { statements = [], typeParameters = [], parent = false } = current;
+        const parameter = typeParameters.find(({ name: { text = '' } = {} } = {}) => text === name);
+
+        if (parameter) return parameter;
+
+        const binding = statements.find(({ name: candidate = {}, importClause = {} } = {}) => {
+            const { name: imported = {}, namedBindings: { name: namespace = {}, elements = [] } = {} } = importClause;
+
+            return [candidate, imported, namespace, ...elements.map(({ name: local = {} } = {}) => local)]
+                .some(({ text = '' } = {}) => text === name);
+        });
+
+        if (binding) return binding;
+
+        current = parent;
+    }
+
+    const { [name]: declared = {} } = declarations;
+    const declaration = getObject(declared);
+    const { kind = 0 } = declaration;
+    const { declarations: nativeDeclarations = new Map() } = getCompilerLibrary(typescript);
+
+    return kind ? declaration : nativeDeclarations.get(name) || {};
+};
+const getNativeUtilityName = (options = {}) => {
+    const { typescript = {}, node = {} } = options;
+
+    const { parent = false } = node;
+
+    if (!parent) return '';
+
+    const name = getIdentifierName({ typescript, node });
+    const binding = getBoundTypeDeclaration({ ...options, name });
+    const { declarations: nativeDeclarations = new Map(), libraryPath = '' } = getCompilerLibrary(typescript);
+    const native = nativeDeclarations.get(name);
+    const { kind: bindingKind = 0, pos: bindingPos = 0, end: bindingEnd = 0, getText: bindingText } = binding;
+
+    if (!native || !bindingKind) return '';
+
+    if (binding === native) return name;
+
+    const { getSourceFile } = binding;
+    const owner = isFunction(getSourceFile) ? getSourceFile.call(binding) : {};
+    const { fileName = '' } = owner;
+
+    const { pos: nativePos = 0, end: nativeEnd = 0, getText: nativeText } = native;
+
+    return fileName === libraryPath && bindingPos === nativePos && bindingEnd === nativeEnd &&
+        isFunction(bindingText) && isFunction(nativeText) &&
+        bindingText.call(binding) === nativeText.call(native)
+        ? name : '';
+};
+
+const collectTypeDeclarationBindings = ({ typescript = {}, sourceFile = {}, declarations = {}, checker = {},
+    census = createSourceCensus({ typescript, sourceFile }) } = {}) => {
+    const collect = node => [node, ...getChildren({ typescript, node }).flatMap(collect)];
+    const { TypeReference = -1, Identifier = -1 } = getSyntaxKinds(typescript);
+    const external = Object.values(declarations).filter((declaration) => {
+        const { getSourceFile } = getObject(declaration);
+
+        return isFunction(getSourceFile) && getSourceFile.call(declaration) !== sourceFile;
+    });
+    const references = [...new Set([...census.select(TypeReference, Identifier), ...external.flatMap(collect)])]
+        .filter(node => typescript.isTypeReferenceNode(node) || typescript.isIdentifier(node));
+    const bindings = new Map(references.map(node => [node, getBoundTypeDeclaration({
+        typescript, node, declarations, checker, name: getIdentifierName({ typescript, node })
+    })]));
+    const { getTypeAtLocation, isTypeAssignableTo } = checker;
+    const relations = new Map(references.flatMap((node) => {
+        if (!typescript.isTypeReferenceNode(node) || !['Extract', 'Exclude'].includes(getNativeUtilityName({ typescript, node, declarations, checker })) ||
+            !isFunction(getTypeAtLocation) || !isFunction(isTypeAssignableTo)) return [];
+
+        const { TypeFlags: { Conditional = 0 } = {} } = typescript;
+        const { flags: resultFlags = 0 } = getObject(getTypeAtLocation.call(checker, node));
+        const unresolved = Boolean(Conditional && resultFlags & Conditional);
+        const { typeArguments: [source = {}, target = {}] = [] } = getObject(node);
+        const { types: sources = [source] } = source;
+        const { types: targets = [target] } = target;
+
+        return sources.map(part => [part, new Map(targets.map(other => [other,
+            unresolved ? 'unknown' : isTypeAssignableTo.call(checker,
+                getTypeAtLocation.call(checker, part), getTypeAtLocation.call(checker, other))]))]);
+    }));
+    Object.defineProperties(declarations, {
+        __boundTypeDeclarations: { value: bindings },
+        __utilityRelations: { value: relations }
+    });
+
+    return declarations;
+};
+
 const getProgramDeclarationMap = ({ typescript = {}, program = {} } = {}) => {
     const {
-        getSourceFiles = false,
-        isSourceFileDefaultLibrary = false
+        getSourceFiles,
+        isSourceFileDefaultLibrary
     } = program;
-    const sourceFiles = typeof getSourceFiles === 'function'
+    const sourceFiles = isFunction(getSourceFiles)
         ? getSourceFiles.call(program)
         : [];
     const applicationSourceFiles = sourceFiles.filter((sourceFile) => {
         const { fileName = '' } = sourceFile;
-        const isDefaultLibrary = typeof isSourceFileDefaultLibrary === 'function' &&
+        const isDefaultLibrary = isFunction(isSourceFileDefaultLibrary) &&
             isSourceFileDefaultLibrary.call(program, sourceFile);
         const isAmbientTypePackage = fileName.includes('/node_modules/@types/');
 
@@ -708,10 +856,11 @@ const getTypeMembers = ({
     if (![TypeReference, Identifier].includes(nodeKind)) return [];
 
     const name = getIdentifierName({ typescript, node });
-    const declaration = getDeclaration({ declarations, name });
+    const declaration = getBoundTypeDeclaration({ typescript, node, declarations, name });
+    const nativeUtility = getNativeUtilityName({ typescript, node, declarations });
     const [sourceType = false, selectorType = {}] = typeArguments;
     const { typeParameters = [], type: declarationType = false } = declaration;
-    const isMappedUtility = ['Pick', 'Omit', 'Partial', 'Readonly', 'Required'].includes(name) &&
+    const isMappedUtility = ['Pick', 'Omit', 'Partial', 'Readonly', 'Required'].includes(nativeUtility) &&
         isObject(sourceType);
     const sourceMembers = isMappedUtility
         ? getTypeMembers({ typescript, node: sourceType, declarations, seen, typeBindings })
@@ -794,22 +943,18 @@ const getIndexedAccessMemberTypes = ({
     node = {},
     declarations = {}
 } = {}) => {
-    const { TypeReference = -1, Identifier = -1 } = getSyntaxKinds(typescript);
     const {
         objectType = {},
         indexType = {}
     } = node;
-    const { kind: objectKind = 0, typeArguments = [] } = objectType;
+    const { typeArguments = [] } = objectType;
     const [, secondArgument = {}] = typeArguments;
     const keys = getLiteralNames({
         typescript,
         node: indexType,
         declarations
     });
-    const objectName = [TypeReference, Identifier].includes(objectKind)
-        ? getIdentifierName({ typescript, node: objectType })
-        : '';
-    const recordValue = objectName === 'Record' ? secondArgument : undefined;
+    const recordValue = getNativeUtilityName({ typescript, node: objectType, declarations }) === 'Record' ? secondArgument : undefined;
     const members = recordValue
         ? [{ type: recordValue }]
         : keys.flatMap((key) => {
@@ -837,34 +982,33 @@ const getIndexedAccessMemberTypes = ({
     });
 };
 
-const getObjectDiscriminator = ({
-    typescript = {},
-    node = {},
-    declarations = {}
-} = {}) => {
-    const identifierName = getIdentifierName({ typescript, node });
-    const declaration = getDeclaration({
-        declarations,
-        name: identifierName,
-        fallback: { type: node }
-    });
-    const discriminator = getMembers({ typescript, declaration, declarations, node })
-        .map((member) => {
-            const { type: memberType = {} } = member;
+const getObjectDiscriminator = ({ typescript = {}, node = {}, declarations = {}, unionParts = [] } = {}) => {
+    const membersFor = (part = {}) => getMembers({ typescript, declaration: getDeclaration({
+        declarations, name: getIdentifierName({ typescript, node: part }), fallback: { type: part }
+    }), declarations, node: part });
+    const partitions = unionParts.map(part => membersFor(part).filter(({ questionToken = false } = {}) => !questionToken)
+        .map((member = {}) => ({ property: getName({ typescript, node: member }),
+            literal: getLiteralPredicate({ typescript, node: getObject(member).type }) })));
+    const [first = []] = partitions;
+    const complete = first.filter(({ property = '', literal: { kind = '' } = {} }) => property && kind &&
+        partitions.every(fields => fields.some(({ property: fieldProperty = '', literal: { kind: literalKind = '' } = {} } = {}) => fieldProperty === property && Boolean(literalKind))) &&
+        new Set(partitions.map((fields) => {
+            const selected = fields.find(({ property: fieldProperty = '' } = {}) => fieldProperty === property);
+            const { literal = {} } = getObject(selected);
 
-            return {
-                member,
-                propertyName: getName({ typescript, node: member }),
-                predicate: getLiteralPredicate({ typescript, node: memberType })
-            };
-        })
-        .find(({ propertyName = '', predicate: { kind = '' } = {} } = {}) => propertyName && kind);
+            return getLiteralValue(literal);
+        })).size === partitions.length);
 
-    if (!discriminator) return {};
+    // Competing complete discriminators have distinct observable Gets. Without
+    // a unique source discriminator the resolver retains its unknown outcome.
+    if (complete.length !== 1 || partitions.length < 2) return {};
 
-    const { predicate: { value = '' } = {}, propertyName = '' } = discriminator;
+    const [{ property = '' } = {}] = complete;
+    const member = membersFor(node).find(candidate => getName({ typescript, node: candidate }) === property);
+    const { type = {} } = getObject(member);
+    const value = getLiteralValue(getLiteralPredicate({ typescript, node: type }));
 
-    return { kind: 'discriminant', property: propertyName, value };
+    return { kind: 'discriminant', property, value };
 };
 
 const getObjectPropertyNames = ({
@@ -1112,7 +1256,7 @@ const getEnclosingTypeParameter = ({
     // eslint-disable-next-line resilient/prefer-prototype-methods -- Type-parameter ownership reads parent before match; SourceFile skips parameter scanning.
     while (current) {
         const currentNode = getObject(current);
-        const { kind = 0, parent: next = null, typeParameters = [] } = currentNode;
+        const { kind = 0, parent: next = false, typeParameters = [] } = currentNode;
 
         if (kind === SourceFile) return {};
 
@@ -1131,6 +1275,29 @@ const getEnclosingTypeParameter = ({
 const getRuntimeName = (typeName = '') => typeName.includes('.')
     ? getResolverName(typeName)
     : typeName;
+
+const getQualifiedDeclarationName = ({ typescript = {}, declaration = {} } = {}) => {
+    const { ModuleDeclaration = -1, ModuleBlock = -1 } = getSyntaxKinds(typescript);
+    const { name: { text: declarationName = '' } = {}, parent: initialParent = false } = declaration;
+    const names = declarationName ? [declarationName] : [];
+    let current = initialParent;
+
+    // eslint-disable-next-line resilient/prefer-prototype-methods -- Only actual namespace ancestors qualify the bound declaration; each parent is read once without searching other declarations.
+    while (current) {
+        const { kind = 0, name: { text = '' } = {}, parent = false } = current;
+
+        if (![ModuleDeclaration, ModuleBlock].includes(kind)) break;
+
+        if (kind === ModuleDeclaration && text) {
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- A private reverse path buffer is linear in namespace depth and never mutates caller-owned nodes.
+            names.push(text);
+        }
+
+        current = parent;
+    }
+
+    return names.toReversed().join('.');
+};
 
 const resolveTypeInfo = ({
     getTypeInfo = requireCompilerMember('TypeResolution.resolve'),
@@ -1179,8 +1346,12 @@ const resolveTypeInfo = ({
         !isNeverType({ typescript, node: part })
     ));
     const getRelation = (source, target) => {
-        const { kind: sourceLiteral = '', value: sourceValue = undefined } = getLiteralPredicate({ typescript, node: source });
-        const { kind: targetLiteral = '', value: targetValue = undefined } = getLiteralPredicate({ typescript, node: target });
+        const sourcePredicate = getLiteralPredicate({ typescript, node: source });
+        const { kind: sourceLiteral = '' } = sourcePredicate;
+        const sourceValue = getLiteralValue(sourcePredicate);
+        const targetPredicate = getLiteralPredicate({ typescript, node: target });
+        const { kind: targetLiteral = '' } = targetPredicate;
+        const targetValue = getLiteralValue(targetPredicate);
 
         const getLiteralRelation = () => {
             if (!sourceLiteral && !targetLiteral) return { matched: false, value: false };
@@ -1219,7 +1390,7 @@ const resolveTypeInfo = ({
         const literalRelation = getLiteralRelation();
         const { matched = false, value: literalValue = false } = literalRelation;
 
-        if (matched) return literalValue;
+        if (matched) return literalValue ? 'agreement' : 'contradiction';
 
         const sourceInfo = getTypeInfo({
             typescript,
@@ -1245,7 +1416,7 @@ const resolveTypeInfo = ({
         const sourceKind = getRuntimeKind(sourceInfo);
         const targetKind = getRuntimeKind(targetInfo);
 
-        return relateContracts({
+        return getContractRelation({
             source: sourceInfo,
             target: targetInfo,
             sourceKeys: sourceKind === 'object'
@@ -1329,7 +1500,7 @@ const resolveTypeInfo = ({
 
     const { kind: checkTypeKind = 0 } = checkType;
     const checkTypeName = getIdentifierName({ typescript, node: checkType });
-    const { [checkTypeName]: conditionalBoundType = undefined } = typeBindings;
+    const { [checkTypeName]: conditionalBoundType = false } = typeBindings;
     const distributive = isConditionalType &&
         [TypeParameterKind2, TypeReferenceKind2].includes(checkTypeKind) &&
         conditionalBoundType;
@@ -1339,9 +1510,9 @@ const resolveTypeInfo = ({
     const relations = isConditionalType
         ? candidates.map(candidate => getRelation(candidate, extendsType))
         : [];
-    const allTrue = isConditionalType && relations.every(relation => relation === true);
-    const allFalse = isConditionalType && relations.every(relation => relation === false);
-    const allBoolean = isConditionalType && relations.every(relation => typeof relation === 'boolean');
+    const allTrue = isConditionalType && relations.every(relation => relation === 'agreement');
+    const allFalse = isConditionalType && relations.every(relation => relation === 'contradiction');
+    const allKnown = isConditionalType && relations.every(relation => relation !== 'unknown');
 
     if (allTrue) return getTypeInfo({
         typescript,
@@ -1365,8 +1536,8 @@ const resolveTypeInfo = ({
         reservedNames
     });
 
-    if (distributive && allBoolean) {
-        const branches = relations.map(relation => relation ? trueType : falseType);
+    if (distributive && allKnown) {
+        const branches = relations.map(relation => relation === 'agreement' ? trueType : falseType);
 
         return getTypeInfo({
             typescript,
@@ -1483,7 +1654,7 @@ const resolveTypeInfo = ({
         const kind = getLiteralRuntimeKind({ typescript, node });
 
         return check
-            ? { kind: 'literal', check, literalValue: getLiteralPredicate({ typescript, node }).value, canonical: getCanonical(kind) }
+            ? { kind: 'literal', check, literalValue: getLiteralValue(getLiteralPredicate({ typescript, node })), canonical: getCanonical(kind) }
             : { kind: 'unknown', typeText };
     }
 
@@ -1504,10 +1675,9 @@ const resolveTypeInfo = ({
         });
         const { constraint: enclosingConstraint = false, default: enclosingDefault = false } = enclosingTypeParameter;
         const enclosingFallback = enclosingDefault || enclosingConstraint;
-        const [declarationName = '', declaration = {}] = getDeclarationEntry({
-            declarations,
-            name: identifierName
-        });
+        const declaration = getBoundTypeDeclaration({ typescript, node, declarations, name: identifierName });
+        const declarationName = getQualifiedDeclarationName({ typescript, declaration });
+        const nativeUtility = getNativeUtilityName({ typescript, node, declarations });
         const declarationType = getDeclarationType({ typescript, declaration });
         const { members: declarationMembers = false } = declarationType;
         const { type: decType = false, typeParameters: decTypeParameters = false } = declaration;
@@ -1537,7 +1707,7 @@ const resolveTypeInfo = ({
         const { typeArguments = [] } = node;
         const [firstTypeArgument = {}, secondTypeArgument = {}] = typeArguments;
 
-        const isPartUtility = ['NonNullable', 'Exclude', 'Extract'].includes(identifierName) &&
+        const isPartUtility = ['NonNullable', 'Exclude', 'Extract'].includes(nativeUtility) &&
             firstTypeArgument;
         const sourceParts = isPartUtility
             ? getTypeParts({
@@ -1565,31 +1735,64 @@ const resolveTypeInfo = ({
             reservedNames
         });
         const matches = (source, target) => {
-            if (isAbsenceType({ typescript, node: source, declarations }) ||
-                    isAbsenceType({ typescript, node: target, declarations })) {
-                return isAbsenceType({ typescript, node: source, declarations }) &&
-                        isAbsenceType({ typescript, node: target, declarations });
+            const { __checker: activeChecker = {}, __utilityRelations: recordedRelations = false } = declarations;
+            const { getTypeAtLocation, isTypeAssignableTo } = activeChecker;
+
+            const { parent: sourceParent = false } = source;
+            const { parent: targetParent = false } = target;
+
+            if (recordedRelations) {
+                const targets = recordedRelations.get(source) || new Map();
+
+                return getRelationState(targets.get(target));
             }
 
-            const { kind: sourceLiteral = '', value: sourceValue = undefined } = getLiteralPredicate({ typescript, node: source });
-            const { kind: targetLiteral = '', value: targetValue = undefined } = getLiteralPredicate({ typescript, node: target });
+            if (sourceParent && targetParent && isFunction(getTypeAtLocation) &&
+                isFunction(isTypeAssignableTo)) {
+                const { TypeFlags: { Conditional = 0 } = {} } = typescript;
+                const { flags = 0 } = getObject(getTypeAtLocation.call(activeChecker, node));
 
-            if (sourceLiteral || targetLiteral) return sourceLiteral === targetLiteral && sourceValue === targetValue;
+                return Conditional && flags & Conditional ? 'unknown' : getRelationState(isTypeAssignableTo.call(activeChecker,
+                    getTypeAtLocation.call(activeChecker, source), getTypeAtLocation.call(activeChecker, target)));
+            }
+
+            if (isAbsenceType({ typescript, node: source, declarations }) ||
+                isAbsenceType({ typescript, node: target, declarations })) return (
+                isAbsenceType({ typescript, node: source, declarations }) &&
+                isAbsenceType({ typescript, node: target, declarations })
+            ) ? 'agreement' : 'contradiction';
 
             const sourceInfo = getPartInfo(source);
             const targetInfo = getPartInfo(target);
-            const { kind: targetInfoKind = '' } = targetInfo;
+            const sourceFamily = getRuntimeKind(sourceInfo);
+            const targetFamily = getRuntimeKind(targetInfo);
+            const scalars = ['string', 'number', 'boolean', 'bigint', 'symbol'];
 
-            return getRuntimeKind(sourceInfo) === getRuntimeKind(targetInfo) &&
-                    !['unknown', 'required', 'invalid'].includes(targetInfoKind);
+            if (!scalars.includes(sourceFamily) || !scalars.includes(targetFamily)) return 'unknown';
+
+            const sourcePredicate = getLiteralPredicate({ typescript, node: source });
+            const { kind: sourceLiteral = '' } = sourcePredicate;
+            const sourceValue = getLiteralValue(sourcePredicate);
+            const targetPredicate = getLiteralPredicate({ typescript, node: target });
+            const { kind: targetLiteral = '' } = targetPredicate;
+            const targetValue = getLiteralValue(targetPredicate);
+
+            const matched = targetLiteral ? Boolean(sourceLiteral) && sourceValue === targetValue : sourceFamily === targetFamily;
+
+            return matched ? 'agreement' : 'contradiction';
         };
-        const filteredParts = identifierName === 'NonNullable'
-            ? sourceParts.filter(part => !isAbsenceType({ typescript, node: part, declarations }))
-            : sourceParts.filter((source) => {
-                const matched = excludedParts.some(target => matches(source, target));
+        const selections = nativeUtility === 'NonNullable'
+            ? sourceParts.map(source => ({ source, matched: !isAbsenceType({ typescript, node: source, declarations }) }))
+            : sourceParts.map(source => ({ source, relations: excludedParts.map(target => matches(source, target)) }));
+        const unknownSelection = selections.some(({ relations = [] } = {}) => relations.includes('unknown'));
 
-                return identifierName === 'Exclude' ? !matched : matched;
-            });
+        if (isPartUtility && unknownSelection) return { kind: 'unknown', typeText };
+
+        const filteredParts = selections.filter(({ matched = false, relations = [] } = {}) => {
+            if (nativeUtility === 'NonNullable') return matched;
+
+            return nativeUtility === 'Exclude' ? !relations.includes('agreement') : relations.includes('agreement');
+        }).map(({ source = {} } = {}) => source);
 
         if (isPartUtility && !filteredParts.length) return { kind: 'invalid', typeText };
 
@@ -1611,13 +1814,13 @@ const resolveTypeInfo = ({
             reservedNames
         });
 
-        if (identifierName === 'Record') return {
+        if (nativeUtility === 'Record') return {
             kind: 'object',
             canonical: '{}',
             check: 'isObject(VALUE)'
         };
 
-        if (['Partial', 'Readonly', 'Required'].includes(identifierName) && firstTypeArgument) return getTypeInfo({
+        if (['Partial', 'Readonly', 'Required'].includes(nativeUtility) && firstTypeArgument) return getTypeInfo({
             typescript,
             node: firstTypeArgument,
             sourceFile,
@@ -1670,7 +1873,7 @@ const resolveTypeInfo = ({
                 ? {
                     ...info,
                     resolver: directResolver || getAvailableResolverName({
-                        typeText: identifierName,
+                        typeText: declarationName,
                         reservedNames
                     })
                 }
@@ -1889,6 +2092,8 @@ const {
     getObjectShapeCheck
 });
 export {
+    getBoundTypeDeclaration,
+    getNativeUtilityName,
     requireCompilerMember,
     isUnionType,
     primitiveKinds,
@@ -1912,6 +2117,7 @@ export {
     getDeclarationEntry,
     getDeclaration,
     getProgramDeclarationMap,
+    collectTypeDeclarationBindings,
     getDeclarationType,
     getLiteralNames,
     getTypeParameterBindings,

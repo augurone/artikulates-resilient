@@ -1,4 +1,4 @@
-import { getObject } from '../../../rules/support/object.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { createProviderForwardExpression } from '../grammar/algebra.js';
 import { getDestructuringDecision } from '../policy/destructuring-agreements.js';
 import { getConsumerContractKey } from '../understand/type-evidence.js';

@@ -5,6 +5,8 @@ import { readFileSync } from 'node:fs';
 
 import { ESLint } from 'eslint';
 
+import { isFunction } from '../analysis/host/function.js';
+
 const digest = text => createHash('sha256').update(text).digest('hex');
 
 let inspector;
@@ -12,14 +14,14 @@ let fixer;
 let measure = false;
 let fixAll = false;
 
-const optionsFor = ({ cwd = '', eslintConfig = undefined } = {}) => ({
+const optionsFor = ({ cwd = '', eslintConfig = '' } = {}) => ({
     cwd,
     stats: true,
     errorOnUnmatchedPattern: false,
     ...(eslintConfig ? { overrideConfigFile: eslintConfig } : {})
 });
 const respond = (id, result = {}) => {
-    if (typeof process.send === 'function' && process.connected) {
+    if (isFunction(process.send) && process.connected) {
         process.send({ id, ...result }, (error) => {
             if (error && process.connected) process.disconnect();
         });
@@ -59,7 +61,7 @@ const getProfile = async (filePath = '') => {
 
     if (!config || await inspector.isPathIgnored(filePath)) throw new Error(`Missing or ignored JavaScript lint profile: ${filePath}`);
 
-    const { rules = {}, languageOptions = {}, plugins = {}, processor = undefined, settings = {}, linterOptions = {} } = config;
+    const { rules = {}, languageOptions = {}, plugins = {}, processor = false, settings = {}, linterOptions = {} } = config;
 
     if (!Object.values(rules).some(([severity = 0] = []) => severity > 0)) {
         throw new Error(`No enabled JavaScript lint rules: ${filePath}`);
@@ -81,15 +83,16 @@ const getProfile = async (filePath = '') => {
         linterOptions
     };
     // Functions in configuration are represented by their source rather than silently omitted from identity.
-    const serialized = JSON.stringify(profile, (key, value) => typeof value === 'function' ? String(value) : value);
+    const serialized = JSON.stringify(profile, (key, value) => isFunction(value) ? String(value) : value);
 
     return { ...JSON.parse(serialized), sha256: digest(serialized) };
 };
 const disconnect = () => {
-    if (typeof process.disconnect === 'function') process.disconnect();
+    if (isFunction(process.disconnect)) process.disconnect();
 };
 
-process.on('message', async ({ id = undefined, type = '', ...message } = {}) => {
+// eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- The IPC request id is echoed unchanged, including native absence on malformed requests.
+process.on('message', async ({ id, type = '', ...message } = {}) => {
     try {
         if (type === 'init') {
             initialize(message);
@@ -98,12 +101,30 @@ process.on('message', async ({ id = undefined, type = '', ...message } = {}) => 
             return;
         }
 
+        if (type === 'profile') {
+            const { filePath = '' } = message;
+            respond(id, { profile: await getProfile(filePath) });
+
+            return;
+        }
+
+        if (type === 'lint') {
+            const { code = '', filePath = '' } = message;
+            const profile = await getProfile(filePath);
+            const analyzer = fixAll ? fixer : inspector;
+            const result = checkResult(await analyzer.lintText(code, { filePath }), filePath);
+            const { output = code } = result;
+            respond(id, { output, result, profile });
+
+            return;
+        }
+
         if (type === 'fix') {
             const { code = '', filePath = '' } = message;
             const profile = await getProfile(filePath);
-            const raw = checkResult(await inspector.lintText(code, { filePath }), filePath);
+            const raw = measure || !fixAll ? checkResult(await inspector.lintText(code, { filePath }), filePath) : undefined;
             const result = fixAll ? checkResult(await fixer.lintText(code, { filePath }), filePath) : raw;
-            const { output: fixedOutput = undefined } = result;
+            const { output: fixedOutput = code } = result;
             const output = fixedOutput ?? code;
             const fixed = fixAll && measure ? checkResult(await inspector.lintText(output, { filePath }), filePath) : result;
 

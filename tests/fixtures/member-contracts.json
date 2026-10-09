@@ -1,0 +1,636 @@
+[
+  {
+    "name": "direct record",
+    "source": "({name:1}).nmae;",
+    "properties": [
+      "nmae"
+    ],
+    "operations": []
+  },
+  {
+    "name": "renamed field",
+    "source": "({label:1}).lable;",
+    "properties": [
+      "lable"
+    ],
+    "operations": []
+  },
+  {
+    "name": "alias",
+    "source": "const r={name:1};const renamed=r;renamed.nmae;",
+    "properties": [
+      "nmae"
+    ],
+    "operations": []
+  },
+  {
+    "name": "returned alias",
+    "source": "const f=()=>{const r={name:1};const alias=r;return alias;};f().nmae;",
+    "properties": [
+      "nmae"
+    ],
+    "operations": []
+  },
+  {
+    "name": "returned literal",
+    "source": "const f=()=>({name:1});f().nmae;",
+    "properties": [
+      "nmae"
+    ],
+    "operations": []
+  },
+  {
+    "name": "nested fresh literal",
+    "source": "({inner:{name:1}}).inner.nmae;",
+    "properties": [
+      "nmae"
+    ],
+    "operations": []
+  },
+  {
+    "name": "known missing beside unknown",
+    "source": "(flag?{name:1}:external).nmae;",
+    "properties": [
+      "nmae"
+    ],
+    "operations": []
+  },
+  {
+    "name": "incompatible returns",
+    "source": "const f=flag=>flag?{name:1}:{nmae:1};f(external).nmae;",
+    "properties": [
+      "nmae"
+    ],
+    "operations": []
+  },
+  {
+    "name": "all branches present",
+    "source": "(flag?{name:1}:{name:2}).name;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "open spread",
+    "source": "({...external}).nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "known after spread",
+    "source": "({...external,items:[]}).items.trim();",
+    "properties": [],
+    "operations": [
+      "trim"
+    ]
+  },
+  {
+    "name": "unknown writer invalidates values",
+    "source": "({items:[],...external}).items.trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "duplicate last writer",
+    "source": "({items:[],items:\"\"}).items.map(Boolean);",
+    "properties": [],
+    "operations": [
+      "map"
+    ]
+  },
+  {
+    "name": "computed read",
+    "source": "({name:1})[\"nmae\"];",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "getters",
+    "source": "({get user(){return {};}}).user.nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "prototype literal",
+    "source": "({__proto__:external,name:1}).nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "Object prototype member",
+    "source": "({}).toString();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "external platform",
+    "source": "process.nmae;window.document.nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "unreachable branch",
+    "source": "if(false)({}).nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "unreachable after return",
+    "source": "const f=()=>{return 1;({}).nmae;};",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "shadow",
+    "source": "const r={};{r.nmae;const r=external;}",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "closed capture without mutation or exposure",
+    "source": "const r={};const f=()=>r.nmae;",
+    "properties": ["nmae"],
+    "operations": []
+  },
+  {
+    "name": "escape",
+    "source": "const r={};leak(r);r.nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "alias mutation",
+    "source": "const r={};const a=r;a.nmae=1;r.nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "mutation order",
+    "source": "const r={};r.nmae;r.nmae=1;r.nmae;",
+    "properties": [
+      "nmae"
+    ],
+    "operations": []
+  },
+  {
+    "name": "nested assignment target",
+    "source": "const r={};({x:r.nmae}=external);r.nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "delete invalidates",
+    "source": "const r={name:1};delete r.name;r.nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "stored alias",
+    "source": "const inner={};const outer={inner};inner.nmae=1;outer.inner.nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "logical escape",
+    "source": "const r={};leak(flag&&r);r.nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "conditional escape",
+    "source": "const r={};const a=flag?r:external;leak(a);r.nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "array mismatch",
+    "source": "[].trim();",
+    "properties": [],
+    "operations": [
+      "trim"
+    ]
+  },
+  {
+    "name": "string mismatch",
+    "source": "\"\".map(Boolean);",
+    "properties": [],
+    "operations": [
+      "map"
+    ]
+  },
+  {
+    "name": "own native-looking method",
+    "source": "({map:()=>\"ok\"}).map().trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "own method result",
+    "source": "({read:()=>\"ok\"}).read().map(Boolean);",
+    "properties": [],
+    "operations": [
+      "map"
+    ]
+  },
+  {
+    "name": "known field result",
+    "source": "const f=()=>({title:\"ok\"});f().title.map(Boolean);",
+    "properties": [],
+    "operations": [
+      "map"
+    ]
+  },
+  {
+    "name": "unknown methods",
+    "source": "const f=x=>x.toUpperCase().map(Boolean);",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "unknown alternatives retain conflict",
+    "source": "(flag?[]:external).trim();",
+    "properties": [],
+    "operations": [
+      "trim"
+    ]
+  },
+  {
+    "name": "absent simple default",
+    "source": "const f=(items=[])=>items.toUpperCase();",
+    "properties": [],
+    "operations": [
+      "toUpperCase"
+    ]
+  },
+  {
+    "name": "absent field default",
+    "source": "const f=({renamed=[]}={})=>renamed.toUpperCase();",
+    "properties": [],
+    "operations": [
+      "toUpperCase"
+    ]
+  },
+  {
+    "name": "string field default",
+    "source": "const f=({title=\"\"}={})=>title.map(Boolean);",
+    "properties": [],
+    "operations": [
+      "map"
+    ]
+  },
+  {
+    "name": "supplied values not validated",
+    "source": "const f=(x=[])=>x;f(\"text\").map(Boolean);",
+    "properties": [],
+    "operations": [
+      "map"
+    ]
+  },
+  {
+    "name": "actual field omission",
+    "source": "const f=({items=[]}={})=>items;f({}).trim();",
+    "properties": [],
+    "operations": [
+      "trim"
+    ]
+  },
+  {
+    "name": "actual supplied field",
+    "source": "const f=({items=[]}={})=>items;f({items:\"\"}).map(Boolean);",
+    "properties": [],
+    "operations": [
+      "map"
+    ]
+  },
+  {
+    "name": "unknown supplied field",
+    "source": "const f=({items=[]}={})=>items;f({items:external}).trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "default not closed property contract",
+    "source": "const f=(record={})=>record.nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "typeof default guard",
+    "source": "const f=(value={})=>typeof value===\"string\"?value.trim():\"\";",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "null negative guard",
+    "source": "const f=(value=null)=>value!==null?value.trim():\"\";",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "guarded unknown default",
+    "source": "const f=({value={}}={})=>Array.isArray(value)?value.map(Boolean):[];",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "default effects stay opaque",
+    "source": "const f=(items=choose())=>items.trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "local String shadows intrinsic",
+    "source": "const String=()=>[];String().trim();",
+    "properties": [],
+    "operations": [
+      "trim"
+    ]
+  },
+  {
+    "name": "prototype write",
+    "source": "Array.prototype.trim=()=>\"ok\";[].trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "prototype alias write",
+    "source": "const A=Array;A.prototype.trim=()=>\"ok\";[].trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "prototype property addition",
+    "source": "Object.prototype.nmae=1;({name:1}).nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "intrinsic escape",
+    "source": "patch(Array);[].trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "receiver-dependent method",
+    "source": "({read(){return this.value;}}).read().trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "optional chain",
+    "source": "({})?.nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "throw prevents property evaluation",
+    "source": "const f=()=>{throw 1;};f().nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "computed key abrupt order",
+    "source": "const fail=()=>{throw 1;};({[fail()]:1,field:{}}).field.nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "null initialization never reaches the default operation",
+    "source": "const f=({items=[]}=null)=>items.trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "primitive initialization does not prove a field absent",
+    "source": "const f=({length=[]}=\"\")=>length.trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "supplied null fails before field selection",
+    "source": "const f=({items=[]}={})=>items;f(null).trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "typeof read is not a write",
+    "source": "typeof ({name:1}).nmae;",
+    "properties": [
+      "nmae"
+    ],
+    "operations": []
+  },
+  {
+    "name": "uninitialized loop bindings do not crash acquisition",
+    "source": "for(const value of external)value.trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "false default remains an immutable receiver",
+    "source": "const f=(enabled=false)=>(enabled&&[]).map(Boolean);",
+    "properties": [],
+    "operations": [
+      "map"
+    ]
+  },
+  {
+    "name": "escaped scalar retains its family",
+    "source": "const n=42;consume(n);n.trim();",
+    "properties": [],
+    "operations": [
+      "trim"
+    ]
+  },
+  {
+    "name": "escaped collection may acquire an own method",
+    "source": "const values=[];consume(values);values.trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "typeof guard selects a mixed local value",
+    "source": "const x=flag?[]:\"\";if(typeof x===\"string\")x.trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "negative typeof guard selects a mixed local value",
+    "source": "const x=flag?[]:\"\";if(typeof x!==\"string\")x.map(Boolean);",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "typeof guard retains the wrong operation",
+    "source": "const x=flag?[]:\"\";if(typeof x===\"string\")x.map(Boolean);",
+    "properties": [],
+    "operations": [
+      "map"
+    ]
+  },
+  {
+    "name": "typeof guard through a field alternative",
+    "source": "const r=flag?{value:[]}:{value:\"\"};const x=r.value;if(typeof x===\"string\")x.trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "typeof guard through a returned alias",
+    "source": "const f=flag=>flag?[]:\"\";const x=f(flag);if(typeof x===\"string\")x.trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "typeof unknown alternative does not hide an independent conflict",
+    "source": "const x=flag?[]:external;if(typeof x===\"object\")x.trim();",
+    "properties": [],
+    "operations": [
+      "trim"
+    ]
+  },
+  {
+    "name": "typeof unknown alternative cannot retain the impossible array",
+    "source": "const x=flag?[]:external;if(typeof x===\"string\")x.trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "reverse typeof comparison",
+    "source": "const x=flag?[]:\"\";if(\"string\"===typeof x)x.trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "typeof object guard retains array contradiction",
+    "source": "const x=flag?[]:\"\";if(typeof x===\"object\")x.trim();",
+    "properties": [],
+    "operations": [
+      "trim"
+    ]
+  },
+  {
+    "name": "typeof field guard retains string contradiction",
+    "source": "const r=flag?{value:[]}:{value:\"\"};const x=r.value;if(typeof x===\"string\")x.map(Boolean);",
+    "properties": [],
+    "operations": [
+      "map"
+    ]
+  },
+  {
+    "name": "unary coercion retires a receiver snapshot",
+    "source": "const r={valueOf:external};+r;r.nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "binary coercion retires a receiver snapshot",
+    "source": "const r={valueOf:external};r+1;r.nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "typeof and void are not mutations",
+    "source": "const a=[];typeof a;void a;a.trim();",
+    "properties": [],
+    "operations": [
+      "trim"
+    ]
+  },
+  {
+    "name": "reflective prototype write",
+    "source": "Object.getPrototypeOf([]).trim=()=>\"custom\";[].trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "reflective prototype alias write",
+    "source": "const proto=Object.getPrototypeOf([]);proto.trim=()=>\"custom\";[].trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "Reflect prototype write",
+    "source": "Reflect.getPrototypeOf([]).trim=()=>\"custom\";[].trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "constructor path prototype write",
+    "source": "const a=[];a.constructor.prototype.trim=()=>\"custom\";[].trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "computed constructor alias write",
+    "source": "const C=[][\"constructor\"];C.prototype.trim=()=>\"custom\";[].trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "inherited prototype alias write",
+    "source": "const proto=[][\"__proto__\"];proto.trim=()=>\"custom\";[].trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "reflective Object alias write",
+    "source": "const O=Object;const proto=O.getPrototypeOf({});proto.nmae=1;({name:1}).nmae;",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "shadowed reflective namespace retains contradiction",
+    "source": "const Object={getPrototypeOf:()=>({})};Object.getPrototypeOf([]).trim=()=>\"custom\";[].trim();",
+    "properties": [],
+    "operations": [
+      "trim"
+    ]
+  },
+  {
+    "name": "unknown reflective member",
+    "source": "Object[select()]([]).trim=()=>\"custom\";[].trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "numeric prototype write",
+    "source": "Number.prototype.trim=()=>\"custom\";(1).trim();",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "boolean prototype write",
+    "source": "Boolean.prototype.map=()=>\"custom\";false.map(Boolean);",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "prototype exposure preserves unrelated contradictions",
+    "source": "Array.prototype.trim=()=>\"custom\";[].trim();\"\".map(Boolean);({}).missing;",
+    "properties": [
+      "missing"
+    ],
+    "operations": [
+      "map"
+    ]
+  },
+  {
+    "name": "callee lookup precedes its escaping argument",
+    "source": "[].trim(Array);",
+    "properties": [],
+    "operations": [
+      "trim"
+    ]
+  },
+  {
+    "name": "prior escape still invalidates lookup before another argument",
+    "source": "patch(Array);[].trim(Array);",
+    "properties": [],
+    "operations": []
+  },
+  {
+    "name": "escaped scalar constructor can change a later receiver contract",
+    "source": "const consume=reader=>reader.map(Boolean);const run=(enabled=false)=>(enabled&&[]).map(Boolean);consume({map(C){C.prototype.map=()=>\"custom\";}});run();",
+    "properties": [],
+    "operations": []
+  }
+]

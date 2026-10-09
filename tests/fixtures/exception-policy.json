@@ -1,0 +1,399 @@
+{
+  "purpose": "Exact auditSource outcomes from the frozen byte-identical policy auditor; no old analyzer is loaded by these cases.",
+  "cases": [
+    {
+      "source": "// eslint-disable-next-line no-undef -- The external name is deliberately unresolved.\nexternal();",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:327",
+      "problems": []
+    },
+    {
+      "source": "// eslint-disable-next-line no-undef -- The name is already bound.\nconst value = 1;",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:323",
+      "problems": []
+    },
+    {
+      "source": "Unused eslint-disable directive (no problems were reported from 'no-undef').",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:320",
+      "problems": [
+        "line 1: Parsing error: Unexpected token eslint"
+      ]
+    },
+    {
+      "source": "/* eslint-disable resilient/example -- Empty regions are invalid. */\n/* ordinary comment */\n/* eslint-enable */",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:256",
+      "problems": [
+        "line 1: A scoped eslint-disable region must enclose exactly one syntactic statement or declaration."
+      ]
+    },
+    {
+      "source": "line 1: Scoped eslint-disable must close with /* eslint-enable [rules] */.",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:254",
+      "problems": [
+        "line 1: Parsing error: Unexpected token 1"
+      ]
+    },
+    {
+      "source": "line 3: eslint-enable has no preceding scoped eslint-disable.",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:253",
+      "problems": [
+        "line 1: Parsing error: Unexpected token 3"
+      ]
+    },
+    {
+      "source": "/* eslint-disable resilient/example -- Preserve one unit. */\nexternal();\n// eslint-enable",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:250",
+      "problems": [
+        "line 3: eslint-enable has no preceding scoped eslint-disable.",
+        "line 1: Scoped eslint-disable must close with /* eslint-enable [rules] */."
+      ]
+    },
+    {
+      "source": "line 4: Scoped eslint-disable regions must not nest with a bare eslint-enable.",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:249",
+      "problems": [
+        "line 1: Parsing error: Unexpected token 4"
+      ]
+    },
+    {
+      "source": "/* eslint-disable resilient/example -- Preserve one unit. */\n/* eslint-disable no-undef -- Nested regions must remain invalid. */\nexternal();\n/* eslint-enable */\n/* eslint-enable */",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:245",
+      "problems": [
+        "line 4: Scoped eslint-disable regions must not nest with a bare eslint-enable."
+      ]
+    },
+    {
+      "source": "/* eslint-disable resilient/example -- One declaration owns its nested callback. */\nconst run = () => {\n    // eslint-disable-next-line no-undef -- Preserve the external call inside the owned declaration.\n    external();\n};\n/* eslint-enable */",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:232",
+      "problems": []
+    },
+    {
+      "source": "// eslint-disable-next-line resilient/example -- A directive cannot control another comment.\n/* eslint-disable resilient/example -- Retain one operation. */\nexternal();\n/* eslint-enable */",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:227",
+      "problems": [
+        "line 1: eslint-disable-next-line must precede one AST unit on the next line."
+      ]
+    },
+    {
+      "source": "import {\n    value\n// eslint-disable-next-line resilient/example -- Closing syntax must not hide a second operation.\n} from 'external'; value();",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:223",
+      "problems": [
+        "line 3: eslint-disable-next-line must precede one AST unit on the next line."
+      ]
+    },
+    {
+      "source": "// eslint-disable-next-line resilient/example -- Two sibling operations are not one boundary.\nfirst(); second();",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:221",
+      "problems": [
+        "line 1: eslint-disable-next-line must precede one AST unit on the next line."
+      ]
+    },
+    {
+      "source": "// eslint-disable-next-line resilient/example -- A token in comment metadata is not a unit.\n// ordinary comment",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:219",
+      "problems": [
+        "line 1: eslint-disable-next-line must precede one AST unit on the next line."
+      ]
+    },
+    {
+      "source": "// eslint-disable-next-line resilient/example -- A comment cannot be the controlled operation.\n/* ordinary comment */\nexternal();",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:216",
+      "problems": [
+        "line 1: eslint-disable-next-line must precede one AST unit on the next line."
+      ]
+    },
+    {
+      "source": "// eslint-disable-next-line resilient/example -- Retain one declaration.\nconst value = 1; // Parser metadata is not an executable child.",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:214",
+      "problems": []
+    },
+    {
+      "source": "external({\n    // eslint-disable-next-line resilient/example -- Preserve the passed provider's exact identity.\n    provider\n});",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:203",
+      "problems": []
+    },
+    {
+      "source": "const run = () => {\n    if (known &&\n    // eslint-disable-next-line resilient/example -- Preserve the guarded absence result.\n    inspect(value)) return undefined;\n};",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:191",
+      "problems": []
+    },
+    {
+      "source": "external(\n    // eslint-disable-next-line resilient/example -- Retain the deferred callback's recursive ownership.\n    (node) => visit(node)\n);",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:183",
+      "problems": []
+    },
+    {
+      "source": "import {\n    value\n// eslint-disable-next-line resilient/example -- Preserve the native module specifier on the closing import line.\n} from 'external';",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:173",
+      "problems": []
+    },
+    {
+      "source": "// eslint-disable-next-line no-undef -- Retain external binding.",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:170",
+      "problems": [
+        "line 1: eslint-disable-next-line must precede one AST unit on the next line."
+      ]
+    },
+    {
+      "source": "// eslint-disable-next-line resilient/prefer-prototype-methods -- Source loop has unproven callback safety or sequential effects.\nfor (;;) break;",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:167",
+      "problems": [
+        "line 1: Generic loop exceptions are forbidden; name the preserved observable behavior."
+      ]
+    },
+    {
+      "source": "/* eslint-disable-line resilient/example -- reason */\nonly();",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:163",
+      "problems": [
+        "line 1: Only // eslint-disable-next-line <rules> -- <reason> or a limited /* eslint-disable <rules> -- <reason> */ … /* eslint-enable [rules] */ region is allowed."
+      ]
+    },
+    {
+      "source": "/* eslint-disable resilient/example -- reason */\nonly();",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:159",
+      "problems": [
+        "line 1: Scoped eslint-disable must close with /* eslint-enable [rules] */."
+      ]
+    },
+    {
+      "source": "/* eslint-disable resilient/example -- reason */\nfirst();\nsecond();\n/* eslint-enable */",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:155",
+      "problems": [
+        "line 1: A scoped eslint-disable region must enclose exactly one syntactic statement or declaration."
+      ]
+    },
+    {
+      "source": "// eslint-disable-next-line resilient/example\nexternal.call();",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:151",
+      "problems": [
+        "line 1: Only // eslint-disable-next-line <rules> -- <reason> or a limited /* eslint-disable <rules> -- <reason> */ … /* eslint-enable [rules] */ region is allowed."
+      ]
+    },
+    {
+      "source": "// resilient-allow-loop: legacy\nfor (const item of items) use(item);",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:147",
+      "problems": [
+        "line 1: Legacy resilient-allow markers are forbidden; use a documented ESLint exception."
+      ]
+    },
+    {
+      "source": "// eslint-disable resilient/example -- reason\nonly();",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:145",
+      "problems": [
+        "line 1: A scoped eslint-disable must use a /* */ comment.",
+        "line 1: Scoped eslint-disable must close with /* eslint-enable [rules] */."
+      ]
+    },
+    {
+      "source": "/* eslint-disable-next-line resilient/example -- reason */\nonly();",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:144",
+      "problems": [
+        "line 1: eslint-disable-next-line must use a // comment."
+      ]
+    },
+    {
+      "source": "// eslint-disable-next-line resilient/example --   \nonly();",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:143",
+      "problems": [
+        "line 1: Only // eslint-disable-next-line <rules> -- <reason> or a limited /* eslint-disable <rules> -- <reason> */ … /* eslint-enable [rules] */ region is allowed."
+      ]
+    },
+    {
+      "source": "// eslint-disable-next-line -- missing rules\nonly();",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:142",
+      "problems": [
+        "line 1: Only // eslint-disable-next-line <rules> -- <reason> or a limited /* eslint-disable <rules> -- <reason> */ … /* eslint-enable [rules] */ region is allowed."
+      ]
+    },
+    {
+      "source": "/* eslint-enable */\nonly();",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:141",
+      "problems": [
+        "line 1: eslint-enable has no preceding scoped eslint-disable."
+      ]
+    },
+    {
+      "source": "/* eslint-disable resilient/example -- reason */\n/* eslint-disable resilient/example -- overlap */\nonly();\n/* eslint-enable resilient/example */\n/* eslint-enable resilient/example */",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:134",
+      "problems": [
+        "line 2: Nested scoped eslint-disable regions must not overlap the same rule."
+      ]
+    },
+    {
+      "source": "/* eslint-enable resilient/example */",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:139",
+      "problems": [
+        "line 1: eslint-enable has no preceding scoped eslint-disable."
+      ]
+    },
+    {
+      "source": "/* eslint-disable resilient/example -- overlap */",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:136",
+      "problems": [
+        "line 1: Scoped eslint-disable must close with /* eslint-enable [rules] */."
+      ]
+    },
+    {
+      "source": "/* eslint-disable resilient/example -- reason */",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:135",
+      "problems": [
+        "line 1: Scoped eslint-disable must close with /* eslint-enable [rules] */."
+      ]
+    },
+    {
+      "source": "/* eslint-disable resilient/example -- reason */\nonly();\n/* eslint-enable no-console */",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:133",
+      "problems": [
+        "line 3: Rule-specific eslint-enable must exactly match its scoped eslint-disable."
+      ]
+    },
+    {
+      "source": "/* eslint-disable resilient/example -- reason */\n/* eslint-disable no-console -- nested */\nonly();\n/* eslint-enable */\n/* eslint-enable */",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:132",
+      "problems": [
+        "line 4: Scoped eslint-disable regions must not nest with a bare eslint-enable."
+      ]
+    },
+    {
+      "source": "// eslint-disable-next-line resilient/example -- Preserve receiver.\n\nexternal.call();",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:129",
+      "problems": [
+        "line 1: eslint-disable-next-line must precede one AST unit on the next line."
+      ]
+    },
+    {
+      "source": "// eslint-disable-next-line resilient/example, no-console -- Preserve receiver and I/O.\nexternal.call();",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:127",
+      "problems": []
+    },
+    {
+      "source": "/* eslint-disable no-use-before-define -- Preserve authored statement order. */\nconst run = () => {\n    /* eslint-disable resilient/example -- Preserve the nested operation. */\n    return later();\n    /* eslint-enable resilient/example */\n};\n/* eslint-enable no-use-before-define */",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:28",
+      "problems": []
+    },
+    {
+      "source": "/* eslint-disable resilient/example, no-console -- This external boundary requires one contained statement. */\nconst value = external.call();\n/* eslint-enable resilient/example, no-console */",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:25",
+      "problems": []
+    },
+    {
+      "source": "/* eslint-disable resilient/example -- This external boundary requires one contained statement. */\nconst value = external.call();\n/* eslint-enable */",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:22",
+      "problems": []
+    },
+    {
+      "source": "// eslint-disable-next-line resilient/example -- This external boundary preserves receiver identity.\nexternal.call();",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:20",
+      "problems": []
+    },
+    {
+      "source": "../scripts/audit-eslint-exceptions.js",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:18",
+      "problems": [
+        "line 1: Parsing error: Unexpected token ."
+      ]
+    },
+    {
+      "source": "eslint",
+      "origin": "reports/s00/rehearsal/production/tests/eslint-exception-audit.test.js:7",
+      "problems": []
+    },
+    {
+      "source": "config/eslint-host.js",
+      "origin": "tests/eslint-configuration.test.js:92",
+      "problems": []
+    },
+    {
+      "source": "resilient/eslint",
+      "origin": "tests/eslint-configuration.test.js:88",
+      "problems": []
+    },
+    {
+      "source": "/* eslint-disable no-console -- This CLI operation writes one report. */\nconsole.log(1);\n/* eslint-enable no-console */",
+      "origin": "tests/eslint-configuration.test.js:82",
+      "problems": []
+    },
+    {
+      "source": "// eslint-disable-next-line no-console -- This CLI operation writes its report.\nconsole.log(1);\n",
+      "origin": "tests/eslint-configuration.test.js:81",
+      "problems": []
+    },
+    {
+      "source": "/* eslint-disable-next-line no-console -- The wrong comment form. */\nconsole.log(1);",
+      "origin": "tests/eslint-configuration.test.js:76",
+      "problems": [
+        "line 1: eslint-disable-next-line must use a // comment."
+      ]
+    },
+    {
+      "source": "/* eslint no-console: \"warn\" */\nconsole.log(1);",
+      "origin": "tests/eslint-configuration.test.js:75",
+      "problems": [
+        "line 1: Only // eslint-disable-next-line <rules> -- <reason> or a limited /* eslint-disable <rules> -- <reason> */ … /* eslint-enable [rules] */ region is allowed."
+      ]
+    },
+    {
+      "source": "/* eslint resilient/no-else: \"off\" */\nconst choose=value=>{if(value)return 1;else return 0;};",
+      "origin": "tests/eslint-configuration.test.js:74",
+      "problems": [
+        "line 1: Only // eslint-disable-next-line <rules> -- <reason> or a limited /* eslint-disable <rules> -- <reason> */ … /* eslint-enable [rules] */ region is allowed."
+      ]
+    },
+    {
+      "source": "/* eslint-disable no-console -- These calls write reports. */\nconsole.log(1);\nconsole.log(2);\n/* eslint-enable */\n",
+      "origin": "tests/eslint-configuration.test.js:73",
+      "problems": [
+        "line 1: A scoped eslint-disable region must enclose exactly one syntactic statement or declaration."
+      ]
+    },
+    {
+      "source": "// eslint-disable-next-line no-console\nconsole.log(1);\n",
+      "origin": "tests/eslint-configuration.test.js:72",
+      "problems": [
+        "line 1: Only // eslint-disable-next-line <rules> -- <reason> or a limited /* eslint-disable <rules> -- <reason> */ … /* eslint-enable [rules] */ region is allowed."
+      ]
+    },
+    {
+      "source": "/* eslint-disable */\nexport const label = '';\n",
+      "origin": "tests/eslint-configuration.test.js:71",
+      "problems": [
+        "line 1: Only // eslint-disable-next-line <rules> -- <reason> or a limited /* eslint-disable <rules> -- <reason> */ … /* eslint-enable [rules] */ region is allowed."
+      ]
+    },
+    {
+      "source": "Unused eslint-disable directive",
+      "origin": "tests/eslint-configuration.test.js:66",
+      "problems": [
+        "line 1: Parsing error: Unexpected token eslint"
+      ]
+    },
+    {
+      "source": "// eslint-disable-next-line no-console -- This operation writes a CLI report.\nexport const label = '';\n",
+      "origin": "tests/eslint-configuration.test.js:64",
+      "problems": []
+    },
+    {
+      "source": "eslint.config.js",
+      "origin": "tests/eslint-configuration.test.js:21",
+      "problems": []
+    },
+    {
+      "source": "tests/eslint-probe.js",
+      "origin": "tests/eslint-configuration.test.js:14",
+      "problems": []
+    },
+    {
+      "source": "../eslint.config.js",
+      "origin": "tests/eslint-configuration.test.js:11",
+      "problems": [
+        "line 1: Parsing error: Unexpected token ."
+      ]
+    },
+    {
+      "source": "../config/eslint-host.js",
+      "origin": "tests/eslint-configuration.test.js:8",
+      "problems": [
+        "line 1: Parsing error: Unexpected token ."
+      ]
+    }
+  ]
+}

@@ -1,4 +1,5 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds } from '../../utils/ast-boundary.js';
 import { getDestructuringDecisionForNode } from '../policy/destructuring-agreements.js';
 
@@ -6,9 +7,9 @@ const annotateNativeClassBoundaries = ({
     typescript = {}, sourceFile = {}, destructuringAgreements = {}
 } = {}) => {
     const { ClassDeclaration = -1, SingleLineCommentTrivia = -1 } = getSyntaxKinds(typescript);
-    const { addSyntheticLeadingComment = false } = typescript;
+    const { addSyntheticLeadingComment } = typescript;
 
-    if (typeof addSyntheticLeadingComment !== 'function') return sourceFile;
+    if (!isFunction(addSyntheticLeadingComment)) return sourceFile;
 
     const visit = (node = {}) => {
         const { kind = 0 } = getObject(node);

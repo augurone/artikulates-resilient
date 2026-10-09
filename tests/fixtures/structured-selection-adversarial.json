@@ -1,0 +1,192 @@
+[
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const [first]=\"text\";",
+    "expected": [
+      "mismatch"
+    ]
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const {missing}=flag?{}:external;",
+    "expected": [
+      "missingProperty"
+    ]
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const {present}={present:0,...external};",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const {[key]:item,missing}={};",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const {missing,...rest}={};",
+    "expected": [
+      "missingProperty"
+    ]
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const {missing=[]}={};",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const object={};external(object);const {missing}=object;",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "({value:0,...external}).missing;",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "({[\"value\"]:0}).missing;",
+    "expected": [
+      "missingProperty"
+    ]
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "(flag?{}:external).missing;",
+    "expected": [
+      "missingProperty"
+    ]
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "const value={};const alias=value;alias.missing=1;value.missing;",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "const {value,...rest}={value:0};rest.missing;",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "({}).hasOwnProperty(\"name\");",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "({}).constructor;",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "({})[\"missing\"];",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "const read=()=>{throw 0;({}).missing;};",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "({items:[],...external}).items.trim();",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "({...external,items:[]}).items.trim();",
+    "expected": [
+      "mismatch"
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "({items:[],items:\"\"}).items.map(x=>x);",
+    "expected": [
+      "mismatch"
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const {items=[]}={items:\"\"};items.map(x=>x);",
+    "expected": [
+      "mismatch"
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const {items=[]}={items:external};items.map(x=>x);",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "({map:()=>\"\"}).map().trim();",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "({map:()=>\"\"}).map().map(x=>x);",
+    "expected": [
+      "mismatch"
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "({map:0}).map();",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "Array.prototype.trim=()=>\"custom\";[].trim();",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const make=()=>({items:\"\"});make().items.map(x=>x);",
+    "expected": [
+      "mismatch"
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const read=()=>{throw 0;[].trim();};",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const make=()=>{try{const [items]=[\"\"];return items;}catch{return [];}};make().map(x=>x);",
+    "expected": [
+      "mismatch"
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const read=()=>{try{return \"\";}finally{return [];}};read().trim();",
+    "expected": [
+      "mismatch"
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const read=value=>{if(typeof value!==\"string\")return [];return value.map(x=>x);};",
+    "expected": [
+      "mismatch"
+    ]
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const read=()=>{throw 0;const {missing}={};};",
+    "expected": [
+      "missingProperty"
+    ]
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const read=()=>{throw 0;const {}=[];};",
+    "expected": [
+      "mismatch"
+    ]
+  }
+]

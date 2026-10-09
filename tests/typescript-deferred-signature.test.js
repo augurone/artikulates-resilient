@@ -18,9 +18,9 @@ import {
 const directory = await mkdtemp(path.join(tmpdir(), 'resilient-deferred-signature-'));
 const fileName = path.join(directory, 'comparison.ts');
 const source = [
-    "type Variant = { _tag: 'Present'; value: number } | { _tag: 'Missing' };",
+    "type Variant = { category: 'Present'; value: number } | { category: 'Missing' };",
     "export const isObject = (input: unknown): input is object => typeof input === 'object' && input !== null;",
-    "export const isPresent = (value: Variant): value is Extract<Variant, { _tag: 'Present' }> => value._tag === 'Present';",
+    "export const isPresent = (value: Variant): value is Extract<Variant, { category: 'Present' }> => value.category === 'Present';",
     'export const compare = (x: Variant, y: Variant) =>',
     '    x === y ? 0 : isPresent(x) ? (isPresent(y) ? x.value - y.value : 1) : isPresent(y) ? -1 : 0;',
     ''
@@ -50,8 +50,10 @@ try {
     });
 
     assert.deepEqual(diagnostics, []);
-    assert.match(code, /const \{ _tag: yTag/);
-    assert.doesNotMatch(code, /\(\{[^)]*_tag[^)]*\},\s*\{/);
+    assert.doesNotMatch(code, /const \{ category: yTag/);
+    assert.equal((code.match(/isPresent\(y\)/gu) || []).length, 2,
+        'Completed deferred selection preserves both original predicate invocations.');
+    assert.doesNotMatch(code, /\(\{[^)]*category[^)]*\},\s*\{/);
 
     const eslintConfig = [resilient.configs.recommended, resilient.configs.contracts, resilient.configs.safety];
     const [raw = {}] = await new ESLint({ overrideConfigFile: true,
@@ -71,10 +73,11 @@ try {
     const importCode = async text => import(`data:text/javascript,${encodeURIComponent(text)}`);
     const sourceModule = await importCode(sourceJavaScript);
     const generatedModule = await importCode(code);
+    const fixedModule = await importCode(fixed.output || code);
     const observe = (module) => {
         let traces = [];
         const input = (name, tag, value) => ({
-            get _tag() {
+            get category() {
                 traces = [...traces, name];
 
                 return tag;
@@ -87,16 +90,17 @@ try {
         const same = module.compare(present, present);
         const before = [...traces];
         const different = module.compare(present, other);
-        const left = module.compare(missing, present);
+        const inbound = module.compare(missing, present);
 
-        return { same, before, different, left, traces };
+        return { same, before, different, inbound, traces };
     };
 
     assert.deepEqual(observe(generatedModule), observe(sourceModule));
+    assert.deepEqual(observe(fixedModule), observe(sourceModule));
 
     const rejectedFile = path.join(directory, 'boolean-predicate.ts');
     const rejectedSource = source.replace(
-        "value is Extract<Variant, { _tag: 'Present' }>", 'boolean'
+        "value is Extract<Variant, { category: 'Present' }>", 'boolean'
     );
 
     await writeFile(rejectedFile, rejectedSource);

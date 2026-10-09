@@ -1,3 +1,8 @@
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
+import { getSyntaxKinds } from '../../utils/ast-boundary.js';
+import { hasTypeChecker } from '../../utils/compiler-shape.js';
+import { hasGuardFor, hasObservedAbsenceFor } from '../policy/guards.js';
 import { getBindingElementCanonical, getBindingAgreementReason, getBindingRuntimeGuardKind } from './binding-evidence.js';
 import { isTypeOnlyImportBinding } from './imports.js';
 import { createSourceCensus } from './source-census.js';
@@ -7,13 +12,11 @@ import {
     getIdentifierName,
     getMembers,
     getSelectedModelPredicateFact,
+    getVariantPartitions,
     getTypeInfo,
-    getTypeText
+    getTypeText,
+    isStandardArrayType
 } from './type-evidence.js';
-import { getObject } from '../../../rules/support/object.js';
-import { getSyntaxKinds } from '../../utils/ast-boundary.js';
-import { hasTypeChecker } from '../../utils/compiler-shape.js';
-import { hasObservedAbsenceFor } from '../policy/guards.js';
 
 // These facts belong to the original compiler tree. Placement receives the
 // completed snapshot, never a checker or a cache capable of querying one.
@@ -25,31 +28,25 @@ const collectPlacementEvidence = ({
     const kinds = getSyntaxKinds(typescript);
     const { Identifier = -1, PropertyAccessExpression = -1, ElementAccessExpression = -1,
         CallExpression = -1, Parameter = -1, BindingElement = -1, VariableDeclaration = -1 } = kinds;
-    const { getSymbolAtLocation = false, getTypeAtLocation = false,
-        isTupleType = false, isArrayType = false, typeToString = false } = checker;
+    const { getSymbolAtLocation, getTypeAtLocation = false,
+        isTupleType, typeToString, resolveName } = checker;
     const checked = hasTypeChecker(checker);
-    const { TypeFlags: { TypeParameter = 0, Any = 0, Unknown = 0, Undefined = 0 } = {} } = typescript;
+    const { TypeFlags: { TypeParameter = 0, Any = 0, Unknown = 0, Undefined = 0 } = {}, SymbolFlags: { Value = 0 } = {} } = typescript;
     const expressions = census.select(Identifier, PropertyAccessExpression, ElementAccessExpression);
     const expressionFacts = expressions.map((node) => {
         const type = checked ? getTypeAtLocation.call(checker, node) : {};
-        const { types = [], isUnion = false, flags = 0 } = getObject(type);
-        const tuple = typeof isTupleType === 'function' && isTupleType.call(checker, type);
-        const typeText = checked && typeof typeToString === 'function' ? typeToString.call(checker, type, node) : '';
-        const arrayLike = checked && Boolean(tuple ||
-            typeof isArrayType === 'function' && isArrayType.call(checker, type) ||
-            /(?:^|\s)(?:ReadonlyArray|Array|NonEmptyArray|ReadonlyNonEmptyArray)<.*>$/.test(typeText) ||
-            /\[\]$/.test(typeText) || /^\s*\[.*\]\s*$/.test(typeText));
+        const { isUnion, flags = 0 } = getObject(type);
+        const tuple = isFunction(isTupleType) && isTupleType.call(checker, type);
+        const typeText = checked && isFunction(typeToString) ? typeToString.call(checker, type, node) : '';
+        const arrayLike = checked && isStandardArrayType({ typescript, checker, candidate: node });
         const contract = getCheckerContract({ typescript, node, checker, declarations,
             typeText: getTypeText({ node, sourceFile }) });
-        const [firstType = {}] = types;
-        const unionProperties = Array.isArray(types) && types.length > 1
-            ? firstType.getProperties().map(property => property.getName())
-                .filter(property => types.every(part => Boolean(part.getProperty(property))))
-            : [];
+        const partitions = checked ? getVariantPartitions({ typescript, checker, type, node }) : [];
+        const unionProperties = partitions.map(({ property = '' } = {}) => property);
 
         return [node, Object.freeze({ contract: Object.freeze(contract), opaque: Boolean(flags & (TypeParameter | Any | Unknown)), tuple, arrayLike, typeText,
-            union: typeof isUnion === 'function' && isUnion.call(type), unionProperties,
-            symbol: typeof getSymbolAtLocation === 'function' ? getSymbolAtLocation.call(checker, node) : false })];
+            partitions, union: isFunction(isUnion) && isUnion.call(type), unionProperties,
+            symbol: isFunction(getSymbolAtLocation) ? getSymbolAtLocation.call(checker, node) : false })];
     });
     const parameters = census.select(Parameter);
     const annotations = census.select(...new Set(Object.values(kinds).filter(Number.isInteger)))
@@ -86,6 +83,13 @@ const collectPlacementEvidence = ({
     }));
 
     const { ImportClause = -1, ImportSpecifier = -1, NamespaceImport = -1 } = kinds;
+    const observedBindings = new Set(census.select(Parameter, BindingElement).filter((binding = {}) => {
+        const { name = {} } = binding;
+        const owner = census.ancestors(binding).find(candidate => typescript.isFunctionLike(candidate));
+        const { body = false } = getObject(owner);
+
+        return body && hasGuardFor({ typescript, node: body, binding: name, checker });
+    }).map(({ name = {} } = {}) => name));
     const typeOnlyImports = new Set(census.select(ImportClause, ImportSpecifier, NamespaceImport)
         .filter(node => isTypeOnlyImportBinding({ typescript, sourceFile, checker, census, node })));
     const { BinaryExpression = -1, EqualsEqualsEqualsToken = -1, ExclamationEqualsEqualsToken = -1 } = kinds;
@@ -97,15 +101,28 @@ const collectPlacementEvidence = ({
 
             if (absenceKind !== Identifier || text !== 'undefined') return false;
 
-            const { flags = 0 } = checker.getTypeAtLocation(absence);
-            const { types = [] } = checker.getTypeAtLocation(value);
+            const { flags = 0 } = getTypeAtLocation.call(checker, absence);
+            const symbol = isFunction(getSymbolAtLocation) ? getSymbolAtLocation.call(checker, absence) : false;
+            const native = isFunction(resolveName) ? resolveName.call(checker, 'undefined', undefined, Value, false) : false;
 
-            return Boolean(flags & Undefined) && types.some(({ flags: partFlags = 0 } = {}) => partFlags & Undefined);
+            if (!symbol || symbol !== native || !(flags & Undefined)) return false;
+
+            const { types = [], flags: valueFlags = 0 } = getTypeAtLocation.call(checker, value);
+            const valueSymbol = getSymbolAtLocation.call(checker, value);
+            const { valueDeclaration = {} } = getObject(valueSymbol);
+            const { kind: declarationKind = 0, questionToken = false, initializer = false } = getObject(valueDeclaration);
+            // With strictNullChecks disabled the checker erases undefined from
+            // optional parameter types. Its resolved source declaration still
+            // owns that absence; generated names and unknown values do not.
+            const optionalParameter = getObject(value).kind === Identifier && declarationKind === Parameter &&
+                !!questionToken && !initializer && !(valueFlags & (Any | Unknown));
+
+            return optionalParameter || types.some(({ flags: partFlags = 0 } = {}) => partFlags & Undefined);
         });
     }));
 
-    return Object.freeze({ exactUndefined, typeOnlyImports, facts: new Map(expressionFacts), typeInfos, absence, predicates, bindings, namedBindings,
-        checked, symbols: typeof getSymbolAtLocation === 'function' });
+    return Object.freeze({ observedBindings, exactUndefined, typeOnlyImports, facts: new Map(expressionFacts), typeInfos, absence, predicates, bindings, namedBindings,
+        checked, symbols: isFunction(getSymbolAtLocation) });
 };
 
 export { collectPlacementEvidence };

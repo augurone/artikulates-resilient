@@ -1,5 +1,5 @@
+import { getObject } from '../../../analysis/host/object.js';
 import { getDestructuringAgreement } from './defaults.js';
-import { getObject } from '../../../rules/support/object.js';
 
 // Different placement consumers admit different claim sets. Within each set,
 // two claims for one source operation reject ownership rather than overwrite it.
@@ -65,11 +65,23 @@ const compileDestructuringDecisions = (facts = new Map()) => {
             ? mutationSites.map(({ key = '' } = {}) => [key, { action, type }]).filter(([key = ''] = []) => key)
             : [];
     }));
+    // Completed loop boundaries own their exact mutation statements. A general
+    // source-operation retention fact cannot add a second directive there.
+    const completedMutationBoundaryRanges = new Set([
+        ...(byKind.get('live-array-visitation') || [])
+            .filter(({ agreement: { action = '' } = {}, contract: { mutationBoundary = false } = {} } = {}) => (
+                action === 'retain-live-array-visitation' && mutationBoundary))
+            .flatMap(({ contract: { mutationRanges = [] } = {} } = {}) => mutationRanges)
+    ].filter(Boolean));
     const collectionUpdates = uniqueClaims(false, collections.flatMap(({ agreement: { action = '', boundaryReason = '' } = {}, contract = {} } = {}) => {
-        const { collection: { callbackOwned = false, directLiveCollection = false, mutationSites = [] } = {} } = contract;
+        const { collection: { callbackOwned = false, directLiveCollection = false, mutationSites = [], annotationOwned = true, calleeBoundary = false, expressionBoundary = false } = {} } = contract;
 
-        return ['operational-collection-builder', 'retain-collection-boundary'].includes(action) && !callbackOwned
-            ? mutationSites.map(({ key = '' } = {}) => [key, { action, directLiveCollection, boundaryReason }])
+        return ['operational-collection-builder', 'retain-collection-boundary'].includes(action) && !callbackOwned && (annotationOwned || calleeBoundary)
+            ? mutationSites.filter(({ key = '', statementRange = '' } = {}) => (
+                !completedMutationBoundaryRanges.has(key) && !completedMutationBoundaryRanges.has(statementRange)))
+                .map(({ key = '' } = {}) => [key, {
+                    action, directLiveCollection, boundaryReason, calleeBoundary, expressionBoundary
+                }])
                 .filter(([key = ''] = []) => key) : [];
     }));
     const directLiveLoops = uniqueClaims('', collections.flatMap(({ agreement: { action = '' } = {}, contract: { collection = {} } = {} } = {}) => {
@@ -112,7 +124,7 @@ const compileDestructuringDecisions = (facts = new Map()) => {
         const { callbackOwned = false, mutationSites = [] } = collection;
 
         return action === 'operational-collection-builder'
-            ? mutationSites.filter(({ positions = [] } = {}) => callbackOwned || positions.length === 2)
+            ? mutationSites.filter(({ positions = [], method = '' } = {}) => callbackOwned || method === 'delete' || positions.length === 2)
                 .map(({ key = '' } = {}) => key) : [];
     }).filter(Boolean));
     const iteratorResultBindings = collections

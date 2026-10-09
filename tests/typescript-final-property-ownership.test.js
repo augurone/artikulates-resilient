@@ -172,6 +172,7 @@ assert.equal(collectCallableOperationContracts({ typescript, sourceFile: parse('
 'Missing symbol ownership does not approve a call.');
 const publicCases = [
     { name: 'native-array', code: 'function read() { const r = [1]; return r.map(value => value); }' },
+    { name: 'callable-and-native', code: 'function read(dict: { map: (value: number) => number }) { const result = dict.map(Number("1")); return "".map(result); }', visible: 1 },
     { name: 'wrong-native', code: 'function read() { const r = ""; return r.map(value => value); }', visible: 1 },
     { name: 'missing-closed-member', code: 'function read() { const S = { value: 1 }; return S.show; }', propertyBoundary: 0 }
 ];
@@ -275,7 +276,14 @@ retentionCases.forEach(({ name = '', count = 0, boundaries = 1 } = {}) => {
     ]));
     assert.deepEqual([...contracts.keys()], [...expectedKeys], name);
     const output = placeCompleted({ sourceFile, contracts });
-    assert.equal(output.split('declared callable retains').length - 1, count ? boundaries : 0, name);
+    assert.equal(output.split('declared callable retains').length - 1,
+        records.some(({ argumentRead = false } = {}) => argumentRead) ? boundaries : 0, name);
+    assert.doesNotMatch(output, /eslint-disable[^\n]*resilient\/signature-contract-operation/, name);
+    const messages = linter.verify(output, retainedLintConfig);
+
+    if (count) assert.equal(messages.filter(({ ruleId = '' } = {}) => ruleId === operationRule).length, 0, name);
+
+    assert.equal(linter.getSuppressedMessages().filter(({ ruleId = '' } = {}) => ruleId === operationRule).length, 0, name);
 
     if (!count) return;
 

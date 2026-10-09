@@ -4,7 +4,6 @@ import typescript from 'typescript';
 
 import { createTypeScriptTransformer } from 'eslint-plugin-resilient/typescript';
 
-import { collectCollectionDecisions } from './typescript-collection-proof.js';
 import { lowerFinalGrammar } from '../transforms/typescript/grammar/final.js';
 import { lowerCollectionAgreementPlacements } from '../transforms/typescript/lowering/collection-reconstruction.js';
 import { compileDestructuringDecisions } from '../transforms/typescript/policy/decision-store.js';
@@ -12,6 +11,7 @@ import { collectDestructuringAgreements } from '../transforms/typescript/policy/
 import {
     getConsumerContractKey
 } from '../transforms/typescript/understand/type-evidence.js';
+import { collectCollectionDecisions } from './typescript-collection-proof.js';
 
 const compile = ({ fileName = '', code = '' } = {}) => {
     const sourceFile = typescript.createSourceFile(fileName, code, typescript.ScriptTarget.ESNext, true);

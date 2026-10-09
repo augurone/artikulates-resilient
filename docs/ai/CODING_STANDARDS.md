@@ -3,7 +3,7 @@
 The normative specification has three parts: [Grammar](../reference/grammar.md),
 [Policy](../reference/policy.md), and [Semantics](../reference/semantics.md).
 This is their AI-facing practical presentation, not an independent rule set.
-Individual rule behavior and smells remain in [`rules/`](../rules/).
+Individual rule behavior and smells remain in [`rules/`](../rules).
 The project documentation is authoritative. Use `rules/contracts` as the senior
 dialect reference and the Artikulates provider tree as the team composition
 reference; do not invent a parallel interpretation from local convenience.

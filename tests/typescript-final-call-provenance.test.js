@@ -6,7 +6,7 @@ import typescript from 'typescript';
 import resilient from 'eslint-plugin-resilient';
 import { createTypeScriptTransformer } from 'eslint-plugin-resilient/typescript';
 
-import { getObject } from '../rules/support/object.js';
+import { getObject } from '../analysis/host/object.js';
 import { annotateFinalExceptions } from '../transforms/typescript/grammar/final.js';
 import { compileDestructuringDecisions } from '../transforms/typescript/policy/decision-store.js';
 import { getDestructuringDecisionForNode } from '../transforms/typescript/policy/destructuring-agreements.js';

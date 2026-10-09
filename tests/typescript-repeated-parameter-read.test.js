@@ -27,10 +27,10 @@ const source = [
     '    if (test()) return value.x;',
     '    return value.x;',
     '};',
-    'export const selected = (value: { _tag: string }) =>',
-    '    value._tag === "Left"',
-    '        ? value._tag === "Both"',
-    '        : value._tag === "Right";',
+    'export const selected = (value: { category: string }) =>',
+    '    value.category === "Inbound"',
+    '        ? value.category === "Combined"',
+    '        : value.category === "Outbound";',
     'export const single = (value: { x: number }) => value.x;',
     ''
 ].join('\n');
@@ -64,11 +64,11 @@ try {
 
     assert.deepEqual(diagnostics, []);
     assert.match(code, /value\.x \+ between\(\) \+ value\.x/);
-    assert.match(code, /value\._tag === "Left"/);
+    assert.match(code, /value\.category === "Inbound"/);
     assert.match(code, /if \(test\(\)\)/);
     assert.match(code, /return value\.x/);
     assert.doesNotMatch(code, /(?:ordered|branch) = \(\{/);
-    assert.match(code, /repeated parameter Get retains each getter call at its source phase/);
+    assert.match(code, /repeated parameter Get: count, order, phase/);
 
     const eslintConfig = [resilient.configs.recommended, resilient.configs.contracts, resilient.configs.safety];
     const [raw = {}] = await new ESLint({ overrideConfigFile: true,
@@ -125,7 +125,7 @@ try {
 
     const observeSelected = (module, tags) => {
         let reads = 0;
-        const value = Object.defineProperty({}, '_tag', { get() {
+        const value = Object.defineProperty({}, 'category', { get() {
             const { [reads]: tag = 'Other' } = tags;
 
             reads += 1;
@@ -136,7 +136,7 @@ try {
         return { result: module.selected(value), reads };
     };
 
-    [['Left', 'Both'], ['Left', 'Other'], ['Other', 'Right'], ['Other', 'Other']]
+    [['Inbound', 'Combined'], ['Inbound', 'Other'], ['Other', 'Outbound'], ['Other', 'Other']]
         .forEach((tags) => {
             assert.deepEqual(observeSelected(generatedModule, tags), observeSelected(sourceModule, tags));
         });
@@ -172,7 +172,7 @@ try {
     };
     collectCandidateReads(rejectedFileSource);
 
-    assert.equal(nestedContracts.size, 2, 'Only the two repeated outer parameter Gets publish source facts.');
+    assert.equal(nestedContracts.size, 4, 'Repeated scalar and native-array Gets publish distinct value-family facts.');
     assert.deepEqual(candidateReads.map(node => nestedContracts.has(getConsumerContractKey(node))),
         [false, false, true, true], 'A once-read or shadowed same-name receiver cannot borrow the outer decision.');
     const [, shadowedRead = {}, admittedRead = {}] = candidateReads;

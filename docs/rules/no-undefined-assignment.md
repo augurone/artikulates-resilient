@@ -1,43 +1,12 @@
 # no-undefined-assignment
 
-Disallows explicitly assigning `undefined` as a generic application value.
-Flexible data may naturally produce `undefined` while being read, but
-value-producing functions should normalize it to the type-appropriate falsey value
-specified by their contract.
+This rule is implemented in [the current package](../../analysis/eslint/no-undefined-assignment.js).
+Its implementation uses syntax and lexical ownership.
 
-## What this finding means
+The current supported behavior and boundary cases are verified by:
 
-Explicitly assigning `undefined` makes “missing,” “not produced,” and the
-contract's empty value compete as separate states. The rule keeps undefined
-available as a natural read result while preventing it from becoming an
-unintentional application value.
+- [absence-signatures.test.js](../../tests/absence-signatures.test.js)
+- [rule-canary.test.js](../../tests/rule-canary.test.js)
 
-```javascript
-// Incorrect
-const value = undefined;
-value = undefined;
-
-// Correct
-const getValue = ({ value = '' } = {}) => value;
-const hasValue = !value;
-```
-
-Returned `undefined` is handled by `prefer-falsey-returns`. Bare `return;` is
-allowed for side effects and logical exits.
-
-The rule does not provide an automatic fix or suggestion because only the
-surrounding contract can determine whether the correct value is `''`, `[]`,
-`{}`, `0`, `false`, or whether the assignment should not exist. The rule reports
-explicit `undefined` identifiers even when they occur at an external boundary;
-use a local rule override when `undefined` is part of that boundary's contract.
-Explicit `null` assignment is handled by `no-null-assignment`.
-
-## Boundaries and non-goals
-
-Natural reads may produce `undefined`; the rule only rejects explicitly
-creating that application state and does not infer the right default.
-
-## Repair recipes
-
-Choose the boundary's falsey result, omit the assignment, or document one
-narrow exception for an owned external contract.
+[Language policy](../reference/policy.md) remains normative. Unsupported analysis
+remains unknown; no legacy analyzer is used to fill gaps.

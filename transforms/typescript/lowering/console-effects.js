@@ -1,4 +1,5 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds, updateFunction } from '../../utils/ast-boundary.js';
 import { getDestructuringDecisionForNode } from '../policy/destructuring-agreements.js';
 
@@ -9,11 +10,11 @@ const annotateConsoleEffects = ({
 } = {}) => {
     const { ArrowFunction = -1, CallExpression = -1, ReturnStatement = -1, ExpressionStatement = -1,
         SingleLineCommentTrivia = -1 } = getSyntaxKinds(typescript);
-    const { factory = {}, addSyntheticLeadingComment = false, getSyntheticLeadingComments = false } = typescript;
+    const { factory = {}, addSyntheticLeadingComment, getSyntheticLeadingComments } = typescript;
     const { byKind = new Map() } = destructuringAgreements;
     const hasConsoleFact = byKind.has('console-effect');
 
-    if (!hasConsoleFact || typeof addSyntheticLeadingComment !== 'function') return sourceFile;
+    if (!hasConsoleFact || !isFunction(addSyntheticLeadingComment)) return sourceFile;
 
     const ownsCall = (call = {}) => {
         const { agreement = {} } = getDestructuringDecisionForNode({
@@ -26,7 +27,7 @@ const annotateConsoleEffects = ({
         return getObject(agreement).action === 'retain-console-effect';
     };
     const annotate = (statement = {}) => {
-        const comments = typeof getSyntheticLeadingComments === 'function'
+        const comments = isFunction(getSyntheticLeadingComments)
             ? getSyntheticLeadingComments(statement) || []
             : [];
 

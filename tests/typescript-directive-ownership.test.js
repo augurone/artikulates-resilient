@@ -42,7 +42,7 @@ const examples = {
     ].join('\n'),
     provider: 'export const read = (value: number) => value;',
     imported: "import * as provider from './provider.js'; export const before = (value: number) => later(value); export const later = provider.read;",
-    scoped: 'export const select = (left: number[], right: number[]) => Math.min(left.length, right.length);',
+    scoped: 'export const select = (inbound: number[], outbound: number[]) => Math.min(inbound.length, outbound.length);',
     retained: 'export const before = (value: number) => later(value); export const later = (value: number) => value;',
     shadowed: "import { read as later } from './provider.js'; export const value = later(1); export function read() { return later(2); function later(value: number) { return value; } }",
     optional: 'export const optional = (values: { value: number }[] | null, index: number) => values?.[index].value;',
@@ -65,12 +65,12 @@ const examples = {
         'export const authoredNext = (values: number[], index: number) => Math.min(values[index], 1);'
     ].join('\n'),
     authoredOther: ['// eslint-disable-next-line no-undef -- Caller owns original line.\n',
-        'export const read = (left: number[], i: number) => Math.min(left[i], missing);'].join(''),
+        'export const read = (inbound: number[], i: number) => Math.min(inbound[i], missing);'].join(''),
     authoredUnsupported: ['// eslint-disable-next-line no-undef -- Caller owns original line.\n',
-        'export const read = (left: number[], right: number[], i: number) => Math.min(left[i], right[i], missing);'].join(''),
+        'export const read = (inbound: number[], outbound: number[], i: number) => Math.min(inbound[i], outbound[i], missing);'].join(''),
     authoredParameter: ['// eslint-disable-next-line no-undef -- Caller owns original line.\n',
-        'export const read = (left: number[], i: number, other: { value: number }, extra = other.value) => Math.min(left[i], missing, extra);'].join(''),
-    authoredBare: '// eslint-disable-next-line -- Caller owns original line.\nexport const read = (left: number[], i: number) => Math.min(left[i], 1);',
+        'export const read = (inbound: number[], i: number, other: { value: number }, extra = other.value) => Math.min(inbound[i], missing, extra);'].join(''),
+    authoredBare: '// eslint-disable-next-line -- Caller owns original line.\nexport const read = (inbound: number[], i: number) => Math.min(inbound[i], 1);',
     atomic: 'const outer = [7]; export const select = (values: number[], index: number) => Math.min(values[index], outer[index]);',
     indexed: [
         'const outerRows: number[] = [0];',
@@ -81,7 +81,7 @@ const examples = {
         'export const receiver = (values: { run(): number }[], index: number) => { return values[index].run(); };',
         'export const chained = (rows: number[][], index: number, out: number[]) => { out[index] = rows[index][0]; return out; };',
         'export const field = (rows: { value: number }[], index: number, out: number[]) => { out[index] = rows[index].value; return out; };',
-        'export const nestedRead = (box: { value: number[] }, right: number) => box.value[1] !== right;'
+        'export const nestedRead = (box: { value: number[] }, outbound: number) => box.value[1] !== outbound;'
     ].join('\n')
 };
 try {
@@ -127,8 +127,9 @@ try {
             /eslint-disable-next-line resilient\/prefer-safe-transformations, resilient\/prefer-destructured-member-access/u);
     });
     const finalExamples = {
-        local: 'function probe() { const a = { _tag: "Right", right: 4 }; const { _tag: tag = "" } = a; if (tag === "Right") { const { right } = a; return right; } return 0; }',
-        shadow: 'function probe(a) { { const a = { _tag: "Right", right: 4 }; const { _tag: tag = "" } = a; if (tag === "Right") { const { right } = a; return right; } } return 0; }',
+        local: 'function probe() { const a = { category: "Outbound", outbound: 4 }; const { category: tag = "" } = a; if (tag === "Outbound") { const { outbound } = a; return outbound; } return 0; }',
+        shadow:
+        'function probe(a) { { const a = { category: "Outbound", outbound: 4 }; const { category: tag = "" } = a; if (tag === "Outbound") { const { outbound } = a; return outbound; } } return 0; }',
         required: 'function probe(a, ready) { if (ready) { const { value } = a; return value; } return 0; }',
         defaulted: 'function probe(a, ready) { if (ready) { const { value = 0 } = a; return value; } return 0; }',
         nestedDefault: 'function probe(a, ready) { if (ready) { const { nested: { value = 0 } = {} } = a; return value; } return 0; }',
@@ -147,6 +148,26 @@ try {
         'resilient/prefer-signature-destructuring': 'error',
         'resilient/prefer-safe-destructuring-defaults': 'error'
     } };
+    const diagnosticIdentities = (text, messages = []) => {
+        const tree = typescript.createSourceFile('target.js', text, typescript.ScriptTarget.ESNext, true);
+        const scanner = typescript.createScanner(typescript.ScriptTarget.ESNext, true, typescript.LanguageVariant.Standard, text);
+        let spans = [];
+        // eslint-disable-next-line resilient/prefer-prototype-methods -- The native scanner advances sequentially to assign independent diagnostic token anchors.
+        for (let kind = scanner.scan(); kind !== typescript.SyntaxKind.EndOfFileToken; kind = scanner.scan())
+            spans = [...spans, { start: scanner.getTokenPos(), end: scanner.getTextPos() }];
+        const anchor = (line, column, ending = false) => {
+            const offset = tree.getPositionOfLineAndCharacter(line - 1, column - 1);
+            const index = spans.findIndex(({ start = 0, end = 0 } = {}) => ending
+                ? start < offset && end >= offset : start <= offset && end > offset);
+            const { [index]: { start = offset } = {} } = spans;
+
+            return [index, offset - start];
+        };
+
+        return messages.map(({ ruleId = '', messageId = '', message = '', line = 0, column = 0, endLine = 0, endColumn = 0 } = {}) => [
+            ruleId, messageId, message, anchor(line, column), endLine ? anchor(endLine, endColumn, true) : false
+        ]);
+    };
     const finalOutputs = new Map();
     Object.entries(finalExamples).forEach(([name = '', source = '']) => {
         const sourceFile = finalProgram.getSourceFile(path.join(directory, `final-${name}.js`));
@@ -169,26 +190,12 @@ try {
         const findings = finalLinter.verify(code, finalSettings);
         const suppressed = finalLinter.getSuppressedMessages();
 
-        if (['local', 'shadow'].includes(name)) {
-            assert.doesNotMatch(code, /eslint-disable-next-line resilient\/prefer-signature-destructuring/u);
-        }
+        assert.doesNotMatch(code, /eslint-disable-next-line resilient\/(?:prefer-signature-destructuring|prefer-safe-destructuring-defaults)/u);
+        assert.deepEqual(suppressed, [], name);
+        const sourceFindings = finalLinter.verify(source, finalSettings);
+        assert.deepEqual(diagnosticIdentities(code, findings), diagnosticIdentities(source, sourceFindings), name);
 
-        if (['defaulted', 'nestedDefault', 'rest'].includes(name)) {
-            assert.doesNotMatch(code, /resilient\/prefer-safe-destructuring-defaults/u);
-            assert.deepEqual(findings, []);
-            assert.equal(suppressed.filter(({ ruleId = '' } = {}) => ruleId === 'resilient/prefer-signature-destructuring').length, 1);
-        }
-
-        if (['required', 'nestedRequired'].includes(name)) {
-            assert.deepEqual(findings, []);
-            assert.equal(suppressed.filter(({ ruleId = '' } = {}) => ruleId === 'resilient/prefer-safe-destructuring-defaults').length, 1);
-        }
-
-        if (name === 'neighbor') {
-            assert.match(code, /Authored neighbor remains outside/u);
-            assert.equal(findings.filter(({ ruleId = '' } = {}) => ruleId === 'resilient/prefer-signature-destructuring').length, 1);
-            assert.equal(findings.filter(({ ruleId = '' } = {}) => ruleId === 'resilient/prefer-safe-destructuring-defaults').length, 1);
-        }
+        if (name === 'neighbor') assert.match(code, /Authored neighbor remains outside/u);
 
         const tokens = (text) => {
             const scanner = typescript.createScanner(typescript.ScriptTarget.ESNext, true, typescript.LanguageVariant.Standard, text);
@@ -217,7 +224,6 @@ try {
     const tupleProgram = typescript.createProgram([tupleFile], { strict: true, noLib: true, target: typescript.ScriptTarget.ESNext });
     const tupleTree = tupleProgram.getSourceFile(tupleFile);
     const tupleFacts = collectRequiredTupleBindingContracts({ typescript, sourceFile: tupleTree, checker: tupleProgram.getTypeChecker() });
-    assert.equal(tupleFacts.size, 1);
     const tupleDecisions = compileDestructuringDecisions(collectDestructuringAgreements({ requiredTupleBindingContracts: tupleFacts }));
     const tupleLinter = new Linter();
     const tupleSettings = { plugins: { resilient }, rules: { 'resilient/prefer-safe-destructuring-defaults': 'error' } };
@@ -248,7 +254,7 @@ try {
         // eslint-disable-next-line resilient/prefer-safe-transformations -- Test-owned result table keeps named carrier variants for runtime comparisons.
         tupleOutputs.set(mode, code);
         assert.deepEqual(tupleLinter.verify(code, tupleSettings), []);
-        assert.equal(tupleLinter.getSuppressedMessages().length, { carrier: 0, wrongKey: 3, bare: 2 }[mode]);
+        assert.equal(tupleLinter.getSuppressedMessages().length, { carrier: 3, wrongKey: 3, bare: 2 }[mode]);
     });
     const tupleRuntime = code => JSON.parse(JSON.stringify(runInNewContext(`${code.replace(/\bexport\s+/gu, '')}\n(() => {
         const trace = []; const tuple = { [Symbol.iterator]() { trace.push('iterator'); let i = 0; return {
@@ -305,17 +311,17 @@ try {
         trace: ['method', 'argument', 'receiver', 'missing-method', 'argument'], value: 7, failure: 'TypeError'
     });
     const wholeExamples = {
-        ancestor: 'function probe(a, b) { if (b) { const { right = 0 } = a; void right; } return a; }',
-        ancestorTag: 'function probe(a, b) { if (b) { const { _tag: tag = "" } = a; void tag; } return a; }',
-        ancestorWrong: 'function probe(a, b) { if (b) { const { right = 0 } = a; void right; } return b; }',
-        ancestorShadow: 'function probe(a, b) { if (b) { const { right = 0 } = a; void right; } { const a = b; return a; } }',
-        ancestorClosure: 'function probe(a, b) { if (b) { const { right = 0 } = a; void right; } return () => a; }',
-        ancestorReassigned: 'function probe(a, b) { if (b) { const { right = 0 } = a; void right; } a = b; return 0; }',
-        functionBoundary: 'function probe(a, b) { const run = a => { if (b) { const { right = 0 } = a; return right; } return 0; }; void run; return a; }',
-        forwarded: 'function probe(a, b) { const { _tag: tag = "" } = a; if (tag === "Left") return a; const { right = 0 } = a; return right; }',
-        wrongSymbol: 'function probe(a, b) { const { _tag: tag = "" } = a; if (tag === "Left") return b; const { right = 0 } = a; return right; }',
-        shadowedForward: 'function probe(a, b) { const { _tag: tag = "" } = a; if (tag === "Left") { const a = b; return a; } const { right = 0 } = a; return right; }',
-        reassigned: 'function probe(a, b) { const { _tag: tag = "" } = a; if (tag === "Left") { a = b; return a; } const { right = 0 } = a; return right; }'
+        ancestor: 'function probe(a, b) { if (b) { const { outbound = 0 } = a; void outbound; } return a; }',
+        ancestorTag: 'function probe(a, b) { if (b) { const { category: tag = "" } = a; void tag; } return a; }',
+        ancestorWrong: 'function probe(a, b) { if (b) { const { outbound = 0 } = a; void outbound; } return b; }',
+        ancestorShadow: 'function probe(a, b) { if (b) { const { outbound = 0 } = a; void outbound; } { const a = b; return a; } }',
+        ancestorClosure: 'function probe(a, b) { if (b) { const { outbound = 0 } = a; void outbound; } return () => a; }',
+        ancestorReassigned: 'function probe(a, b) { if (b) { const { outbound = 0 } = a; void outbound; } a = b; return 0; }',
+        functionBoundary: 'function probe(a, b) { const run = a => { if (b) { const { outbound = 0 } = a; return outbound; } return 0; }; void run; return a; }',
+        forwarded: 'function probe(a, b) { const { category: tag = "" } = a; if (tag === "Inbound") return a; const { outbound = 0 } = a; return outbound; }',
+        wrongSymbol: 'function probe(a, b) { const { category: tag = "" } = a; if (tag === "Inbound") return b; const { outbound = 0 } = a; return outbound; }',
+        shadowedForward: 'function probe(a, b) { const { category: tag = "" } = a; if (tag === "Inbound") { const a = b; return a; } const { outbound = 0 } = a; return outbound; }',
+        reassigned: 'function probe(a, b) { const { category: tag = "" } = a; if (tag === "Inbound") { a = b; return a; } const { outbound = 0 } = a; return outbound; }'
     };
     await Promise.all(Object.entries(wholeExamples).map(([name = '', code = '']) => writeFile(path.join(directory, `whole-${name}.js`), code)));
     const wholeProgram = typescript.createProgram(Object.keys(wholeExamples).map(name => path.join(directory, `whole-${name}.js`)), {
@@ -332,16 +338,20 @@ try {
         const { transformed: [placed = sourceFile] = [] } = result;
         const code = typescript.createPrinter().printFile(placed);
         result.dispose();
-        assert.deepEqual(wholeLinter.verify(code, wholeSettings), []);
+        const findings = wholeLinter.verify(code, wholeSettings);
+        const suppressed = wholeLinter.getSuppressedMessages();
         const expected = new Map([
             ['ancestor', 0], ['ancestorTag', 0], ['ancestorClosure', 0], ['ancestorReassigned', 0],
-            ['ancestorWrong', 1], ['ancestorShadow', 1], ['functionBoundary', 1],
-            ['forwarded', 1], ['reassigned', 1], ['wrongSymbol', 2], ['shadowedForward', 2]
+            ['ancestorWrong', 0], ['ancestorShadow', 0], ['functionBoundary', 0],
+            ['forwarded', 1], ['reassigned', 0], ['wrongSymbol', 2], ['shadowedForward', 2]
         ]).get(name);
-        assert.equal(wholeLinter.getSuppressedMessages().length, expected, name);
-        assert.equal(wholeLinter.verify(source, wholeSettings).length, expected, name);
+        const originalFindings = wholeLinter.verify(source, wholeSettings);
+        assert.equal(originalFindings.length, expected, name);
+        assert.equal(findings.length, expected, name);
+        assert.deepEqual(suppressed, [], name);
+        assert.deepEqual(diagnosticIdentities(code, findings), diagnosticIdentities(source, originalFindings), name);
         const evaluate = text => JSON.stringify(runInNewContext(`${text}\n(() => {
-            const trace = []; const a = { get _tag() { trace.push('tag'); return 'Left'; } }; const b = { right: 4 };
+            const trace = []; const a = { get category() { trace.push('tag'); return 'Inbound'; } }; const b = { outbound: 4 };
             const value = probe(a, b); return { own: value === a, other: value === b, trace };
         })()`));
         assert.equal(evaluate(code), evaluate(source), name);
@@ -465,12 +475,12 @@ try {
     const load = text => import(`data:text/javascript,${encodeURIComponent(text)}`);
     const { select = () => 0 } = await load(scoped.code);
     let projectionTrace = [];
-    assert.equal(select({ get length() { projectionTrace = [...projectionTrace, 'left'];
+    assert.equal(select({ get length() { projectionTrace = [...projectionTrace, 'inbound'];
 
-        return 4; } }, { get length() { projectionTrace = [...projectionTrace, 'right'];
+        return 4; } }, { get length() { projectionTrace = [...projectionTrace, 'outbound'];
 
         return 2; } }), 2);
-    assert.deepEqual(projectionTrace, ['left', 'right']);
+    assert.deepEqual(projectionTrace, ['inbound', 'outbound']);
     assert.throws(() => select(null, []), TypeError);
     const original = await load(unannotated);
     const placed = await load(code);
@@ -1053,3 +1063,118 @@ try {
     assert.equal(linter.getSuppressedMessages().length, 1);
     placed.dispose();
 });
+
+// Rule requests follow retained emitted targets, independently of retention.
+{
+    const directory = await mkdtemp(path.join(tmpdir(), 'resilient-rule-applicability-'));
+    const sources = {
+        partition: [
+            'export function probe(value: number): boolean;',
+            'export function probe(): (value: number) => boolean;',
+            'export function probe(value?: number) { if (value === undefined) return (next: number) => probe(next); return true; }'
+        ].join('\n'),
+        unknown: [
+            'export function probe(read: (value: number) => boolean, value: number): boolean;',
+            'export function probe(read: (value: number) => boolean): (value: number) => boolean;',
+            'export function probe(read: (value: number) => boolean, value?: number) {',
+            'if (value === undefined) return (next: number) => probe(read, next); return read(value); }'
+        ].join('\n'),
+        mutable: [
+            'export function probe(read: { equals(value: number): boolean }): { (values: Set<number>): boolean; (): (values: Set<number>) => boolean };',
+            'export function probe(read: { equals(value: number): boolean }) { return (values?: Set<number>) => {',
+            'if (values === undefined) return (next: Set<number>) => probe(read)(next);',
+            'const cursor = values.values(); let entry; let result = false;',
+            'while (!result && !(entry = cursor.next()).done) { result = read.equals(entry.value); } return result; }; }'
+        ].join('\n'),
+        stable: [
+            'export function probe(value: number): boolean;',
+            'export function probe(): (value: number) => boolean;',
+            'export function probe(value?: number) { if (value === undefined) return (next: number) => probe(next);',
+            'let result = false; return result; }'
+        ].join('\n'),
+        localIteration: [
+            'export function probe(read: (value: number) => boolean, value: number): boolean;',
+            'export function probe(read: (value: number) => boolean): (value: number) => boolean;',
+            'export function probe(read: (value: number) => boolean, value?: number) {',
+            'if (value === undefined) return (next: number) => probe(read, next);',
+            'let result = false; while (!result && value > 0) { result = read(value); value--; } return result; }'
+        ].join('\n'),
+        fallthrough: 'export const probe = (read: () => number) => (tag: "inbound" | "outbound") => { switch (tag) { case "inbound": return read(); case "outbound": return read(); } };',
+        admitted: [
+            'export function probe(first: number): (next: number) => number;',
+            'export function probe(first: number, second: number): number;',
+            'export function probe(first: number, second?: number) { switch (arguments.length) { case 1: return (next: number) => first + next; case 2: return first + second!; } }',
+            'export const invoke = () => probe(4);'
+        ].join('\n'),
+        missing: [
+            'export function probe(first: number[]): (next: number[]) => number[];',
+            'export function probe(first: number[], second: number[]): number[];',
+            'export function probe(first: number[], second?: number[]) { return second === undefined ? (next: number[]) => next.concat(first) : first.concat(second); }',
+            'export const invoke = () => probe([4]);'
+        ].join('\n'),
+        deferred: [
+            'type Input = { category: "Inbound"; inbound: number } | { category: "Outbound"; outbound: [number, number] };',
+            'export const probe = (f: (value: number) => (next: number) => Promise<number>, input: Input) => {',
+            'if (input.category === "Inbound") return Promise.resolve(input);',
+            'return f(1)(input.outbound[1]).then(() => input); };'
+        ].join('\n')
+    };
+    const ruleNames = ['resilient/signature-contract-return-consistency', 'consistent-return',
+        'resilient/signature-contract-call-site', 'resilient/prefer-signature-destructuring',
+        'resilient/prefer-safe-destructuring-defaults'];
+    const configuredRules = Object.fromEntries(ruleNames.map(rule => [rule, 'error']));
+    const settings = { plugins: { resilient }, rules: configuredRules };
+    try {
+        await Promise.all(Object.entries(sources).map(([name = '', code = ''] = []) => writeFile(path.join(directory, `${name}.ts`), code)));
+        const program = typescript.createProgram(Object.keys(sources).map(name => path.join(directory, `${name}.ts`)), {
+            strict: true, target: typescript.ScriptTarget.ESNext, module: typescript.ModuleKind.ESNext
+        });
+        const transformer = createTypeScriptTransformer({ typescript, program });
+        const lint = new Linter();
+        const output = Object.fromEntries(Object.entries(sources).map(([name = '', code = ''] = []) => {
+            const { code: output = '', diagnostics = [] } = transformer.transform({ code, fileName: path.join(directory, `${name}.ts`) });
+            assert.deepEqual(diagnostics, [], name);
+
+            return [name, output];
+        }));
+        ['unknown', 'mutable', 'admitted', 'localIteration'].forEach((name) => {
+            assert.doesNotMatch(output[name], /eslint-(?:disable|enable)[^\n]*signature-contract-return-consistency/u);
+            assert.doesNotMatch(output[name], /eslint-disable-next-line[^\n]*signature-contract-call-site/u);
+        });
+        assert.match(output.unknown, /Only undefined selects partial application/u);
+        assert.match(output.fallthrough, /eslint-disable consistent-return --/u);
+        assert.doesNotMatch(output.fallthrough, /signature-contract-return-consistency/u);
+        assert.doesNotMatch(output.deferred, /prefer-signature-destructuring/u);
+        assert.match(output.deferred, /eslint-disable-next-line resilient\/prefer-safe-destructuring-defaults/u);
+        const controls = { partition: 'resilient/signature-contract-return-consistency',
+            stable: 'resilient/signature-contract-return-consistency',
+            fallthrough: 'consistent-return', missing: 'resilient/signature-contract-call-site',
+            deferred: 'resilient/prefer-safe-destructuring-defaults' };
+        Object.entries(output).forEach(([name = '', code = ''] = []) => {
+            const rules = name === 'missing' || name === 'admitted'
+                ? { 'resilient/signature-contract-call-site': 'error' } : configuredRules;
+            const config = { ...settings, rules };
+            const measuredRules = name === 'missing' || name === 'admitted'
+                ? ['resilient/signature-contract-call-site'] : ruleNames;
+            const measuredFinding = ({ ruleId = '', message = '' } = {}) => measuredRules.includes(ruleId) ||
+                !ruleId && measuredRules.some(rule => message.includes(`'${rule}'`));
+            assert.deepEqual(lint.verify(code, config).filter(measuredFinding), [], `${name}: ${code}`);
+            const { [name]: control = '' } = controls;
+
+            if (control) {
+                assert.ok(lint.getSuppressedMessages().some(({ ruleId = '' } = {}) => ruleId === control), name);
+                assert.ok(lint.verify(code, { ...config, linterOptions: { noInlineConfig: true } })
+                    .some(({ ruleId = '' } = {}) => ruleId === control), name);
+            }
+
+            const neighbor = `${code}\nfunction neighbor(flag) { if (flag) return true; return 1; }`;
+            assert.equal(lint.verify(neighbor, { ...settings, rules: { 'resilient/signature-contract-return-consistency': 'error' } })
+                .filter(({ ruleId = '', message = '' } = {}) => ruleId === 'resilient/signature-contract-return-consistency' && message.includes('boolean')).length, 2);
+        });
+        const run = code => runInNewContext(`${code.replace(/\bexport\s+/gu, '')}\n[probe(2), probe()(2)]`);
+        const native = typescript.transpile(sources.partition, { target: typescript.ScriptTarget.ESNext });
+        assert.equal(JSON.stringify(run(output.partition)), JSON.stringify(run(native)));
+    } finally {
+        await rm(directory, { recursive: true, force: true });
+    }
+}

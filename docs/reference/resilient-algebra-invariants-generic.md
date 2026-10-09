@@ -1,623 +1,169 @@
-# Resilient — Algebra and Invariants
+# Agreement algebra and invariants
 
-## Scope
+This reference retains a language-independent vocabulary for agreement and its
+ECMAScript interpretation. It states semantic obligations, not a complete type
+theory, an inference algorithm, or a claim of implementation coverage.
+[Grammar](grammar.md), [Policy](policy.md), and [Semantics](semantics.md) remain
+the normative ECMAScript dialect. The equations below explain their obligations;
+they neither add source syntax nor authorize stronger assumptions than execution.
 
-Resilient is a grammar of **agreement under uncertainty**.
-
-This note defines the language-independent algebra and invariants. It does not prescribe source syntax for any implementation language.
-
-Concrete languages express these relations through their own grammar, semantics, and policy.
-
-This algebra describes agreement obligations. For the ECMAScript dialect,
-[Grammar](grammar.md), [Policy](policy.md), and [Semantics](semantics.md)
-define executable forms, exceptions, and meaning; [the proofs](resilient-proofs.md)
-state their preservation obligations. Adapter support is documented separately.
-
----
-
-## 1. Legend
-
-The following symbols are normative within this note.
+## Generic vocabulary
 
 | Symbol | Meaning |
 | --- | --- |
-| \(T\) | Contract shape promised to a consumer |
-| \(T^{+}\) | Positive/successful expression of \(T\) |
-| \(D(T)\) | Falsifiable expression of \(T\) |
-| \(C(T)\) | Complete contract for \(T\) |
-| \(U\) | Unknown or unresolved value |
-| \(R(x,T)\) | Resolver bringing \(x\) into agreement with \(T\) |
-| \(O(T)\) | Operations available under contract \(T\) |
-| \(P(f)\) | Reachable normal return paths of function \(f\) |
-| \(E\) | Capability or extraction required by a consumer |
-| \(\varnothing\) | Absence |
-| \(x \models T\) | \(x\) agrees with \(T\) |
-| \(x \not\models T\) | \(x\) violates \(T\) |
-| \(\rightarrow\) | Produces or resolves to |
-| \(\Rightarrow\) | Grammar requires or implies |
-
----
-
-## 2. Contract
-
-A contract contains both success and failure:
-
-\[
-\boxed{C(T)=\langle T^{+},D(T)\rangle}
-\]
-
-Both outcomes remain expressions of the same promised shape:
-
-\[
-\boxed{T^{+}\models T}
-\]
-
-\[
-\boxed{D(T)\models T}
-\]
-
-Therefore:
-
-\[
-\boxed{Failure(T)=D(T)}
-\]
-
-Failure is **inside the contract**, not an abandonment of it.
-
----
-
-## 3. Falsifiable Defaults
-
-A falsifiable default is an executable declaration of a contract shape:
-
-\[
-\boxed{x=D(T)\Rightarrow x\models T}
-\]
-
-For primitive or atomic contracts, \(D(T)\) is the falsifiable member of the same operational family.
-
-For a structural contract:
-
-\[
-M=\{k_1:T_1,\ldots,k_n:T_n\}
-\]
-
-the falsifiable form is recursive:
-
-\[
-\boxed{
-D(M)=\{k_1:D(T_1),\ldots,k_n:D(T_n)\}
-}
-\]
-
-The falsifiable form preserves the complete promised structure.
-
-Falsification is interpreted within the consuming scope. A valid falsifiable
-response preserves the promised shape even when it fails a content condition;
-it need not have one universal failure meaning.
-
----
-
-## 4. Falsifiable Is Still Usable
-
-Falsifiability is not invalidity.
-
-\[
-\boxed{D(T)\in T}
-\]
-
-More strongly:
-
-\[
-\boxed{O(D(T))=O(T)}
-\]
-
-Therefore:
-
-\[
-\boxed{
-D(T)\models T
-\land
-O(D(T))=O(T)
-}
-\]
-
-The negative clause remains a usable member of the same operational contract.
-
-A failure representation that destroys the operations promised by \(T\) is not a valid \(D(T)\).
-
-Shape agreement therefore includes **operational agreement**.
-
----
-
-## 5. Return Agreement
-
-This is an agreement on normal returns, including implicit absence on
-fallthrough, rather than a proof of termination. Throws and async rejections
-belong to the failure contract. For async functions, the value agreement
-constrains fulfillment.
-
-For:
-
-\[
-f:A\rightarrow T
-\]
-
-every reachable normal return path must honor \(T\):
-
-\[
-\boxed{
-\forall p\in P(f),\ return(p)\models T
-}
-\]
-
-A function may fail to produce \(T^{+}\).
-
-It may not fail to honor \(T\).
-
-Thus:
-
-\[
-\boxed{
-\text{Every normal return remains semantically and operationally truthful to }T
-}
-\]
-
----
-
-## 6. Absence Resolution
-
-Absence is not automatically a valid failure clause.
-
-If a consumer expects \(T\), then:
-
-\[
-T\mid\varnothing
-\]
-
-must resolve absence into the falsifiable member of \(T\):
-
-\[
-\boxed{
-T\mid\varnothing
-\Rightarrow
-T\mid D(T)
-}
-\]
-
-Operationally:
-
-\[
-\boxed{
-R(T\mid\varnothing,T)\rightarrow T
-}
-\]
-
-Absence agrees only when absence itself belongs to the declared contract.
-
----
-
-## 7. Unknown Resolution
-
-Unknown represents unresolved agreement:
-
-\[
-U
-\]
-
-Before a consumer depends on \(T\):
-
-\[
-\boxed{
-Consumption(U,T)\Rightarrow R(U,T)
-}
-\]
-
-Successful resolution establishes:
-
-\[
-\boxed{
-R(U,T)\models T
-}
-\]
-
-At an external boundary:
-
-\[
-\boxed{
-External
-\rightarrow
-U
-\rightarrow
-R(U,T)
-\rightarrow
-C(T)
-}
-\]
-
-Unknown may be transported as unknown. It must be resolved before a consumer assumes a contract.
-
----
-
-## 8. Consumer Capability
-
-A consumer requirement is represented by \(E\):
-
-\[
-\boxed{
-E(x)\Rightarrow x\models E
-}
-\]
-
-Agreement is therefore defined by the capabilities required by the consumer, not necessarily by a nominal category.
-
-The relevant question is:
-
-\[
-\boxed{
-\text{Does }x\text{ agree with the operation the consumer requires?}
-}
-\]
-
----
-
-## 9. Assignment Preservation
-
-This obligation applies to a binding with a continuing promised contract.
-Language-specific policy identifies changing-binding exceptions. In the
-ECMAScript dialect, `const` prevents rebinding and explicit `let` is the
-exception; see [assignment preservation](resilient-algebra-invariants.md#8-assignment-preservation).
-
-Once:
-
-\[
-x\models T
-\]
-
-a subsequent assignment must preserve or resolve into \(T\):
-
-\[
-\boxed{
-x\leftarrow v
-\Rightarrow
-v\models T
-\lor
-R(v,T)\models T
-}
-\]
-
-If:
-
-\[
-x=D(T)
-\]
-
-then:
-
-\[
-x\models T
-\]
-
-and later assignments inherit the same obligation.
-
----
-
-## 10. Failure vs. Semantic Ambiguity
-
-Ordinary success and failure belong to one contract:
-
-\[
-\boxed{
-T^{+}\mid D(T)\Rightarrow T
-}
-\]
-
-A genuinely distinct semantic alternative is different:
-
-\[
-T_1\mid T_2
-\]
-
-When the alternatives cannot be consumed under one contract:
-
-\[
-\boxed{
-T_1\mid T_2
-\Rightarrow
-R(T_1)\mid R(T_2)
-}
-\]
-
-The distinction is:
-
-\[
-\boxed{
-\text{falsifiable variation} \neq \text{semantic variation}
-}
-\]
-
-Resolvers are required for distinct meanings, not merely because \(D(T)\) is falsifiable.
-
----
-
-## 11. Producer–Consumer Agreement
-
-A producer promises:
-
-\[
-Producer\rightarrow C(T)
-\]
-
-A consumer operates against:
-
-\[
-Consumer(T)
-\]
-
-Therefore:
-
-\[
-\boxed{
-Producer(T)\models Consumer(T)
-}
-\]
-
-The producer is responsible for preserving the contract.
-
-The consumer is responsible for interpreting the value according to context.
-
-The producer is not required to add coercion or additional representation merely to explain that \(D(T)\) is falsifiable.
-
----
-
-## 12. Type Intent
-
-A type or annotation may state intended shape:
-
-\[
-Intent(x)=T
-\]
-
-but intent alone does not establish executable agreement:
-
-\[
-\boxed{
-Intent(x)=T
-\not\Rightarrow
-x\models T
-}
-\]
-
-Intent may therefore become lowering input:
-
-\[
-\boxed{
-TypeIntent
-\rightarrow
-ContractAlgebra
-\rightarrow
-ExecutableAgreement
-}
-\]
-
----
-
-## 13. Cross-Language Preservation
-
-The algebra is independent of target syntax.
-
-Let:
-
-\[
-Policy_L
-\]
-
-represent the language-specific policy for language \(L\).
-
-Then:
-
-\[
-\boxed{
-Grammar
-\rightarrow
-Policy_L
-\rightarrow
-Program_L
-}
-\]
-
-Policy determines how a language safely expresses the grammar.
-
-Policy does not redefine the contract invariants.
-
-This permits:
-
-\[
-\boxed{
-Source_L
-\rightarrow
-AgreementIR
-\rightarrow
-Policy_K
-\rightarrow
-Target_K
-}
-\]
-
-The translation objective is **contract equivalence**, not source equivalence.
-
----
-
-## 14. Invariant Set
-
-### I-01 — Contract
-
-\[
-\boxed{C(T)=\langle T^{+},D(T)\rangle}
-\]
-
-### I-02 — Positive agreement
-
-\[
-\boxed{T^{+}\models T}
-\]
-
-### I-03 — Falsifiable agreement
-
-\[
-\boxed{D(T)\models T}
-\]
-
-### I-04 — Operational preservation
-
-\[
-\boxed{O(D(T))=O(T)}
-\]
-
-### I-05 — Default declaration
-
-\[
-\boxed{x=D(T)\Rightarrow x\models T}
-\]
-
-### I-06 — Return agreement
-
-\[
-\boxed{
-\forall p\in P(f),\ return(p)\models T
-}
-\]
-
-### I-07 — Absence resolution
-
-\[
-\boxed{
-T\mid\varnothing
-\Rightarrow
-T\mid D(T)
-}
-\]
-
-### I-08 — Unknown resolution
-
-\[
-\boxed{
-Consumption(U,T)\Rightarrow R(U,T)
-}
-\]
-
-### I-09 — Resolver agreement
-
-\[
-\boxed{
-R(U,T)\models T
-}
-\]
-
-### I-10 — Consumer capability
-
-\[
-\boxed{
-E(x)\Rightarrow x\models E
-}
-\]
-
-### I-11 — Assignment preservation
-
-\[
-\boxed{
-x\models T
-\land
-x\leftarrow v
-\Rightarrow
-v\models T
-\lor
-R(v,T)\models T
-}
-\]
-
-### I-12 — Contract-contained failure
-
-\[
-\boxed{
-T^{+}\mid D(T)\Rightarrow T
-}
-\]
-
-### I-13 — Distinct ambiguity
-
-\[
-\boxed{
-T_1\mid T_2
-\Rightarrow
-R(T_1)\mid R(T_2)
-}
-\]
-
-when \(T_1\) and \(T_2\) represent distinct semantic contracts.
-
-### I-14 — Boundary normalization
-
-\[
-\boxed{
-External
-\rightarrow
-U
-\rightarrow
-R(U,T)
-\rightarrow
-C(T)
-}
-\]
-
-### I-15 — Intent is not agreement
-
-\[
-\boxed{
-Intent(x)=T
-\not\Rightarrow
-x\models T
-}
-\]
-
----
-
-## 15. Compact Algebra
-
-\[
-\boxed{
-C(T)=\langle T^{+},D(T)\rangle
-}
-\]
-
-\[
-\boxed{
-T^{+}\models T
-\land
-D(T)\models T
-}
-\]
-
-\[
-\boxed{
-O(D(T))=O(T)
-}
-\]
-
-\[
-\boxed{
-\forall p\in P(f),\ return(p)\models T
-}
-\]
-
-\[
-\boxed{
-U\rightarrow R(U,T)\models T
-}
-\]
-
-Together:
-
-> **A contract preserves one usable operational shape across success, failure, uncertainty, and control flow.**
-
-The invariant is **agreement**.
+| `T` | A promised operational contract: family, shape and capabilities; success/content is interpreted at its boundary. |
+| `T+` | A positive realization of that contract. |
+| `D(T)` | A declared falsifiable value realization, where that contract admits one. |
+| `C(T)` | The complete positive/negative value agreement. |
+| `U` | Unresolved evidence, not a special runtime value. |
+| `∅` | Absence admitted or excluded by the particular boundary. |
+| `R(x,T)` | Resolution of `x` with respect to `T`. |
+| `O(T)` | Operations admitted by the contract, with their required premises. |
+| `E` | A consumer's required capability or extraction. |
+| `P(f)` | Reachable normal return paths, including normal fallthrough. |
+| `x ⊨ T` | `x` satisfies the stated contract. |
+| `x ← v` | Assignment to a binding carrying a continuing promise. |
+
+The producer owns the promise at its boundary. The consumer owns contextual
+interpretation of the received value. A number `0` can mean a count, an initial
+state, or an additive identity without changing its numeric agreement. If that
+consumer becomes a producer, its new return boundary owns a new promise.
+
+In the equations `D(T) ⊨ T` and `T+ ⊨ T`, `T` denotes the retained operational
+shape. A separate scope-owned content condition can distinguish positive and
+negative realizations. Satisfying the shape does not establish that stronger
+content condition or authorize proceeding past a guard that requires it.
+
+## Generic laws
+
+The following are obligations whose premises must be established. An implication
+from a required operation describes what correct execution needs; it does not let
+an analyzer infer the requirement's satisfaction merely because the operation occurs.
+
+| Invariant | Law and qualification |
+| --- | --- |
+| Complete value agreement | `C(T) = ⟨T+, D(T)⟩` when the contract selects a falsifiable value response. |
+| Positive agreement | `T+ ⊨ T`. |
+| Falsifiable agreement | `D(T) ⊨ T`; failing a content condition does not destroy the promised family. |
+| Operational preservation | `O(D(T)) = O(T)` for the operations promised by that contract, not identical results or content. |
+| Selected default | If execution actually selects a valid `D(T)`, that selected value satisfies `T`. Merely declaring a default says nothing about arbitrary provided values. |
+| Return agreement | `∀p ∈ P(f), return(p) ⊨ T` for a producer promising `T`. |
+| Absence resolution | Where `∅` is excluded, consumption of `T | ∅` requires a faithful resolution or a path that does not consume `T`. |
+| Unknown resolution | `Consumption(U,T) ⇒ R(U,T)` is a boundary obligation; unknown may be transported without pretending it already satisfies `T`. |
+| Resolver agreement | Successful resolution must establish `R(x,T) ⊨ T` through evidence or declared executable behavior. Naming a resolver supplies no proof. |
+| Consumer capability | `E(x)` requires `x ⊨ E`; nominal similarity is insufficient. |
+| Continuing assignment | `x ⊨ T ∧ x ← v ⇒ v ⊨ T ∨ R(v,T) ⊨ T` where the binding really promises a continuing `T`. |
+| Contract-contained value failure | `T+ | D(T)` retains one operational contract. |
+| Distinct alternatives | `T1 | T2` requires discrimination/resolution when the consumer cannot operate under their common established agreement. |
+| External boundary | `External → U → R(U,T) → C(T)` describes the owner's resolution responsibility, not automatic static validation. |
+| Intent is not evidence | `Intent(x)=T ⇏ x ⊨ T`. |
+
+`D(T)` concerns a contract's negative **value response**. It is not an equation
+identifying all failures with an empty value. Throws, rejection, cleanup, external
+I/O and nontermination have their separate execution/failure contracts. Return
+agreement constrains normal results; for async functions it constrains fulfillment.
+It does not prove termination or promise that any normal result exists.
+
+## Shape and operational meaning
+
+A falsifiable response must remain usable under the declared operations. A
+replacement that loses a required capability is not `D(T)` for that contract.
+For a structural model whose fields each admit a falsifiable realization:
+
+```text
+M = { k1:T1, …, kn:Tn }
+D(M) = { k1:D(T1), …, kn:D(Tn) }
+```
+
+This is a structural requirement, not permission to synthesize arbitrary
+implementations. An empty record does not supply its required fields; an empty
+sequence does not supply required positions. A callable or opaque payload may
+have no faithful invented default. Native failure or a required boundary can be
+the correct outcome when no value replacement is justified.
+
+Falsifiable variation and semantic variation differ. An empty sequence and a
+populated sequence can satisfy one collection agreement. Distinct alternatives
+may instead require branch-local evidence and representations. Resolution can
+increase knowledge, select a representation, or expose disagreement; it cannot
+silently redefine a branch's meaning. Shared family alone does not establish
+required shape, payload validity, discriminant, receiver identity, or effects.
+
+## ECMAScript realization
+
+These are language-specific forms governed by the frozen dialect references,
+not additional universal axioms:
+
+| Value-family agreement | Canonical value default | Remaining obligation |
+| --- | --- | --- |
+| Text | `''` | Preserve string operations; content, format and domain meaning are separate. |
+| Number | `0` | Preserve numeric operations; zero can be a valid result. |
+| Boolean | `false` | Preserve boolean meaning; false can be the intended result. |
+| Collection | `[]` | Preserve the array family; required slots and iterator behavior need separate evidence. |
+| Open record | `{}` | Establish no named properties by itself. |
+| Named structural model | Recursive field realizations where valid | Preserve every promised field, nested requirement and payload boundary. |
+| Callable or opaque value | No fabricated implementation | Retain the required/guarded/forwarding boundary that actually owns it. |
+
+ECMAScript distinguishes `null` and `undefined` even when a contract groups them
+as absence. A parameter/destructuring default executes for `undefined`, including
+an omitted argument or missing property. It does not replace `null`, `NaN`, false,
+zero, or an arbitrary incompatible provided value. The selected fallback gives
+evidence for that alternative; it does not validate the incoming alternative.
+
+An absent own field, an inherited field, and unknown field presence are different
+observations. Moving a property read into a signature can change Get timing,
+getter count, receiver binding or failure order. A structurally similar target
+must still preserve those observations. Default expressions also have their own
+evaluation timing and effects.
+
+The dialect normally uses `const` for bindings. Explicit `let` permits changing
+bindings; point-specific value evidence must follow those changes rather than
+imposing every initializer's family forever. `const` does not freeze objects.
+Property mutation and aliases have their own ownership and transformation policy.
+
+## Content is interpreted in scope
+
+For a content-bearing agreement, `D(T)` can preserve its family while falsifying
+the current scope's content condition. The notation `⊥T` emphasizes that use.
+
+| Content condition | Empty realization | Appropriate test |
+| --- | --- | --- |
+| Own enumerable string-key content | `{}` | The object helper's `hasContent(value)`. |
+| Array cardinality | `[]` | `value.length` in a boolean context. |
+| Text length | `''` | Text truthiness. |
+
+Both `{}` and `[]` are truthy. A generic `!value` does not test their emptiness.
+None of these tests validates nested payloads, meaningful text, native iterator
+identity or all downstream operations. An empty value can satisfy an agreement
+that permits empty content. The guard owns what follows a failed content test;
+the empty representation does not exit a scope by itself.
+
+## Evidence, composition and change
+
+Known, unknown and contradictory describe evidence, not runtime success codes.
+Insufficient evidence remains unknown; an established conflicting contribution
+remains a contradiction even beside unknown contributions. A consumer's expected
+shape or a compiler annotation cannot manufacture producer evidence.
+
+Proof belongs to its source, binding, callable, field, invocation and premises.
+Same spelling, equal shape or equal source spans cannot transfer ownership.
+Composition must preserve reachable known contributions, incomplete branches,
+failure/completion alternatives and the identities required by an operation.
+Cycles cannot establish their own missing premise.
+
+Revised premises require invalidation before dependent results are reused.
+Previously returned immutable data can remain historical without remaining
+current. Parser, compiler, observer, filesystem and resource-limit errors are
+operational failures; none may be returned as a successful unknown judgment.
+
+The conceptual translation relationship is:
+
+```text
+source intent + executable evidence → owned agreement → target-language policy
+```
+
+This is a preservation obligation for a supported translation, not a claim that
+an arbitrary language adapter or separate universal intermediate representation
+exists. Current implementation/query validity and cost limits belong to the
+[architecture guide](../engineering/architecture.md); TypeScript boundaries belong
+to the [lowering guide](../engineering/typescript.md). The
+[proof obligations](resilient-proofs.md) make the conservation test concrete.

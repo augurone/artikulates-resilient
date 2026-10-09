@@ -1,5 +1,6 @@
-import { getObject } from '../../../rules/support/object.js';
-import { updateBindingInitializer } from '../../utils/ast-boundary.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
+import { markGuardedNode } from '../../utils/ast-boundary.js';
 import { createProviderForwardExpression } from '../grammar/algebra.js';
 import { getDestructuringDecisionForNode } from '../policy/destructuring-agreements.js';
 
@@ -16,7 +17,7 @@ const lowerExactProviderForwarding = ({
     } = typescript;
 
     if (!getObject(destructuringAgreements).size ||
-        typeof getObject(factory).updateBindingElement !== 'function') return node;
+        !isFunction(getObject(factory).updateBindingElement)) return node;
 
     const recordAgreement = (contract = {}) => {
         if (!(agreements instanceof Set)) return;
@@ -30,9 +31,15 @@ const lowerExactProviderForwarding = ({
     };
     const visit = (candidate = {}) => {
         const {
-            kind = 0, initializer = undefined,
-            name = {}, expression: receiver = {}
+            kind = 0, initializer,
+            name = {}, expression: receiver = {}, __resilientGuarded = false
         } = getObject(candidate);
+
+        // Enclosing curried functions revisit this binding after its source
+        // decision has already been emitted. Natural absence is not a sentinel
+        // initializer; the completed binding itself owns that decision.
+        if (kind === BindingElement && __resilientGuarded) return candidate;
+
         const { agreement = {}, contract = {} } = getDestructuringDecisionForNode({
             typescript,
             node: candidate,
@@ -82,7 +89,11 @@ const lowerExactProviderForwarding = ({
 
         recordAgreement(contract);
 
-        return updateBindingInitializer({ factory, element: candidate, initializer: factory.createIdentifier('undefined') });
+        const binding = factory.cloneNode(candidate);
+        Object.defineProperty(binding, '__resilientAgreement', { configurable: true,
+            value: 'Forwarded field retains its native absence.' });
+
+        return markGuardedNode(binding);
     };
 
     return typescript.visitEachChild(node, visit, context);

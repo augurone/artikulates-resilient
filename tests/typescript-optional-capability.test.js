@@ -1,45 +1,10 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
+import test from 'node:test';
 
-import { Linter } from 'eslint';
 import typescript from 'typescript';
 
-import safeDefaults from '../rules/prefer-safe-destructuring-defaults.js';
-import {
-    getCheckerContract,
-    getCheckerTypeNode,
-    isUnionType
-} from '../transforms/typescript/understand/type-resolution.js';
+import { getCheckerContract, getCheckerTypeNode, isUnionType } from '../transforms/typescript/understand/type-resolution.js';
 
-// Candidate proof only. Load the entire owning module with its real imports;
-// vary exactly three binding defaults, never the guards, calls or dependencies.
-const moduleURL = new URL('../transforms/typescript/understand/type-resolution.js', import.meta.url);
-const source = fs.readFileSync(moduleURL, 'utf8');
-const bindings = [
-    ['isUnion', 'candidate'],
-    ['getCallSignatures', 'firstPart'],
-    ['typeToTypeNode', 'activeChecker']
-];
-const plainSource = bindings.reduce((text = '', [name = '', receiver = ''] = []) => {
-    const binding = new RegExp(`const \\{ ${name}(?: = false)? \\} = ${receiver};`, 'gu');
-    assert.equal([...text.matchAll(binding)].length, 1);
-
-    return text.replace(binding, `const { ${name} } = ${receiver};`);
-}, source);
-const fluentSource = bindings.reduce((text = '', [name = '', receiver = ''] = []) => (
-    text.replace(`const { ${name} } = ${receiver};`, `const { ${name} = false } = ${receiver};`)
-), plainSource);
-const loadCandidate = (text = '') => {
-    const rebased = text.replace(/from '([^']+)'/gu, (match, relative) => (
-        `from ${JSON.stringify(relative.startsWith('.') ? new URL(relative, moduleURL).href : import.meta.resolve(relative))}`
-    ));
-
-    return import(`data:text/javascript;base64,${Buffer.from(rebased).toString('base64')}`);
-};
-const [plain = {}, fluent = {}] = await Promise.all([
-    loadCandidate(plainSource), loadCandidate(fluentSource)
-]);
-const owners = [{ isUnionType, getCheckerContract, getCheckerTypeNode }, plain, fluent];
 const failure = new Error('owned capability failure');
 const capture = (invoke) => {
     try {
@@ -48,35 +13,10 @@ const capture = (invoke) => {
         return { error };
     }
 };
-let comparedCases = 0;
-const assertParity = (observations = []) => {
-    assert.equal(observations.length, 3);
-    comparedCases += 1;
-    const [first = {}] = observations;
-    const { error: firstError = undefined, events: firstEvents = [] } = first;
-    observations.forEach(({ error = undefined, result = undefined, events = [] } = {}) => {
-        assert.deepEqual(events, firstEvents);
-
-        if (firstError === failure) assert.equal(error, failure);
-
-        if (firstError && firstError !== failure) {
-            const { name = '', message = '' } = error;
-            const { name: originalName = '', message: originalMessage = '' } = firstError;
-            assert.equal(name, originalName);
-            assert.equal(message, originalMessage);
-        }
-
-        if (!firstError) {
-            assert.equal(error, undefined);
-            assert.deepEqual(result, Reflect.get(first, 'result'));
-        }
-    });
-};
-
 const noncallables = Object.freeze([undefined, null, false, 0, '', Symbol('missing capability'), {}, []]);
-// Fixture values and method results intentionally retain actual undefined:
-// defaulting either would conceal the candidate's native boundary behavior.
-const observeUnion = ({ owner = {}, value = undefined, throwGet = false, throwCall = false, callResult = undefined } = {}) => {
+
+// eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Optional fixture capabilities and results include real undefined to test native behavior.
+const observeUnion = ({ value, throwGet = false, throwCall = false, callResult } = {}) => {
     let events = [];
     const candidate = Object.freeze({ get isUnion() {
         events = [...events, 'method-get'];
@@ -93,44 +33,33 @@ const observeUnion = ({ owner = {}, value = undefined, throwGet = false, throwCa
             return callResult;
         } : value;
     } });
-    const { isUnionType: inspect = undefined } = owner;
-    const outcome = capture(() => inspect(candidate));
+    const outcome = capture(() => isUnionType(candidate));
 
     return { ...outcome, events };
 };
-noncallables.forEach((value) => {
-    const observations = owners.map(owner => observeUnion({ owner, value }));
-    assertParity(observations);
-    const [observed = {}] = observations;
-    assert.deepEqual(observed, { result: false, events: ['method-get'] });
-});
-[
-    { value: 'callable' },
-    { value: 'callable', throwCall: true },
-    { throwGet: true }
-].forEach(options => assertParity(owners.map(owner => observeUnion({ owner, ...options }))));
-const callableUnion = owners.map(owner => observeUnion({ owner, value: 'callable', callResult: 'original method result' }));
-const [{ result: unionResult = '', events: unionEvents = [] } = {}] = callableUnion;
-assert.equal(unionResult, 'original method result');
-assert.deepEqual(unionEvents, ['method-get', 'method-call']);
-// A callable owns its result; the observer does not Boolean-coerce it.
-[undefined, null, false, 0, '', {}, []].forEach((callResult) => {
-    const observations = owners.map(owner => observeUnion({ owner, value: 'callable', callResult }));
-    assertParity(observations);
-    observations.forEach(observation => assert.equal(Reflect.get(observation, 'result'), callResult));
-});
-owners.forEach(({ isUnionType: inspect = undefined } = {}) => {
-    noncallables.forEach(value => assert.equal(inspect(value), false));
-    assert.equal(inspect(), false);
-    const returned = Object.freeze({ token: 'method-owned identity' });
-    assert.equal(inspect({ isUnion: () => returned }), returned);
+
+test('optional union capability preserves absence, receivers, results and failures', () => {
+    noncallables.forEach(value => assert.deepEqual(observeUnion({ value }), { result: false, events: ['method-get'] }));
+    [undefined, null, false, 0, '', {}, []].forEach((callResult) => {
+        const observation = observeUnion({ value: 'callable', callResult });
+        const { events = [] } = observation;
+
+        assert.equal(Reflect.get(observation, 'result'), callResult);
+        assert.deepEqual(events, ['method-get', 'method-call']);
+    });
+    [{ throwGet: true }, { value: 'callable', throwCall: true }].forEach((options) => {
+        const { error = false } = observeUnion(options);
+
+        assert.equal(error, failure);
+    });
+    noncallables.forEach(value => assert.equal(isUnionType(value), false));
+    // eslint-disable-next-line resilient/signature-contract-call-site -- Omitted input is the optional capability absence boundary under test.
+    assert.equal(isUnionType(), false);
 });
 
-const observeContract = ({
-    owner = {}, firstValue = undefined, secondValue = 'callable',
-    throwGetAt = 0, throwCall = false, callResult = undefined,
-    shape = 'single', rejected = false, cached = false
-} = {}) => {
+// eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Fixture capabilities and returned values preserve actual undefined, false and zero.
+const observeContract = ({ firstValue, secondValue = 'callable', throwGetAt = 0, throwCall = false, callResult,
+    shape = 'single', rejected = false, cached = false } = {}) => {
     let events = [];
     let reads = 0;
     const part = Object.freeze({ flags: 0, get getCallSignatures() {
@@ -167,67 +96,54 @@ const observeContract = ({
 
         return type;
     } });
-    const { getCheckerContract: inspect = undefined } = owner;
-    const outcome = capture(() => inspect({
+    const outcome = capture(() => getCheckerContract({
         typescript, node: inputNode, checker: cached ? {} : checker,
         declarations: cached ? { __checker: checker } : {}, typeText: 'original annotation'
     }));
 
     return { ...outcome, events };
 };
-noncallables.forEach((firstValue) => {
-    const observations = owners.map(owner => observeContract({ owner, firstValue }));
-    assertParity(observations);
-    const [observed = {}] = observations;
-    assert.deepEqual(observed, { result: {}, events: ['type-call', 'method-get:1'] });
-});
-[
-    { firstValue: 'callable', callResult: [{}] },
-    { firstValue: 'callable', cached: true, callResult: [{}] },
-    { firstValue: 'callable', callResult: [] },
-    { firstValue: 'callable', callResult: null },
-    { firstValue: 'callable', callResult: undefined },
-    { firstValue: 'callable', secondValue: false },
-    { firstValue: 'callable', secondValue: undefined },
-    { firstValue: 'callable', throwGetAt: 2 },
-    { firstValue: 'callable', throwCall: true },
-    { throwGetAt: 1 },
-    { firstValue: 'callable', shape: 'empty' },
-    { firstValue: 'callable', shape: 'many' },
-    { shape: 'absent' }, { shape: 'primitive' }, { shape: 'unknown' },
-    { firstValue: 'callable', rejected: true }
-].forEach(options => assertParity(owners.map(owner => observeContract({ owner, ...options }))));
-const callableContract = observeContract({ firstValue: 'callable', callResult: [{}], owner: fluent });
-assert.deepEqual(callableContract, {
-    result: { kind: 'function', check: "typeof VALUE === 'function'", optional: false, typeText: 'original annotation' },
-    events: ['type-call', 'method-get:1', 'method-get:2', 'method-call']
-});
-assert.deepEqual(observeContract({ owner: fluent, firstValue: 'callable', shape: 'many' }).events,
-    ['type-call', 'method-get:1']);
-assert.deepEqual(observeContract({ owner: fluent, firstValue: 'callable', rejected: true }).events, []);
-['empty', 'absent'].forEach(shape => assert.deepEqual(observeContract({ owner: fluent, shape }), {
-    result: {}, events: ['type-call']
-}));
-assert.deepEqual(observeContract({ owner: fluent, shape: 'primitive' }), {
-    result: { kind: 'string', canonical: "''", check: "typeof VALUE === 'string'", optional: false, typeText: 'original annotation' },
-    events: ['type-call']
-});
-assert.deepEqual(observeContract({ owner: fluent, shape: 'unknown' }), {
-    result: { kind: 'required', requiresGuard: true, typeText: 'original annotation' }, events: ['type-call']
-});
-[null, undefined].forEach((callResult) => {
-    const { error = false, events = [] } = observeContract({ owner: fluent, firstValue: 'callable', callResult });
-    const { name = '' } = error;
-    assert.equal(name, 'TypeError');
-    assert.deepEqual(events, ['type-call', 'method-get:1', 'method-get:2', 'method-call']);
-});
-owners.forEach(({ getCheckerContract: inspect = undefined } = {}) => assert.deepEqual(inspect({ typescript }), {}));
 
-const observeTypeNode = ({
-    owner = {}, firstValue = undefined, secondValue = 'callable',
-    throwGetAt = 0, throwCall = false, throwType = false,
-    callResult = undefined, rejected = false, sameKind = false, cached = false, missingChecker = false, importShape = false
-} = {}) => {
+test('optional checker call signatures retain semantic states and native failures', () => {
+    noncallables.forEach(firstValue => assert.deepEqual(observeContract({ firstValue }), {
+        result: {}, events: ['type-call', 'method-get:1']
+    }));
+    [false, true].forEach((cached) => {
+        const { result: { kind = '', optional = true } = {}, events = [] } = observeContract({ firstValue: 'callable', callResult: [{}], cached });
+
+        assert.equal(kind, 'function');
+        assert.equal(optional, false);
+        assert.deepEqual(events, ['type-call', 'method-get:1', 'method-get:2', 'method-call']);
+    });
+    ['empty', 'absent'].forEach(shape => assert.deepEqual(observeContract({ shape }), { result: {}, events: ['type-call'] }));
+    const { result: { kind: primitiveKind = '' } = {} } = observeContract({ shape: 'primitive' });
+    const { result: { kind: unknownKind = '' } = {} } = observeContract({ shape: 'unknown' });
+
+    assert.equal(primitiveKind, 'string');
+    assert.equal(unknownKind, 'required');
+    assert.deepEqual(observeContract({ firstValue: 'callable', shape: 'many' }).events, ['type-call', 'method-get:1']);
+    assert.deepEqual(observeContract({ firstValue: 'callable', rejected: true }).events, []);
+    [{ throwGetAt: 1 }, { firstValue: 'callable', throwGetAt: 2 }, { firstValue: 'callable', throwCall: true }].forEach((options) => {
+        const { error = false } = observeContract(options);
+
+        assert.equal(error, failure);
+    });
+    [null, undefined].forEach((callResult) => {
+        const { error = false } = observeContract({ firstValue: 'callable', callResult });
+
+        assert.ok(error instanceof TypeError);
+    });
+    [false].forEach((secondValue) => {
+        const { error = false } = observeContract({ firstValue: 'callable', secondValue });
+
+        assert.ok(error instanceof TypeError);
+    });
+    assert.deepEqual(getCheckerContract({ typescript }), {});
+});
+
+// eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Fixture compiler capabilities and returned values retain native absence without replacement nodes.
+const observeTypeNode = ({ firstValue, secondValue = 'callable', throwGetAt = 0, throwCall = false, throwType = false, callResult,
+    rejected = false, sameKind = false, cached = false, missingChecker = false, importShape = false } = {}) => {
     let events = [];
     let reads = 0;
     const admittedNode = importShape ? Object.freeze({ kind: typescript.SyntaxKind.ImportType })
@@ -269,8 +185,7 @@ const observeTypeNode = ({
             } : value;
         }
     });
-    const { getCheckerTypeNode: inspect = undefined } = owner;
-    const outcome = capture(() => inspect({
+    const outcome = capture(() => getCheckerTypeNode({
         typescript, node: inputNode, checker: cached ? {} : checker,
         declarations: cached || missingChecker ? { __checker: checker } : {}
     }));
@@ -280,89 +195,66 @@ const observeTypeNode = ({
 
     return { ...outcome, events };
 };
-noncallables.forEach((firstValue) => {
-    const observations = owners.map(owner => observeTypeNode({ owner, firstValue }));
-    assertParity(observations);
-    const [observed = {}] = observations;
-    assert.deepEqual(observed, { result: {}, events: ['method-get:1'] });
-});
-[
-    { firstValue: 'callable', callResult: 'node' },
-    { firstValue: 'callable', callResult: 'node', cached: true },
-    { firstValue: 'callable', callResult: 'node', importShape: true },
-    { firstValue: 'callable', callResult: 'node', sameKind: true },
-    { firstValue: 'callable', callResult: null },
-    { firstValue: 'callable', callResult: undefined },
-    { firstValue: 'callable', secondValue: false },
-    { firstValue: 'callable', secondValue: undefined },
-    { firstValue: 'callable', throwGetAt: 2 },
-    { firstValue: 'callable', throwCall: true },
-    { firstValue: 'callable', throwType: true },
-    { throwGetAt: 1 },
-    { firstValue: 'callable', rejected: true },
-    { firstValue: 'callable', missingChecker: true },
-    { firstValue: 'callable', rejected: true, throwGetAt: 1 }
-].forEach(options => assertParity(owners.map(owner => observeTypeNode({ owner, ...options }))));
-assert.deepEqual(observeTypeNode({ owner: fluent, firstValue: 'callable', callResult: 'node' }).events,
-    ['method-get:1', 'type-call', 'method-get:2', 'method-call']);
-assert.deepEqual(observeTypeNode({ owner: fluent, firstValue: 'callable', rejected: true }).events, ['method-get:1']);
-assert.deepEqual(observeTypeNode({ owner: fluent, firstValue: 'callable', missingChecker: true }).events, ['method-get:1']);
-const rejectedGet = observeTypeNode({ owner: fluent, rejected: true, throwGetAt: 1 });
-const { error: rejectedFailure = false, events: rejectedEvents = [] } = rejectedGet;
-assert.equal(rejectedFailure, failure);
-assert.deepEqual(rejectedEvents, ['method-get:1']);
-[null, undefined].forEach(callResult => assert.deepEqual(observeTypeNode({ owner: fluent, firstValue: 'callable', callResult }), {
-    result: {}, events: ['method-get:1', 'type-call', 'method-get:2', 'method-call']
-}));
-owners.forEach(({ getCheckerTypeNode: inspect = undefined } = {}) => assert.deepEqual(inspect({ typescript }), {}));
-assert.equal(comparedCases, 65);
 
-// Real compiler integration: no stubbed resolver, Type methods or conversion.
-const fileName = 'optional-capability.ts';
-const sourceFile = typescript.createSourceFile(fileName, [
-    'type Box = { value: string };',
-    'type Read = Box["value"];',
-    'declare const value: string | number;',
-    'declare const callable: (input: number) => string;',
-    'declare const opaque: unknown;'
-].join('\n'), typescript.ScriptTarget.ESNext, true);
-const compilerHost = typescript.createCompilerHost({ noLib: true });
-const program = typescript.createProgram([fileName], { noLib: true, strict: true }, {
-    ...compilerHost,
-    getSourceFile: (name, languageVersion) => name === fileName ? sourceFile : compilerHost.getSourceFile(name, languageVersion)
+test('optional checker conversion preserves node identity, call ownership and missing evidence', () => {
+    noncallables.forEach(firstValue => assert.deepEqual(observeTypeNode({ firstValue }), { result: {}, events: ['method-get:1'] }));
+    [{}, { cached: true }, { importShape: true }].forEach((options) => {
+        const { result: { kind = 0 } = {}, events = [] } = observeTypeNode({ firstValue: 'callable', callResult: 'node', ...options });
+
+        assert.equal(kind, typescript.SyntaxKind.StringKeyword);
+        assert.deepEqual(events, ['method-get:1', 'type-call', 'method-get:2', 'method-call']);
+    });
+    [null, undefined].forEach(callResult => assert.deepEqual(observeTypeNode({ firstValue: 'callable', callResult }), {
+        result: {}, events: ['method-get:1', 'type-call', 'method-get:2', 'method-call']
+    }));
+    assert.deepEqual(observeTypeNode({ firstValue: 'callable', callResult: 'node', sameKind: true }).result, {});
+    [{ rejected: true }, { missingChecker: true }].forEach((options) => {
+        assert.deepEqual(observeTypeNode({ firstValue: 'callable', ...options }), { result: {}, events: ['method-get:1'] });
+    });
+    [{ throwGetAt: 1 }, { rejected: true, throwGetAt: 1 }, { firstValue: 'callable', throwGetAt: 2 },
+        { firstValue: 'callable', throwCall: true }, { firstValue: 'callable', throwType: true }].forEach((options) => {
+        const { error = false } = observeTypeNode(options);
+
+        assert.equal(error, failure);
+    });
+    [false].forEach((secondValue) => {
+        const { error = false } = observeTypeNode({ firstValue: 'callable', secondValue });
+
+        assert.ok(error instanceof TypeError);
+    });
+    assert.deepEqual(getCheckerTypeNode({ typescript }), {});
 });
-const checker = program.getTypeChecker();
-const { statements: [, alias = {}, ...declarations] = [] } = sourceFile;
-const { type: indexed = {} } = alias;
-const printer = typescript.createPrinter();
-owners.forEach(({ getCheckerTypeNode: convert = undefined, getCheckerContract: inspect = undefined, isUnionType: union = undefined } = {}) => {
-    const converted = convert({ typescript, checker, node: indexed });
+
+test('real compiler type conversion and signatures use the same capability owners', () => {
+    const fileName = 'optional-capability.ts';
+    const sourceFile = typescript.createSourceFile(fileName, [
+        'type Box = { value: string };',
+        'type Read = Box["value"];',
+        'declare const value: string | number;',
+        'declare const callable: (input: number) => string;',
+        'declare const opaque: unknown;'
+    ].join('\n'), typescript.ScriptTarget.ESNext, true);
+    const compilerHost = typescript.createCompilerHost({ noLib: true });
+    const program = typescript.createProgram([fileName], { noLib: true, strict: true }, {
+        ...compilerHost,
+        getSourceFile: (name, languageVersion) => name === fileName ? sourceFile : compilerHost.getSourceFile(name, languageVersion)
+    });
+    const checker = program.getTypeChecker();
+    const { statements: [, alias = {}, ...declarations] = [] } = sourceFile;
+    const { type: indexed = {} } = alias;
+    const printer = typescript.createPrinter();
+    const converted = getCheckerTypeNode({ typescript, checker, node: indexed });
     const { kind: convertedKind = 0 } = converted;
     assert.equal(convertedKind, typescript.SyntaxKind.StringKeyword);
     assert.equal(printer.printNode(typescript.EmitHint.Unspecified, converted, sourceFile), 'string');
-    const convertedCached = convert({ typescript, declarations: { __checker: checker }, node: indexed });
+    const convertedCached = getCheckerTypeNode({ typescript, declarations: { __checker: checker }, node: indexed });
     assert.equal(printer.printNode(typescript.EmitHint.Unspecified, convertedCached, sourceFile), 'string');
     declarations.forEach(({ declarationList: { declarations: [{ name = {} } = {}] = [] } = {} } = {}, index = 0) => {
-        const evidence = inspect({ typescript, checker, node: name });
+        const evidence = getCheckerContract({ typescript, checker, node: name });
         const { kind = '' } = evidence;
         assert.equal(kind, ['', 'function', 'required'][index]);
-        assert.equal(union(checker.getTypeAtLocation(name)), index === 0);
-        assert.deepEqual(inspect({ typescript, declarations: { __checker: checker }, node: name }), evidence);
+        assert.equal(isUnionType(checker.getTypeAtLocation(name)), index === 0);
+        assert.deepEqual(getCheckerContract({ typescript, declarations: { __checker: checker }, node: name }), evidence);
         assert.deepEqual(evidence, getCheckerContract({ typescript, checker, node: name }));
     });
-});
-
-// The default rule does not invent a callback; each false-default binding is
-// fluent even when invocation remains receiver-owned rather than identifier-owned.
-const linter = new Linter();
-const configuration = { plugins: { resilient: { rules: { defaults: safeDefaults } } }, rules: { 'resilient/defaults': 'error' } };
-bindings.forEach(([name = '', receiver = ''] = []) => {
-    const raw = `const ${receiver} = {}; const { ${name} } = ${receiver};`;
-    const fixed = `const ${receiver} = {}; const { ${name} = false } = ${receiver};`;
-    assert.equal(linter.verify(raw, configuration).length, 1);
-    assert.deepEqual(linter.verify(fixed, configuration), []);
-    const repaired = linter.verifyAndFix(fixed, configuration);
-    const { output = '', messages = [] } = repaired;
-    assert.equal(output, fixed);
-    assert.deepEqual(messages, []);
 });

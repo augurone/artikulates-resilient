@@ -1,0 +1,254 @@
+[
+  {
+    "name": "chain wrapper preserves a method receiver",
+    "source": "const read=input=>{const{value=0}=input;return (input?.method)();};",
+    "placement": "body",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "chain wrapper preserves a nested receiver",
+    "source": "const read=input=>{const{value=0}=input;return (input?.child).method();};",
+    "placement": "body",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "chain wrapper preserves a tag receiver",
+    "source": "const read=input=>{const{value=0}=input;return (input?.tag)`text`;};",
+    "placement": "body",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "chain wrapper preserves constructor selection",
+    "source": "const read=input=>{const{value=0}=input;return new (input?.Constructor)();};",
+    "placement": "body",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "chain wrapper preserves deletion",
+    "source": "const read=input=>{const{value=0}=input;delete (input?.value);return value;};",
+    "placement": "body",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "chain wrapper preserves nested deletion",
+    "source": "const read=input=>{const{value=0}=input;delete (input?.child).value;return value;};",
+    "placement": "body",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "chain wrapper preserves assignment",
+    "source": "const read=input=>{const{value=0}=input;(input?.child).value=2;return value;};",
+    "placement": "body",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "chain wrapper preserves assignment pattern targets",
+    "source": "const read=input=>{const{value=0}=input;({slot:(input?.child).value}=external);return value;};",
+    "placement": "body",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "chain wrapper preserves loop assignment targets",
+    "source": "const read=input=>{const{value=0}=input;for((input?.child).value of external)consume();return value;};",
+    "placement": "body",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "chain wrapper preserves deferred capture",
+    "source": "const read=input=>{const{value=0}=input;return ()=>(input?.method)();};",
+    "placement": "body",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "chain property read remains a read",
+    "source": "const read=input=>{const{value=0}=input;return input?.value;};",
+    "placement": "signature",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "conditional selection loses the method receiver",
+    "source": "const read=input=>{const{value=0}=input;return (flag?input.method:external)();};",
+    "placement": "signature",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "sequence selection loses the method receiver",
+    "source": "const read=input=>{const{value=0}=input;return (0,input.method)();};",
+    "placement": "signature",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "logical selection loses the method receiver",
+    "source": "const read=input=>{const{value=0}=input;return (input.method||external)();};",
+    "placement": "signature",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "opaque component tag consumption",
+    "source": "const read=Input=>{const{value=0}=Input;return <Input/>;};",
+    "placement": "unknown",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "opaque member tag consumption",
+    "source": "const read=input=>{const{value=0}=input;return <input.Component/>;};",
+    "placement": "unknown",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "opaque deep member tag consumption",
+    "source": "const read=input=>{const{value=0}=input;return <input.views.Component/>;};",
+    "placement": "unknown",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "opaque closing tag consumption",
+    "source": "const read=Input=>{const{value=0}=Input;return <Input></Input>;};",
+    "placement": "unknown",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "opaque deferred tag consumption",
+    "source": "const read=Input=>{const{value=0}=Input;return ()=> <Input/>;};",
+    "placement": "unknown",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "opaque alias tag consumption",
+    "source": "const read=Input=>{const saved=Input;const{value=0}=Input;return <saved.Component/>;};",
+    "placement": "unknown",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "tag lowering is not inferred from capitalization",
+    "source": "const read=input=>{const{value=0}=input;return <input/>;};",
+    "placement": "unknown",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "namespaced tag lowering remains unknown",
+    "source": "const read=input=>{const{value=0}=input;return <input:component/>;};",
+    "placement": "unknown",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "unrelated tag does not consume the formal",
+    "source": "const read=input=>{const{value=0}=input;return <Other/>;};",
+    "placement": "signature",
+    "relocation": true,
+    "sourceType": "module"
+  },
+  {
+    "name": "attribute names do not consume the formal",
+    "source": "const read=input=>{const{value=0}=input;return <Other input=\"text\"/>;};",
+    "placement": "signature",
+    "relocation": true,
+    "sourceType": "module"
+  },
+  {
+    "name": "tag member property is not the formal binding",
+    "source": "const read=Component=>{const{value=0}=Component;return <other.Component/>;};",
+    "placement": "signature",
+    "relocation": true,
+    "sourceType": "module"
+  },
+  {
+    "name": "shadowed tag root does not capture the formal",
+    "source": "const read=Input=>{const{value=0}=Input;return Input=><Input/>;};",
+    "placement": "signature",
+    "relocation": true,
+    "sourceType": "module"
+  },
+  {
+    "name": "known forwarding survives opaque tag evidence",
+    "source": "const read=Input=>{const{value=0}=Input;consume(Input);return <Input/>;};",
+    "placement": "body",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "jsx expression container retains ordinary identity",
+    "source": "const read=input=>{const{value=0}=input;return <Other>{input}</Other>;};",
+    "placement": "body",
+    "relocation": false,
+    "sourceType": "module"
+  },
+  {
+    "name": "same-spelled labels are not variable uses",
+    "source": "const read=input=>{const{value=0}=input;input:{break input;}return value;};",
+    "placement": "signature",
+    "relocation": true,
+    "sourceType": "module"
+  },
+  {
+    "name": "renamed labels preserve placement",
+    "source": "const read=input=>{const{value=0}=input;other:{break other;}return value;};",
+    "placement": "signature",
+    "relocation": true,
+    "sourceType": "module"
+  },
+  {
+    "name": "same-spelled loop labels remain separate",
+    "source": "const read=input=>{const{value=0}=input;input:for(let n=0;n<1;n++){continue input;}return value;};",
+    "placement": "signature",
+    "relocation": true,
+    "sourceType": "module"
+  },
+  {
+    "name": "extracted component binding remains available",
+    "source": "const read=input=>{const{Input=0}=input;return <Input/>;};",
+    "placement": "signature",
+    "relocation": true,
+    "sourceType": "module"
+  },
+  {
+    "name": "namespaced attribute prefix is not a tag root",
+    "source": "const read=Input=>{const{value=0}=Input;return <Other Input:slot=\"text\"/>;};",
+    "placement": "signature",
+    "relocation": true,
+    "sourceType": "module"
+  },
+  {
+    "name": "namespaced attribute suffix is not a tag root",
+    "source": "const read=Input=>{const{value=0}=Input;return <Other ns:Input=\"text\"/>;};",
+    "placement": "signature",
+    "relocation": true,
+    "sourceType": "module"
+  },
+  {
+    "name": "implicit arguments tag cannot authorize a non-simple signature",
+    "source": "function read(input){const{value=0}=input;return <arguments/>;}",
+    "placement": "unknown",
+    "relocation": false,
+    "sourceType": "script"
+  },
+  {
+    "name": "arguments attribute spelling does not make execution opaque",
+    "source": "function read(input){const{value=0}=input;return <Other arguments=\"text\"/>;}",
+    "placement": "signature",
+    "relocation": true,
+    "sourceType": "script"
+  }
+]

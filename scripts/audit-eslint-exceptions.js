@@ -1,62 +1,32 @@
-import fs from 'node:fs';
+#!/usr/bin/env node
+import { spawnSync } from 'node:child_process';
+import { realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ESLint, Linter } from 'eslint';
+import { SourceCode } from 'eslint';
+import { parse } from 'espree';
 
-import { getTraversalEntries } from '../rules/support/ast-traversal.js';
-import { getObject } from '../rules/support/object.js';
+import { getSourceNodes } from '../analysis/host/ast-traversal.js';
+import { getObject } from '../analysis/host/object.js';
 
-const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const excludedDirectories = new Set(['.git', 'docs', 'node_modules']);
+// Policy P-03 boundary checks preserved from the frozen exception auditor.
 const ruleNamePattern = '(?:@?[a-z0-9][a-z0-9_./-]*)(?:\\s*,\\s*@?[a-z0-9][a-z0-9_./-]*)*';
 const nextLinePattern = new RegExp(`^eslint-disable-next-line\\s+(${ruleNamePattern})\\s+--\\s+(.+)$`, 'iu');
 const disablePattern = new RegExp(`^eslint-disable\\s+(${ruleNamePattern})\\s+--\\s+(.+)$`, 'iu');
 const enablePattern = new RegExp(`^eslint-enable(?:\\s+(${ruleNamePattern}))?$`, 'iu');
-
 const getSourceCode = (source = '') => {
-    let sourceCode;
-    const captureRule = {
-        create({ sourceCode: parserSourceCode = undefined } = {}) {
-            sourceCode = parserSourceCode;
+    try {
+        return { sourceCode: new SourceCode(source, parse(source, {
+            ecmaVersion: 'latest', sourceType: 'module', range: true, loc: true, tokens: true, comment: true
+        })) };
+    } catch (error) {
+        if (!(error instanceof SyntaxError)) throw error;
 
-            return {};
-        }
-    };
-    const linter = new Linter({ configType: 'flat' });
-    const messages = linter.verify(source, [{
-        languageOptions: {
-            ecmaVersion: 'latest',
-            sourceType: 'module'
-        },
-        plugins: { audit: { rules: { 'capture-source-code': captureRule } } },
-        rules: { 'audit/capture-source-code': 'error' }
-    }]);
-    const parsingError = messages.find(({ fatal = false } = {}) => fatal);
+        const { message = '', lineNumber: line = 0 } = error;
 
-    return { parsingError, sourceCode };
-};
-const getSourceNodes = (node = {}, nodes = []) => {
-    const { type = '', range = [] } = node;
-
-    if (type && range.length === 2) {
-        // eslint-disable-next-line resilient/prefer-safe-transformations -- Private traversal storage preserves node identity and preorder without copying the growing index at every visit.
-        nodes.push(node);
+        return { parsingError: { message: `Parsing error: ${message}`, line } };
     }
-
-    getTraversalEntries(node).forEach(([, value = undefined] = []) => {
-        const children = Array.isArray(value) ? value : [value];
-
-        children.forEach((child) => {
-            const { type: childType = false } = getObject(child);
-
-            if (typeof childType !== 'string') return;
-
-            getSourceNodes(child, nodes);
-        });
-    });
-
-    return nodes;
 };
 
 const getOuterStatementsInRange = ({ ast = {}, nodes = getSourceNodes(ast), start = 0, end = 0 } = {}) => {
@@ -136,7 +106,7 @@ const getNextLineUnit = ({ nodes = [], comment = {}, sourceCode = {} } = {}) => 
             type = '', range: [start = 0, end = 0] = []
         } = {}) => type !== 'BlockStatement' && (type.endsWith('Statement') || type.endsWith('Declaration')) &&
             start <= initialStart && end >= initialEnd)
-        : undefined;
+        : false;
     const owner = getObject(continuation || initialOwner);
     const { type: finalOwnerType = '' } = owner;
 
@@ -145,8 +115,10 @@ const getNextLineUnit = ({ nodes = [], comment = {}, sourceCode = {} } = {}) => 
     return owner;
 };
 
-const getExceptionInventory = ({ file = '', source = '' } = {}) => {
-    const { parsingError = {}, sourceCode = undefined } = getSourceCode(source);
+export const getExceptionInventory = ({ file = '', source = '', ...options } = {}) => {
+    const { sourceCode: suppliedSourceCode = {} } = options;
+    const { parsingError = {}, sourceCode = {} } = Object.hasOwn(options, 'sourceCode')
+        ? { sourceCode: suppliedSourceCode } : getSourceCode(source);
     const { message: parsingMessage = '', line: parsingLine = 0 } = parsingError;
 
     if (parsingMessage) return { entries: [], problems: [formatProblem({ line: parsingLine, message: parsingMessage })] };
@@ -291,133 +263,18 @@ const getExceptionInventory = ({ file = '', source = '' } = {}) => {
     return { entries, problems: [...problems, ...unclosedProblems] };
 };
 
-const auditSource = (source = '') => getExceptionInventory({ source }).problems;
+export const auditSource = (source = '') => getExceptionInventory({ source }).problems;
 
-const getJavaScriptFiles = (directory = rootDirectory) => fs.readdirSync(directory, { withFileTypes: true })
-    .flatMap((entry) => {
-        const { name = '', isDirectory = undefined, isFile = undefined } = entry;
-        const entryPath = path.join(directory, name);
-        const directoryEntry = Reflect.apply(isDirectory, entry, []);
+const { argv: [, entry = '', ...args] = [] } = process;
 
-        if (directoryEntry && (excludedDirectories.has(name) ||
-            entryPath.endsWith(path.join('tests', 'fixtures')) ||
-            entryPath.endsWith(path.join('tests', 'proofs', 'fp-ts', 'checkout')))) return [];
-
-        if (directoryEntry) return getJavaScriptFiles(entryPath);
-
-        return Reflect.apply(isFile, entry, []) && name.endsWith('.js') ? [entryPath] : [];
+if (entry && realpathSync(entry) === fileURLToPath(import.meta.url)) {
+    const { status = 1, error = {} } = spawnSync(process.execPath, [fileURLToPath(new URL('./measure-project.js', import.meta.url)), '--audit', ...args], {
+        stdio: 'inherit'
     });
+    const { message = '' } = error;
 
-const getDirectoryExceptionReport = (directory = rootDirectory) => getJavaScriptFiles(directory)
-    .reduce(({ entries = [], problems = [] } = {}, filePath) => {
-        const file = path.relative(directory, filePath);
-        const { entries: fileEntries = [], problems: fileProblems = [] } = getExceptionInventory({
-            file,
-            source: fs.readFileSync(filePath, 'utf8')
-        });
+    // eslint-disable-next-line resilient/prefer-safe-transformations -- The audit entry point forwards the shared measurement CLI's failure status without changing auditor exports.
+    process.exitCode = status === 0 ? 0 : 1;
 
-        return {
-            entries: [...entries, ...fileEntries],
-            problems: [...problems, ...fileProblems.map(problem => `${file} ${problem}`)]
-        };
-    }, { entries: [], problems: [] });
-
-const auditDirectory = (directory = rootDirectory) => getDirectoryExceptionReport(directory).problems;
-const getDirectoryExceptionInventory = (directory = rootDirectory) => getDirectoryExceptionReport(directory).entries;
-
-const getUnusedDirectiveFindings = (results = [], directory = rootDirectory) => results.flatMap(({
-    filePath = '', messages = []
-} = {}) => messages.filter(({ message = '' } = {}) => message.startsWith('Unused eslint-disable directive'))
-    .map(({ line = 0, column = 0, message = '' } = {}) => ({
-        file: path.relative(directory, filePath),
-        location: { line, column },
-        message
-    })));
-
-const countBy = (entries = [], getKey = () => '') => Object.fromEntries(
-    Object.entries(Object.groupBy(entries, getKey))
-        .map(([key = '', members = []] = []) => [key, members.length])
-);
-
-const summarizeExceptionInventory = (entries = []) => ({
-    boundaries: entries.length,
-    ruleSites: entries.reduce((count, { rules = [] } = {}) => count + rules.length, 0),
-    bySubsystem: countBy(entries, ({ subsystem = 'root' } = {}) => subsystem),
-    byForm: countBy(entries, ({ form = '' } = {}) => form),
-    byRule: countBy(entries.flatMap(({ rules = [] } = {}) => rules), rule => rule)
-});
-
-// Source owns the boundary. Evidence can decorate exactly one parsed operation,
-// never select the first repeated reason or silently cover a newly added site.
-const getExceptionEvidenceReport = ({ entries = [], evidence = [] } = {}) => {
-    const getKey = ({ file = '', form = '', rules = [], reason = '', operation = '' } = {}) => (
-        JSON.stringify([file, form, rules, reason, operation])
-    );
-    const candidates = Object.groupBy(entries, getKey);
-    const matches = evidence.map((record = {}) => {
-        const { id = 0, file = '', range: [start = -1] = [] } = record;
-        const { [getKey(record)]: possible = [] } = candidates;
-        const exact = possible.filter(({ range: [candidateStart = -2] = [] } = {}) => candidateStart === start);
-        const selected = possible.length === 1 ? possible : exact;
-        const [entry = {}] = selected;
-        const { length: selectedCount = 0 } = selected;
-
-        return selectedCount === 1
-            ? { record, entry }
-            : { record, problem: `${file} evidence ${id}: ${possible.length ? 'ambiguous' : 'stale'} source operation.` };
-    });
-    const getLocationKey = ({ file = '', range = [] } = {}) => JSON.stringify([file, range]);
-    const byLocation = Object.groupBy(matches.filter(({ problem = '' } = {}) => !problem), ({ entry = {} } = {}) => (
-        getLocationKey(entry)
-    ));
-    const published = entries.map((entry = {}) => {
-        const { [getLocationKey(entry)]: attached = [] } = byLocation;
-        const [{ record = {} } = {}] = attached;
-        const { length: attachedCount = 0 } = attached;
-        const { file = '', location: { line = 0 } = {} } = entry;
-
-        return attachedCount === 1
-            ? { entry: { ...record, ...entry } }
-            : { entry, problem: `${file} line ${line}: ${attached.length ? 'duplicate evidence for' : 'missing evidence for'} source boundary.` };
-    });
-
-    return {
-        entries: published.map(({ entry = {} } = {}) => entry),
-        problems: [...matches, ...published].flatMap(({ problem = '' } = {}) => problem ? [problem] : [])
-    };
-};
-
-const main = async () => {
-    if (process.argv.includes('--inventory')) {
-        const { entries = [], problems = [] } = getDirectoryExceptionReport();
-        const unused = process.argv.includes('--unused')
-            ? getUnusedDirectiveFindings(await new ESLint({ cwd: rootDirectory }).lintFiles(getJavaScriptFiles()), rootDirectory)
-            : false;
-
-        process.stdout.write(`${JSON.stringify({ summary: summarizeExceptionInventory(entries), problems, unused, entries }, null, 2)}\n`);
-
-        return;
-    }
-
-    const problems = auditDirectory();
-
-    if (!problems.length) return;
-
-    process.stderr.write(`Invalid ESLint exceptions:\n${problems.join('\n')}\n`);
-    // eslint-disable-next-line resilient/prefer-safe-transformations -- Node's process exit status is the external command failure boundary after all findings are emitted.
-    process.exitCode = 1;
-};
-
-if (process.argv[1] === fileURLToPath(import.meta.url)) await main();
-
-export {
-    auditDirectory,
-    auditSource,
-    getDirectoryExceptionInventory,
-    getDirectoryExceptionReport,
-    getExceptionInventory,
-    getExceptionEvidenceReport,
-    getOuterStatementsInRange,
-    getUnusedDirectiveFindings,
-    summarizeExceptionInventory
-};
+    process.stderr.write(message ? `${message}\n` : '');
+}

@@ -1,4 +1,5 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds, updateFunction } from '../../utils/ast-boundary.js';
 import { getDestructuringDecisionForNode } from '../policy/destructuring-agreements.js';
 
@@ -11,8 +12,8 @@ const annotateDeclaredNullishResults = ({
 } = {}) => {
     const { ArrowFunction = -1, Block = -1, ReturnStatement = -1,
         SingleLineCommentTrivia = -1 } = getSyntaxKinds(typescript);
-    const { factory = {}, addSyntheticLeadingComment = false,
-        getSyntheticLeadingComments = false } = typescript;
+    const { factory = {}, addSyntheticLeadingComment,
+        getSyntheticLeadingComments } = typescript;
     const { byKind = new Map() } = destructuringAgreements;
     const hasDeclaredResult = byKind.has('declared-nullish-result');
 
@@ -54,12 +55,12 @@ const annotateDeclaredNullishResults = ({
         return typescript.visitNode(sourceFile, visit);
     }
 
-    if (typeof addSyntheticLeadingComment !== 'function') return sourceFile;
+    if (!isFunction(addSyntheticLeadingComment)) return sourceFile;
 
     const visit = (node = {}) => {
         const { kind = 0, expression = {} } = getObject(node);
         const action = kind === ReturnStatement ? getDecision(expression) : '';
-        const comments = typeof getSyntheticLeadingComments === 'function'
+        const comments = isFunction(getSyntheticLeadingComments)
             ? getSyntheticLeadingComments(node) || [] : [];
         const alreadyAnnotated = comments.some(({ text = '' } = {}) => (
             text.includes('eslint-disable-next-line resilient/prefer-falsey-returns')

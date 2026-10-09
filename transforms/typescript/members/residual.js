@@ -1,4 +1,5 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSourceRange, getSyntaxKinds, hasAuthoredLayoutDirective, updateFunction, updateVariableDeclarationFields } from '../../utils/ast-boundary.js';
 import {
     hasArrayLengthDecision,
@@ -108,7 +109,7 @@ const lowerResidualMemberAccess = ({
         BarBarEqualsToken,
         QuestionQuestionEqualsToken
     ];
-    const isFunction = node => functionKinds.includes(getObject(node).kind);
+    const isFunctionNode = node => functionKinds.includes(getObject(node).kind);
     const isMember = node => memberKinds.includes(getObject(node).kind);
     const isBindingIdentifier = node => node && getObject(node).kind === Identifier;
     const getKey = (node = {}) => {
@@ -151,6 +152,12 @@ const lowerResidualMemberAccess = ({
         return isBindingIdentifier(root)
             ? { root, segments }
             : {};
+    };
+    const hasCompletedSelectionChain = (candidate = {}) => {
+        const { expression = {} } = getObject(candidate);
+
+        return isMember(candidate) && (hasCompletedDestructuringAgreement({ typescript, node: candidate, destructuringAgreements,
+            kinds: ['selected-model-read'] }) || hasCompletedSelectionChain(expression));
     };
     const isWrite = (node, parentParam) => {
         const parent = parentParam || getObject(node).parent || {};
@@ -207,9 +214,9 @@ const lowerResidualMemberAccess = ({
         const staticIndex = getStaticIndex(segment);
         const { typeText: sourceTypeText = '' } = getPlacementFact({ typescript, placement, node: sourceNode });
         const isTuple = /^\s*(readonly\s*)?\[/.test(sourceTypeText);
-        const { getText = false } = getObject(sourceNode);
+        const { getText } = getObject(sourceNode);
         const generatedIndexedSource = sourceTypeText === "any" &&
-            typeof getText === "function" &&
+            isFunction(getText) &&
             !sourceNode.getText(sourceFile);
         const { kind: segKind = "", node: segNode = {}, argument: segArg = false, name: segName = "" } = getObject(segment);
         const isArray = segKind === "element" &&
@@ -253,8 +260,8 @@ const lowerResidualMemberAccess = ({
             ))
         );
     };
-    const { addSyntheticLeadingComment: addLeading = false, addSyntheticTrailingComment: addTrailing = false } = getObject(typescript);
-    const addMutationComment = node => typeof addLeading === "function"
+    const { addSyntheticLeadingComment: addLeading, addSyntheticTrailingComment: addTrailing } = getObject(typescript);
+    const addMutationComment = node => isFunction(addLeading)
         ? addLeading(
             node,
             SingleLineCommentTrivia,
@@ -294,18 +301,7 @@ const lowerResidualMemberAccess = ({
             });
             const { kind: patternKind = 0, elements = [] } = getObject(pattern);
             const isTupleBinding = patternKind === ArrayBindingPattern;
-            const carrier = createTupleCarrier({
-                source,
-                containerAgreement: { state: 'known', owner: 'typed-producer' },
-                owner: 'typed-producer',
-                placement: 'statement',
-                positions: elements.map((element = {}, position) => ({
-                    index: position,
-                    agreement: { state: 'caller-owned', owner: 'typed-producer' },
-                    consumer: 'member-read',
-                    suppliedBy: element
-                }))
-            });
+            const carrier = createTupleCarrier({ source });
             declarations = [...declarations, factory.createVariableStatement(
                 undefined,
                 factory.createVariableDeclarationList([
@@ -357,7 +353,7 @@ const lowerResidualMemberAccess = ({
             return add(name);
         });
         const visit = (child) => {
-            if (!child || isFunction(child)) return;
+            if (!child || isFunctionNode(child)) return;
 
             const { kind: childKind = 0, name = {} } = getObject(child);
 
@@ -385,7 +381,7 @@ const lowerResidualMemberAccess = ({
         ]);
         let mutationKeys = new Set();
         const lowerMemberInitializer = (statement = {}) => {
-            // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Absent statement modifiers must stay absent in factory update.
+            // Absent statement modifiers must stay absent in factory update.
             const { kind: stmtKind = 0, declarationList = {}, modifiers } = getObject(statement);
 
             if (!statement || stmtKind !== VariableStatementKind3) return statement;
@@ -484,7 +480,7 @@ const lowerResidualMemberAccess = ({
             return nextStatement;
         };
         const getMemberPlan = (expression = {}, parent = {}) => {
-            if (!isMember(expression) || isWrite(expression, parent)) return {};
+            if (!isMember(expression) || isWrite(expression, parent) || hasCompletedSelectionChain(expression)) return {};
 
             if (hasCompletedDestructuringAgreement({ typescript, node: expression, destructuringAgreements })) return {};
 
@@ -506,7 +502,7 @@ const lowerResidualMemberAccess = ({
         // keeps the source order: evaluate the callee, then evaluate the member
         // argument. Hoisting a declaration would read the member too early.
         const getScopedMemberArgument = (expression = {}, finalArgument = false) => {
-            if (!isMember(expression)) return false;
+            if (!isMember(expression) || hasCompletedSelectionChain(expression)) return false;
 
             const { root = {}, segments = [] } = getChain(expression);
             const [segment = {}] = segments;
@@ -529,8 +525,16 @@ const lowerResidualMemberAccess = ({
                 destructuringAgreements,
                 kinds: ['receiver-ordered-projection']
             });
+            const { agreement: repeatedReadAgreement = {}, contract: repeatedReadContract = {} } = getDestructuringDecisionForNode({
+                typescript,
+                node: expression,
+                destructuringAgreements,
+                kinds: ['repeated-parameter-read', 'selected-model-read']
+            });
+            const retainedArrayRead = getObject(repeatedReadAgreement).action === 'retain-source-phase-read' &&
+                getObject(repeatedReadContract).valueFamily === 'checker-proven-native-array';
 
-            if (isSortConsumerCapability ||
+            if (isSortConsumerCapability || retainedArrayRead ||
                 getObject(projectionAgreement).action === 'retain-receiver-ordered-projection') return false;
 
             const { optional = false, kind: contractKind = '' } = getPlacementContract({ typescript, node: expression, placement });
@@ -566,7 +570,7 @@ const lowerResidualMemberAccess = ({
                 factory.createToken(EqualsGreaterThanToken),
                 factory.createIdentifier(alias)
             );
-            const documentedExtractor = typeof addLeading === 'function' && typeof addTrailing === 'function'
+            const documentedExtractor = isFunction(addLeading) && isFunction(addTrailing)
                 ? addTrailing(addLeading(
                     extractor,
                     MultiLineCommentTrivia,
@@ -596,7 +600,7 @@ const lowerResidualMemberAccess = ({
                 arguments: argumentsList = []
             } = getObject(expression);
             const { kind: calleeKind = 0 } = getObject(callee);
-            const { typeArguments = undefined } = getObject(expression);
+            const { typeArguments } = getObject(expression);
 
             if (kind === TemplateExpressionKind) {
                 const { head = {}, templateSpans = [] } = getObject(expression);
@@ -795,7 +799,7 @@ const lowerResidualMemberAccess = ({
             if (kind === VariableStatementKind3) {
                 const {
                     declarationList = {},
-                    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An AST statement may deliberately omit modifiers; factory update preserves that absence.
+                    // An AST statement may deliberately omit modifiers; factory update preserves that absence.
                     modifiers
                 } = getObject(statement);
                 const { declarations = [] } = getObject(declarationList);
@@ -839,7 +843,7 @@ const lowerResidualMemberAccess = ({
             return [statement];
         };
         const collect = (child, parent = {}, statement = {}) => {
-            if (!child || isFunction(child)) return;
+            if (!child || isFunctionNode(child)) return;
 
             if (hasCompletedDestructuringAgreement({ typescript, node: child, destructuringAgreements,
                 kinds: ['callable-operation'] })) return;
@@ -853,9 +857,9 @@ const lowerResidualMemberAccess = ({
             }
 
             const { kind: childKind = 0 } = getObject(child);
-            const { isStatement = false } = getObject(typescript);
+            const { isStatement } = getObject(typescript);
             const nextStatement = childKind !== Block &&
-                typeof isStatement === "function" &&
+                isFunction(isStatement) &&
                 isStatement(child)
                 ? child
                 : statement;
@@ -886,7 +890,10 @@ const lowerResidualMemberAccess = ({
         };
         collect(nodeBody, {}, {});
         const replace = (child, parent = {}) => {
-            if (!child || isFunction(child)) return child;
+            if (!child || isFunctionNode(child)) return child;
+
+            if (hasCompletedDestructuringAgreement({ typescript, node: child, destructuringAgreements,
+                kinds: ['callable-operation'] })) return child;
 
             const { kind: parentKind = 0, expression: parentExpr = {} } = getObject(parent);
 
@@ -907,7 +914,7 @@ const lowerResidualMemberAccess = ({
 
                 const {
                     expression: callee = {},
-                    typeArguments = undefined,
+                    typeArguments,
                     arguments: argumentsList = []
                 } = getObject(child);
 
@@ -969,7 +976,7 @@ const lowerResidualMemberAccess = ({
             ? typescript.visitEachChild(hostedBody, child => replace(child, hostedBody), context)
             : replace(nodeBody, node);
         const annotate = (child) => {
-            if (!child || isFunction(child)) return child;
+            if (!child || isFunctionNode(child)) return child;
 
             if (mutationKeys.has(getKey(child))) return addMutationComment(child);
 
@@ -993,7 +1000,7 @@ const lowerResidualMemberAccess = ({
 
         if (nodeKind === Parameter) return node;
 
-        if (isFunction(node)) {
+        if (isFunctionNode(node)) {
             const localBindings = getBindings(getObject(node));
             const visibleBindings = new Set([
                 ...inheritedBindings,

@@ -1,15 +1,19 @@
-import { existsSync, statSync } from 'node:fs';
+import { statSync } from 'node:fs';
 import path from 'node:path';
 
-import { getFileCandidates } from '../rules/support/file-candidates.js';
-import { isObject } from '../rules/support/object.js';
+import { getFileCandidates } from '../analysis/host/file-candidates.js';
+import { isObject } from '../analysis/host/object.js';
 
-const defaultExtensions = ['.js', '.jsx', '.mjs', '.cjs'];
+const defaultExtensions = ['.js', '.jsx'];
 
 const getExistingFile = (fileName = '') => {
     try {
-        return existsSync(fileName) && statSync(fileName).isFile() ? fileName : '';
-    } catch {
+        return statSync(fileName).isFile() ? fileName : '';
+    } catch (error) {
+        const { code = '' } = error;
+
+        if (code !== 'ENOENT' && code !== 'ENOTDIR') throw error;
+
         return '';
     }
 };
@@ -23,7 +27,7 @@ const normalizeExtensions = (values = defaultExtensions) => {
 };
 
 const getFile = ({ base = '', extensions = defaultExtensions } = {}) => getFileCandidates({ base, extensions })
-    .map(getExistingFile).find(Boolean) || '';
+    .find(file => getExistingFile(file)) || '';
 
 const normalizeNames = (values = []) => (
     Array.isArray(values)
@@ -56,7 +60,7 @@ const getRootDirectory = ({ projectDirectory = '', root = '' } = {}) => (
 );
 
 const isWithin = ({ fileName = '', directory = '' } = {}) => {
-    const prefix = `${directory}${path.sep}`;
+    const prefix = directory.endsWith(path.sep) ? directory : `${directory}${path.sep}`;
 
     return fileName === directory || fileName.startsWith(prefix);
 };
@@ -93,6 +97,15 @@ const createProjectAdapter = ({
         return base ? getFile({ base, extensions: fileExtensions }) : '';
     };
 
+    // The compiler owns extension and directory-index resolution for this
+    // candidate. Runtime ESLint resolution retains its configured extensions.
+    const typescriptResolver = ({ from = '', source = '' } = {}) => {
+        const base = source.startsWith('.') ? path.resolve(path.dirname(from), source)
+            : getAliasBase({ source, aliases: aliasEntries, projectDirectory });
+
+        return base;
+    };
+
     const roots = ({ fileName = '' } = {}) => {
         const normalizedFileName = path.resolve(fileName);
         const currentFile = path.basename(normalizedFileName, path.extname(normalizedFileName));
@@ -123,6 +136,9 @@ const createProjectAdapter = ({
 
         return roots;
     };
+
+    // eslint-disable-next-line resilient/prefer-safe-transformations -- The callable resolver publishes the same alias candidate owner to compiler project resolution.
+    Object.assign(resolver, { typescript: typescriptResolver });
 
     return { resolver, roots };
 };

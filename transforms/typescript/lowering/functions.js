@@ -1,4 +1,5 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds } from '../../utils/ast-boundary.js';
 import { getDestructuringDecisionForNode } from '../policy/destructuring-agreements.js';
 import { getConsumerContractKey } from '../understand/type-evidence.js';
@@ -10,13 +11,13 @@ const canLowerFunctionDeclaration = ({ decision = {} } = {}) => (
 const placeNativeFunctionDeclarationBoundary = ({ typescript = {}, node = {},
     evalObservedName = false } = {}) => {
     const {
-        getSyntheticLeadingComments = false,
-        setSyntheticLeadingComments = false,
+        getSyntheticLeadingComments,
+        setSyntheticLeadingComments,
         SyntaxKind: { SingleLineCommentTrivia = -1 } = {}
     } = typescript;
 
-    if (typeof getSyntheticLeadingComments !== 'function' ||
-        typeof setSyntheticLeadingComments !== 'function') return node;
+    if (!isFunction(getSyntheticLeadingComments) ||
+        !isFunction(setSyntheticLeadingComments)) return node;
 
     const comments = getSyntheticLeadingComments(node) || [];
     const retained = comments.filter(({ text = '' } = {}) => !text.includes('eslint-disable-next-line func-style'));
@@ -87,10 +88,10 @@ const lowerFunctionDeclaration = ({
         kind: nodeKind = 0,
         body: nodeBody = false,
         modifiers = [],
-        typeParameters = undefined,
-        parameters = undefined,
-        asteriskToken = undefined,
-        name: nodeName = undefined
+        typeParameters,
+        parameters,
+        asteriskToken,
+        name: nodeName
     } = getObject(node);
     const hasBody = !!nodeBody;
     const hasDefaultModifier = modifiers.some(({ kind = -1 } = {}) => kind === DefaultKeywordKind2);
@@ -178,6 +179,5 @@ const lowerFunctionDeclaration = ({
 
 export {
     annotateNativeFunctionDeclarationBoundaries,
-    canLowerFunctionDeclaration,
     lowerFunctionDeclaration
 };

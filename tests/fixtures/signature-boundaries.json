@@ -1,0 +1,690 @@
+[
+  {
+    "name": "renamed parameter",
+    "source": "const read = payload => { const {value: renamed = 0} = payload; return renamed; };",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      true
+    ]
+  },
+  {
+    "name": "authored root default",
+    "source": "const read = (payload = {}) => { const {value = 0} = payload; return value; };",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      true
+    ]
+  },
+  {
+    "name": "additional simple parameters",
+    "source": "const read = (payload, suffix) => { const {value = 0} = payload; return value + suffix; };",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      true
+    ]
+  },
+  {
+    "name": "later parameter initializer",
+    "source": "const read = (payload, suffix = 0) => { const {value = 0} = payload; return value + suffix; };",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "later opaque initializer",
+    "source": "const read = (payload, suffix = effect()) => { const {value = 0} = payload; return value; };",
+    "placements": [
+      "unknown"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "body default scope",
+    "source": "const read = payload => { const {value = fallback} = payload; const fallback = 3; return value; };",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "field default formal reference",
+    "source": "const read = (payload, fallback) => { const {value = fallback} = payload; return value; };",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "written leaf",
+    "source": "const read = payload => { const {value = 0} = payload; value = 3; return value; };",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "whole return",
+    "source": "const read = payload => { const {value = 0} = payload; return payload; };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "direct forwarding",
+    "source": "const read = payload => { const {value = 0} = payload; consume(payload); return value; };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "alias forwarding",
+    "source": "const read = payload => { const saved = payload; const {value = 0} = payload; consume(saved); return value; };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "alias captured member",
+    "source": "const read = payload => { const saved = payload; const {value = 0} = payload; return () => saved.value; };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "alias extraction",
+    "source": "const read = payload => { const saved = payload; const {value = 0} = saved; return value; };",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "alias receiver",
+    "source": "const read = payload => { const saved = payload; const {value = 0} = payload; return saved.read(); };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "shadowed alias",
+    "source": "const read = payload => { const {value = 0} = payload; return saved => saved.value + value; };",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      true
+    ]
+  },
+  {
+    "name": "deferred first",
+    "source": "const read = payload => { const later = () => payload.value; const {value = 0} = payload; return [later,value]; };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "deferred extraction",
+    "source": "const read = payload => { const {value = 0} = payload; return () => { const {next = 0} = payload; return next; }; };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "shadowed deferred extraction",
+    "source": "const read = payload => { const {value = 0} = payload; return payload => { const {next = 0} = payload; return next; }; };",
+    "placements": [
+      "signature",
+      "signature"
+    ],
+    "relocations": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "static later read",
+    "source": "const read = payload => { const {value = 0} = payload; return payload.other + value; };",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "same field reread",
+    "source": "const read = payload => { const {value = 0} = payload; return payload.value + value; };",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "direct receiver",
+    "source": "const read = payload => { const {value = 0} = payload; return payload.read(); };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "chained receiver",
+    "source": "const read = payload => { const {value = 0} = payload; return payload.child.read(); };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "tag receiver",
+    "source": "const read = payload => { const {value = 0} = payload; return payload.read`text`; };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "computed read",
+    "source": "const read = payload => { const {value = 0} = payload; return payload[key]; };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "computed pattern",
+    "source": "const read = payload => { const {[key]: value = 0} = payload; return value; };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "parameter written",
+    "source": "const read = payload => { const {value = 0} = payload; payload = other; return value; };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "member written",
+    "source": "const read = payload => { const {value = 0} = payload; payload.other = value; return value; };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "member deleted",
+    "source": "const read = payload => { const {value = 0} = payload; delete payload.other; return value; };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "member update",
+    "source": "const read = payload => { const {value = 0} = payload; payload.other++; return value; };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "member type read",
+    "source": "const read = payload => { const {value = 0} = payload; return typeof payload.other; };",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "guarded extraction",
+    "source": "const read = payload => { if (!payload) return 0; const {value = 0} = payload; return value; };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "conditional extraction",
+    "source": "const read = (payload, flag) => { if (flag) { const {value = 0} = payload; return value; } return 0; };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "caught extraction",
+    "source": "const read = payload => { try { const {value = 0} = payload; return value; } catch { return 0; } };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "generator timing",
+    "source": "const read = function* (payload) { const {value = 0} = payload; yield value; };",
+    "placements": [
+      "unknown"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "async timing",
+    "source": "const read = async payload => { const {value = 0} = payload; return value; };",
+    "placements": [
+      "unknown"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "dynamic scope",
+    "source": "const read = payload => { eval(code); const {value = 0} = payload; return value; };",
+    "placements": [
+      "unknown"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "implicit arguments",
+    "source": "const read = function(payload) { const {value = 0} = payload; return arguments; };",
+    "placements": [
+      "unknown"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "effect before extraction",
+    "source": "const read = payload => { effect(); const {value = 0} = payload; return value; };",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "earlier forwarding",
+    "source": "const read = payload => { consume(payload); const {value = 0} = payload; return value; };",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "multiple extractions",
+    "source": "const read = payload => { const {value = 0} = payload; const {next = 0} = payload; return [value,next]; };",
+    "placements": [
+      "signature",
+      "signature"
+    ],
+    "relocations": [
+      false,
+      false
+    ]
+  },
+  {
+    "name": "multiple declarators",
+    "source": "const read = payload => { const {value = 0} = payload, next = 1; return [value,next]; };",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "guarded local capability",
+    "source": "const read = payload => { const {run} = payload; if(typeof run !== \"function\") return; run(); };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "guarded defaulted capability",
+    "source": "const read = payload => { const {run = 0} = payload; if(typeof run !== \"function\") return; run(); };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "unguarded local capability",
+    "source": "const read = payload => { const {run} = payload; return run(); };",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      true
+    ]
+  },
+  {
+    "name": "resolved renamed predicate",
+    "source": "const callable = item => typeof item === \"function\"; const read = payload => { const {run} = payload; if(!callable(run)) return; run(); };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "unproved predicate",
+    "source": "const read = payload => { const {run} = payload; if(!custom(run)) return; run(); };",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      true
+    ]
+  },
+  {
+    "name": "logical escape",
+    "source": "const read = payload => { const {value = 0} = payload; return payload && other; };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "object shorthand escape",
+    "source": "const read = payload => { const {value = 0} = payload; return {payload}; };",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "empty parameter pattern",
+    "source": "const read = payload => { const {} = payload; return 1; };",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      true
+    ]
+  },
+  {
+    "name": "array pattern exclusion",
+    "source": "const read = payload => { const [value = 0] = payload; return value; };",
+    "placements": [],
+    "relocations": []
+  },
+  {
+    "name": "local identifier exclusion",
+    "source": "const read = payload => { const local = external; const {value = 0} = local; return value; };",
+    "placements": [],
+    "relocations": []
+  },
+  {
+    "name": "missing initializer exclusion",
+    "source": "const read = payload => { let local; return local; };",
+    "placements": [],
+    "relocations": []
+  },
+  {
+    "name": "mutable alias uncertainty",
+    "source": "const read=payload=>{let saved=payload;const {value=0}=payload;return saved;};",
+    "placements": [
+      "unknown"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "alias before initialization",
+    "source": "const read=payload=>{const {value=0}=saved;const saved=payload;return value;};",
+    "placements": [
+      "unknown"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "stable alias across effect",
+    "source": "const read=payload=>{const saved=payload;effect();const {value=0}=payload;return saved;};",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "root initializer would capture a moved binding",
+    "source": "const read=(input=undefined)=>{const{undefined=1}=input;return undefined;};",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "earlier initializer would capture a moved binding",
+    "source": "const read=(before=void undefined,input)=>{const{undefined=1}=input;return [before,undefined];};",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "renamed extraction does not capture the initializer",
+    "source": "const read=(before=undefined,input)=>{const{undefined: value=1}=input;return [before,value];};",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      true
+    ]
+  },
+  {
+    "name": "removal cannot activate a directive",
+    "source": "const read=input=>{const{x=1}=input; \"use strict\"; return x;};",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "removal preserves the directive boundary independent of text",
+    "source": "const read=input=>{const{x=1}=input; \"something else\"; return x;};",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "hoisted body function shadows the parameter",
+    "source": "function read(input){const {x=1}=input;function input(){}return x;} ",
+    "placements": [],
+    "relocations": []
+  },
+  {
+    "name": "nested mutation preserves extracted const assignment failure",
+    "source": "const read=input=>{const{x=1}=input;return ()=>{x=2;return x;};};",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "nested assignment target mutates the formal object",
+    "source": "const read=input=>{const{value=0}=input; ({other:{field:input.target}}=external); return value;};",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "array assignment target mutates the formal object",
+    "source": "const read=input=>{const{value=0}=input; [input.target]=external; return value;};",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "rest assignment target mutates the formal object",
+    "source": "const read=input=>{const{value=0}=input; [...input.target]=external; return value;};",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "defaulted assignment target mutates the formal object",
+    "source": "const read=input=>{const{value=0}=input; ({field:input.target=0}=external); return value;};",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "computed target key remains a read",
+    "source": "const read=input=>{const{value=0}=input; ({[input.field]:destination.value}=external); return value;};",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "assignment initializer remains a read",
+    "source": "const read=input=>{const{value=0}=input; ({field:destination.value=input.field}=external); return value;};",
+    "placements": [
+      "signature"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "loop assignment target mutates the formal object",
+    "source": "const read=input=>{const{value=0}=input; for(input.target of external)consume(); return value;};",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  },
+  {
+    "name": "nested loop assignment target mutates the formal object",
+    "source": "const read=input=>{const{value=0}=input; for({field:input.target} of external)consume(); return value;};",
+    "placements": [
+      "body"
+    ],
+    "relocations": [
+      false
+    ]
+  }
+]

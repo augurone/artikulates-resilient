@@ -1,10 +1,12 @@
-import { getObject } from '../../../rules/support/object.js';
-import { getSyntaxKinds, updateVariableDeclarationFields } from '../../utils/ast-boundary.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
+import { getNodeKind, getSyntaxKinds, updateVariableDeclarationFields } from '../../utils/ast-boundary.js';
 import {
     createFreshCollectionReconstruction,
     createMaterializedCollectionReduction
 } from '../grammar/algebra.js';
 import { getDestructuringDecisionForNode } from '../policy/destructuring-agreements.js';
+import { createAuthoredRuleScope } from '../policy/exceptions.js';
 import { getConsumerContractKey } from '../understand/type-evidence.js';
 
 // This lowerer does not discover collection behavior. Understand has already
@@ -30,12 +32,12 @@ const lowerCollectionAgreementPlacements = ({
         factory = {},
         NodeFlags: { Const = 0, Let = 0 } = {},
         SyntaxKind: { EqualsToken = -1, SingleLineCommentTrivia = -1, MultiLineCommentTrivia = -1 } = {},
-        addSyntheticLeadingComment = false,
-        addSyntheticTrailingComment = false,
-        getSyntheticLeadingComments = false
+        addSyntheticLeadingComment,
+        addSyntheticTrailingComment,
+        getSyntheticLeadingComments
     } = typescript;
 
-    if (!node || getObject(node).kind === -1) return node;
+    if (!node || getNodeKind(node) === -1) return node;
 
     const {
         hasCollectionAnnotationAgreement = false, hasCallbackOwnedAgreement = false,
@@ -77,8 +79,8 @@ const lowerCollectionAgreementPlacements = ({
     };
     const getOwnedUpdate = (statement = {}) => {
         const { kind = 0, expression = {} } = getObject(statement);
-        const { getOriginalNode = false } = typescript;
-        const original = typeof getOriginalNode === 'function' ? getOriginalNode(expression) : expression;
+        const { getOriginalNode } = typescript;
+        const original = isFunction(getOriginalNode) ? getOriginalNode(expression) : expression;
         const originalKey = getConsumerContractKey(original);
         const directKey = getConsumerContractKey(expression);
 
@@ -90,20 +92,20 @@ const lowerCollectionAgreementPlacements = ({
     const annotateDirectLiveLoop = (candidate = {}) => {
         if (!directLiveLoops.size) return candidate;
 
-        const { getOriginalNode = false } = typescript;
-        const original = typeof getOriginalNode === 'function' ? getOriginalNode(candidate) : candidate;
+        const { getOriginalNode } = typescript;
+        const original = isFunction(getOriginalNode) ? getOriginalNode(candidate) : candidate;
         const key = getConsumerContractKey(original);
         const type = directLiveLoops.get(key) || '';
         const rules = new Map([
             ['Map', 'resilient/prefer-prototype-methods, resilient/prefer-safe-destructuring-defaults'],
             ['Set', 'resilient/prefer-prototype-methods']
         ]).get(type) || '';
-        const comments = typeof getSyntheticLeadingComments === 'function'
+        const comments = isFunction(getSyntheticLeadingComments)
             ? getSyntheticLeadingComments(candidate) || []
             : [];
         const hasBoundary = comments.some(({ text = '' } = {}) => text.includes('Owned live Map/Set builder'));
 
-        return rules && !hasBoundary && typeof addSyntheticLeadingComment === 'function'
+        return rules && !hasBoundary && isFunction(addSyntheticLeadingComment)
             ? addSyntheticLeadingComment(
                 candidate,
                 SingleLineCommentTrivia,
@@ -125,8 +127,8 @@ const lowerCollectionAgreementPlacements = ({
             });
             const { collection = {} } = getObject(contract);
             const { callbackOwned = false, callbackParameterOwned = false, mutationSites = [] } = getObject(collection);
-            const { getOriginalNode = false } = typescript;
-            const statementRange = getConsumerContractKey(typeof getOriginalNode === 'function'
+            const { getOriginalNode } = typescript;
+            const statementRange = getConsumerContractKey(isFunction(getOriginalNode)
                 ? getOriginalNode.call(typescript, current)
                 : current);
             const ownsStatement = mutationSites.some(({ statementRange: range = '' } = {}) => range === statementRange);
@@ -135,9 +137,9 @@ const lowerCollectionAgreementPlacements = ({
             ));
             const visited = typescript.visitEachChild(current, visitCallbackUpdate, context);
 
-            if (getObject(current).kind === CallExpression && callbackParameterOwned && ownsExpression &&
+            if (getNodeKind(current) === CallExpression && callbackParameterOwned && ownsExpression &&
                 getObject(agreement).action === 'operational-collection-builder' &&
-                typeof addSyntheticTrailingComment === 'function') {
+                isFunction(addSyntheticTrailingComment)) {
                 return addSyntheticTrailingComment(
                     visited,
                     MultiLineCommentTrivia,
@@ -146,12 +148,12 @@ const lowerCollectionAgreementPlacements = ({
                 );
             }
 
-            if (getObject(current).kind !== ExpressionStatement || !callbackOwned || !ownsStatement ||
+            if (getNodeKind(current) !== ExpressionStatement || !callbackOwned || !ownsStatement ||
                 getObject(agreement).action !== 'operational-collection-builder' ||
-                typeof addSyntheticLeadingComment !== 'function') return visited;
+                !isFunction(addSyntheticLeadingComment)) return visited;
 
             const directive = 'eslint-disable-next-line resilient/prefer-safe-transformations';
-            const comments = typeof getSyntheticLeadingComments === 'function'
+            const comments = isFunction(getSyntheticLeadingComments)
                 ? getSyntheticLeadingComments(visited) || []
                 : [];
 
@@ -171,14 +173,64 @@ const lowerCollectionAgreementPlacements = ({
 
     const retainedReasons = new Map([
         ['external-or-escaped', 'Collection identity is observable outside this update; copying changes the object seen by that observer.'],
-        ['observable-loop', 'Live loop visitation observes native Map/Set mutation; copying changes iteration timing.']
+        ['observable-loop', 'Live loop visitation observes native Map/Set mutation; copying changes iteration timing.'],
+        ['native-delete', 'Native Map deletion preserves one key evaluation, method lookup, and source failure timing.'],
+        ['unproved-reconstruction', 'Source call retains receiver identity, method lookup, argument order, result and native failure.'],
+        ['source-array-result-identity', 'Array result retains source identity, method lookup, argument order and native failure.']
     ]);
+    const authoredRules = annotationsOnly
+        ? createAuthoredRuleScope({ typescript, sourceFile: node, lineDirectives: true }) : () => new Set();
     const annotateCollectionDecisionSites = (candidate = {}) => {
-        const record = getOwnedUpdate(candidate);
+        const expressionRecord = getNodeKind(candidate) === CallExpression
+            ? getOwnedUpdate({ kind: ExpressionStatement, expression: candidate }) : {};
+        const direct = getOwnedUpdate(candidate);
+        const { kind = 0, expression = {}, declarationList = {} } = getObject(candidate);
+        const { declarations = [] } = getObject(declarationList);
+        const [declaration = {}] = declarations;
+        const { initializer = {} } = getObject(declaration);
+        const value = kind === ReturnStatement ? expression : initializer;
+        const { kind: valueKind = 0 } = getObject(value);
+        const standalone = kind === ReturnStatement || kind === VariableStatement && declarations.length === 1;
+        const nested = standalone && valueKind === CallExpression
+            ? getOwnedUpdate({ kind: ExpressionStatement, expression: value }) : {};
+        const record = Object.keys(direct).length ? direct : nested;
         const { action = '', boundaryReason = '' } = getObject(record);
         const withLiveLoop = annotateDirectLiveLoop(candidate);
         const visited = typescript.visitEachChild(withLiveLoop, annotateCollectionDecisionSites, context);
-        const comments = typeof getSyntheticLeadingComments === 'function'
+
+        const { calleeBoundary = false } = annotationsOnly ? getObject(expressionRecord) : {};
+
+        if (annotationsOnly && calleeBoundary &&
+            !authoredRules(candidate, ['resilient/prefer-safe-transformations']).has('resilient/prefer-safe-transformations') &&
+            isFunction(addSyntheticLeadingComment) && isFunction(addSyntheticTrailingComment)) {
+            // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Omitted type arguments reach the compiler update factory unchanged.
+            const { expression: callee = {}, typeArguments, arguments: args = [] } = visited;
+            const scoped = addSyntheticLeadingComment(callee, MultiLineCommentTrivia,
+                ' eslint-disable resilient/prefer-safe-transformations -- Source call retains receiver identity and native mutation.\n ', true);
+            addSyntheticTrailingComment(scoped, MultiLineCommentTrivia,
+                ' eslint-enable resilient/prefer-safe-transformations ', true);
+
+            return factory.createParenthesizedExpression(factory.updateCallExpression(visited, scoped, typeArguments, args));
+        }
+
+        if (annotationsOnly && getObject(expressionRecord).expressionBoundary &&
+            !authoredRules(candidate, ['resilient/prefer-safe-transformations']).has('resilient/prefer-safe-transformations') &&
+            getObject(expressionRecord).action === 'retain-collection-boundary' &&
+            isFunction(addSyntheticLeadingComment) && isFunction(addSyntheticTrailingComment)) {
+            // Only the completed source call is inside this directive pair;
+            // continuation arguments and sibling operations remain outside.
+            const arrayResult = getObject(expressionRecord).boundaryReason === 'source-array-result-identity';
+            const reason = arrayResult ? `${retainedReasons.get('source-array-result-identity')}\n `
+                : 'Source sort retains mutation, receiver, method Get, result and native failure. ';
+            addSyntheticLeadingComment(visited, MultiLineCommentTrivia,
+                ` eslint-disable resilient/prefer-safe-transformations -- ${reason}`, true);
+            const scoped = addSyntheticTrailingComment(visited, MultiLineCommentTrivia,
+                ' eslint-enable resilient/prefer-safe-transformations ', true);
+
+            return arrayResult ? factory.createParenthesizedExpression(scoped) : scoped;
+        }
+
+        const comments = isFunction(getSyntheticLeadingComments)
             ? getSyntheticLeadingComments(visited) || []
             : [];
         const hasBoundary = comments.some(({ text = '' } = {}) => (
@@ -186,13 +238,15 @@ const lowerCollectionAgreementPlacements = ({
         ));
         const retainedReason = retainedReasons.get(boundaryReason) ||
             'This collection update has no proved immutable reconstruction; native identity and failure timing remain source-owned.';
-        const reason = action === 'retain-collection-boundary'
+        const reason = action === 'retain-collection-boundary' || ['native-delete', 'source-array-result-identity'].includes(boundaryReason)
             ? retainedReason
             : 'Owned Map/Set builder preserves source iterator staging and transfers only at return.';
 
         if (['operational-collection-builder', 'retain-collection-boundary'].includes(action) &&
+            !getObject(record).calleeBoundary &&
+            !getObject(record).expressionBoundary &&
             !hasBoundary &&
-            typeof addSyntheticLeadingComment === 'function') {
+            isFunction(addSyntheticLeadingComment)) {
             return addSyntheticLeadingComment(
                 visited,
                 SingleLineCommentTrivia,
@@ -207,7 +261,7 @@ const lowerCollectionAgreementPlacements = ({
         const { kind = 0, expression = {} } = getObject(statement);
         const {
             kind: expressionKind = 0, text = '', expression: callee = {},
-            arguments: args = [], typeArguments = undefined
+            arguments: args = [], typeArguments
         } = getObject(expression);
         const { kind: calleeKind = 0, expression: receiver = {}, name: member = {} } = getObject(callee);
         const { kind: receiverKind = 0, text: receiverName = '' } = getObject(receiver);
@@ -228,9 +282,9 @@ const lowerCollectionAgreementPlacements = ({
         const { collection = {} } = getObject(contract);
         const { tuplePositions = [] } = getObject(collection);
         const candidates = positions.length ? positions : tuplePositions;
-        const { getOriginalNode = false } = typescript;
-        const original = typeof getOriginalNode === 'function' ? getOriginalNode(argument) : argument;
-        const originalStatement = typeof getOriginalNode === 'function' ? getOriginalNode(statement) : statement;
+        const { getOriginalNode } = typescript;
+        const original = isFunction(getOriginalNode) ? getOriginalNode(argument) : argument;
+        const originalStatement = isFunction(getOriginalNode) ? getOriginalNode(statement) : statement;
         const key = getConsumerContractKey(original);
         const statementKey = getConsumerContractKey(originalStatement);
         const { kind = 0, expression: container = {}, argumentExpression = {} } = getObject(argument);
@@ -277,7 +331,7 @@ const lowerCollectionAgreementPlacements = ({
                     undefined,
                     undefined,
                     factory.createIdentifier(alias),
-                    factory.createIdentifier('undefined')
+                    undefined
                 )
                 : factory.createOmittedExpression()
         ));
@@ -335,7 +389,7 @@ const lowerCollectionAgreementPlacements = ({
         return factory.createExpressionStatement(assignment);
     };
     const createReturnedCollection = ({ collection = {}, name = '', wrapper = {}, block = {} } = {}) => {
-        const { kind = '', call = {}, callee = {}, typeArguments = undefined } = getObject(wrapper);
+        const { kind = '', call = {}, callee = {}, typeArguments } = getObject(wrapper);
 
         if (kind === 'direct') return [factory.createReturnStatement(collection)];
 
@@ -397,7 +451,7 @@ const lowerCollectionAgreementPlacements = ({
                 undefined,
                 aliasName === 'value' ? undefined : factory.createIdentifier('value'),
                 factory.createIdentifier(aliasName),
-                factory.createIdentifier('undefined')
+                undefined
             );
             const pattern = factory.createObjectBindingPattern([binding]);
 
@@ -491,14 +545,13 @@ const lowerCollectionAgreementPlacements = ({
             collection: collectionType,
             source,
             item,
-            accumulator: `${name}${collectionType === 'Map' ? 'Entries' : 'Values'}`,
             operation,
             value,
             condition,
             materialized: Boolean(materializationForm)
         }));
 
-        if (!getObject(initializer).kind) return {};
+        if (!getNodeKind(initializer)) return {};
 
         const nextDeclaration = updateVariableDeclarationFields({
             factory, declaration, name: declarationName, initializer
@@ -544,7 +597,7 @@ const lowerCollectionAgreementPlacements = ({
         const [key = {}] = args;
         const tuple = collectionType === 'Map' ? getTuplePosition({ argument: key, contract }) : {};
         const { receiverName = '' } = tuple;
-        const sourceIsPresent = Boolean(getObject(source).kind);
+        const sourceIsPresent = Boolean(getNodeKind(source));
         const directCollection = getObject(createFreshCollectionReconstruction({
             typescript,
             collection: collectionType,
@@ -674,7 +727,7 @@ const lowerCollectionAgreementPlacements = ({
             const [rewrite = {}] = preceding.filter(({ statementIndex: rewriteIndex = -1 } = {}) => rewriteIndex === statementIndex);
             const { statement: replacementStatement = {} } = getObject(rewrite);
 
-            return getObject(replacementStatement).kind ? replacementStatement : statement;
+            return getNodeKind(replacementStatement) ? replacementStatement : statement;
         });
 
         return factory.updateBlock(candidate, [

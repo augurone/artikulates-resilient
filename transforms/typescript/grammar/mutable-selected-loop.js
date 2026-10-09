@@ -1,5 +1,6 @@
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getMemberAlias } from './member-access.js';
-import { getObject } from '../../../rules/support/object.js';
 
 const createMutableSelectedLoop = ({
     typescript = {}, loop = {}, exit = {}, contract = {}, occupied = new Set(), context = {}
@@ -9,16 +10,16 @@ const createMutableSelectedLoop = ({
     const { statement: body = {}, expression: condition = {} } = getObject(loop);
     const { statements = [] } = getObject(body);
     const [first = {}, second = {}, third = {}] = statements;
-    const { receiverName = '', leftRange = '', rightRange = '' } = getObject(contract);
-    const { getOriginalNode = false } = typescript;
-    const tagAlias = getMemberAlias({ objectName: receiverName, propertyName: '_tag', occupied });
-    const leftAlias = getMemberAlias({ objectName: receiverName, propertyName: 'left',
+    const { receiverName = '', leftRange = '', rightRange = '', discriminator = '', bodyField = '', exitField = '' } = getObject(contract);
+    const { getOriginalNode } = typescript;
+    const tagAlias = getMemberAlias({ objectName: receiverName, propertyName: discriminator, occupied });
+    const leftAlias = getMemberAlias({ objectName: receiverName, propertyName: bodyField,
         occupied: new Set([...occupied, tagAlias]) });
-    const rightAlias = getMemberAlias({ objectName: receiverName, propertyName: 'right',
+    const rightAlias = getMemberAlias({ objectName: receiverName, propertyName: exitField,
         occupied: new Set([...occupied, tagAlias, leftAlias]) });
     const replace = (node = {}, range = '', alias = '') => {
         const visit = (child = {}) => {
-            const original = typeof getOriginalNode === 'function' ? getOriginalNode(child) : child;
+            const original = isFunction(getOriginalNode) ? getOriginalNode(child) : child;
             const { pos = -1, end = -1 } = getObject(original);
 
             return `${pos}:${end}` === range
@@ -41,9 +42,9 @@ const createMutableSelectedLoop = ({
             ]), undefined, undefined, factory.createIdentifier(receiverName))
         ], ConstKind)
     );
-    const tagBinding = binding('_tag', tagAlias);
-    const leftBinding = binding('left', leftAlias);
-    const rightBinding = binding('right', rightAlias);
+    const tagBinding = binding(discriminator, tagAlias);
+    const leftBinding = binding(bodyField, leftAlias);
+    const rightBinding = binding(exitField, rightAlias);
     const guard = factory.createIfStatement(
         factory.createBinaryExpression(
             factory.createIdentifier(tagAlias),

@@ -1,51 +1,85 @@
 #!/usr/bin/env node
 
 import { fork } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import typescript from 'typescript';
-
 import { createTypeScriptTransformer } from 'eslint-plugin-resilient/typescript';
 
+import { isFunction } from '../analysis/host/function.js';
 import { getLintSummary } from './fluency-report.js';
-import { getObject } from '../rules/support/object.js';
 
-const standard = {
-    object: 'eslint-plugin-resilient/standard/object',
-    array: 'eslint-plugin-resilient/standard/array',
-    function: 'eslint-plugin-resilient/standard/function'
+let typescript;
+
+try {
+    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- A missing compiler export is a broken TypeScript installation, not a value to default.
+    const { default: loadedTypeScript } = await import('typescript');
+
+    typescript = loadedTypeScript;
+} catch (error) {
+    if (error.code === 'ERR_MODULE_NOT_FOUND') {
+        throw new Error('resilient-lower requires TypeScript ^6.0.3. Install typescript in the consuming project.', { cause: error });
+    }
+
+    throw error;
+}
+
+const artifacts = await import('../integrations/typescript-project-artifacts.js');
+const projectService = await import('../integrations/typescript-project.js');
+
+// eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- These required exports come from a known local module; defaults would hide a broken installation.
+const { createManifest, createOperation, file, relativeFile } = artifacts;
+// eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- These required exports come from a known local module; defaults would hide a broken installation.
+const { applyFixResults, assertSafeOutput, emitProject, observeTree, prepareProject, publishArtifacts } = projectService;
+
+const usage = 'Usage: resilient-lower --project <directory|tsconfig.json> [--outDir <directory>] [--emit <pattern>] [--inspect] [--fix] [--eslint-config <file>] [--report <file>] [--manifest <file>]';
+// eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An absent diagnostic offset omits location text; messageText retains the compiler diagnostic union.
+const formatDiagnostic = ({ messageText, file = {}, start } = {}) => {
+    const message = typescript.flattenDiagnosticMessageText(messageText, '\n');
+
+    // eslint-disable-next-line resilient/no-undefined-comparison -- Offset zero is a valid source position; only an absent offset omits the location.
+    if (!file || start === undefined) return message;
+
+    const { line = 0, character = 0 } = file.getLineAndCharacterOfPosition(start);
+    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- The compiler diagnostic filename is forwarded to its display string with native absence.
+    const { fileName } = file;
+
+    return `${fileName}:${line + 1}:${character + 1}: ${message}`;
 };
-const digest = text => createHash('sha256').update(text).digest('hex');
-const usage = 'Usage: resilient-lower --project <tsconfig.json> [--outDir <directory>] [--fix] [--eslint-config <file>] [--report <file>]';
-const isInside = (parent = '', child = '') => {
-    const relative = path.relative(parent, child);
-
-    return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
+const reportDiagnostics = (diagnostics = [], write = process.stderr.write.bind(process.stderr)) => {
+    diagnostics.forEach(diagnostic => write(`${formatDiagnostic(diagnostic)}\n`));
 };
 const getOptions = (args = [], cwd = process.cwd()) => {
     let values = new Map();
+    let emit = [];
 
-    // eslint-disable-next-line resilient/prefer-prototype-methods -- The option cursor consumes either one flag or one flag-value pair and rejects duplicates before continuing.
+    // eslint-disable-next-line resilient/prefer-prototype-methods -- The cursor consumes one flag or one flag-value pair and rejects duplicates before continuing.
     for (let index = 0; index < args.length; index += 1) {
-        // eslint-disable-next-line resilient/prefer-signature-destructuring -- The option cursor selects this flag only after consuming the preceding option.
-        const { [index]: flag = undefined } = args;
+        // The option cursor selects this flag only after consuming the preceding option.
+        const { [index]: flag = '' } = args;
 
-        if (flag === '--fix' && values.has(flag)) throw new Error(usage);
+        if (['--fix', '--inspect'].includes(flag) && values.has(flag)) throw new Error(usage);
 
-        if (flag === '--fix') {
+        if (['--fix', '--inspect'].includes(flag)) {
             values = new Map([...values, [flag, true]]);
 
             continue;
         }
 
-        // eslint-disable-next-line resilient/prefer-signature-destructuring -- This value is read only after the flag is known to consume a following argument.
-        const { [index + 1]: value = undefined } = args;
+        // This value is read only after the flag is known to consume a following argument.
+        const { [index + 1]: value = '' } = args;
 
-        if (!['--project', '--outDir', '--eslint-config', '--report'].includes(flag) || !value || values.has(flag)) {
+        if (!['--project', '--outDir', '--eslint-config', '--report', '--manifest', '--emit', '--provider', '--resolver-config'].includes(flag) ||
+            !value || value.startsWith('--') || flag !== '--emit' && values.has(flag)) {
             throw new Error(usage);
+        }
+
+        if (flag === '--emit') {
+            emit = [...emit, value];
+            index += 1;
+
+            continue;
         }
 
         values = new Map([...values, [flag, path.resolve(cwd, value)]]);
@@ -59,44 +93,27 @@ const getOptions = (args = [], cwd = process.cwd()) => {
         outDir: values.get('--outDir'),
         fixAll: values.get('--fix') === true,
         eslintConfig: values.get('--eslint-config'),
-        report: values.get('--report')
+        ...(values.has('--provider') ? { provider: values.get('--provider') } : {}),
+        ...(values.has('--resolver-config') ? { resolverConfig: values.get('--resolver-config') } : {}),
+        report: values.get('--report'),
+        manifest: values.get('--manifest'),
+        emit,
+        inspect: values.get('--inspect') === true
     };
 };
-const formatDiagnostic = ({ messageText = undefined, file = {}, start = undefined } = {}) => {
-    const message = typescript.flattenDiagnosticMessageText(messageText, '\n');
+const settleRequest = ({ resolve, reject } = {}, error = false, result = {}) => {
+    if (!isFunction(resolve) || !isFunction(reject)) throw new TypeError('Invalid pending worker request.');
 
-    // eslint-disable-next-line resilient/no-undefined-comparison -- Offset zero is a valid source position; only an absent offset omits the location.
-    if (!file || start === undefined) return message;
+    if (error) {
+        reject(error);
 
-    const { line = 0, character = 0 } = file.getLineAndCharacterOfPosition(start);
-
-    const { fileName = undefined } = file;
-
-    return `${fileName}:${line + 1}:${character + 1}: ${message}`;
-};
-const reportDiagnostics = (diagnostics = [], write = process.stderr.write.bind(process.stderr)) => {
-    diagnostics.forEach(diagnostic => write(`${formatDiagnostic(diagnostic)}\n`));
-};
-const getConfig = (project = '') => {
-    const loaded = typescript.readConfigFile(project, typescript.sys.readFile);
-
-    const { error = undefined, config = undefined } = loaded;
-
-    if (error) return { diagnostics: [error] };
-
-    const parsed = typescript.parseJsonConfigFileContent(config, typescript.sys, path.dirname(project), undefined, project);
-    const { errors = undefined } = parsed;
-
-    return { loaded, parsed, diagnostics: errors || [] };
-};
-const assertSafeOutput = ({ project = '', outDir = '', files = [] } = {}) => {
-    if (isInside(outDir, project)) throw new Error('The output directory may not contain the tsconfig file.');
-
-    if (files.some(file => isInside(outDir, file))) {
-        throw new Error('The output directory may not overlap a configured TypeScript source file.');
+        return;
     }
+
+    resolve(result);
 };
-const createFixWorker = async ({ cwd = '', eslintConfig = undefined, measure = false, fixAll = false } = {}) => {
+// eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Omitted ESLint configuration stays absent in IPC; an empty path is not a configured file.
+const createFixWorker = async ({ cwd = '', eslintConfig, measure = false, fixAll = false } = {}) => {
     const worker = fork(fileURLToPath(new URL('./fix-javascript-worker.js', import.meta.url)), [], { cwd, serialization: 'advanced' });
     const pending = new Map();
     let nextId = 0;
@@ -106,7 +123,7 @@ const createFixWorker = async ({ cwd = '', eslintConfig = undefined, measure = f
         resolve();
     }));
     const rejectPending = (error) => {
-        pending.forEach(({ reject = undefined }) => reject(error));
+        pending.forEach(request => settleRequest(request, error));
         // eslint-disable-next-line resilient/prefer-safe-transformations -- Failed IPC invalidates all pending request callbacks.
         pending.clear();
     };
@@ -129,22 +146,15 @@ const createFixWorker = async ({ cwd = '', eslintConfig = undefined, measure = f
         });
     });
 
-    worker.on('message', ({ id = undefined, error = undefined, ...result } = {}) => {
+    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- The worker response must preserve its exact request id; error absence denotes success.
+    worker.on('message', ({ id, error, ...result } = {}) => {
         const waiting = pending.get(id);
 
         if (!waiting) return;
 
         // eslint-disable-next-line resilient/prefer-safe-transformations -- Consume exactly the matching pending request before settling its promise.
         pending.delete(id);
-        const { resolve = undefined, reject = undefined } = waiting;
-
-        if (error) {
-            reject(new Error(error));
-
-            return;
-        }
-
-        resolve(result);
+        settleRequest(waiting, error && new Error(error), result);
     });
     worker.on('error', rejectPending);
     worker.on('disconnect', () => rejectPending(new Error('Resilient ESLint worker disconnected before responding.')));
@@ -161,7 +171,8 @@ const createFixWorker = async ({ cwd = '', eslintConfig = undefined, measure = f
     }
 
     return {
-        fix: ({ code = '', filePath = '' } = {}) => request({ type: 'fix', code, filePath }),
+        profile: (filePath = '') => request({ type: 'profile', filePath }),
+        lint: ({ code = '', filePath = '' } = {}) => request({ type: 'lint', code, filePath }),
         close: async () => {
             if (exited) return;
 
@@ -197,73 +208,43 @@ const measureFluency = async ({
 
     return fluency;
 };
-const publishOutput = ({ stageRoot = '', outDir = '', report = '', fluency = undefined, javascript = [], write = () => {} } = {}) => {
-    let reportStage = '';
-    let backupRoot = '';
-    let published = false;
-    let movedPrevious = false;
-    let complete = false;
-
-    try {
-        if (report && (javascript.includes(report) || report === outDir)) {
-            throw new Error('The report may not replace generated JavaScript or its output directory.');
-        }
-
-        if (report) {
-            const inside = isInside(outDir, report);
-            reportStage = inside ? '' : mkdtempSync(path.join(path.dirname(report), '.resilient-report-'));
-            const destination = inside ? path.join(stageRoot, path.relative(outDir, report)) : path.join(reportStage, 'report.json');
-
-            mkdirSync(path.dirname(destination), { recursive: true });
-            writeFileSync(destination, `${JSON.stringify(fluency, null, 2)}\n`);
-        }
-
-        backupRoot = mkdtempSync(path.join(path.dirname(outDir), '.resilient-backup-'));
-
-        if (existsSync(outDir)) {
-            renameSync(outDir, path.join(backupRoot, 'previous'));
-            movedPrevious = true;
-        }
-
-        renameSync(stageRoot, outDir);
-        published = true;
-
-        if (reportStage) renameSync(path.join(reportStage, 'report.json'), report);
-
-        complete = true;
-    } catch (error) {
-        if (published) rmSync(outDir, { recursive: true, force: true });
-
-        if (movedPrevious) {
-            // Keep the backup if restoration itself fails, so the prior artifact remains recoverable.
-            renameSync(path.join(backupRoot, 'previous'), outDir);
-        }
-
-        throw error;
-    } finally {
-        [reportStage, backupRoot].filter(Boolean).forEach((directory) => {
-            if (!complete && existsSync(path.join(directory, 'previous'))) return;
-
-            try {
-                rmSync(directory, { recursive: true, force: true });
-            } catch (error) {
-                write(`Resilient cleanup warning: ${directory}: ${error.message}\n`);
-            }
-        });
-    }
-};
 const runLowering = async ({
     project = '',
     outDir = '',
     fixAll = false,
-    eslintConfig = undefined,
+    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Omitted ESLint configuration must stay absent during input-path safety checks and worker setup.
+    eslintConfig,
     report = '',
+    manifest = '',
+    emit = [],
+    inspect = false,
+    provider = '',
+    resolverConfig = '',
     cwd = process.cwd(),
     write = process.stderr.write.bind(process.stderr)
 } = {}) => {
-    const config = getConfig(project);
+    let prepared;
 
-    const { diagnostics = [], parsed = {}, loaded = {} } = config;
+    try {
+        prepared = prepareProject({ project, outDir, report, manifest, eslintConfig, emit, provider, resolverConfig, cwd });
+    } catch (error) {
+        write(`${error.message}\n`);
+
+        if (error.message === 'resilient-lower requires JavaScript emit; emitDeclarationOnly is unsupported.') {
+            return { ok: false, diagnostics: [] };
+        }
+
+        return {
+            ok: false, diagnostics: [error],
+            fluency: report ? {
+                complete: false, fixEnabled: fixAll, fixApplied: fixAll ? null : false,
+                raw: null, fixed: null, postFix: null, published: null,
+                coverage: { expected: 0, measured: 0, expectedFiles: [] }, files: [], error: error.message
+            } : undefined
+        };
+    }
+
+    const { diagnostics = [] } = prepared;
 
     if (diagnostics.length) {
         reportDiagnostics(diagnostics, write);
@@ -271,116 +252,53 @@ const runLowering = async ({
         return { ok: false, diagnostics };
     }
 
-    const { fileNames = [], options = {} } = parsed;
-    const { config: loadedConfig = undefined } = loaded;
-    const {
-        compilerOptions: { outDir: configuredOutDir = '' } = {},
-        resilient: { emit: configuredEmit = [] } = {}
-    } = getObject(loadedConfig);
-    const resolvedOutDir = outDir || path.resolve(cwd, configuredOutDir || '.resilient');
+    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Successful preparation owns the compiler program; a missing program must not become a fabricated compiler.
+    const { program, emittedFiles = [], lowerable = [], standard = {}, resolvedOutDir = '', artifactRoot = '',
+        project: selectedProject = '', projectRoot = '', compilerOptions = {}, selectedEmit = [], compatibilityWarning = '',
+        root: sourceRoot = '', checkerInputs = [],
+        runtimeRoutes = [], configFiles: configurationInputs = [], destinations: plannedDestinations = [] } = prepared;
 
-    try {
-        assertSafeOutput({ project, outDir: resolvedOutDir, files: fileNames });
-    } catch (error) {
-        write(`${error.message}\n`);
+    const plan = { projectRoot, tsconfig: selectedProject, sourceRoot, outputRoot: resolvedOutDir,
+        checkerSources: checkerInputs.map(({ fileName = '' } = {}) => fileName),
+        selectedSources: lowerable, destinations: plannedDestinations.map(({ published = '' } = {}) => published),
+        compilerOptions, emit: selectedEmit, runtimeRoutes, configurationInputs, unsupportedFeatures: [],
+        ...(compatibilityWarning ? { compatibilityWarning } : {}) };
 
-        return { ok: false, diagnostics: [error] };
-    }
+    if (inspect) return { ok: true, diagnostics: [], plan };
 
-    const { emitDeclarationOnly = false } = options;
+    write(`Project root: ${projectRoot}\nTypeScript config: ${selectedProject}\n`);
+    write(`Selected ${lowerable.length} executable sources; output root: ${resolvedOutDir}.\n`);
 
-    if (emitDeclarationOnly) {
-        write('resilient-lower requires JavaScript emit; emitDeclarationOnly is unsupported.\n');
+    if (compatibilityWarning) write(`${compatibilityWarning}\n`);
 
-        return { ok: false, diagnostics: [] };
-    }
-
-    write(`Creating TypeScript program for ${path.relative(cwd, project)}.\n`);
-
-    const compilerOptions = { ...options, outDir: resolvedOutDir, noEmit: false, noEmitOnError: true };
-    const program = typescript.createProgram(fileNames, compilerOptions);
-    const emittedConfig = configuredEmit.length
-        ? typescript.parseJsonConfigFileContent({ include: configuredEmit }, typescript.sys, path.dirname(project))
-        : { fileNames };
-    const { fileNames: emittedFiles = [] } = emittedConfig;
+    write(`Creating TypeScript program for ${path.relative(cwd, selectedProject)}.\n`);
     write(`Checking syntax for ${emittedFiles.length} configured files.\n`);
 
-    const compilerDiagnostics = emittedFiles.flatMap((fileName) => {
-        const sourceFile = program.getSourceFile(fileName);
-
-        return sourceFile ? program.getSyntacticDiagnostics(sourceFile) : [];
-    });
-
-    if (compilerDiagnostics.length) {
-        reportDiagnostics(compilerDiagnostics, write);
-
-        return { ok: false, diagnostics: compilerDiagnostics };
-    }
-
     const transformer = createTypeScriptTransformer({ typescript, program, standard });
-    const lowerable = emittedFiles.filter(file => !file.endsWith('.d.ts'));
-    const { getCommonSourceDirectory = undefined } = program;
-    const root = typeof getCommonSourceDirectory === 'function' ? program.getCommonSourceDirectory() : path.dirname(project);
+    mkdirSync(path.dirname(resolvedOutDir), { recursive: true });
     const stageRoot = mkdtempSync(path.join(path.dirname(resolvedOutDir), `.${path.basename(resolvedOutDir)}-staging-`));
+    const rawRoot = manifest ? mkdtempSync(path.join(path.dirname(resolvedOutDir), '.resilient-raw-')) : '';
     let rawResults = [];
     let fixedResults = [];
     const measure = Boolean(report);
     let fixer = false;
-    let javascript = [];
     let loweringDiagnostics = [];
     let files = [];
-    const expected = lowerable.map(fileName => path.join(resolvedOutDir, path.relative(root, fileName).replace(/\.tsx?$/u, '.js')));
+    let emittedRows = [];
+    const expected = plannedDestinations.map(({ published = '' } = {}) => published);
 
     try {
         if (measure && !lowerable.length) throw new Error('Incomplete JavaScript lint: no emitted files to measure.');
 
-        fixer = fixAll || measure ? await createFixWorker({ cwd, eslintConfig, measure, fixAll }) : undefined;
+        const emitted = await emitProject({ prepared, transformer, stageRoot, rawRoot, cwd, write });
 
-        // eslint-disable-next-line resilient/prefer-prototype-methods -- Each file awaits the same worker before the next file is lowered or staged.
-        for (const [index = 0, fileName = ''] of lowerable.entries()) {
-            const { text = '' } = getObject(program.getSourceFile(fileName));
-            write(`Lowering ${index + 1}/${lowerable.length}: ${path.relative(cwd, fileName)}\n`);
-            const result = transformer.transform({ code: text, fileName });
-            const relative = path.relative(root, fileName).replace(/\.tsx?$/u, '.js');
-            const destination = path.join(stageRoot, relative);
-            const published = path.join(resolvedOutDir, relative);
-
-            const { diagnostics: fileDiagnostics = [], code = '' } = result;
-            loweringDiagnostics = [...loweringDiagnostics, ...(fileDiagnostics || []).map(({ text: messageText = '' } = {}) => ({
-                messageText,
-                file: program.getSourceFile(fileName),
-                start: 0
-            }))];
-            const rawOutput = code || '';
-
-            if (fixer && fixAll) write(`Fixing ${index + 1}/${lowerable.length}: ${path.relative(cwd, published)}\n`);
-
-            const fixed = fixer ? await fixer.fix({ code: rawOutput, filePath: published }) : { output: rawOutput };
-            const { raw = undefined, fixed: fixedResult = undefined, output: fixedOutput = undefined, profile = undefined } = fixed;
-            const output = fixedOutput ?? rawOutput;
-
-            if (fixer && measure) {
-                // eslint-disable-next-line resilient/no-null-assignment -- The JSON row records an unperformed post-fix measurement when fixing is disabled.
-                const postFix = fixAll ? fixedResult : null;
-
-                rawResults = [...rawResults, raw];
-                fixedResults = [...fixedResults, fixedResult];
-                files = [...files, {
-                    source: fileName, filePath: published, rawSha256: digest(rawOutput), publishedSha256: digest(output),
-                    changed: output !== rawOutput, publishedMode: fixAll ? 'fixed' : 'raw', profile,
-                    raw, postFix
-                }];
-            }
-
-            mkdirSync(path.dirname(destination), { recursive: true });
-            writeFileSync(destination, output);
-            javascript = [...javascript, published];
-        }
-
-        if (fixer) {
-            await fixer.close();
-            fixer = false;
-        }
+        loweringDiagnostics = emitted.flatMap(({ fileName = '', diagnostics = [] } = {}) => diagnostics.map(({ text: messageText = '' } = {}) => ({
+            messageText, file: program.getSourceFile(fileName), start: 0
+        })));
+        const javascript = emitted.map(({ published = '' } = {}) => published);
+        emittedRows = emitted.map(({ fileName = '', relative = '', agreements = [], generatedHelpers = [], diagnostics = [] } = {}) => ({
+            fileName, output: relative, agreements, generatedHelpers, diagnostics
+        }));
 
         if (loweringDiagnostics.length) {
             reportDiagnostics(loweringDiagnostics, write);
@@ -389,13 +307,167 @@ const runLowering = async ({
 
         if (javascript.length) write(`Lowered ${javascript.length} files to ${path.relative(cwd, resolvedOutDir) || '.'}.\n`);
 
-        const fluency = report
-            ? await measureFluency({ fixAll, rawResults, fixedResults, files, write })
-            : undefined;
+        if (fixAll || measure) {
+            fixer = await createFixWorker({ cwd, eslintConfig });
 
-        publishOutput({ stageRoot, outDir: resolvedOutDir, report, fluency, javascript, write });
+            // eslint-disable-next-line resilient/prefer-prototype-methods -- Protect discovered lint configurations before replacing the output tree.
+            for (const filePath of javascript) {
+                const { profile: { configFile = '' } = {} } = await fixer.profile(filePath);
 
-        return { ok: true, diagnostics: [], fluency, outDir: resolvedOutDir };
+                assertSafeOutput({ project, outDir: resolvedOutDir, report, files: configFile ? [configFile] : [] });
+            }
+
+            await fixer.close();
+            fixer = false;
+        }
+
+        let expectedTree = emitted.map(({ relative = '', sha256 = '' } = {}) => ({ relative, sha256 }));
+        const lintTree = async (fix = false) => {
+            // Each pass gets fresh module-graph and configuration caches for the tree currently on disk.
+            fixer = await createFixWorker({ cwd, eslintConfig, fixAll: fix });
+            const rows = await observeTree({ prepared, root: resolvedOutDir, expected: expectedTree, worker: fixer, fix, cwd, write });
+
+            await fixer.close();
+            fixer = false;
+
+            return rows;
+        };
+        const prepare = async () => {
+            if (measure) {
+                const rows = await lintTree();
+                rawResults = rows.map(({ result = {} } = {}) => result);
+                fixedResults = rawResults;
+                files = rows.map(({ source = '', filePath = '', sha256 = '', profile = {}, result = {} } = {}) => ({
+                    source, filePath, rawSha256: sha256, publishedSha256: sha256,
+                    changed: false, publishedMode: fixAll ? 'fixed' : 'raw', profile,
+                    raw: result,
+                    postFix: null
+                }));
+            }
+
+            if (!fixAll) return measure ? measureFluency({ fixAll, rawResults, fixedResults, files, write }) : false;
+
+            const rows = await lintTree(true);
+            // The fix worker has exited; no cached graph can observe a partly updated tree.
+            expectedTree = applyFixResults({ prepared, root: resolvedOutDir, rows });
+
+            if (!measure) return false;
+
+            const measured = await lintTree();
+            fixedResults = measured.map(({ result = {} } = {}) => result);
+            files = files.map((file = {}, index = 0) => {
+                const { [index]: { sha256 = '', result = {} } = {} } = measured;
+                const { rawSha256 = '' } = file;
+
+                return { ...file, publishedSha256: sha256, changed: sha256 !== rawSha256, postFix: result };
+            });
+
+            return measureFluency({ fixAll, rawResults, fixedResults, files, write });
+        };
+        const buildManifest = ({ artifactStage = '', fluency = false } = {}) => {
+            const rows = emittedRows.map((row = {}) => {
+                const { output = '' } = row;
+                const rawRelative = `raw/${output}`;
+                const rawPath = path.join(artifactStage, rawRelative);
+
+                mkdirSync(path.dirname(rawPath), { recursive: true });
+                copyFileSync(path.join(rawRoot, output), rawPath);
+                const raw = relativeFile(artifactStage, rawRelative);
+                let fixed = false;
+
+                if (fixAll) {
+                    const fixedRelative = `fixed/${output}`;
+                    const fixedPath = path.join(artifactStage, fixedRelative);
+
+                    mkdirSync(path.dirname(fixedPath), { recursive: true });
+                    copyFileSync(path.join(resolvedOutDir, output), fixedPath);
+                    fixed = relativeFile(artifactStage, fixedRelative);
+                }
+
+                const variants = fixed ? { raw, fixed } : { raw };
+
+                return { ...row, variants };
+            });
+            const createLint = () => {
+                if (!fluency) return {};
+
+                const { raw = {}, fixed = {}, files: fluencyFiles = [] } = fluency;
+                const lintPath = path.join(artifactStage, 'lint/raw.json');
+
+                mkdirSync(path.dirname(lintPath), { recursive: true });
+                writeFileSync(lintPath, `${JSON.stringify(raw, null, 2)}\n`);
+                const profiles = [...new Set(fluencyFiles.map(({ profile: { configFile = '' } = {} } = {}) => configFile).filter(Boolean))].map(file);
+                const rawFile = relativeFile(artifactStage, 'lint/raw.json');
+                let fixedFile = false;
+
+                if (fixAll) {
+                    writeFileSync(path.join(artifactStage, 'lint/fixed.json'), `${JSON.stringify(fixed, null, 2)}\n`);
+                    fixedFile = relativeFile(artifactStage, 'lint/fixed.json');
+                }
+
+                return fixedFile ? { protocol: 'cli-final-tree-v1', profiles, raw: rawFile, fixed: fixedFile }
+                    : { protocol: 'cli-final-tree-v1', profiles, raw: rawFile };
+            };
+            const lint = createLint();
+
+            const baseManifest = createManifest({ prepared: { ...prepared, cwd }, artifactRoot, rows,
+                publishedVariant: fixAll ? 'fixed' : 'raw', lint });
+            const { compiler = {}, configuration = {}, implementation = [], helpers = {}, selectedSources = [] } = baseManifest;
+            const context = {
+                compiler, configuration, implementation, helpers, selectedSources
+            };
+            const rawDependencies = rows.map(({ variants: { raw = {} } = {} } = {}) => raw);
+            const fileOperations = rows.flatMap(({ fileName = '', output = '', variants = {} } = {}) => {
+                const input = file(fileName);
+                const { raw = {}, fixed = false } = variants;
+                const { path: rawPath = '' } = raw;
+                const emit = createOperation({ operation: 'emit', id: `emit:${output}`, context, inputFiles: [input],
+                    phase: 'isolated-emission', outputFiles: [raw],
+                    outputSets: [{ root: artifactRoot, files: [rawPath] }] });
+
+                if (!fixed) return [emit];
+
+                const { path: fixedPath = '' } = fixed;
+                const fix = createOperation({ operation: 'fix', id: `fix:${output}`, context,
+                    inputFiles: [input], dependencyResults: rawDependencies, phase: 'complete-raw',
+                    outputFiles: [fixed], outputSets: [{ root: artifactRoot, files: [fixedPath] }] });
+
+                return [emit, fix];
+            });
+            const { raw: lintRaw = false, fixed: lintFixed = false } = lint;
+            const { path: lintRawPath = '' } = lintRaw;
+            const { path: lintFixedPath = '' } = lintFixed;
+            const rawObservations = lintRaw ? [createOperation({ operation: 'observe', id: 'observe:raw', context,
+                inputFiles: selectedSources, dependencyResults: rawDependencies, phase: 'complete-raw',
+                outputFiles: [lintRaw], outputSets: [{ root: artifactRoot, files: [lintRawPath] }] })] : [];
+            const fixedDependencies = rows.map(({ variants: { fixed = {} } = {} } = {}) => fixed);
+            const fixedObservations = lintFixed ? [createOperation({ operation: 'observe', id: 'observe:fixed', context,
+                inputFiles: selectedSources, dependencyResults: fixedDependencies, phase: 'complete-fixed',
+                outputFiles: [lintFixed], outputSets: [{ root: artifactRoot, files: [lintFixedPath] }] })] : [];
+
+            const publishedFiles = rows.map(({ variants: { raw = {}, fixed = {} } = {} } = {}) => fixAll ? fixed : raw);
+            const publication = createOperation({ operation: 'publish', id: 'publish:tree', context,
+                inputFiles: selectedSources, dependencyResults: publishedFiles, phase: 'publication',
+                outputFiles: publishedFiles, outputSets: [{ root: resolvedOutDir,
+                    files: rows.map(({ output = '' } = {}) => output).toSorted() }] });
+            const operations = [...fileOperations, ...rawObservations, ...fixedObservations, publication];
+            const operationFiles = operations.map((operation, index) => {
+                const relative = `operations/${String(index).padStart(4, '0')}.json`;
+                const location = path.join(artifactStage, relative);
+
+                mkdirSync(path.dirname(location), { recursive: true });
+                writeFileSync(location, `${JSON.stringify(operation, null, 2)}\n`);
+
+                return relativeFile(artifactStage, relative);
+            });
+
+            return { ...baseManifest, operations: operationFiles };
+        };
+        const published = await publishArtifacts({ stageRoot, outDir: resolvedOutDir, report, manifest, artifactRoot,
+            prepare, buildManifest, javascript, write });
+        const fluency = measure ? published : undefined;
+
+        return { ok: true, diagnostics: [], fluency, outDir: resolvedOutDir, manifest: manifest || undefined };
     } catch (error) {
         write(`${error.message}\n`);
 
@@ -417,13 +489,17 @@ const runLowering = async ({
         }
 
         rmSync(stageRoot, { recursive: true, force: true });
+
+        if (rawRoot) rmSync(rawRoot, { recursive: true, force: true });
     }
 };
 const main = async (args = process.argv.slice(2)) => {
     const options = getOptions(args);
     const result = await runLowering({ ...options, cwd: process.cwd() });
 
-    const { ok = false } = result;
+    const { ok = false, plan = false } = result;
+
+    if (plan) process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
 
     // eslint-disable-next-line resilient/prefer-safe-transformations -- The CLI owns the process exit status and reports a failed lowering to its caller.
     if (!ok) process.exitCode = 1;

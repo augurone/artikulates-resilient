@@ -1,4 +1,5 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getDestructuringDecisionForNode } from '../policy/destructuring-agreements.js';
 import { getConsumerContractKey } from '../understand/type-evidence.js';
 
@@ -35,7 +36,7 @@ const lowerScopeEntryVarDeclarations = ({ typescript = {}, sourceFile = {},
         entryBindings.set(entryAnchorRange, owned);
     });
 
-    const originalOf = node => typeof getOriginalNode === 'function' ? getOriginalNode(node) : node;
+    const originalOf = node => isFunction(getOriginalNode) ? getOriginalNode(node) : node;
     const annotateAssignment = node => typescript.addSyntheticLeadingComment(node,
         SingleLineCommentTrivia,
         ' eslint-disable-next-line prefer-const -- Scope-entry let preserves var availability before source-position assignment.',

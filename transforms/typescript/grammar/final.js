@@ -1,22 +1,18 @@
-import { createCollectionAccumulatorRebind } from './algebra.js';
-import {
-    getBindingAgreementReason,
-    getBindingElementCanonical,
-    getBindingPropertyName,
-    getBindingRuntimeGuardKind
-} from './resolvers.js';
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import {
     getSourceRange,
     getSyntaxKinds,
     markGuardedNode,
-    updateBindingInitializer
+    updateBindingInitializer,
+    updateFunction
 } from '../../utils/ast-boundary.js';
 import {
     getBindingAgreement,
     annotateAgreementException,
     getBindingDecision,
     emitBindingAgreement,
+    getBindingInitializer,
     getDefaultInitializer
 } from '../policy/defaults.js';
 import {
@@ -28,10 +24,15 @@ import {
 import { getPlacementContract, getPlacementReason, getPlacementBindingDecision, getExactUndefinedReason, getPlacementSymbol } from '../policy/placement.js';
 import { getBindingNames } from '../understand/imports.js';
 import {
-    getCallExpressionName,
-    getCallIdentifierArgument,
     getConsumerContractKey
 } from '../understand/type-evidence.js';
+import { createCollectionAccumulatorRebind } from './algebra.js';
+import {
+    getBindingAgreementReason,
+    getBindingElementCanonical,
+    getBindingPropertyName,
+    getBindingRuntimeGuardKind
+} from './resolvers.js';
 
 const lowerFinalGrammar = ({
     typescript = {},
@@ -62,9 +63,7 @@ const lowerFinalGrammar = ({
             QuestionQuestionEqualsToken: QuestionQuestionEqualsTokenKind2 = -1,
             EqualsGreaterThanToken: EqualsGreaterThanTokenKind7 = -1,
             BarBarToken: BarBarTokenKind3 = -1,
-            CallExpression: CallExpressionKind3 = -1,
-            ArrayLiteralExpression: ArrayLiteralExpressionKind2 = -1,
-            ObjectLiteralExpression: ObjectLiteralExpressionKind2 = -1
+            CallExpression: CallExpressionKind3 = -1
         } = {},
         NodeFlags: {
             Let: LetKind2 = 0
@@ -101,16 +100,14 @@ const lowerFinalGrammar = ({
         FunctionExpression = -1,
         ReturnStatement = -1,
         StringLiteral = -1,
-        FalseKeyword = -1,
         DeleteExpression = -1,
         PrefixUnaryExpression = -1,
         PostfixUnaryExpression = -1,
-        NewExpression = -1,
         TypeOfExpression = -1,
         EqualsEqualsToken = -1,
         VoidExpression = -1
     } = getSyntaxKinds(typescript);
-    const { factory = {}, addSyntheticLeadingComment = false,
+    const { factory = {}, addSyntheticLeadingComment,
         SingleLineCommentTrivia = -1 } = typescript;
     const {
         object: objectStandard = '',
@@ -126,16 +123,18 @@ const lowerFinalGrammar = ({
 
         return getObject(agreement).action === 'guarded-closed-provider-model' ? contract : {};
     };
-    const { collectionMutations = new Map() } = destructuringAgreements;
+    const { collectionMutations = new Map(), collectionUpdates = new Map() } = destructuringAgreements;
     const getCollectionMutation = (statement = {}) => {
         const { expression = {} } = getObject(statement);
-        const { getOriginalNode = false } = typescript;
-        const original = typeof getOriginalNode === 'function' ? getOriginalNode(expression) : expression;
+        const { getOriginalNode } = typescript;
+        const original = isFunction(getOriginalNode) ? getOriginalNode(expression) : expression;
         const originalKey = getConsumerContractKey(original);
         const directKey = getConsumerContractKey(expression);
 
         return (collectionMutations.has(originalKey)
-            ? collectionMutations.get(originalKey) : collectionMutations.get(directKey)) || {};
+            ? collectionMutations.get(originalKey) : collectionMutations.get(directKey)) ||
+            (collectionUpdates.has(originalKey)
+                ? collectionUpdates.get(originalKey) : collectionUpdates.get(directKey)) || {};
     };
     const getFactoryBindingDecision = (source = {}) => {
         const { agreement = {} } = getDestructuringDecisionForNode({
@@ -147,38 +146,6 @@ const lowerFinalGrammar = ({
     const isRequiredFactoryProperty = ({ action = '', requiredProperties = [] } = {}, propertyName = '') => (
         action === 'preserve-required-factory-binding' && requiredProperties.includes(propertyName)
     );
-    const generatedOpaqueSource = (source) => {
-        const { kind = 0, text = '' } = getObject(source);
-
-        return source &&
-            kind === Identifier &&
-            /^_resilient(?:Tuple|Args)(?:_|$)/.test(text);
-    };
-    // Resolver staging has already made the outer receiver an object.  An
-    // `undefined` element initializer therefore records the source's exact
-    // absent-field result; it is not an object fallback and cannot normalize
-    // a missing container.  Keep this finite to the generated
-    // `isObject(input) ? input : {}` form.
-    const isStagedObjectSource = (source = {}) => {
-        const {
-            kind = 0,
-            condition = {},
-            whenTrue = {},
-            whenFalse = {}
-        } = getObject(source);
-        const {
-            kind: conditionKind = 0,
-            expression = {},
-            arguments: args = []
-        } = getObject(condition);
-        const { kind: expressionKind = 0, text = '' } = getObject(expression);
-        const { kind: whenTrueKind = 0 } = getObject(whenTrue);
-        const { kind: whenFalseKind = 0, properties = [] } = getObject(whenFalse);
-
-        return kind === ConditionalExpression && conditionKind === CallExpression &&
-            expressionKind === Identifier && text === 'isObject' && args.length === 1 &&
-            whenTrueKind === Identifier && whenFalseKind === ObjectLiteralExpressionKind2 && !properties.length;
-    };
     const functionKinds = [FunctionDeclaration, FunctionExpression, ArrowFunction];
     const assignmentOperators = new Set([
         EqualsToken,
@@ -208,7 +175,8 @@ const lowerFinalGrammar = ({
                 leftEnd === rightEnd &&
                 leftPos === rightPos);
     };
-    const isWriteAccess = (node, { left = undefined, operatorToken = {}, expression = undefined, operand = undefined, kind: parentKind = 0 } = {}) => {
+    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- These kind-specific compiler fields retain absence for node identity comparison; no substitute node is valid.
+    const isWriteAccess = (node, { left, operatorToken = {}, expression, operand, kind: parentKind = 0 } = {}) => {
         const { kind: opTokenKind = 0 } = getObject(operatorToken);
 
         return parentKind === BinaryExpression &&
@@ -219,7 +187,7 @@ const lowerFinalGrammar = ({
         [PrefixUnaryExpression, PostfixUnaryExpression].includes(parentKind) &&
         isSameNode(operand, node);
     };
-    const getIndexedAssignment = ({ operatorToken = {}, left = undefined, kind: nodeKind = 0 } = {}) => {
+    const getIndexedAssignment = ({ operatorToken = {}, left = false, kind: nodeKind = 0 } = {}) => {
         const { kind: opTokenKind = 0 } = getObject(operatorToken);
         const { kind: leftKind = 0, expression: leftExpr = {} } = getObject(left);
         const { kind: leftExprKind = 0 } = getObject(leftExpr);
@@ -250,6 +218,14 @@ const lowerFinalGrammar = ({
         if (callbackParameterOwned && selectionRanges.includes(getConsumerContractKey(node))) {
             return false;
         }
+
+        const { agreement: selectedReadAgreement = {} } = getDestructuringDecisionForNode({
+            typescript, node, destructuringAgreements, kinds: ['selected-model-read']
+        });
+
+        // Completed selection retention owns the exact native indexed Get;
+        // the erased scalar family cannot supply a positional default here.
+        if (getObject(selectedReadAgreement).action === 'retain-source-phase-read') return false;
 
         const { agreement: restArrayAgreement = {}, contract: restArrayContract = {} } = getDestructuringDecisionForNode({
             typescript,
@@ -444,7 +420,7 @@ const lowerFinalGrammar = ({
                     kind: elemKind = 0,
                     dotDotDotToken: elemDotDotDot = false,
                     name: elemName = {},
-                    initializer: elemInit = undefined
+                    initializer: elemInit
                 } = getObject(element);
                 const { kind: elemNameKind = 0, text: elemNameText = '' } = getObject(elemName);
 
@@ -675,7 +651,7 @@ const lowerFinalGrammar = ({
             []
         );
     };
-    const updateFinalBindingPattern = (pattern, source, guardedSource = false) => {
+    const updateFinalBindingPattern = (pattern, source) => {
         const {
             kind: patternKind = 0,
             elements: patternElements = [],
@@ -698,30 +674,33 @@ const lowerFinalGrammar = ({
 
         const factoryDecision = getFactoryBindingDecision(source);
         const { evidence: factoryEvidence = [] } = factoryDecision;
-        const allowOpaque = guardedSource ||
-            generatedOpaqueSource(source) ||
-            getSourceAgreementReason(source).startsWith('union branch');
-
-        // A preceding tuple guard proves only container presence and arity.
-        // It must not manufacture position defaults: present `undefined` is
-        // still an exact tuple value owned by the callback contract.
-        if (patternKind === ArrayBindingPattern && guardedSource) return pattern;
+        const allowOpaque = getSourceAgreementReason(source).startsWith('union branch');
 
         const elements = patternElements.map((element, index) => {
             const {
                 kind: elemKind = 0,
                 dotDotDotToken: elemDotDotDot = false,
-                initializer: elemInit = undefined,
+                initializer: elemInit,
                 __resilientGuarded = false
             } = getObject(element);
 
             if (!element || elemKind !== BindingElement || elemDotDotDot) return element;
 
+            const { propertyName: elementPropertyName = false, name: elementName = {} } = getObject(element);
+            const { agreement: structural = {} } = getDestructuringDecisionForNode({
+                typescript, node: element, destructuringAgreements, kinds: ['closed-structural-model']
+            });
+
+            if (!elemInit && getObject(structural).action === 'exact-structural-field' &&
+                ['undefined', 'void 0'].includes(getObject(structural).canonical)) return factory.updateBindingElement(
+                element, elemDotDotDot, elementPropertyName, elementName,
+                factory.createVoidExpression(factory.createNumericLiteral(0))
+            );
+
             const runtimeGuardKind = getBindingRuntimeGuardKind({ typescript, element, placement });
             const canonical = getBindingElementCanonical({ typescript, element, placement });
             const guardedKind = !canonical ? runtimeGuardKind : '';
-            const bindingCanonical = patternKind === ObjectBindingPattern && !canonical && !guardedKind &&
-                isStagedObjectSource(source) ? 'undefined' : canonical;
+            const bindingCanonical = canonical;
             const elementAllowsOpaque = allowOpaque || Boolean(__resilientGuarded);
 
             // A source initializer belongs to its own member and cannot be
@@ -738,7 +717,7 @@ const lowerFinalGrammar = ({
                 : '';
             const requiredAgreementReason = factoryAgreement ? factoryEvidence.join('; ') : agreementReason;
             const agreementName = patternKind === ObjectBindingPattern ? propertyName : `index ${index}`;
-            const { initializer = undefined } = emitBindingAgreement({
+            const initializer = getBindingInitializer(emitBindingAgreement({
                 typescript,
                 factory,
                 decision: getBindingDecision({ agreement: getBindingAgreement({
@@ -755,9 +734,9 @@ const lowerFinalGrammar = ({
                 agreements,
                 site: patternKind === ObjectBindingPattern ? 'final-object-binding' : 'final-array-binding',
                 sourceNode: element
-            });
+            }));
 
-            return updateBindingInitializer({ factory, element, initializer });
+            return initializer ? updateBindingInitializer({ factory, element, initializer }) : element;
         });
 
         return patternKind === ObjectBindingPattern
@@ -803,28 +782,27 @@ const lowerFinalGrammar = ({
         if (statementKind !== ExpressionStatement) return statement;
 
         const {
-            kind: expressionKind = 0, left = {}, operatorToken = {}, right = {},
+            kind: expressionKind = 0,
             expression: callTarget = {}, arguments: args = []
         } = getObject(expression);
-        const { kind: opTokenKind = 0 } = getObject(operatorToken);
 
         const { kind: callTargetKind = 0, expression: receiverExpr = {}, name: method = {} } = getObject(callTarget);
         const { kind: receiverExprKind = 0, text: receiverExprText = '' } = getObject(receiverExpr);
         const { text: methodText = '' } = getObject(method);
         const receiverRecord = accumulatorKinds.get(receiverExprText);
-        const receiverKindType = getObject(receiverRecord).kind || receiverRecord;
         const { action: mutationAction = '', type: mutationType = '' } = getCollectionMutation(statement);
+        const receiverKindType = mutationType ? mutationType.toLowerCase() : getObject(receiverRecord).kind || receiverRecord;
         const sourceOwnedCollection = mutationType.toLowerCase() === receiverKindType;
         const isOwnedMethodCall = expressionKind === CallExpressionKind3 &&
             callTargetKind === PropertyAccessExpression && receiverExprKind === Identifier &&
             Boolean(receiverKindType);
         const retainOperationalMutation = () => {
             const {
-                addSyntheticLeadingComment = false,
+                addSyntheticLeadingComment,
                 SyntaxKind: { SingleLineCommentTrivia = -1 } = {}
             } = typescript;
 
-            if (typeof addSyntheticLeadingComment !== 'function') return statement;
+            if (!isFunction(addSyntheticLeadingComment)) return statement;
 
             return addSyntheticLeadingComment(
                 statement,
@@ -834,46 +812,7 @@ const lowerFinalGrammar = ({
             );
         };
 
-        if (isOwnedMethodCall && receiverKindType === 'array' && methodText === 'push') {
-            const next = factory.createBinaryExpression(
-                receiverExpr,
-                factory.createToken(EqualsToken),
-                factory.createArrayLiteralExpression([
-                    factory.createSpreadElement(receiverExpr),
-                    ...args
-                ], true)
-            );
-
-            return factory.createExpressionStatement(next);
-        }
-
-        if (isOwnedMethodCall && receiverKindType === 'array' && methodText === 'splice') {
-            const next = factory.createBinaryExpression(
-                receiverExpr,
-                factory.createToken(EqualsToken),
-                factory.createCallExpression(
-                    factory.createPropertyAccessExpression(receiverExpr, factory.createIdentifier('toSpliced')),
-                    undefined,
-                    args
-                )
-            );
-
-            return factory.createExpressionStatement(next);
-        }
-
-        if (isOwnedMethodCall && receiverKindType === 'array' && methodText === 'sort') {
-            const next = factory.createBinaryExpression(
-                receiverExpr,
-                factory.createToken(EqualsToken),
-                factory.createCallExpression(
-                    factory.createPropertyAccessExpression(receiverExpr, factory.createIdentifier('toSorted')),
-                    undefined,
-                    args
-                )
-            );
-
-            return factory.createExpressionStatement(next);
-        }
+        if (mutationAction === 'retain-collection-boundary') return statement;
 
         const isOperationalCollectionBuilder = sourceOwnedCollection &&
             mutationAction === 'operational-collection-builder';
@@ -910,139 +849,7 @@ const lowerFinalGrammar = ({
             }) || statement;
         }
 
-        if (expressionKind !== BinaryExpression ||
-            !left ||
-            opTokenKind !== EqualsToken) return statement;
-
-        const target = left;
-        const {
-            expression: receiver = {},
-            kind: targetKind = 0,
-            name: targetName = {},
-            argumentExpression: targetArg = {}
-        } = getObject(target);
-        const { kind: receiverKind = 0, text: receiverText = '' } = getObject(receiver);
-        const { text: targetNameText = '' } = getObject(targetName);
-        const isProperty = targetKind === PropertyAccessExpression;
-        const isElement = targetKind === ElementAccessExpression;
-        const targetReceiverRecord = accumulatorKinds.get(receiverText);
-        const targetReceiverKind = getObject(targetReceiverRecord).kind || targetReceiverRecord;
-
-        if (receiverKind !== Identifier || targetReceiverKind !== 'object' || (!isProperty && !isElement)) return statement;
-
-        const propertyName = isProperty
-            ? factory.createIdentifier(targetNameText)
-            : factory.createComputedPropertyName(targetArg);
-        const next = factory.createBinaryExpression(
-            receiver,
-            factory.createToken(EqualsToken),
-            factory.createObjectLiteralExpression([
-                factory.createSpreadAssignment(receiver),
-                factory.createPropertyAssignment(propertyName, right)
-            ], true)
-        );
-
-        return factory.createExpressionStatement(next);
-    };
-    const getEarlyReturnGuardSource = ({ elseStatement = false, expression = {}, thenStatement = {}, kind: statementKind = 0 } = {}) => {
-        if (statementKind !== IfStatement || elseStatement) return '';
-
-        const condition = expression || {};
-        const { kind: conditionKind = 0 } = getObject(condition);
-
-        if (conditionKind !== CallExpressionKind3) return '';
-
-        const guardName = getCallExpressionName({ typescript, node: condition });
-
-        if (!/^(?:_?[Ii]s[A-Z]|_?[Hh]as[A-Z]|is_)/.test(guardName)) return '';
-
-        const body = thenStatement && getObject(thenStatement).kind === Block
-            ? thenStatement
-            : {};
-        const { statements: bodyStatements = [] } = getObject(body);
-        const returns = bodyStatements.some(({ kind = -1 } = {}) => kind === ReturnStatement);
-
-        return returns ? getCallIdentifierArgument({ typescript, node: condition }) : '';
-    };
-    const getOwningVariableStatement = (candidate) => {
-        const { kind = 0, parent = undefined } = getObject(candidate);
-
-        if (!candidate || kind === VariableStatement) return candidate;
-
-        return getOwningVariableStatement(parent);
-    };
-    const hasPriorEarlyReturnGuard = (node, sourceName) => {
-        const statement = getOwningVariableStatement(node);
-
-        const { parent: block = {} } = getObject(statement);
-        const { kind: blockKind = 0, statements: blockStatements = [] } = getObject(block);
-        const statements = blockKind === Block ? blockStatements : [];
-        const statementIndex = statements.indexOf(statement);
-
-        return statementIndex >= 0 && statements
-            .slice(0, statementIndex)
-            .some(candidate => getEarlyReturnGuardSource(candidate) === sourceName);
-    };
-    const hasPriorTupleGuard = (node, sourceName) => {
-        const isIdentifier = (candidate = {}) => {
-            const { kind = 0, text = '' } = getObject(candidate);
-
-            return kind === Identifier && text === sourceName;
-        };
-        const isNotCall = (candidate = {}, name = '') => {
-            const { kind = 0, operator = {}, operand = {} } = getObject(candidate);
-            const { kind: operatorKind = 0 } = getObject(operator);
-            const { kind: operandKind = 0, expression = {}, arguments: args = [] } = getObject(operand);
-            const { kind: expressionKind = 0, text = '' } = getObject(expression);
-            const [argument = {}] = args;
-
-            return kind === PrefixUnaryExpression && operatorKind === ExclamationToken &&
-                operandKind === CallExpression && expressionKind === Identifier && text === name && isIdentifier(argument);
-        };
-        const isShort = (candidate = {}) => {
-            const { kind = 0, operatorToken = {}, left = {}, right = {} } = getObject(candidate);
-            const { kind: operatorKind = 0 } = getObject(operatorToken);
-            const { kind: leftKind = 0, expression = {}, name = {} } = getObject(left);
-            const { text: receiver = '' } = getObject(expression);
-            const { text: property = '' } = getObject(name);
-            const { kind: rightKind = 0, text = '' } = getObject(right);
-
-            return kind === BinaryExpression && operatorKind === LessThanToken &&
-                leftKind === PropertyAccessExpression && receiver === sourceName && property === 'length' &&
-                rightKind === NumericLiteral && Number(text) > 1;
-        };
-        const isCanonicalReturn = (candidate = {}) => {
-            const { kind = 0, expression = {} } = getObject(candidate);
-            const { kind: expressionKind = 0, elements = [], properties = [], text = '' } = getObject(expression);
-
-            return kind === ReturnStatement && (
-                expressionKind === ArrayLiteralExpressionKind2 && !elements.length ||
-                expressionKind === ObjectLiteralExpressionKind2 && !properties.length ||
-                expressionKind === StringLiteral && text === '' ||
-                expressionKind === NumericLiteral && Number(text) === 0 ||
-                expressionKind === FalseKeyword
-            );
-        };
-        const isTupleGuard = (candidate = {}) => {
-            const { kind = 0, expression = {}, thenStatement = {} } = getObject(candidate);
-            const { kind: expressionKind = 0, operatorToken = {}, left = {}, right = {} } = getObject(expression);
-            const { kind: operatorKind = 0 } = getObject(operatorToken);
-            const { kind: bodyKind = 0, statements = [] } = getObject(thenStatement);
-            const [returned = {}] = statements;
-            const content = isNotCall(expression, 'hasArrayContent');
-            const arity = expressionKind === BinaryExpression && operatorKind === BarBarTokenKind3 &&
-                ((isNotCall(left, 'isArray') && isShort(right)) || (isNotCall(right, 'isArray') && isShort(left)));
-
-            return kind === IfStatement && (content || arity) && bodyKind === Block &&
-                statements.length === 1 && isCanonicalReturn(returned);
-        };
-        const statement = getOwningVariableStatement(node);
-        const { parent: block = {} } = getObject(statement);
-        const { kind: blockKind = 0, statements = [] } = getObject(block);
-        const index = statements.indexOf(statement);
-        const [previous = {}] = statements.slice(index - 1, index);
-
-        return blockKind === Block && index > 0 && isTupleGuard(previous);
+        return statement;
     };
     const lowerAccumulatorBlock = (
         block, inheritedAccumulators = new Map(), canReturn = false, inheritedGuards = new Set()
@@ -1057,32 +864,15 @@ const lowerFinalGrammar = ({
                 decls.length !== 1) return;
 
             const [declaration = {}] = decls;
-            const { initializer = {}, name: declName = {} } = getObject(declaration);
-            const { kind: initKind = 0, expression: initExpr = {}, arguments: initArgs = [] } = getObject(initializer);
-            const { kind: initExprKind = 0, text: initExprText = '', name: initExprName = {}, expression: initExprRec = {} } = getObject(initExpr);
-            const { text: initExprNameText = '' } = getObject(initExprName);
-            const { text: initExprRecText = '' } = getObject(initExprRec);
-            const isObjectLiteral = initKind === ObjectLiteralExpressionKind2;
-            const isArrayLiteral = initKind === ArrayLiteralExpressionKind2 ||
-                (initKind === CallExpressionKind3 && (
-                    ['fromReadonlyNonEmptyArray', 'fromArray', 'copy', 'Array'].includes(initExprText) ||
-                    ['fromReadonlyNonEmptyArray', 'fromArray', 'copy', 'Array', 'slice'].includes(initExprNameText) ||
-                    (initExprKind === PropertyAccessExpression && initExprRecText === 'Array' && initExprNameText === 'from')
-                ));
-            const isSet = initKind === NewExpression && initExprKind === Identifier && initExprText === 'Set' && !initArgs.length;
-            const isMap = initKind === NewExpression && initExprKind === Identifier && initExprText === 'Map' && !initArgs.length;
-            const getAccumulatorKind = () => {
-                if (isObjectLiteral) return 'object';
-
-                if (isArrayLiteral) return 'array';
-
-                if (isSet) return 'set';
-
-                if (isMap) return 'map';
-
-                return '';
-            };
-            const kind = getAccumulatorKind();
+            const { name: declName = {} } = getObject(declaration);
+            const { contract: collectionOwner = {}, agreement: collectionDecision = {} } = getDestructuringDecisionForNode({
+                typescript, node: declaration, destructuringAgreements, kinds: ['collection-reconstruction']
+            });
+            const { type: collectionType = '' } = getObject(getObject(collectionOwner).collection);
+            const { action = '' } = collectionDecision;
+            const kind = ['single-collection-update', 'fresh-copy-reconstruction', 'fresh-collection-rebind',
+                'materialized-collection-reduce', 'operational-collection-builder'].includes(action)
+                ? { Set: 'set', Map: 'map' }[collectionType] || '' : '';
 
             if (!kind) return;
 
@@ -1092,53 +882,11 @@ const lowerFinalGrammar = ({
         });
         const accumulatorKinds = new Map([...inheritedAccumulators, ...localAccumulators]);
         const guardedSources = new Set(inheritedGuards);
-        const sourceAliases = new Map();
-        const addGuardedSource = (source) => {
-            if (!source) return;
-
-            // eslint-disable-next-line resilient/prefer-safe-transformations -- Private guard Set carries earlier sibling facts into later visits.
-            guardedSources.add(source);
-            sourceAliases.forEach((root, alias) => {
-                // eslint-disable-next-line resilient/prefer-safe-transformations -- Private guard Set publishes matching aliases in insertion order.
-                if (root === source) guardedSources.add(alias);
-            });
-        };
-        const recordSourceAliases = ({ declarationList = {}, kind: statementKind = 0 } = {}) => {
-            if (statementKind !== VariableStatement) return;
-
-            const { declarations: decls = [] } = getObject(declarationList);
-            const [declaration = {}] = decls;
-            const { name: pattern = {}, initializer: source = {} } = getObject(declaration);
-            const { kind: patternKind = 0, elements = [] } = getObject(pattern);
-            const { kind: sourceKind = 0, text: sourceText = '' } = getObject(source);
-
-            if (patternKind !== ObjectBindingPattern || sourceKind !== Identifier) return;
-
-            elements.forEach((element) => {
-                const { dotDotDotToken = false, name: elemName = {} } = getObject(element);
-                const { kind: elemNameKind = 0, text: elemNameText = '' } = getObject(elemName);
-
-                if (!element || dotDotDotToken) return;
-
-                const alias = elemNameKind === Identifier
-                    ? elemNameText
-                    : '';
-
-                // eslint-disable-next-line resilient/prefer-safe-transformations -- Private alias Map keeps last-write values and first-insertion order.
-                if (alias) sourceAliases.set(alias, sourceText);
-            });
-        };
         const statements = blockStatements.flatMap((statement) => {
-            // Resolve an owned object builder before visiting its indexed write.
-            // Otherwise the indexed-write fallback turns it into Object.assign
-            // and erases the functional reconstruction shape.
+            // Consume the completed source collection mutation before placement.
             const ownedAssignment = getAccumulatorAssignment(statement, accumulatorKinds);
             // eslint-disable-next-line no-use-before-define -- Visitor receives the active traversal state.
             const visited = visit(ownedAssignment, block, accumulatorKinds, guardedSources);
-            const source = getEarlyReturnGuardSource(statement);
-
-            recordSourceAliases(visited);
-            addGuardedSource(source);
 
             return [
                 visited,
@@ -1174,7 +922,7 @@ const lowerFinalGrammar = ({
         )));
         const reassigned = mutatedAccumulatorNames.size
             ? lowered.map((statement) => {
-                const { kind: statementKind = 0, declarationList = {}, modifiers = undefined } = getObject(statement);
+                const { kind: statementKind = 0, declarationList = {}, modifiers } = getObject(statement);
 
                 if (statementKind !== VariableStatement) return statement;
 
@@ -1200,15 +948,15 @@ const lowerFinalGrammar = ({
 
         return factory.updateBlock(block, reassigned);
     };
-    const lowerVisitedVariableDeclaration = (visited, node, guardedSources) => {
+    const lowerVisitedVariableDeclaration = (visited, node) => {
         const {
             initializer: visitedInit = {},
             name: visitedName = {},
-            exclamationToken: visitedExclamation = undefined,
-            type: visitedType = undefined
+            exclamationToken: visitedExclamation,
+            type: visitedType
         } = getObject(visited);
         const { kind: nameKind = 0, text: nameText = '' } = getObject(visitedName);
-        const { kind: initKind = 0, text: initText = '', expression: initReceiver = {}, name: initProp = {} } = getObject(visitedInit);
+        const { kind: initKind = 0, expression: initReceiver = {}, name: initProp = {} } = getObject(visitedInit);
         const { kind: initReceiverKind = 0, text: initReceiverText = '' } = getObject(initReceiver);
         const { kind: initPropKind = 0, text: initPropText = '' } = getObject(initProp);
 
@@ -1340,7 +1088,7 @@ const lowerFinalGrammar = ({
 
             // An unresolved member is not a destructuring contract. Retain it
             // so the rule remains visible instead of disguising uncertainty.
-            const { initializer: defaultInit = undefined, record = {} } = shouldRetain
+            const emitted = shouldRetain
                 ? {}
                 : emitBindingAgreement({
                     typescript,
@@ -1353,6 +1101,8 @@ const lowerFinalGrammar = ({
                     site: 'final-static-member',
                     sourceNode: visited
                 });
+            const defaultInit = getBindingInitializer(emitted);
+            const { record = {} } = emitted;
             const bindingElement = propertyName === alias
                 ? factory.createBindingElement(undefined, undefined, factory.createIdentifier(alias), defaultInit)
                 : factory.createBindingElement(undefined, factory.createIdentifier(propertyName), factory.createIdentifier(alias), defaultInit);
@@ -1374,12 +1124,9 @@ const lowerFinalGrammar = ({
             return shouldRetain ? visited : annotated;
         }
 
-        const sourceName = initKind === Identifier ? initText : '';
-        const tupleGuarded = hasPriorTupleGuard(node, sourceName);
         const pattern = updateFinalBindingPattern(
             visitedName,
-            visitedInit,
-            tupleGuarded || guardedSources.has(sourceName) || hasPriorEarlyReturnGuard(node, sourceName)
+            visitedInit
         );
 
         return pattern === visitedName
@@ -1391,37 +1138,6 @@ const lowerFinalGrammar = ({
                 visitedType,
                 visitedInit
             );
-    };
-    const lowerVisitedCallExpression = (visited) => {
-        const { expression: callTarget = {}, arguments: callArgs = [] } = getObject(visited);
-        const { kind: targetKind = 0, expression: receiver = {}, name: method = {} } = getObject(callTarget);
-        const { text: methodName = '' } = getObject(method);
-        const { contract: collectionContract = {} } = getDestructuringDecisionForNode({
-            typescript,
-            node: visited,
-            destructuringAgreements,
-            kinds: ['collection-reconstruction']
-        });
-
-        if (getObject(collectionContract).operationRole === 'set-visitation-sort') return visited;
-
-        if (targetKind === PropertyAccessExpression && methodName === 'sort') {
-            return factory.createCallExpression(
-                factory.createPropertyAccessExpression(receiver, factory.createIdentifier('toSorted')),
-                undefined,
-                callArgs
-            );
-        }
-
-        if (targetKind === PropertyAccessExpression && methodName === 'splice') {
-            return factory.createCallExpression(
-                factory.createPropertyAccessExpression(receiver, factory.createIdentifier('toSpliced')),
-                undefined,
-                callArgs
-            );
-        }
-
-        return visited;
     };
     const lowerVisitedReturnStatement = (visited) => {
         const { expression: returnExpr = {} } = getObject(visited);
@@ -1490,7 +1206,7 @@ const lowerFinalGrammar = ({
             });
             const visited = visitChildren(node, accumulatorKinds, guardedSources, canReturn);
 
-            const retainedCallbackAlias = callbackOwnedAlias && typeof addSyntheticLeadingComment === 'function'
+            const retainedCallbackAlias = callbackOwnedAlias && isFunction(addSyntheticLeadingComment)
                 ? addSyntheticLeadingComment(
                     visited,
                     SingleLineCommentTrivia,
@@ -1499,7 +1215,7 @@ const lowerFinalGrammar = ({
                 )
                 : false;
 
-            return retainedCallbackAlias || (retainedCardinality && typeof addSyntheticLeadingComment === 'function'
+            return retainedCallbackAlias || (retainedCardinality && isFunction(addSyntheticLeadingComment)
                 ? addSyntheticLeadingComment(visited, SingleLineCommentTrivia,
                     ' eslint-disable-next-line prefer-destructuring -- standard array cardinality retains its native length Get.', true)
                 : visited);
@@ -1508,7 +1224,7 @@ const lowerFinalGrammar = ({
         if (nodeKind === VariableDeclaration) {
             const visited = visitChildren(node, accumulatorKinds, guardedSources, canReturn);
 
-            return lowerVisitedVariableDeclaration(visited, node, guardedSources);
+            return lowerVisitedVariableDeclaration(visited, node);
         }
 
         if (nodeKind === ElementAccessExpression) {
@@ -1560,7 +1276,7 @@ const lowerFinalGrammar = ({
         if (nodeKind === CallExpression) {
             const visited = visitChildren(node, accumulatorKinds, guardedSources, canReturn);
 
-            return lowerVisitedCallExpression(visited);
+            return visited;
         }
 
         if (nodeKind === ConditionalExpression) {
@@ -1640,25 +1356,26 @@ const annotateFinalExceptions = ({
         CallExpression = -1,
         FunctionDeclaration = -1,
         FunctionExpression = -1,
+        ForOfStatement = -1,
+        ForStatement = -1,
         Identifier = -1,
         IfStatement = -1,
         ObjectBindingPattern = -1,
         Parameter = -1,
-        PrefixUnaryExpression = -1,
         ReturnStatement = -1,
         VariableStatement = -1,
         SingleLineCommentTrivia = -1
     } = getSyntaxKinds(typescript);
     const {
         factory = {},
-        addSyntheticLeadingComment = false,
-        getSyntheticLeadingComments = false
+        addSyntheticLeadingComment,
+        getSyntheticLeadingComments
     } = typescript;
     const functionKinds = [ArrowFunction, FunctionDeclaration, FunctionExpression];
     const add = (node, rules = '', reason = '') => {
-        if (!node || !rules || !reason || typeof addSyntheticLeadingComment !== 'function') return node;
+        if (!node || !rules || !reason || !isFunction(addSyntheticLeadingComment)) return node;
 
-        const comments = typeof getSyntheticLeadingComments === 'function'
+        const comments = isFunction(getSyntheticLeadingComments)
             ? getSyntheticLeadingComments(node) || []
             : [];
         const directive = `eslint-disable-next-line ${rules}`;
@@ -1673,16 +1390,45 @@ const annotateFinalExceptions = ({
                 true
             );
     };
+    const hasMissingBindingDefault = (pattern = {}) => {
+        const { elements = [] } = getObject(pattern);
+
+        return elements.some((element = {}) => {
+            const { name = {}, initializer = false, dotDotDotToken = false, kind = 0 } = getObject(element);
+
+            return kind !== getSyntaxKinds(typescript).OmittedExpression &&
+                ((!initializer && !dotDotDotToken) || hasMissingBindingDefault(name));
+        });
+    };
     const getRequiredTupleReason = (node = {}) => {
         const { agreement = {} } = getDestructuringDecisionForNode({
             typescript,
             node,
             destructuringAgreements,
-            kinds: ['required-tuple-binding']
+            kinds: ['required-tuple-binding', 'consumer-callback', 'consumer']
         });
         const { action = '' } = agreement;
+        const tupleActions = ['retain-required-tuple-binding', 'retain-required-tuple-container', 'preserve-native-tuple'];
 
-        return action === 'retain-required-tuple-binding'
+        if (!tupleActions.includes(action)) return '';
+
+        const original = typescript.getOriginalNode(node);
+        const { declarationList = {}, parameters = [], initializer = {} } = getObject(original);
+        const { declarations = [] } = getObject(declarationList);
+        const { declarations: headerDeclarations = [] } = getObject(initializer);
+        const bindings = [...declarations, ...headerDeclarations, ...parameters].map(({ name = {} } = {}) => name);
+        const complete = bindings.every((binding) => {
+            if (!hasMissingBindingDefault(binding)) return true;
+
+            const { agreement: bindingAgreement = {} } = getDestructuringDecisionForNode({
+                typescript, node: binding, destructuringAgreements, kinds: ['required-tuple-binding']
+            });
+
+            return tupleActions.includes(getObject(bindingAgreement).action) ||
+                action === 'preserve-native-tuple' && getObject(binding).kind === ArrayBindingPattern;
+        });
+
+        return complete
             ? 'required tuple retains native missing-value failure'
             : '';
     };
@@ -1715,92 +1461,68 @@ const annotateFinalExceptions = ({
         const { kind: declNameKind = 0 } = getObject(declName);
         const { kind: declInitKind = 0, text: declInitText = '' } = getObject(declInit);
 
-        return declNameKind === ObjectBindingPattern && declInitKind === Identifier
+        return declarations.length === 1 && declNameKind === ObjectBindingPattern && declInitKind === Identifier
             ? declInitText
             : '';
     };
-    const getDiscriminantBinding = ({ declarationList = {}, kind: statementKind = 0 } = {}) => {
-        if (statementKind !== VariableStatement) return {};
+    const { byKind = new Map() } = getObject(destructuringAgreements);
+    const getSelectionDecision = (statement = {}) => byKind.has('selected-model-read')
+        ? getDestructuringDecisionForNode({
+            typescript, node: statement, destructuringAgreements, kinds: ['selected-model-read']
+        }) : {};
+    const getDiscriminantBinding = (statement = {}) => {
+        const { contract = {}, agreement = {} } = getSelectionDecision(statement);
+        const { operationRole = '', source = {} } = contract;
+        const { provider = '' } = source;
+        const { declarationList: { declarations = [] } = {} } = getObject(statement);
+        const [{ name: { elements = [] } = {} } = {}] = declarations;
+        const [{ name: { text: tag = '' } = {} } = {}] = elements;
 
-        const { declarations = [] } = getObject(declarationList);
-        const [declaration = {}] = declarations;
-        const { name: pattern = {}, initializer = {} } = getObject(declaration);
-        const { kind: patternKind = 0, elements = [] } = getObject(pattern);
-        const { kind: initializerKind = 0, text: source = '' } = getObject(initializer);
-
-        if (patternKind !== ObjectBindingPattern || initializerKind !== Identifier || !source) return {};
-
-        const element = elements.find((candidate = {}) => {
-            const { propertyName = {}, name = {} } = getObject(candidate);
-            const { text: property = '' } = getObject(propertyName);
-            const { text: binding = '' } = getObject(name);
-
-            return ['_tag', 'tag'].includes(property || binding);
-        }) || {};
-        const { name = {} } = getObject(element);
-        const { text: tag = '' } = getObject(name);
-
-        return tag ? { source, tag } : {};
+        return ['selected-model-read', 'retain-source-phase-read'].includes(getObject(agreement).action) && operationRole === 'discriminator-read'
+            ? { source: provider, tag } : {};
     };
-    const getSelectedPayloadSource = (statement = {}, selectedSources = new Set()) => {
-        const { kind: statementKind = 0, declarationList = {} } = getObject(statement);
-        const { declarations = [] } = getObject(declarationList);
+    const getSelectedPayloadSource = (statement = {}) => {
+        const { contract = {}, agreement = {} } = getSelectionDecision(statement);
+        const { operationRole = '', source: { provider = '' } = {} } = contract;
+        const { action = '' } = agreement;
 
-        if (statementKind !== VariableStatement) return '';
+        if (action === 'exact-source-binding' && operationRole === 'source-field-binding') return provider;
 
-        return declarations.reduce((found, declaration = {}) => {
-            if (found) return found;
+        if (action === 'selected-model-read' && operationRole === 'selected-field-read') return provider;
 
-            const { name: pattern = {}, initializer = {} } = getObject(declaration);
-            const { kind: patternKind = 0, elements = [] } = getObject(pattern);
-            const { kind: initializerKind = 0, text: source = '' } = getObject(initializer);
-            const hasPayload = elements.some((element = {}) => {
-                const { propertyName = {}, name = {} } = getObject(element);
-                const { text: property = '' } = getObject(propertyName);
-                const { text: binding = '' } = getObject(name);
+        const { declarationList: { declarations: originalDeclarations = [] } = {} } = getObject(typescript.getOriginalNode(statement));
+        const [{ name: originalPattern = {}, initializer: originalRead = {} } = {}] = originalDeclarations;
+        const { agreement: readAgreement = {}, contract: readContract = {} } = getSelectionDecision(originalRead);
 
-                return ['value', 'left', 'right'].includes(property || binding);
-            });
+        if (originalDeclarations.length === 1 && getObject(originalPattern).kind === ArrayBindingPattern &&
+            ['selected-model-read', 'retain-source-phase-read'].includes(getObject(readAgreement).action) &&
+            getObject(readContract).operationRole === 'selected-field-read') return getObject(getObject(readContract).source).provider || '';
 
-            return patternKind === ObjectBindingPattern && initializerKind === Identifier &&
-                selectedSources.has(source) && hasPayload ? source : '';
-        }, '');
-    };
-    const getTerminatingSelectedSource = (statement = {}, tags = new Map()) => {
-        const { kind: statementKind = 0, expression = {}, thenStatement = {} } = getObject(statement);
-        const { kind: thenKind = 0, statements = [] } = getObject(thenStatement);
-        const [first = {}] = statements;
-        const directReturn = getObject(thenStatement).kind === ReturnStatement;
-        const terminates = directReturn || (thenKind === Block && getObject(first).kind === ReturnStatement);
+        const { declarationList: { declarations = [] } = {} } = getObject(statement);
+        const [{ name: { elements = [] } = {} } = {}] = declarations;
+        const bindings = elements.map(element => getSelectionDecision(element));
+        const exactBindings = bindings.filter(({ agreement: bindingAgreement = {}, contract: bindingContract = {} } = {}) => {
+            const { action: bindingAction = '' } = bindingAgreement;
+            const { operationRole: bindingRole = '' } = bindingContract;
 
-        if (statementKind !== IfStatement || !terminates) return '';
+            return bindingAction === 'exact-source-binding' ||
+                (['selected-model-read', 'retain-source-phase-read'].includes(bindingAction) &&
+                    ['selected-field-read', 'conditional-source-read'].includes(bindingRole));
+        });
+        const providers = exactBindings.map(({ contract: { source: { provider: bindingProvider = '' } = {} } = {} } = {}) => bindingProvider);
+        const [bindingSource = ''] = providers;
 
-        return [...tags.entries()].reduce((found, [tag = '', source = ''] = []) => (
-            found || (tag && contains(expression, tag) ? source : '')
-        ), '');
-    };
-    const getGuardNames = ({ expression = {}, kind: statementKind = 0 } = {}, sources = new Map()) => {
-        if (statementKind !== IfStatement) return [];
+        if (bindings.length && exactBindings.length === bindings.length && providers.every(value => value === bindingSource)) return bindingSource;
 
-        const names = new Set();
-        const { kind: expressionKind = 0, operand = {} } = getObject(expression);
-        const guardExpression = expressionKind === PrefixUnaryExpression ? operand : expression;
+        if (!byKind.has('curried-selected-tuple-binding')) return '';
 
-        const name = getCallIdentifierArgument({
-            typescript,
-            node: guardExpression
+        const { contract: tuple = {}, agreement: tupleAgreement = {} } = getDestructuringDecisionForNode({
+            typescript, node: statement, destructuringAgreements, kinds: ['curried-selected-tuple-binding']
         });
 
-        // eslint-disable-next-line resilient/prefer-safe-transformations -- Private name Set records the direct name before alias scans and deduplicates it.
-        if (name) names.add(name);
-
-        sources.forEach((source, binding) => {
-            // eslint-disable-next-line resilient/prefer-safe-transformations -- Private name Set records matching aliases in live Map visitation order.
-            if (contains(expression, binding)) names.add(source);
-        });
-
-        return [...names];
+        return getObject(tupleAgreement).action === 'curried-selected-tuple-binding' ? getObject(tuple).receiverName || '' : '';
     };
+
     const getCallReason = (statement) => {
         let reason = '';
         const visit = (child) => {
@@ -1813,7 +1535,7 @@ const annotateFinalExceptions = ({
                 functionKinds.includes(childKind23) &&
                 stmtKind !== VariableStatement) return;
 
-            if (stmtKind === VariableStatement && childKind23 === Block) return;
+            if (child !== statement && childKind23 === Block) return;
 
             if (childKind23 !== CallExpression) {
                 typescript.forEachChild(child, visit);
@@ -1848,15 +1570,30 @@ const annotateFinalExceptions = ({
         return reason;
     };
     const getPatternAgreementReason = (pattern) => {
-        const { __resilientExactTuplePosition = false, elements = [] } = getObject(pattern);
-        const exactPositionReason = __resilientExactTuplePosition
-            ? 'checker-proven static tuple position preserves the source undefined result without normalizing its container'
+        const { __resilientExactTuplePosition = false, __resilientNativeTuple = false, elements = [] } = getObject(pattern);
+        const nativePositionReason = __resilientNativeTuple
+            ? 'Materialized entry keeps native iteration, absence and failure.'
             : '';
+        const exactPositionReason = nativePositionReason || (__resilientExactTuplePosition
+            ? 'checker-proven static tuple position preserves the source undefined result without normalizing its container'
+            : '');
 
         return elements.reduce((found, element = {}) => {
-            const { __resilientAgreement = '', name: elementName = {} } = getObject(element);
+            const { __resilientAgreement = '', name: elementName = {}, initializer = false } = getObject(element);
+            const { agreement: absence = {} } = getDestructuringDecisionForNode({
+                typescript, node: element, destructuringAgreements, kinds: ['exact-provider-forward', 'closed-structural-model']
+            });
+            const absenceReason = !initializer && getObject(absence).canonical === 'undefined'
+                ? 'Source field retains its natural absence.' : '';
 
-            return found || __resilientAgreement || getPatternAgreementReason(elementName);
+            const { agreement = {} } = byKind.has('curried-selected-tuple-binding')
+                ? getDestructuringDecisionForNode({
+                    typescript, node: element, destructuringAgreements, kinds: ['curried-selected-tuple-binding']
+                }) : {};
+            const tupleReason = getObject(agreement).action === 'curried-selected-tuple-binding'
+                ? 'curried callee call precedes selected tuple Get; container retains native failure' : '';
+
+            return found || __resilientAgreement || absenceReason || tupleReason || getPatternAgreementReason(elementName);
         }, exactPositionReason);
     };
     const getPatternTimingReason = (pattern) => {
@@ -1875,6 +1612,7 @@ const annotateFinalExceptions = ({
             return found || getPatternTimingReason(elementName);
         }, '');
     };
+    const nestedBindingReason = 'authored required nested binding retains native Get, iteration and undefined';
     // Only this statement's own patterns; a nested function owns its own line.
     const getRetainedAgreementReason = (statement) => {
         const {
@@ -1883,16 +1621,35 @@ const annotateFinalExceptions = ({
             parameters: declaredParameters = []
         } = getObject(statement);
         const { declarations = [] } = getObject(declarationList);
+        const [{ name: { elements: sourceElements = [] } = {} } = {}] = declarations;
+        const sourceBindings = declarations.length === 1 ? sourceElements.map(getSelectionDecision) : [];
+        const completeSourceBindings = !!sourceBindings.length && sourceBindings.every(({
+            agreement: { action = '' } = {}, contract: { requiredPattern: { complete = false } = {} } = {}
+        } = {}) => action === 'exact-source-binding' && complete);
+
+        if (completeSourceBindings) return nestedBindingReason;
+
         const patterns = statementKind === VariableStatement
             ? declarations.flatMap((declaration = {}) => {
                 const { name = {}, initializer = {} } = getObject(declaration);
                 const { parameters = [] } = getObject(initializer);
 
-                return [name, ...parameters.map((parameter = {}) => getObject(parameter).name)];
+                // Preserve the original compiler property read even though its value is discarded.
+                void parameters;
+
+                return [name];
             })
             : declaredParameters.map((parameter = {}) => getObject(parameter).name);
 
         return patterns.reduce((found, pattern) => found || getPatternAgreementReason(pattern), '');
+    };
+    const getSourceBindingPhase = (declaration) => {
+        const { contract = {}, agreement = {} } = getDestructuringDecisionForNode({
+            typescript, node: declaration, destructuringAgreements, kinds: ['repeated-parameter-read']
+        });
+
+        return getObject(agreement).action === 'retain-source-phase-read' &&
+            getObject(contract).operationRole === 'source-binding-phase' ? contract : {};
     };
     const getStatementTimingReason = (statement) => {
         const {
@@ -1904,19 +1661,39 @@ const annotateFinalExceptions = ({
         const patterns = statementKind === VariableStatement
             ? declarations.map(({ name = {} } = {}) => name)
             : declaredParameters.map((parameter = {}) => getObject(parameter).name);
+        const samePhaseBinding = statementKind === VariableStatement && declarations.length === 1 && byKind.has('same-phase-selected-binding') &&
+            declarations.some((declaration) => {
+                const { contract = {}, agreement = {} } = getDestructuringDecisionForNode({
+                    typescript, node: declaration, destructuringAgreements, kinds: ['same-phase-selected-binding']
+                });
 
-        return patterns.reduce((found, pattern) => found || getPatternTimingReason(pattern), '');
+                return getObject(agreement).action === 'bind-at-source-phase' &&
+                    getObject(contract).operationRole === 'same-phase-selected-binding';
+            });
+        const sourceBindingPhase = statementKind === VariableStatement && declarations.length === 1 && byKind.has('repeated-parameter-read') &&
+            declarations.some(declaration => Object.keys(getSourceBindingPhase(declaration)).length);
+
+        const bindingReason = sourceBindingPhase ? 'authored object binding retains key, default, copy and failure order' : '';
+
+        return patterns.reduce((found, pattern) => found || getPatternTimingReason(pattern),
+            bindingReason || (samePhaseBinding ? 'completed static field binding retains its source Get phase' : ''));
     };
     const hasLaterWholeObjectRead = (statements = [], sourceSymbol = false) => {
         if (!sourceSymbol) return false;
 
+        const { PropertyAccessExpression = -1, ElementAccessExpression = -1, StringLiteral = -1, NumericLiteral = -1,
+            ParenthesizedExpression = -1, AsExpression = -1, TypeAssertionExpression = -1,
+            NonNullExpression = -1, SatisfiesExpression = -1 } = getSyntaxKinds(typescript);
+        const transparent = new Set([ParenthesizedExpression, AsExpression, TypeAssertionExpression, NonNullExpression, SatisfiesExpression]);
         const visitReference = (node = {}, parent = {}) => {
             if (typescript.isTypeNode(node)) return false;
 
             const { kind = 0 } = getObject(node);
-            const { kind: parentKind = 0, expression = {}, name = {} } = getObject(parent);
+            const { kind: parentKind = 0, expression = {}, name = {}, argumentExpression = {} } = getObject(parent);
             const symbol = kind === Identifier ? getPlacementSymbol({ typescript, node, placement }) : false;
-            const staticReceiver = parentKind === getSyntaxKinds(typescript).PropertyAccessExpression && expression === node;
+            const staticMember = parentKind === PropertyAccessExpression || parentKind === ElementAccessExpression &&
+                [StringLiteral, NumericLiteral].includes(getObject(argumentExpression).kind);
+            const staticReceiver = staticMember && (expression === node || transparent.has(getObject(expression).kind));
             const bindingSource = parentKind === getSyntaxKinds(typescript).VariableDeclaration &&
                 getObject(name).kind === ObjectBindingPattern && getObject(parent).initializer === node;
             const bindingName = [Parameter, getSyntaxKinds(typescript).VariableDeclaration, getSyntaxKinds(typescript).BindingElement]
@@ -1924,51 +1701,24 @@ const annotateFinalExceptions = ({
 
             if (symbol === sourceSymbol && !staticReceiver && !bindingSource && !bindingName) return true;
 
-            return Boolean(typescript.forEachChild(node, child => visitReference(child, node)));
+            return Boolean(typescript.forEachChild(node, child => visitReference(child, transparent.has(kind) ? parent : node)));
         };
 
         return statements.some(statement => visitReference(statement));
     };
-    const hasMissingBindingDefault = (pattern = {}) => {
-        const { elements = [] } = getObject(pattern);
-
-        return elements.some((element = {}) => {
-            const { name = {}, initializer = false, dotDotDotToken = false, kind = 0 } = getObject(element);
-
-            return kind !== getSyntaxKinds(typescript).OmittedExpression &&
-                ((!initializer && !dotDotDotToken) || hasMissingBindingDefault(name));
-        });
-    };
-    const isCompletedTupleCarrier = ({ name = {}, initializer = {} } = {}) => {
-        const { kind = 0, elements = [] } = getObject(name);
-        const [element = {}] = elements;
-        const { propertyName = {}, name: tuple = {} } = getObject(element);
-        const { kind: sourceKind = 0, properties = [] } = getObject(initializer);
-        const [property = {}] = properties;
-        const { name: sourceName = {}, kind: propertyKind = 0 } = getObject(property);
-
-        // The completed carrier proves the values field and owns its exact
-        // tuple positions; it is already a dialect destructuring agreement.
-        return kind === ObjectBindingPattern && elements.length === 1 &&
-            getObject(propertyName).kind === Identifier && getObject(propertyName).text === 'values' &&
-            getObject(tuple).kind === ArrayBindingPattern &&
-            sourceKind === getSyntaxKinds(typescript).ObjectLiteralExpression && properties.length === 1 &&
-            propertyKind === getSyntaxKinds(typescript).PropertyAssignment &&
-            getObject(sourceName).kind === Identifier && getObject(sourceName).text === 'values';
-    };
     const hasStatementMissingDefault = (statement = {}) => {
-        const { declarationList = {}, parameters = [] } = getObject(statement);
+        const { declarationList = {}, parameters = [], initializer = {} } = getObject(statement);
         const { declarations = [] } = getObject(declarationList);
-        const patterns = [...declarations.flatMap(({ name = {}, initializer = {} } = {}) => [
-            ...(isCompletedTupleCarrier({ name, initializer })
-                ? getObject(getObject((getObject(name).elements || [])[0]).name).elements.map(element => getObject(element).name)
-                : [name]),
-            ...(getObject(initializer).parameters || []).map(({ name: parameterName = {} } = {}) => parameterName)]),
-        ...parameters.map(({ name = {} } = {}) => name)];
+        const { declarations: headerDeclarations = [] } = getObject(initializer);
+        const patterns = [...declarations, ...headerDeclarations].flatMap(({ name = {}, initializer = {} } = {}) => [
+            name,
+            ...(getObject(initializer).parameters || []).map(({ name: parameterName = {} } = {}) => parameterName)])
+            .concat(parameters.map(({ name = {} } = {}) => name));
 
         return patterns.some(hasMissingBindingDefault);
     };
-    const visit = (node, ifDepth = 0, parameterNames = new Set(), deferredNames = new Set(), parameterSymbols = new Set(), outerFollowing = []) => {
+    const visit = (node, ifDepth = 0, parameterNames = new Set(), deferredNames = new Set(),
+        parameterSymbols = new Set(), outerFollowing = [], parameterRanges = new Map()) => {
         if (!node) return node;
 
         const { kind: nodeKind = 0 } = node;
@@ -1977,10 +1727,6 @@ const annotateFinalExceptions = ({
         if (nodeKind === Parameter) return node;
 
         if (nodeKind === Block) {
-            const guardedNames = new Set();
-            const sources = new Map();
-            let discriminantSources = new Map();
-            let selectedModelSources = new Set();
             const { statements: blockStatements = [] } = getObject(node);
             const statements = blockStatements.map((child, statementIndex) => {
                 const source = getBindingSource(child);
@@ -1989,16 +1735,13 @@ const annotateFinalExceptions = ({
                 const selectedModelBinding = modelSource && modelTag &&
                     followingStatements.some(candidate => contains(candidate, modelTag)) &&
                     followingStatements.some(candidate => contains(candidate, modelSource));
-                const guarded = source &&
-                    parameterNames.has(source) &&
-                    (ifDepth > 0 || guardedNames.has(source));
-                let next = visit(child, ifDepth, parameterNames, deferredNames, parameterSymbols, [...followingStatements, ...continuation]);
-                const selectedPayloadSource = getSelectedPayloadSource(next, selectedModelSources);
+                let next = visit(child, ifDepth, parameterNames, deferredNames, parameterSymbols, [...followingStatements, ...continuation], parameterRanges);
+                const selectedPayloadSource = getSelectedPayloadSource(next);
                 const collectionTimingReason = getStatementTimingReason(next);
                 let signatureReason = '';
 
-                if (guarded) {
-                    signatureReason = 'branch guard establishes variant before extraction';
+                if (selectedPayloadSource) {
+                    signatureReason = 'selected field Get retains its source phase';
                 }
 
                 if (!signatureReason && selectedModelBinding) {
@@ -2020,26 +1763,21 @@ const annotateFinalExceptions = ({
                 // independent from signature placement, and de-duplicate the
                 // shared explanation when both directives apply.
                 const retainedAgreementReason = getRetainedAgreementReason(next);
-                const [selectedDeclaration = {}] = getObject(getObject(next).declarationList).declarations || [];
-                const { agreement: selectedAgreement = {} } = getDestructuringDecisionForNode({
-                    typescript, node: selectedDeclaration, destructuringAgreements,
-                    kinds: ['same-phase-selected-binding']
-                });
-                const guardedSafeDefaultReason = !selectedPayloadSource && guarded &&
-                    getObject(selectedAgreement).action !== 'bind-at-source-phase'
-                    ? 'branch guard establishes variant before extraction'
-                    : '';
+
                 const requiredTupleReason = getRequiredTupleReason(next);
                 const safeDefaultReason = requiredTupleReason ||
-                    retainedAgreementReason || guardedSafeDefaultReason;
+                    retainedAgreementReason;
                 const [sourceDeclaration = {}] = getObject(getObject(child).declarationList).declarations || [];
                 const sourceSymbol = getPlacementSymbol({ typescript, node: getObject(sourceDeclaration).initializer, placement });
+                const { parameterRange = '', aliasSignature = false } = getSourceBindingPhase(sourceDeclaration);
+                const phaseSymbol = aliasSignature ? parameterRanges.get(parameterRange) : false;
+                const signatureSymbol = phaseSymbol || sourceSymbol;
 
                 // Signature placement belongs to this function's parameter binding;
                 // a same-spelled local cannot borrow its source symbol.
-                if (signatureReason && (!parameterNames.has(source) ||
-                    sourceSymbol && !parameterSymbols.has(sourceSymbol) ||
-                    hasLaterWholeObjectRead([...followingStatements, ...continuation], sourceSymbol))) signatureReason = '';
+                if (signatureReason && (ifDepth > 0 || !phaseSymbol && !parameterNames.has(source) ||
+                    signatureSymbol && !parameterSymbols.has(signatureSymbol) ||
+                    hasLaterWholeObjectRead([...followingStatements, ...continuation], signatureSymbol))) signatureReason = '';
 
                 const directRules = [
                     signatureReason ? 'resilient/prefer-signature-destructuring' : '',
@@ -2053,6 +1791,14 @@ const annotateFinalExceptions = ({
 
                 if (signatureReason && requiredTupleReason) {
                     directReasons = ['branch guard retains native tuple failure'];
+                }
+
+                if (signatureReason && safeDefaultReason === nestedBindingReason) {
+                    directReasons = ['source phase keeps nested Gets, iteration and undefined'];
+                }
+
+                if (signatureReason && safeDefaultReason.includes('curried callee call precedes selected tuple Get')) {
+                    directReasons = ['curried callee precedes exact tuple Get; native container failure'];
                 }
 
                 if (signatureReason === 'tag Get precedes branch-local payload extraction' &&
@@ -2076,32 +1822,6 @@ const annotateFinalExceptions = ({
                     'resilient/signature-contract-call-site',
                     callReason
                 );
-
-                if (modelSource && modelTag) {
-                    discriminantSources = new Map([...discriminantSources, [modelTag, modelSource]]);
-                }
-
-                const terminatedSource = getTerminatingSelectedSource(next, discriminantSources);
-
-                if (terminatedSource) {
-                    selectedModelSources = new Set([...selectedModelSources, terminatedSource]);
-                }
-
-                const { kind: childKind = 0, declarationList = {} } = getObject(child);
-                const { declarations = [] } = getObject(declarationList);
-                const [firstDecl = {}] = declarations;
-                const { name: firstDeclName = {} } = getObject(firstDecl);
-
-                // eslint-disable-next-line resilient/prefer-safe-transformations -- Private block guard Set publishes names before later sibling visits.
-                if (childKind === IfStatement) getGuardNames(child, sources).forEach(name => guardedNames.add(name));
-
-                if (source) getBindingNames({
-                    typescript,
-                    node: firstDeclName
-                }).forEach((binding) => {
-                    // eslint-disable-next-line resilient/prefer-safe-transformations -- Private block source Map preserves overwrite order for later guards.
-                    sources.set(binding, source);
-                });
 
                 return next;
             });
@@ -2128,17 +1848,27 @@ const annotateFinalExceptions = ({
                 });
             }));
             const symbols = new Set(parameters.map(({ name = {} } = {}) => getPlacementSymbol({ typescript, node: name, placement })).filter(Boolean));
-            const visitedFunction = typescript.visitEachChild(
+            const ranges = new Map(parameters.map(parameter => [getConsumerContractKey(parameter),
+                getPlacementSymbol({ typescript, node: getObject(parameter).name, placement })]));
+            const visited = typescript.visitEachChild(
                 node,
-                child => visit(child, 0, names, deferred, symbols),
+                child => visit(child, 0, names, deferred, symbols, [], ranges),
                 context
             );
+            const { body = {}, parameters: visitedParameters = [] } = getObject(visited);
+            const innerComments = getObject(body).kind === ArrowFunction && isFunction(getSyntheticLeadingComments)
+                ? getSyntheticLeadingComments(body) || [] : [];
+            const visitedFunction = nodeKind === ArrowFunction && innerComments.length
+                ? updateFunction({ typescript, node: visited, parameters: visitedParameters, body: factory.createParenthesizedExpression(body) })
+                : visited;
+            /* eslint-disable resilient/signature-contract-operation -- Compiler patterns require element arrays; malformed nodes retain their native .some() failure. */
             const hasRequiredPosition = (pattern = {}) => getObject(pattern).elements.some((element = {}) => {
                 const { name = {}, initializer = false, dotDotDotToken = false } = getObject(element);
 
                 return !initializer && !dotDotDotToken ||
                     getObject(name).kind === ArrayBindingPattern && hasRequiredPosition(name);
             });
+            /* eslint-enable resilient/signature-contract-operation */
             const hasRequiredPattern = getObject(visitedFunction).parameters.some((parameter = {}) => {
                 const { name = {} } = getObject(parameter);
 
@@ -2146,12 +1876,13 @@ const annotateFinalExceptions = ({
             });
 
             const requiredTupleReason = hasRequiredPattern ? getRequiredTupleReason(visitedFunction) : '';
+            const nativeAbsenceReason = getRetainedAgreementReason(visitedFunction);
 
-            return requiredTupleReason
+            return requiredTupleReason || nativeAbsenceReason
                 ? add(
                     visitedFunction,
                     'resilient/prefer-safe-destructuring-defaults',
-                    requiredTupleReason
+                    requiredTupleReason || nativeAbsenceReason
                 )
                 : visitedFunction;
         }
@@ -2159,7 +1890,10 @@ const annotateFinalExceptions = ({
         const { kind: currentKind = 0 } = getObject(node);
         let visited = typescript.visitEachChild(
             node,
-            child => visit(child, currentKind === IfStatement ? ifDepth + 1 : ifDepth, parameterNames, deferredNames, parameterSymbols, continuation),
+            (child) => {
+                return visit(child, currentKind === IfStatement ? ifDepth + 1 : ifDepth, parameterNames,
+                    deferredNames, parameterSymbols, continuation, parameterRanges);
+            },
             context
         );
 
@@ -2173,13 +1907,13 @@ const annotateFinalExceptions = ({
         if (visitedKind === IfStatement && visitedElse) {
             const reason = 'discriminated branch retains mutually exclusive variant-local bindings required by the downstream branch expression';
             const directive = 'eslint-disable-next-line resilient/no-else';
-            const thenComments = typeof getSyntheticLeadingComments === 'function'
+            const thenComments = isFunction(getSyntheticLeadingComments)
                 ? getSyntheticLeadingComments(visitedThen) || []
                 : [];
             const hasDirective = thenComments.some(({ text = '' } = {}) => text.includes(directive));
-            const { addSyntheticTrailingComment: addTrailing = false } = getObject(typescript);
+            const { addSyntheticTrailingComment: addTrailing } = getObject(typescript);
             const thenStatement = !hasDirective &&
-                typeof addTrailing === 'function'
+                isFunction(addTrailing)
                 ? addTrailing(
                     visitedThen,
                     SingleLineCommentTrivia,
@@ -2217,9 +1951,10 @@ const annotateFinalExceptions = ({
         // synthetic comments clone the statement.
         const { parent: visitedParent = {} } = getObject(node);
         const { kind: visitedParentKind = 0 } = getObject(visitedParent);
+        const tupleHeaderReason = [ForOfStatement, ForStatement].includes(visitedKind) ? getRequiredTupleReason(visited) : '';
         const retainedReason = visitedKind === VariableStatement && visitedParentKind !== Block
             ? getRequiredTupleReason(visited) || getRetainedAgreementReason(visited)
-            : '';
+            : tupleHeaderReason;
 
         if (retainedReason && hasStatementMissingDefault(visited)) visited = add(
             visited,

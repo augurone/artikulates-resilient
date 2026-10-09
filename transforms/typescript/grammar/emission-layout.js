@@ -1,4 +1,5 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds } from '../../utils/ast-boundary.js';
 
 // Directive list grammar accepts quoted names and empty comma entries. An empty
@@ -18,26 +19,46 @@ const readDirectiveComment = (text = '') => {
 // Layout owns only completed JavaScript tokens and whitespace. It never asks
 // the checker for another semantic decision or runs a lint rule/fixer.
 const applyEdits = (code, edits) => {
+    if (!edits.length) return code;
+
     const ordered = edits.toSorted((left, right) => getObject(left).start - getObject(right).start || getObject(right).end - getObject(left).end);
     // An outer arrow wrapper can begin exactly where an inner arrow loses
     // its optional parameter parenthesis. Compose both edits at that offset.
-    const composed = ordered.reduce((result, edit) => {
-        const previous = result.at(-1);
+    const composed = [];
+    ordered.forEach((edit) => {
+        const previous = composed.at(-1);
 
         if (previous && getObject(previous).start === getObject(edit).start &&
             getObject(edit).start === getObject(edit).end && getObject(previous).end > getObject(edit).end) {
-            return [...result.slice(0, -1), { ...previous, replacement: getObject(edit).replacement + getObject(previous).replacement }];
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- Private composition list replaces its last edit without mutating the caller's edit records.
+            composed.pop();
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- Private composition list retains coincident insertion order and the outer replacement span.
+            composed.push({ ...previous, replacement: getObject(edit).replacement + getObject(previous).replacement });
+
+            return;
         }
 
-        return [...result, edit];
-    }, []);
-    const disjoint = composed.filter((edit, index) => !composed.slice(0, index).some(previous => (
-        getObject(previous).end > getObject(edit).start || getObject(previous).start === getObject(edit).start
-    )));
+        // eslint-disable-next-line resilient/prefer-safe-transformations -- Private composition list preserves sorted edit order and caller-owned record identity.
+        composed.push(edit);
+    });
+    const parts = [];
+    let offset = 0;
+    let priorStart = -1;
+    let priorEnd = 0;
+    composed.forEach(({ start = 0, end = 0, replacement = '' }) => {
+        if (priorEnd <= start && priorStart !== start) {
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- Private output parts append disjoint source slices and replacements exactly once in source order.
+            parts.push(code.slice(offset, start), replacement);
+            offset = end;
+        }
 
-    return disjoint.toReversed().reduce((text, { start = 0, end = 0, replacement = '' }) => (
-        text.slice(0, start) + replacement + text.slice(end)
-    ), code);
+        // Rejected spans still block later overlaps, just as the full prefix
+        // check did; considering only accepted edits would change selection.
+        priorStart = start;
+        priorEnd = Math.max(priorEnd, end);
+    });
+
+    return parts.join('') + code.slice(offset);
 };
 
 const readSyntax = (code, typescript, scriptKind = getObject(getObject(typescript).ScriptKind).JS) => {
@@ -101,8 +122,7 @@ const changesDirectiveLine = (code, source, directiveLines, start, end, replacem
             (first === last && Boolean(suffix.trim()) || !replacement.includes('\n')));
 };
 
-const formatWhitespace = (code, typescript) => {
-    const { source = {}, payloads = [], directiveLines = new Set(), nextLineTargets = new Set() } = readSyntax(code, typescript);
+const formatWhitespace = (code, typescript, { source = {}, payloads = [], directiveLines = new Set(), nextLineTargets = new Set() } = {}) => {
     const snapshot = typescript.ScriptSnapshot.fromString(code);
     const host = {
         getCompilationSettings: () => ({ allowJs: true, noLib: true }),
@@ -117,7 +137,7 @@ const formatWhitespace = (code, typescript) => {
     const service = typescript.createLanguageService(host);
 
     try {
-        const edits = service.getFormattingEditsForDocument('emission.js', {
+        const proposed = service.getFormattingEditsForDocument('emission.js', {
             indentSize: 4, tabSize: 4, convertTabsToSpaces: true, newLineCharacter: '\n',
             insertSpaceAfterCommaDelimiter: true,
             insertSpaceAfterSemicolonInForStatements: true,
@@ -127,10 +147,20 @@ const formatWhitespace = (code, typescript) => {
             insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces: true,
             indentSwitchCase: true,
             semicolons: getObject(getObject(typescript).SemicolonPreference).Ignore
-        }).map(({ span: { start = 0, length = 0 } = {}, newText: replacement = '' }) => ({ start, end: start + length, replacement }))
-            .filter(({ start = 0, end = 0, replacement = '' }) => (
-                !payloads.some(range => start < getObject(range).end && end > getObject(range).start) &&
-                !changesDirectiveLine(code, source, directiveLines, start, end, replacement, nextLineTargets)));
+        }).map(({ span: { start = 0, length = 0 } = {}, newText: replacement = '' }) => ({ start, end: start + length, replacement }));
+        const blocked = proposed.filter(({ start = 0, end = 0, replacement = '' }) => (
+            payloads.some(range => start < getObject(range).end && end > getObject(range).start) ||
+            changesDirectiveLine(code, source, directiveLines, start, end, replacement, nextLineTargets)));
+        const blockedEdits = new Set(blocked);
+        // The compiler emits a newline replacement and its indentation as two
+        // edits. If a directive owns that physical line, retain both together;
+        // applying the orphan indent adds spaces again on every format pass.
+        const blockedLineEnds = new Set(blocked.filter(({ replacement = '' }) => /[\r\n]/u.test(replacement)).map(({ end = 0 }) => end));
+        const edits = proposed.filter((edit) => {
+            const { start = 0, end = 0, replacement = '' } = edit;
+
+            return !blockedEdits.has(edit) && !(start === end && blockedLineEnds.has(start) && /^ +$/u.test(replacement));
+        });
 
         return applyEdits(code, edits);
     } finally {
@@ -138,8 +168,9 @@ const formatWhitespace = (code, typescript) => {
     }
 };
 
-const layoutSyntax = (code, typescript) => {
-    const { source = {}, nodes = [], tokens = [], commentPayloads = [], payloads = [], directiveLines = new Set(), nextLineTargets = new Set() } = readSyntax(code, typescript);
+const layoutSyntax = (code, typescript, {
+    source = {}, nodes = [], tokens = [], commentPayloads = [], payloads = [], directiveLines = new Set(), nextLineTargets = new Set()
+} = {}) => {
     const edits = new Map();
     const startOf = node => node.getStart(source);
     const lineOf = position => source.getLineAndCharacterOfPosition(position).line;
@@ -186,6 +217,12 @@ const layoutSyntax = (code, typescript) => {
 
         if (next) whitespace(getObject(node).end, startOf(next), replacement);
     };
+    const hasMultilineBoundary = node => commentPayloads.some(({ start = 0, end = 0 } = {}) => {
+        const text = code.slice(start, end);
+
+        return start >= getObject(node).pos && end <= getObject(node).end &&
+            text.includes('\n') && /^\/\*\s*eslint-disable resilient\/prefer-destructured-member-access\b/u.test(text);
+    });
     const multilineList = (node, elements) => {
         const hasComment = elements.some((element) => {
             const text = code.slice(getObject(element).pos, getObject(element).end);
@@ -194,7 +231,7 @@ const layoutSyntax = (code, typescript) => {
                 typescript.isParenthesizedExpression(element) && text.includes('// Retained indexed operation ends here.');
         });
 
-        if (!elements.length || lineLength(startOf(node)) <= 180 && !hasComment) return;
+        if (!elements.length || lineLength(startOf(node)) <= 180 && !hasComment && !hasMultilineBoundary(node)) return;
 
         elements.forEach(element => before(element));
         const last = elements.at(-1);
@@ -333,7 +370,8 @@ const layoutSyntax = (code, typescript) => {
 
         const { arguments: args = [] } = getObject(node);
 
-        if ((typescript.isCallExpression(node) || typescript.isNewExpression(node)) && args.length > 1) multilineList(node, args);
+        if ((typescript.isCallExpression(node) || typescript.isNewExpression(node)) &&
+            (args.length > 1 || hasMultilineBoundary(node))) multilineList(node, args);
 
         if (typescript.isObjectLiteralExpression(node)) multilineList(node, getObject(node).properties);
 
@@ -398,8 +436,7 @@ const layoutSyntax = (code, typescript) => {
     return applyEdits(code, selected);
 };
 
-const alignDeclarationContinuations = (code, typescript) => {
-    const { source = {}, nodes = [], payloads = [] } = readSyntax(code, typescript);
+const alignDeclarationContinuations = (code, typescript, { source = {}, nodes = [], payloads = [] } = {}) => {
     const edits = [];
     nodes.filter(node => typescript.isVariableDeclaration(node)).forEach((node) => {
         const equals = node.getChildren(source).find(({ kind = 0 }) => kind === getSyntaxKinds(typescript).EqualsToken);
@@ -438,7 +475,36 @@ const alignDeclarationContinuations = (code, typescript) => {
         return /^\s*$/u.test(code.slice(start, end)) ? [{ start, end, replacement: '' }] : [];
     });
 
-    return applyEdits(code, [...edits, ...emptyLoopEdits]);
+    const continuedCallEdits = nodes.filter(node => typescript.isCallExpression(node)).flatMap((node) => {
+        const { expression = {}, arguments: [first = {}] = [] } = getObject(node);
+        const expressionText = code.slice(getObject(expression).pos, getObject(expression).end);
+        const pairedValue = /\/\* eslint-disable resilient\/prefer-destructured-member-access --[^\n]*\n/u.test(expressionText);
+
+        if (!pairedValue || !getObject(first).kind) return [];
+
+        const ownStart = node.getStart(source);
+        const ownLine = code.lastIndexOf('\n', ownStart - 1) + 1;
+        const firstStart = first.getStart(source);
+        const firstLine = code.lastIndexOf('\n', firstStart - 1) + 1;
+        const [indent = ''] = code.slice(ownLine).match(/^ */u) || [];
+        const prefix = code.slice(firstLine, firstStart);
+        const delta = prefix.length - indent.length - 4;
+
+        if (firstLine === ownLine || delta <= 0 || !/^ *$/u.test(prefix)) return [];
+
+        let offset = firstLine;
+
+        return code.slice(firstLine, getObject(node).end).split('\n').flatMap((line) => {
+            const start = offset;
+            offset += line.length + 1;
+            const [spaces = ''] = line.match(/^ */u) || [];
+
+            return spaces.length >= delta && !payloads.some(range => start > getObject(range).start && start < getObject(range).end)
+                ? [{ start, end: start + delta, replacement: '' }] : [];
+        });
+    });
+
+    return applyEdits(code, [...edits, ...emptyLoopEdits, ...continuedCallEdits]);
 };
 
 // Reconcile the printer's completed synthetic trivia before TypeScript erases
@@ -623,21 +689,32 @@ const placeInlineEmissionBoundaries = (code = '', typescript = {}, placedSource 
 };
 
 const formatResilientOutput = (code = '', typescript = {}, placedSource = {}) => {
-    const { createLanguageService = false } = typescript;
+    const { createLanguageService } = typescript;
 
-    if (typeof createLanguageService !== 'function') return code;
+    if (!isFunction(createLanguageService)) return code;
 
-    const { nodes = [], invalid = false } = readSyntax(code, typescript);
+    let syntax = readSyntax(code, typescript);
+    const { nodes = [], invalid = false } = syntax;
 
     if (invalid) return code;
 
     let result = placeEmissionBoundaries(code, typescript, placedSource);
+
+    if (result !== code) syntax = readSyntax(result, typescript);
+
     // Nested completed constructs can expose further layout on later passes.
     // Require a fixed point, including continuation alignment, before returning.
     // eslint-disable-next-line resilient/prefer-prototype-methods -- Each layout pass consumes its predecessor; the syntax-size bound rejects nonconvergence without returning partial layout.
     for (let pass = 0; pass <= nodes.length; pass += 1) {
-        const next = alignDeclarationContinuations(formatWhitespace(layoutSyntax(result, typescript), typescript), typescript);
-        const { invalid: invalidOutput = false } = readSyntax(next, typescript);
+        // Each snapshot belongs to exact text within this invocation. Reuse it
+        // through unchanged stages and the next pass, rebuilding after edits.
+        const layout = layoutSyntax(result, typescript, syntax);
+        const layoutSnapshot = layout === result ? syntax : readSyntax(layout, typescript);
+        const formatted = formatWhitespace(layout, typescript, layoutSnapshot);
+        const formattedSnapshot = formatted === layout ? layoutSnapshot : readSyntax(formatted, typescript);
+        const next = alignDeclarationContinuations(formatted, typescript, formattedSnapshot);
+        syntax = next === formatted ? formattedSnapshot : readSyntax(next, typescript);
+        const { invalid: invalidOutput = false } = syntax;
 
         if (invalidOutput) throw new Error('Emission layout produced invalid JavaScript.');
 

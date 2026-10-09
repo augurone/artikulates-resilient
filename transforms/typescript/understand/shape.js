@@ -1,7 +1,8 @@
-import { createSourceCensus } from './source-census.js';
-import { requireCompilerMember } from './type-resolution.js';
+import { isFunction } from '../../../analysis/host/function.js';
 import { getSyntaxKinds } from '../../utils/ast-boundary.js';
 import { createAstShape, getParameterShape } from '../../utils/ast-shape.js';
+import { createSourceCensus } from './source-census.js';
+import { collectTypeDeclarationBindings, requireCompilerMember } from './type-resolution.js';
 
 const invokeProvider = ({ provider = requireCompilerMember('Shape.provider'), input = {} } = {}) => provider(input);
 
@@ -42,13 +43,22 @@ const createShapeProvider = ({
 
         return nextFunctions;
     };
+    let programDeclarations;
+    const getProgramDeclarations = () => {
+        programDeclarations ??= invokeProvider({
+            provider: getProgramDeclarationMap,
+            input: { typescript, program }
+        });
+
+        return programDeclarations;
+    };
 
     const createAnalysis = ({ code = '', fileName = 'input.ts' } = {}) => {
         const {
-            getSourceFile = false,
-            getTypeChecker = false
+            getSourceFile,
+            getTypeChecker
         } = program;
-        const programSourceFile = typeof getSourceFile === 'function'
+        const programSourceFile = isFunction(getSourceFile)
             ? getSourceFile.call(program, fileName)
             : undefined;
         const {
@@ -63,16 +73,13 @@ const createShapeProvider = ({
             fileName.endsWith('.tsx') ? TSX : TS
         );
         const declarations = {
-            ...invokeProvider({
-                provider: getProgramDeclarationMap,
-                input: { typescript, program }
-            }),
+            ...getProgramDeclarations(),
             ...invokeProvider({
                 provider: getDeclarationMap,
                 input: { typescript, sourceFile }
             })
         };
-        const checker = typeof getTypeChecker === 'function'
+        const checker = isFunction(getTypeChecker)
             ? getTypeChecker.call(program)
             : undefined;
 
@@ -83,6 +90,7 @@ const createShapeProvider = ({
         });
 
         const census = createSourceCensus({ typescript, sourceFile });
+        collectTypeDeclarationBindings({ typescript, sourceFile, declarations, checker, census });
         const diagnostics = invokeProvider({
             provider: getUnsupportedTypeDiagnostics,
             input: { typescript, census, sourceFile, declarations, checker }

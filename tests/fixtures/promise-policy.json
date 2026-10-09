@@ -1,0 +1,321 @@
+[
+  {
+    "rule": "no-unhandled-promise-chain",
+    "source": "request().then(handle).catch(report);",
+    "options": [],
+    "findings": []
+  },
+  {
+    "rule": "no-unhandled-promise-chain",
+    "source": "request().catch(report).then(handle);",
+    "options": [],
+    "findings": []
+  },
+  {
+    "rule": "no-unhandled-promise-chain",
+    "source": "const result = request().then(handle);",
+    "options": [],
+    "findings": []
+  },
+  {
+    "rule": "no-unhandled-promise-chain",
+    "source": "const run = async () => { await request().then(handle); };",
+    "options": [],
+    "findings": []
+  },
+  {
+    "rule": "no-unhandled-promise-chain",
+    "source": "const run = () => request().then(handle);",
+    "options": [],
+    "findings": []
+  },
+  {
+    "rule": "no-unhandled-promise-chain",
+    "source": "void request().then(handle);",
+    "options": [],
+    "findings": []
+  },
+  {
+    "rule": "no-unhandled-promise-chain",
+    "source": "const load = async () => true; const run = () => load();",
+    "options": [],
+    "findings": []
+  },
+  {
+    "rule": "no-unhandled-promise-chain",
+    "source": "const load = async () => true; void load();",
+    "options": [],
+    "findings": []
+  },
+  {
+    "rule": "no-unhandled-promise-chain",
+    "source": "unknownRequest();",
+    "options": [],
+    "findings": []
+  },
+  {
+    "rule": "no-unhandled-promise-chain",
+    "source": "const run = async () => 1; { const run = () => 1; run(); }",
+    "options": [],
+    "findings": []
+  },
+  {
+    "rule": "no-unhandled-promise-chain",
+    "source": "request().then(handle);",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/no-unhandled-promise-chain",
+        "severity": 2,
+        "message": "Handle or explicitly propagate this promise chain rejection; add catch, await, return, or void for intentional fire-and-forget work.",
+        "line": 1,
+        "column": 1,
+        "messageId": "unhandled",
+        "endLine": 1,
+        "endColumn": 23
+      }
+    ]
+  },
+  {
+    "rule": "no-unhandled-promise-chain",
+    "source": "request().then(handle).finally(cleanup);",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/no-unhandled-promise-chain",
+        "severity": 2,
+        "message": "Handle or explicitly propagate this promise chain rejection; add catch, await, return, or void for intentional fire-and-forget work.",
+        "line": 1,
+        "column": 1,
+        "messageId": "unhandled",
+        "endLine": 1,
+        "endColumn": 40
+      }
+    ]
+  },
+  {
+    "rule": "no-unhandled-promise-chain",
+    "source": "const load = async () => true; load();",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/no-unhandled-promise-chain",
+        "severity": 2,
+        "message": "Handle or explicitly propagate this promise chain rejection; add catch, await, return, or void for intentional fire-and-forget work.",
+        "line": 1,
+        "column": 32,
+        "messageId": "unhandled",
+        "endLine": 1,
+        "endColumn": 38
+      }
+    ]
+  },
+  {
+    "rule": "no-unhandled-promise-chain",
+    "source": "function start() { const load = async () => true; load(); }",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/no-unhandled-promise-chain",
+        "severity": 2,
+        "message": "Handle or explicitly propagate this promise chain rejection; add catch, await, return, or void for intentional fire-and-forget work.",
+        "line": 1,
+        "column": 51,
+        "messageId": "unhandled",
+        "endLine": 1,
+        "endColumn": 57
+      }
+    ]
+  },
+  {
+    "rule": "no-unhandled-promise-chain",
+    "source": "const run = () => 1; { const run = async () => 1; run(); }",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/no-unhandled-promise-chain",
+        "severity": 2,
+        "message": "Handle or explicitly propagate this promise chain rejection; add catch, await, return, or void for intentional fire-and-forget work.",
+        "line": 1,
+        "column": 51,
+        "messageId": "unhandled",
+        "endLine": 1,
+        "endColumn": 56
+      }
+    ]
+  },
+  {
+    "rule": "no-unhandled-promise-chain",
+    "source": "{ const run = async () => 1; run(); } { const run = async () => 1; run(); }",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/no-unhandled-promise-chain",
+        "severity": 2,
+        "message": "Handle or explicitly propagate this promise chain rejection; add catch, await, return, or void for intentional fire-and-forget work.",
+        "line": 1,
+        "column": 30,
+        "messageId": "unhandled",
+        "endLine": 1,
+        "endColumn": 35
+      },
+      {
+        "ruleId": "resilient/no-unhandled-promise-chain",
+        "severity": 2,
+        "message": "Handle or explicitly propagate this promise chain rejection; add catch, await, return, or void for intentional fire-and-forget work.",
+        "line": 1,
+        "column": 68,
+        "messageId": "unhandled",
+        "endLine": 1,
+        "endColumn": 73
+      }
+    ]
+  },
+  {
+    "rule": "prefer-async-await",
+    "source": "const run = async () => { await request(); };",
+    "options": [],
+    "findings": []
+  },
+  {
+    "rule": "prefer-async-await",
+    "source": "request().catch(report);",
+    "options": [],
+    "findings": []
+  },
+  {
+    "rule": "prefer-async-await",
+    "source": "request().finally(cleanup);",
+    "options": [],
+    "findings": []
+  },
+  {
+    "rule": "prefer-async-await",
+    "source": "request().then(handle);",
+    "options": [],
+    "findings": []
+  },
+  {
+    "rule": "prefer-async-await",
+    "source": "request().then(handle).finally(cleanup);",
+    "options": [],
+    "findings": []
+  },
+  {
+    "rule": "prefer-async-await",
+    "source": "request().then(first).then(second).finally(cleanup);",
+    "options": [],
+    "findings": []
+  },
+  {
+    "rule": "prefer-async-await",
+    "source": "// eslint-disable-next-line resilient/prefer-async-await -- Preserve the external contract.\nrequest().then(handle).catch(report);",
+    "options": [],
+    "findings": []
+  },
+  {
+    "rule": "prefer-async-await",
+    "source": "const result = request().then(first).then(second);",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 2,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 16,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 42
+      },
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 2,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 16,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 30
+      }
+    ]
+  },
+  {
+    "rule": "prefer-async-await",
+    "source": "request().then(first).then(second).catch(report);",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 2,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 1,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 27
+      },
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 2,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 1,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 15
+      }
+    ]
+  },
+  {
+    "rule": "prefer-async-await",
+    "source": "request().then(() => request().then(handle).catch(report));",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 2,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 22,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 36
+      }
+    ]
+  },
+  {
+    "rule": "prefer-async-await",
+    "source": "request().then(handle).catch(report);",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 2,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 1,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 15
+      }
+    ]
+  },
+  {
+    "rule": "prefer-async-await",
+    "source": "// resilient-allow-promise-chain: legacy marker has no effect\nrequest().then(handle).catch(report);",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 2,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 2,
+        "column": 1,
+        "messageId": "asyncAwait",
+        "endLine": 2,
+        "endColumn": 15
+      }
+    ]
+  }
+]

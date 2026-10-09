@@ -1,6 +1,7 @@
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getBindingReason } from './binding-reason.js';
 import { getBindingAgreement, getBindingContract, getBindingDecision } from './defaults.js';
-import { getObject } from '../../../rules/support/object.js';
 
 const compilePlacementDecisions = ({ typescript = {}, evidence = {} } = {}) => {
     const { facts = new Map() } = evidence;
@@ -22,9 +23,9 @@ const compilePlacementDecisions = ({ typescript = {}, evidence = {} } = {}) => {
 };
 
 const getSourcePlacementNode = ({ typescript = {}, node = {} } = {}) => {
-    const { getOriginalNode = false } = typescript;
+    const { getOriginalNode } = typescript;
 
-    return typeof getOriginalNode === 'function' ? getOriginalNode(node) : node;
+    return isFunction(getOriginalNode) ? getOriginalNode(node) : node;
 };
 
 const getPlacementFact = ({ typescript = {}, node = {}, placement = {} } = {}) => {
@@ -52,6 +53,11 @@ const getPlacementReason = (options = {}) => {
     const { opaque = false, union = false } = getPlacementFact(options);
 
     return getBindingReason({ kind, union, opaque });
+};
+const hasPlacementGuard = ({ typescript = {}, binding = {}, placement = {} } = {}) => {
+    const { observedBindings = new Set() } = placement;
+
+    return observedBindings.has(getSourcePlacementNode({ typescript, node: binding }));
 };
 const hasPlacementAbsence = ({ typescript = {}, parameter = {}, placement = {} } = {}) => {
     const { absence = new Map() } = placement;
@@ -92,6 +98,6 @@ const getPlacementPredicate = ({ typescript = {}, expression = {}, placement = {
 };
 
 export { getPlacementFact, getPlacementContract, getPlacementTypeInfo, getPlacementReason,
-    hasPlacementAbsence, isPlacementTuple, isPlacementArray, getPlacementSymbol, getPlacementPredicate,
+    hasPlacementGuard, hasPlacementAbsence, isPlacementTuple, isPlacementArray, getPlacementSymbol, getPlacementPredicate,
     getBindingElementCanonical, getBindingAgreementReason, getBindingRuntimeGuardKind,
     compilePlacementDecisions, getPlacementBindingDecision, getExactUndefinedReason };

@@ -1,4 +1,4 @@
-import { getObject } from '../../../rules/support/object.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds } from '../../utils/ast-boundary.js';
 import { createRestArrayFixedSelection, createRestArrayStagedSelection } from '../grammar/rest-array.js';
 import { getDestructuringDecisionForNode } from '../policy/destructuring-agreements.js';

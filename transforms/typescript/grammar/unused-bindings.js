@@ -1,4 +1,4 @@
-import { getObject } from '../../../rules/support/object.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds } from '../../utils/ast-boundary.js';
 import { getDestructuringDecisionForNode } from '../policy/destructuring-agreements.js';
 
@@ -18,6 +18,19 @@ const lowerUnusedBindings = ({ typescript = {}, sourceFile = {},
     const discard = name => factory.createExpressionStatement(factory.createVoidExpression(
         factory.createIdentifier(name)
     ));
+    const tupleDiscards = (pattern = {}) => {
+        const { elements = [] } = getObject(pattern);
+
+        return elements.flatMap((element) => {
+            const { name = {} } = getObject(element);
+
+            if (outcome(element) !== 'retain-tuple-slot-discard-binding') return tupleDiscards(name);
+
+            const { text = '' } = getObject(name);
+
+            return [text].filter(Boolean);
+        });
+    };
     const visit = (node = {}) => {
         if (!node) return node;
 
@@ -35,9 +48,12 @@ const lowerUnusedBindings = ({ typescript = {}, sourceFile = {},
         if (![ArrowFunction, FunctionDeclaration].includes(kind)) return visited;
 
         const parameters = getObject(node).parameters || [];
-        const names = parameters.filter(parameter => outcome(parameter) === 'retain-arity-discard-parameter')
-            .map(({ name = {} } = {}) => getObject(name).text || '')
-            .filter(Boolean);
+        const names = parameters.flatMap((parameter) => {
+            const { name = {} } = getObject(parameter);
+
+            return outcome(parameter) === 'retain-arity-discard-parameter'
+                ? [getObject(name).text].filter(Boolean) : tupleDiscards(name);
+        });
 
         if (!names.length) return visited;
 
@@ -59,13 +75,13 @@ const lowerUnusedBindings = ({ typescript = {}, sourceFile = {},
             ...bodyStatements.slice(insertion)
         ]);
 
-        const { modifiers = undefined, typeParameters = undefined, parameters: visitedParameters = [],
-            type = undefined, equalsGreaterThanToken = undefined } = getObject(visited);
+        const { modifiers, typeParameters, parameters: visitedParameters = [],
+            type, equalsGreaterThanToken } = getObject(visited);
 
         if (kind === ArrowFunction) return factory.updateArrowFunction(visited, modifiers, typeParameters,
             visitedParameters, type, equalsGreaterThanToken, updatedBody);
 
-        const { asteriskToken = undefined, name = undefined } = getObject(visited);
+        const { asteriskToken, name } = getObject(visited);
 
         return factory.updateFunctionDeclaration(visited, modifiers, asteriskToken, name,
             typeParameters, visitedParameters, type, updatedBody);

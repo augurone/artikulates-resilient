@@ -1,4 +1,5 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds, wrapExpressionArrowBody } from '../../utils/ast-boundary.js';
 import { getDestructuringDecisionForNode } from '../policy/destructuring-agreements.js';
 
@@ -12,9 +13,9 @@ const placeCallableProviderDispatch = ({
         ReturnStatement = -1, ExpressionStatement = -1,
         VariableStatement = -1, PropertyAssignment = -1,
         SingleLineCommentTrivia = -1 } = getSyntaxKinds(typescript);
-    const { addSyntheticLeadingComment = false,
-        getSyntheticLeadingComments = false,
-        setSyntheticLeadingComments = false } = typescript;
+    const { addSyntheticLeadingComment,
+        getSyntheticLeadingComments,
+        setSyntheticLeadingComments } = typescript;
     const statementKinds = [ReturnStatement, ExpressionStatement, VariableStatement, PropertyAssignment];
     const actionFor = (node = {}) => {
         const { kind = 0 } = getObject(node);
@@ -63,7 +64,7 @@ const placeCallableProviderDispatch = ({
         return typescript.visitNode(sourceFile, visit);
     }
 
-    if (typeof addSyntheticLeadingComment !== 'function') return sourceFile;
+    if (!isFunction(addSyntheticLeadingComment)) return sourceFile;
 
     const hasPropertyOwner = (node = {}) => {
         const { kind = 0 } = getObject(node);
@@ -80,7 +81,7 @@ const placeCallableProviderDispatch = ({
     };
     const visit = (node = {}) => {
         const { kind = 0 } = getObject(node);
-        const comments = typeof getSyntheticLeadingComments === 'function'
+        const comments = isFunction(getSyntheticLeadingComments)
             ? getSyntheticLeadingComments(node) || [] : [];
         const annotated = comments.some(({ text = '' } = {}) => (
             text.includes('eslint-disable-next-line resilient/prefer-safe-transformations')
@@ -104,7 +105,7 @@ const placeCallableProviderDispatch = ({
                 text.includes('eslint-disable-next-line ') && text.includes(' -- ')
             ));
 
-            if (existing >= 0 && typeof setSyntheticLeadingComments === 'function') {
+            if (existing >= 0 && isFunction(setSyntheticLeadingComments)) {
                 const merged = comments.map((comment = {}, index = -1) => {
                     if (index !== existing) return comment;
 

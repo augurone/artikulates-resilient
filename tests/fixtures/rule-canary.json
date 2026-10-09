@@ -1,0 +1,168 @@
+{
+  "negative": [
+    {
+      "id": "assign-null",
+      "rule": "no-null-assignment",
+      "anchor": "const value = null;"
+    },
+    {
+      "id": "assign-undefined",
+      "rule": "no-undefined-assignment",
+      "anchor": "const value = undefined;"
+    },
+    {
+      "id": "compare-absence",
+      "rule": "no-undefined-comparison",
+      "anchor": "const isMissing = value => value === undefined;"
+    },
+    {
+      "id": "fallback-destructuring",
+      "rule": "no-destructuring-fallback",
+      "anchor": "const { items = [] } = data || {};"
+    },
+    {
+      "id": "compare-cardinality",
+      "rule": "no-length-comparison",
+      "anchor": "const empty = items => items.length === 0;"
+    },
+    {
+      "id": "alternate-return",
+      "rule": "no-else",
+      "anchor": "else return '';"
+    },
+    {
+      "id": "nested-branch",
+      "rule": "no-nested-if",
+      "anchor": "if (hasContent) return content;"
+    },
+    {
+      "id": "manual-filter",
+      "rule": "prefer-prototype-methods",
+      "anchor": "for (const item of items) {\n        if (item.enabled) enabled.push(item);\n    }"
+    },
+    {
+      "id": "silent-inner-catch",
+      "rule": "no-silent-catch",
+      "anchor": "catch (inner) {}"
+    },
+    {
+      "id": "null-return",
+      "rule": "prefer-falsey-returns",
+      "anchor": "const getValue = () => null;"
+    },
+    {
+      "id": "mutate-input",
+      "rule": "prefer-safe-transformations",
+      "anchor": "value.enabled = true;"
+    },
+    {
+      "id": "drop-promise-chain",
+      "rule": "no-unhandled-promise-chain",
+      "anchor": "request().then(process).finally(cleanup);"
+    },
+    {
+      "id": "handled-promise-chain",
+      "rule": "prefer-async-await",
+      "anchor": "request().then(process).catch(report);"
+    },
+    {
+      "id": "unguarded-callback",
+      "rule": "no-unguarded-callback-invocation",
+      "anchor": "const run = ({ onDone } = {}) => onDone();"
+    },
+    {
+      "id": "body-member",
+      "rule": "prefer-destructured-member-access",
+      "anchor": "const getName = user => user.name;"
+    },
+    {
+      "id": "body-signature",
+      "rule": "prefer-signature-destructuring",
+      "anchor": "const processUser = (user) => {\n        const { name, age } = user;"
+    },
+    {
+      "id": "missing-field-default",
+      "rule": "prefer-safe-destructuring-defaults",
+      "anchor": "const getValue = ({ value } = {}) => value;"
+    },
+    {
+      "id": "array-as-record",
+      "rule": "signature-contract-destructuring",
+      "anchor": "const { label = '' } = items;"
+    },
+    {
+      "id": "missing-property",
+      "rule": "signature-contract-property",
+      "anchor": "knownUser.nmae;"
+    },
+    {
+      "id": "wrong-call-family",
+      "rule": "signature-contract-call-site",
+      "anchor": "render({ title: 42 });"
+    },
+    {
+      "id": "wrong-operation-family",
+      "rule": "signature-contract-operation",
+      "anchor": "const inspectItems = ({ items = [] } = {}) => items.toUpperCase();"
+    },
+    {
+      "id": "mixed-return-family",
+      "rule": "signature-contract-return-consistency",
+      "anchor": "const getValue = (enabled) => {\n        if (enabled) return [];\n\n        return '';\n    };"
+    },
+    {
+      "id": "operator-placement",
+      "rule": "operator-linebreak",
+      "anchor": "const brokenOperator = 1\n    +\n    2;"
+    }
+  ],
+  "explanations": [
+    {
+      "id": "falsey-absence-guidance",
+      "rule": "no-undefined-comparison",
+      "anchor": "const decodePayload = value => value === undefined ? 'missing' : value;",
+      "includes": [
+        "only when all falsey values have the same consequence",
+        "justified local resilient/no-undefined-comparison exception"
+      ]
+    },
+    {
+      "id": "undeclared-absence-guidance",
+      "rule": "no-undefined-comparison",
+      "anchor": "const isOptionalBindingMissing = () => typeof optionalPayload === 'undefined';",
+      "includes": [
+        "only when all falsey values have the same consequence"
+      ]
+    },
+    {
+      "id": "numeric-import-producer",
+      "rule": "signature-contract-operation",
+      "anchor": "getProviderValue().toUpperCase();",
+      "includes": [
+        "number-like",
+        "producer",
+        "bad-import-provider.js at line 4"
+      ]
+    },
+    {
+      "id": "barrel-import-producer",
+      "rule": "signature-contract-operation",
+      "anchor": "normalizeImportedPage({}).items.toUpperCase();",
+      "includes": [
+        "array-like",
+        "producer",
+        "contract-providers.js at line 1"
+      ]
+    },
+    {
+      "id": "returned-callable-producer",
+      "rule": "signature-contract-operation",
+      "anchor": "readImportedItems({}).toUpperCase();",
+      "includes": [
+        "array-like",
+        "producer",
+        "bad-import-provider.js at line 6"
+      ]
+    }
+  ]
+}

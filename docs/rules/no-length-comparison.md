@@ -1,36 +1,13 @@
 # no-length-comparison
 
-Disallows zero/non-zero presence comparisons for `.length`. Use the length
-value directly for truthiness. This rule does not police other comparison
-operators or exact cardinality checks.
+This rule is implemented in [the current package](../../analysis/eslint/no-length-comparison.js).
+Its implementation uses syntax and lexical ownership.
 
-## What this finding means
+The current supported behavior and boundary cases are verified by:
 
-Comparing a collection's length to zero or greater-than-zero treats a presence
-decision as a numeric special case and splits the project's emptiness
-vocabulary. The rule uses JavaScript's truthiness semantics for zero/non-zero
-checks while leaving real cardinality questions explicit.
+- [control-layout.test.js](../../tests/control-layout.test.js)
+- [native-absence.test.js](../../tests/native-absence.test.js)
+- [rule-canary.test.js](../../tests/rule-canary.test.js)
 
-```javascript
-// Incorrect
-if (items.length === 0) return [];
-
-// Correct
-if (!items.length) return [];
-if (!!items.length) return items;
-if (items.length === 1) return items[0];
-```
-
-The rule targets `length === 0`, `0 === length`, `length !== 0`, `0 !== length`,
-`length > 0`, and `0 < length`. It provides suggestions for the canonical
-`!length` and `length` forms. Exact cardinality checks such as
-`items.length === 1` and `items.length > 1` remain valid.
-
-## Boundaries and non-goals
-
-Only presence checks change; exact cardinality remains a numeric contract.
-
-## Repair recipes
-
-Use `!items.length` for empty and `items.length` for non-empty, or accept the
-provided suggestion when it preserves the source expression.
+[Language policy](../reference/policy.md) remains normative. Unsupported analysis
+remains unknown; no legacy analyzer is used to fill gaps.

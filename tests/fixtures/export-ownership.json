@@ -1,0 +1,18 @@
+[
+  {"name":"anonymous async declaration","dependency":"export default async function(){return 1;}","findings":1},
+  {"name":"anonymous ordinary declaration","dependency":"export default function(){return 1;}","findings":0},
+  {"name":"anonymous async generator","dependency":"export default async function*(){yield 1;}","findings":0},
+  {"name":"anonymous generator","dependency":"export default function*(){yield 1;}","findings":0},
+  {"name":"anonymous class","dependency":"export default class {}","findings":0},
+  {"name":"named class","dependency":"export default class Named {}","findings":0},
+  {"name":"async arrow expression","dependency":"export default async()=>1;","findings":1},
+  {"name":"ordinary arrow expression","dependency":"export default ()=>1;","findings":0},
+  {"name":"named async expression","dependency":"export default (async function local(){return 1;});","findings":1},
+  {"name":"renamed live async declaration","dependency":"export default async function renamed(){return 1;}","findings":1},
+  {"name":"rewritten live async declaration","dependency":"export default async function renamed(){}renamed=()=>1;","findings":0},
+  {"name":"anonymous identity beside unrelated local","dependency":"const renamed=()=>1;export default async function(){return renamed();}","findings":1},
+  {"name":"null export remains noncallable unknown","dependency":"export default null;","findings":0},
+  {"name":"record export remains noncallable unknown","dependency":"export default {};","findings":0},
+  {"name":"string-named default re-export","dependency":"const load=async()=>1;export {load as 'default'};","findings":1},
+  {"name":"inner same-spelling binding cannot replace root export","dependency":"const load=async()=>1;{const load=()=>1;}export default load;","findings":1}
+]

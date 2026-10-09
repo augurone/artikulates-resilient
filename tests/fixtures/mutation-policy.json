@@ -1,0 +1,649 @@
+[
+  {
+    "source": "const update = ({ count = 0, ...state } = {}, { value = \"\" } = {}) => ({ ...state, count: count + 1, value });",
+    "options": [],
+    "findings": []
+  },
+  {
+    "source": "const update = (state) => { state = { ...state }; return state; };",
+    "options": [],
+    "findings": []
+  },
+  {
+    "source": "const update = (draft) => { draft.count += 1; return draft; };",
+    "options": [
+      {
+        "ignoredParameters": [
+          "draft"
+        ]
+      }
+    ],
+    "findings": []
+  },
+  {
+    "source": "const update = (ref) => { ref.current = true; };",
+    "options": [
+      {
+        "ignoredProperties": [
+          "current"
+        ]
+      }
+    ],
+    "findings": []
+  },
+  {
+    "source": "const cache = {}; const update = () => { cache.value = true; };",
+    "options": [
+      {
+        "ignoredBindings": [
+          "cache"
+        ]
+      }
+    ],
+    "findings": []
+  },
+  {
+    "source": "getRef().current = true;",
+    "options": [
+      {
+        "ignoredProperties": [
+          "current"
+        ]
+      }
+    ],
+    "findings": []
+  },
+  {
+    "source": "items.map(item => getRef(item).current++);",
+    "options": [
+      {
+        "ignoredProperties": [
+          "current"
+        ]
+      }
+    ],
+    "findings": []
+  },
+  {
+    "source": "getCollection().add(value);",
+    "options": [
+      {
+        "ignoredProperties": [
+          "add"
+        ]
+      }
+    ],
+    "findings": []
+  },
+  {
+    "source": "const bucket = map.get(key); bucket.add(value);",
+    "options": [
+      {
+        "ignoredBindings": [
+          "bucket"
+        ]
+      }
+    ],
+    "findings": []
+  },
+  {
+    "source": "Object.assign(getTarget(), source);",
+    "options": [
+      {
+        "ignoredProperties": [
+          "assign"
+        ]
+      }
+    ],
+    "findings": []
+  },
+  {
+    "source": "Object.assign({}, source); Object.assign([], source);",
+    "options": [],
+    "findings": []
+  },
+  {
+    "source": "getCollection().custom(value); Object.defineProperty(getTarget(), \"field\", descriptor);",
+    "options": [],
+    "findings": []
+  },
+  {
+    "source": "cache?.values.push(value);",
+    "options": [
+      {
+        "ignoredBindings": [
+          "cache"
+        ]
+      }
+    ],
+    "findings": []
+  },
+  {
+    "source": "Object.assign(); add(value); getTarget().value;",
+    "options": [],
+    "findings": []
+  },
+  {
+    "source": "const collect = items => items.filter(item => item.enabled);",
+    "options": [],
+    "findings": []
+  },
+  {
+    "source": "for (const item of items) process(item);",
+    "options": [],
+    "findings": []
+  },
+  {
+    "source": "for (const item of items) result.push(item);",
+    "options": [
+      {
+        "ignoredBindings": [
+          "result"
+        ]
+      }
+    ],
+    "findings": []
+  },
+  {
+    "source": "const update = async (resp) => { const response = await resp.json(); return { ...response, fields: { ...response.fields, red: true } }; };",
+    "options": [],
+    "findings": []
+  },
+  {
+    "source": "state.items.values.push(value); state?.items.push(value);",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"state\"; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 1,
+        "messageId": "mutation",
+        "endLine": 1,
+        "endColumn": 31
+      },
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"state\"; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 33,
+        "messageId": "mutation",
+        "endLine": 1,
+        "endColumn": 57
+      }
+    ]
+  },
+  {
+    "source": "map.get(key).add(value); const bucket = map.get(key); bucket.add(value);",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for this value; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 1,
+        "messageId": "unnamedMutation",
+        "endLine": 1,
+        "endColumn": 24
+      },
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"bucket\"; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 55,
+        "messageId": "mutation",
+        "endLine": 1,
+        "endColumn": 72
+      }
+    ]
+  },
+  {
+    "source": "getTarget().value = 1; getTarget().value++; delete getTarget().value; Object.assign(getTarget(), source);",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for this value; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 1,
+        "messageId": "unnamedMutation",
+        "endLine": 1,
+        "endColumn": 22
+      },
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for this value; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 24,
+        "messageId": "unnamedMutation",
+        "endLine": 1,
+        "endColumn": 43
+      },
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for this value; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 45,
+        "messageId": "unnamedMutation",
+        "endLine": 1,
+        "endColumn": 69
+      },
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for this value; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 71,
+        "messageId": "unnamedMutation",
+        "endLine": 1,
+        "endColumn": 105
+      }
+    ]
+  },
+  {
+    "source": "items.forEach(item => map.get(item).add(item));",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for this value; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 23,
+        "messageId": "unnamedMutation",
+        "endLine": 1,
+        "endColumn": 46
+      }
+    ]
+  },
+  {
+    "source": "getCollection().push(value); getCollection().set(key, value); getCollection().clear(); getCollection().splice(0, 1);",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for this value; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 1,
+        "messageId": "unnamedMutation",
+        "endLine": 1,
+        "endColumn": 28
+      },
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for this value; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 30,
+        "messageId": "unnamedMutation",
+        "endLine": 1,
+        "endColumn": 61
+      },
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for this value; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 63,
+        "messageId": "unnamedMutation",
+        "endLine": 1,
+        "endColumn": 86
+      },
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for this value; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 88,
+        "messageId": "unnamedMutation",
+        "endLine": 1,
+        "endColumn": 116
+      }
+    ]
+  },
+  {
+    "source": "getTarget().value = 1; getCollection().add(value);",
+    "options": [
+      {
+        "ignoredParameters": [
+          "getTarget",
+          "getCollection",
+          ""
+        ],
+        "ignoredBindings": [
+          "getTarget",
+          "getCollection",
+          ""
+        ]
+      }
+    ],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for this value; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 1,
+        "messageId": "unnamedMutation",
+        "endLine": 1,
+        "endColumn": 22
+      },
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for this value; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 24,
+        "messageId": "unnamedMutation",
+        "endLine": 1,
+        "endColumn": 50
+      }
+    ]
+  },
+  {
+    "source": "getTarget().value = 1; getCollection().add(value);",
+    "options": [
+      {
+        "ignoredProperties": [
+          "value"
+        ]
+      }
+    ],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for this value; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 24,
+        "messageId": "unnamedMutation",
+        "endLine": 1,
+        "endColumn": 50
+      }
+    ]
+  },
+  {
+    "source": "const updateInput = (value) => {\n    value.enabled = true;\n    value.items.push(true);\n\n    return value;\n};",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"value\"; return a new value instead of mutating it.",
+        "line": 2,
+        "column": 5,
+        "messageId": "mutation",
+        "endLine": 2,
+        "endColumn": 25
+      },
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"value\"; return a new value instead of mutating it.",
+        "line": 3,
+        "column": 5,
+        "messageId": "mutation",
+        "endLine": 3,
+        "endColumn": 27
+      }
+    ]
+  },
+  {
+    "source": "const moduleCache = {};\nmoduleCache.value = true;",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"moduleCache\"; return a new value instead of mutating it.",
+        "line": 2,
+        "column": 1,
+        "messageId": "mutation",
+        "endLine": 2,
+        "endColumn": 25
+      }
+    ]
+  },
+  {
+    "source": "const updateReducer = (\n    { count = 0, ...state } = {},\n    { value = '' } = {}\n) => {\n    const next = { ...state };\n    next.count += 1;\n    next.value = value;\n\n    return next;\n};",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"next\"; return a new value instead of mutating it.",
+        "line": 6,
+        "column": 5,
+        "messageId": "mutation",
+        "endLine": 6,
+        "endColumn": 20
+      },
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"next\"; return a new value instead of mutating it.",
+        "line": 7,
+        "column": 5,
+        "messageId": "mutation",
+        "endLine": 7,
+        "endColumn": 23
+      }
+    ]
+  },
+  {
+    "source": "const collect = (items = []) => {\n    const result = [];\n\n    items.forEach(({ enabled = false } = {}) => {\n        if (enabled) result.push(true);\n    });\n\n    return result;\n};",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"result\"; return a new value instead of mutating it.",
+        "line": 5,
+        "column": 22,
+        "messageId": "mutation",
+        "endLine": 5,
+        "endColumn": 39
+      }
+    ]
+  },
+  {
+    "source": "const updateResponse = async (resp) => {\n    const response = await resp.json();\n    response.fields.red = 'blue';\n\n    return response;\n};",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"response\"; return a new value instead of mutating it.",
+        "line": 3,
+        "column": 5,
+        "messageId": "mutation",
+        "endLine": 3,
+        "endColumn": 33
+      }
+    ]
+  },
+  {
+    "source": "const cache = {}; const update = () => { cache.value = true; };",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"cache\"; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 42,
+        "messageId": "mutation",
+        "endLine": 1,
+        "endColumn": 60
+      }
+    ]
+  },
+  {
+    "source": "const update = (state) => { Object.assign(state, { count: 1 }); };",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"state\"; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 29,
+        "messageId": "mutation",
+        "endLine": 1,
+        "endColumn": 63
+      }
+    ]
+  },
+  {
+    "source": "const collect = (items) => { const result = []; items.forEach(item => result.push(item)); return result; };",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"result\"; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 71,
+        "messageId": "mutation",
+        "endLine": 1,
+        "endColumn": 88
+      }
+    ]
+  },
+  {
+    "source": "import { cache } from \"./cache.js\"; cache.value = true;",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"cache\"; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 37,
+        "messageId": "mutation",
+        "endLine": 1,
+        "endColumn": 55
+      }
+    ]
+  },
+  {
+    "source": "const send = async items => { for (const item of items) { await sendItem(item); items.push(item); } };",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"items\"; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 81,
+        "messageId": "mutation",
+        "endLine": 1,
+        "endColumn": 97
+      }
+    ]
+  },
+  {
+    "source": "for (const item of items) output.push(item);",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"output\"; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 27,
+        "messageId": "mutation",
+        "endLine": 1,
+        "endColumn": 44
+      }
+    ]
+  },
+  {
+    "source": "for (const item of items) Object.assign(output, item);",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"output\"; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 27,
+        "messageId": "mutation",
+        "endLine": 1,
+        "endColumn": 54
+      }
+    ]
+  },
+  {
+    "source": "for (const item of items) output.item = item;",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"output\"; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 27,
+        "messageId": "mutation",
+        "endLine": 1,
+        "endColumn": 45
+      }
+    ]
+  },
+  {
+    "source": "for (const item of items) { switch (item.kind) { case \"done\": break; default: output.push(item); } }",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"output\"; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 79,
+        "messageId": "mutation",
+        "endLine": 1,
+        "endColumn": 96
+      }
+    ]
+  },
+  {
+    "source": "const collect = async items => { for await (const item of items) output.push(item); };",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"output\"; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 66,
+        "messageId": "mutation",
+        "endLine": 1,
+        "endColumn": 83
+      }
+    ]
+  },
+  {
+    "source": "for (const item of items) (() => output.push(item))();",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/prefer-safe-transformations",
+        "severity": 2,
+        "message": "Prefer a safe transformation for \"output\"; return a new value instead of mutating it.",
+        "line": 1,
+        "column": 34,
+        "messageId": "mutation",
+        "endLine": 1,
+        "endColumn": 51
+      }
+    ]
+  }
+]

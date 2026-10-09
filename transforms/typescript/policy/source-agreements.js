@@ -1,13 +1,11 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
+import { getNativeFunctionAction } from './defaults.js';
 
 const getNativeFunctionActionForArity = (contract = false) => {
     if (!contract) return 'already-expression';
 
-    const { lifetimeEquivalent = false, arrowEquivalent = false } = getObject(contract);
-
-    if (!lifetimeEquivalent) return 'retain-native-function-declaration';
-
-    return arrowEquivalent ? 'lower-equivalent-arrow' : 'lower-native-function-expression';
+    return getNativeFunctionAction(getObject(contract));
 };
 
 const collectDestructuringAgreements = ({
@@ -64,8 +62,8 @@ const collectDestructuringAgreements = ({
     numericRangeBuilderContracts = new Map()
 } = {}) => {
     const getSourceRange = (node = {}) => {
-        const { getOriginalNode = false } = typescript;
-        const original = typeof getOriginalNode === 'function' ? getOriginalNode(node) : node;
+        const { getOriginalNode } = typescript;
+        const original = isFunction(getOriginalNode) ? getOriginalNode(node) : node;
         const { pos = -1, end = -1 } = getObject(original);
 
         return Number.isInteger(pos) && Number.isInteger(end) && pos >= 0 && end >= pos

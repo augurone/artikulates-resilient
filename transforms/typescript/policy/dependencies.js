@@ -1,4 +1,5 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds } from '../../utils/ast-boundary.js';
 import { isReferenceIdentifier } from '../understand/imports.js';
 
@@ -6,8 +7,8 @@ const getFunctionDependencies = ({
     typescript = {}, node = {}, names = new Set(), checker = false,
     bindingIdentities = new Map(), eagerOnly = false
 } = {}) => {
-    const { getOriginalNode = false } = typescript;
-    const { getSymbolAtLocation = false } = getObject(checker);
+    const { getOriginalNode } = typescript;
+    const { getSymbolAtLocation } = getObject(checker);
     const {
         ArrowFunction = -1,
         CallExpression = -1,
@@ -57,10 +58,10 @@ const getFunctionDependencies = ({
         if (eagerOnly && child !== node && deferredKinds.has(childKind)) return;
 
         if (childKind === Identifier && names.has(childText) && isReferenceIdentifier({ typescript, node: child })) {
-            const original = typeof getOriginalNode === 'function'
+            const original = isFunction(getOriginalNode)
                 ? getOriginalNode(child)
                 : child;
-            const identity = checker && typeof getSymbolAtLocation === 'function'
+            const identity = checker && isFunction(getSymbolAtLocation)
                 ? getSymbolAtLocation(original)
                 : false;
             const dependency = identity && bindingIdentities.size
@@ -74,7 +75,7 @@ const getFunctionDependencies = ({
         typescript.forEachChild(child, visit);
     };
 
-    const { body: nodeBody = undefined } = getObject(node);
+    const { body: nodeBody } = getObject(node);
     visit(nodeBody || node);
 
     return dependencies;
@@ -138,10 +139,10 @@ const getRuntimeBindingNames = ({ typescript = {}, node = {} } = {}) => {
 };
 
 const getRuntimeBindingIdentityEntries = ({ typescript = {}, node = {}, checker = false } = {}) => {
-    const { getOriginalNode = false } = typescript;
-    const { getSymbolAtLocation = false } = getObject(checker);
+    const { getOriginalNode } = typescript;
+    const { getSymbolAtLocation } = getObject(checker);
 
-    if (!checker || typeof getSymbolAtLocation !== 'function') return [];
+    if (!checker || !isFunction(getSymbolAtLocation)) return [];
 
     const {
         ArrayBindingPattern = -1,
@@ -157,7 +158,7 @@ const getRuntimeBindingIdentityEntries = ({ typescript = {}, node = {}, checker 
         const { kind: patternKind = 0, elements = [], text = '' } = getObject(pattern);
 
         if (patternKind === Identifier) {
-            const original = typeof getOriginalNode === 'function'
+            const original = isFunction(getOriginalNode)
                 ? getOriginalNode(pattern)
                 : pattern;
             const identity = getSymbolAtLocation(original);
@@ -215,7 +216,7 @@ const getRuntimeBindingDependencies = ({
     const { declarations = [] } = getObject(declarationList);
 
     if (nodeKind !== FunctionDeclaration && nodeKind !== ClassDeclaration) {
-        declarations.forEach(({ initializer = undefined } = {}) => {
+        declarations.forEach(({ initializer = false } = {}) => {
             if (initializer) collect(initializer);
         });
 
@@ -326,10 +327,17 @@ const orderRuntimeBindingStatements = ({
 
             if (count !== 0 || queued.has(dependent)) return;
 
-            const insertion = queue.findIndex((candidate, index) => (
-                index >= next && positions.get(candidate) > positions.get(dependent)
-            ));
-            const position = insertion === -1 ? queue.length : insertion;
+            let { length: position = 0 } = queue;
+
+            // eslint-disable-next-line resilient/prefer-prototype-methods -- Search only the unconsumed suffix of this private source-ordered queue.
+            for (let index = next; index < queue.length; index += 1) {
+                const { [index]: candidate = {} } = queue;
+
+                if (positions.get(candidate) > positions.get(dependent)) {
+                    position = index;
+                    break;
+                }
+            }
 
             // eslint-disable-next-line resilient/prefer-safe-transformations -- Private ordered queue inserts at the prior source-order position.
             queue.splice(position, 0, dependent);
@@ -469,7 +477,6 @@ const getCyclicRuntimeBindingNames = ({ typescript = {}, statements = [] } = {})
 
 export {
     getCyclicRuntimeBindingNames,
-    getFunctionDependencies,
     getRuntimeBindingDependencies,
     getRuntimeBindingIdentities,
     getRuntimeBindingNames,

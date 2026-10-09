@@ -1,4 +1,4 @@
-import { getObject } from '../../../rules/support/object.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds, updateFunction } from '../../utils/ast-boundary.js';
 import { createMutableSelectedLoop } from '../grammar/mutable-selected-loop.js';
 import { getDestructuringDecisionForNode } from '../policy/destructuring-agreements.js';

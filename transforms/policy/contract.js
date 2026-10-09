@@ -41,7 +41,7 @@ const normalizeContract = ({ kind: sourceKind = '', family: sourceFamily = '', .
     };
 };
 
-const relateContracts = ({
+const getContractRelation = ({
     source = {},
     target = {},
     sourceKeys = [],
@@ -50,21 +50,33 @@ const relateContracts = ({
     const { kind: sourceKind = '', family: sourceFamily = '' } = normalizeContract(source);
     const { kind: targetKind = '', family: targetFamily = '' } = normalizeContract(target);
 
-    // eslint-disable-next-line resilient/prefer-falsey-returns -- Unknown or required contracts have no relation result; false would turn missing evidence into a contradiction.
-    if (['unknown', 'required'].includes(sourceKind)) return undefined;
+    if (['unknown', 'required'].includes(sourceKind)) return 'unknown';
 
-    // eslint-disable-next-line resilient/prefer-falsey-returns -- Unknown or required contracts have no relation result; false would turn missing evidence into a contradiction.
-    if (['unknown', 'required'].includes(targetKind)) return undefined;
+    if (['unknown', 'required'].includes(targetKind)) return 'unknown';
 
     if (['invalid', 'undefined'].includes(sourceFamily) ||
-        ['invalid', 'undefined'].includes(targetFamily)) return false;
+        ['invalid', 'undefined'].includes(targetFamily)) return 'contradiction';
 
-    if (sourceFamily !== targetFamily) return false;
+    if (sourceFamily !== targetFamily) return 'contradiction';
 
-    if (targetFamily !== 'object') return true;
+    if (targetFamily !== 'object') return 'agreement';
 
-    return targetKeys.every(name => sourceKeys.includes(name));
+    return targetKeys.every(name => sourceKeys.includes(name)) ? 'agreement' : 'contradiction';
 };
+const getRelationState = (value) => {
+    if (typeof value !== 'boolean') return 'unknown';
+
+    return value ? 'agreement' : 'contradiction';
+};
+/* eslint-disable resilient/signature-contract-return-consistency, resilient/prefer-falsey-returns -- Public relations preserve boolean/undefined results; internal states are explicit. */
+const relateContracts = (options = {}) => {
+    const relation = getContractRelation(options);
+
+    if (relation === 'unknown') return undefined;
+
+    return relation === 'agreement';
+};
+/* eslint-enable resilient/signature-contract-return-consistency, resilient/prefer-falsey-returns */
 
 const reduceContracts = ({
     contracts = [],
@@ -126,6 +138,8 @@ const lookupMember = ({ members = [], name = '' } = {}) => members.find(member =
 
 export {
     getContractFamily,
+    getContractRelation,
+    getRelationState,
     lookupMember,
     normalizeContract,
     projectMembers,
