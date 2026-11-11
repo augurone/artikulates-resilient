@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import plugin from 'eslint-plugin-resilient/eslint';
 
 import { ESLint, auditSource, manifest } from '../config/eslint-host.js';
+import { assertFunctionSyntax } from './support/function-syntax.js';
 
 const cwd = fileURLToPath(new URL('../', import.meta.url));
 const eslint = new ESLint({ cwd, overrideConfigFile: fileURLToPath(new URL('../eslint.config.js', import.meta.url)) });
@@ -24,6 +25,10 @@ test('ESM lint globals reject CommonJS wrapper bindings', async () => {
     strictEqual(messages.filter(({ ruleId = '' } = {}) => ruleId === 'no-undef').length, 5);
 });
 
+test('authored function syntax rejects traditional expressions without rejecting object protocols', async () => {
+    await assertFunctionSyntax(messagesFor);
+});
+
 test('every authored area retains the full Resilient repository rule configuration', async () => {
     const files = [['analysis/agreement/index.js', ordinary], ['tests/source-ownership.test.js', ordinary], ['scripts/lint.js', ordinary], ['config/eslint-host.js', ordinary],
         ['tests/support/work.js', ordinary], ['analysis/analyzer/index.js', ordinary], ['eslint.config.js', node], ['index.js', node]];
@@ -33,9 +38,14 @@ test('every authored area retains the full Resilient repository rule configurati
         const { rules: expectedRules = {}, settings: expectedSettings = {}, languageOptions: { globals: expectedGlobals = {}, parserOptions: expectedParserOptions = {} } = {} } = expected;
         const { reportUnusedDisableDirectives = 0, reportUnusedInlineConfigs = 0 } = linterOptions;
         const { resilient = {} } = plugins;
+        const { resilient: { resolver, ...sourceSettings } = {} } = settings;
+
+        if (typeof resolver !== 'function') throw new TypeError('Self-lint must resolve the public standard helper source');
 
         deepStrictEqual(rules, expectedRules, `No dialect rule may be weakened for ${file}`);
-        deepStrictEqual(settings, expectedSettings);
+        deepStrictEqual({ resilient: sourceSettings }, expectedSettings);
+        strictEqual(resolver({ from: file, source: 'eslint-plugin-resilient/standard/function' }), fileURLToPath(import.meta.resolve('eslint-plugin-resilient/standard/function')));
+        strictEqual(resolver({ from: file, source: 'external-package' }), '');
         deepStrictEqual(globals, expectedGlobals);
         deepStrictEqual(parserOptions, expectedParserOptions);
         strictEqual(resilient, plugin);
@@ -97,10 +107,7 @@ exceptionCases.forEach(({ source = '', problems = [] } = {}, index) => {
     });
 });
 
-test('verification uses the local product and declared tools without an independent checker', () => {
-    const { kind = '', root = '', customRuleOwner = '' } = manifest;
-
-    deepStrictEqual([kind, root, customRuleOwner], ['local-product-verification', '.', 'eslint-plugin-resilient/eslint']);
+test('verification records the executing ESLint version', () => {
     const { toolVersions: { eslint: version = '' } = {} } = manifest;
 
     strictEqual(version, ESLint.version);

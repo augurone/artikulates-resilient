@@ -181,6 +181,37 @@ const historical = async () => {
     return { identityWhileHeld: true, historicalAfterRevision: true };
 };
 
+const independentCallers = async () => {
+    const source = record();
+    const survivor = alias(source);
+    const required = field({ name: 'x', required: 'string' });
+    const held = request({ owner: survivor, required });
+    const discarded = () => {
+        const caller = alias(source);
+        const requirement = field({ name: 'x', required: 'string' });
+        const judgment = request({ owner: caller, required: requirement });
+
+        strictEqual(statusOf(judgment), 'agreement');
+
+        return [caller, requirement, judgment, factsOf(judgment)].map(value => new WeakRef(value));
+    };
+    const references = discarded();
+
+    await collectAcrossTurns();
+
+    const retained = references.map(reference => Boolean(reference.deref()));
+
+    deepStrictEqual(retained, [false, false, false, false]);
+    strictEqual(isCurrent(held), true);
+    strictEqual(statusOf(request({ owner: survivor, required })), 'agreement');
+    replaceEvidence({ owner: source, evidence: number });
+    strictEqual(isCurrent(held), false);
+    strictEqual(inspect(held).historicalOutcome, 'agreement');
+    strictEqual(statusOf(request({ owner: survivor, required })), 'contradiction');
+
+    return { discardedCallerReleased: retained.every(value => !value), survivingCallerInvalidated: !isCurrent(held) };
+};
+
 // Run fixtures sequentially so their live roots and explicit collection windows
 // do not overlap. Counts describe observable retained arrays, not timed throughput.
 const output = {
@@ -189,7 +220,7 @@ const output = {
     requirementPrefixes: [await requirementPrefixes(32)],
     producerPrefixes: [await producerPrefixes(32)],
     heldRequirementOutput: await requirementPrefixes(32, true), heldProducerOutput: await producerPrefixes(32, true),
-    staleMemo: [await staleMemo(false), await staleMemo(true)], historical: await historical(),
+    staleMemo: [await staleMemo(false), await staleMemo(true)], historical: await historical(), independentCallers: await independentCallers(),
     limitations: ['Explicit GC observations are not a production finalization schedule.',
         'Entries count array slots, not bytes or whole-lint throughput.',
         'The probes report lifetime behavior without declaring the measured design accepted.']

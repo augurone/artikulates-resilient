@@ -53,6 +53,23 @@ const markGuardedNode = (node = {}) => {
     return node;
 };
 
+// Binding and pattern annotations are compiler-owned own data properties.
+// Clone only this protocol: source syntax and unrelated metadata stay with
+// TypeScript's clone/update operation, and absence never becomes a marker.
+const copyBindingAnnotations = (node, clone) => {
+    const keys = ['__resilientGuarded', '__resilientAgreement', '__resilientExactTuplePosition',
+        '__resilientCollectionTimingBoundary', '__resilientProviderForward', '__resilientNativeTuple'];
+
+    keys.filter(key => Object.hasOwn(node, key)).forEach((key) => {
+        // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- The selected own compiler annotation retains its exact acquired value; no replacement establishes the same proof.
+        const { [key]: value } = node;
+
+        Object.defineProperty(clone, key, { configurable: true, enumerable: false, writable: false, value });
+    });
+
+    return clone;
+};
+
 const getNodeShape = ({
     kind = 0,
     text = '',
@@ -232,6 +249,7 @@ const wrapExpressionArrowBody = ({ typescript = {}, node = {} } = {}) => {
 };
 
 export {
+    copyBindingAnnotations,
     hasAuthoredLayoutDirective,
     getSourceRange,
     getNodeShape,

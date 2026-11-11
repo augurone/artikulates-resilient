@@ -11,7 +11,7 @@ not authorize restoring the retired analyzer or proof framework.
 
 | Priority | Capability | Current boundary and next functional requirement |
 | --- | --- | --- |
-| Required | Configured extra analysis roots | The [ESLint module host](../../analysis/eslint/support/modules.js) activates explicit arrays/callbacks and [adapter-selected](../../integrations/project.js) ancestor/inferred roots through the current analyzer. Selected roots and their static closure share filename identities; findings remain owned by the linted Program. [Functional tests](../../tests/configured-roots.test.js) exercise actual incoming calls, ordering/deduplication, cycles, inactive controls, changes and failures. |
+| Required | Configured extra analysis roots | The [ESLint module host](../../analysis/eslint/support/modules.js) activates explicit arrays/callbacks and [adapter-selected](../../integrations/project.js) ancestor/inferred roots through the current analyzer. Selected roots and their static closure share filename identities; findings remain owned by the linted Program. [Functional tests](../../tests/module-contracts-public.test.js) exercise actual incoming calls, ordering/deduplication, cycles, inactive controls, changes and failures. |
 
 ## Finding inspection and external test connection
 
@@ -80,12 +80,18 @@ when release preparation is in scope.
 | Alias, extension and custom resolver configuration | [Project adapter](../../integrations/project.js), production configuration tests and actual imported-provider execution. Configured roots now join that same source closure. |
 | Existing-project discovery and selection | [Project preparation](../../integrations/typescript-project.js): directory/exact config, ambiguity rejection, TypeScript inheritance, narrow roots and runtime dependency closure. |
 | Provider and ESLint resolver integration | [Resolution](../../integrations/typescript-project-resolution.js), explicit isolated providers, transitive input identity, structural import rewriting and mismatch rejection. |
-| ESM project lowering | [Project completion tests](../../tests/typescript-project-completion.test.js) execute native and emitted ESM and reject alternate module modes. Sources use `.ts`/`.tsx`, outputs use `.js`, and package scopes require `"type": "module"`. See [TypeScript lowering](typescript.md). |
+| ESM project lowering | [Project completion tests](../../tests/typescript-project-contracts.test.js) execute native and emitted ESM and reject alternate module modes. Sources use `.ts`/`.tsx`, outputs use `.js`, and package scopes require `"type": "module"`. See [TypeScript lowering](typescript.md). |
 | Raw/fixed artifacts, reports and safe publication | [Artifact validation](../../integrations/typescript-project-artifacts.js), complete-tree observation, hashes and publication rollback; exercised through the installed CLI. |
 | Internal recovery mechanisms | `emitProject` and `observeTree` can reuse verified completed work; manifest validation and interruption tests remain. No public `--verify` or `--resume` command is implied. |
 
 ## Deliberate reductions and deferred requirements
 
+- JavaScript normalization now has shared operation facets, demanded record
+  copy/rest, effective call layouts, seeded reduction family summaries and ESM
+  value/star transport. The [normalization contract](architecture.md#normalization-and-operation-contracts)
+  names their ownership and completion premises, maintained workflow tests and
+  unsupported facets. General recurrence, arbitrary package resolution, direct
+  TypeScript parsing and a global host cancellation budget are not implied.
 - The old contracts implementation and borrowed/live publication API are
   retired. Current agreement and analysis APIs own their evidence and revisions.
 - Read-only consumer measurement and exception inventory are restored through

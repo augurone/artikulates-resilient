@@ -140,7 +140,7 @@ test('AST edits cannot silently change the owned premise', () => {
 });
 
 test('unsupported forms remain stable unknowns', () => {
-    ['1n', '-1', '-0', 'undefined'].forEach((source) => {
+    ['1n', '-1n', 'undefined'].forEach((source) => {
         const owner = own(source);
 
         families.forEach((required) => {
@@ -149,6 +149,15 @@ test('unsupported forms remain stable unknowns', () => {
             strictEqual(status, 'unknown');
             strictEqual(Object.hasOwn(fact, 'family'), false);
         });
+    });
+});
+
+test('signed numeric source spellings establish the same primitive contract', () => {
+    ['-1', '-0', '+1'].forEach((source) => {
+        const owner = own(source);
+
+        strictEqual(request({ owner, required: 'number' }).status, 'agreement');
+        strictEqual(request({ owner, required: 'string' }).status, 'contradiction');
     });
 });
 

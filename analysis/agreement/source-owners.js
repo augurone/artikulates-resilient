@@ -84,7 +84,7 @@ export const reference = ({ owner = false, projection = 'complete' } = {}) => {
 
 // An adapter owns these evaluated field sources. Their identities are shared,
 // not encoded as invented syntax or expanded into copied descendant records.
-export const record = ({ fields = [], open = false } = {}) => {
+export const record = ({ fields = [], open = false, source = false, base = false, excluded = [], retire = false } = {}) => {
     if (!Array.isArray(fields) || typeof open !== 'boolean') throw new TypeError('Expected record fields and an explicit openness flag');
 
     const entries = Array.from(fields, ({ name = false, owner = false } = {}) => {
@@ -95,7 +95,13 @@ export const record = ({ fields = [], open = false } = {}) => {
         return [name, owner];
     });
 
-    return evidenceFor({ kind: 'record', fields: new Map(entries), open });
+    [source, base].filter(Boolean).forEach(sourceOf);
+
+    if (!Array.isArray(excluded) || excluded.some(name => typeof name !== 'string') || typeof retire !== 'boolean') {
+        throw new TypeError('Expected record exclusions and a field ownership flag');
+    }
+
+    return evidenceFor({ kind: 'record', fields: new Map(entries), open, source, base, excluded: new Set(excluded), retire });
 };
 
 // These are source results belonging to one producer agreement, not a permissive
@@ -184,6 +190,17 @@ export const plan = ({ owner = false, facet = {} } = {}) => {
     const { type = '' } = node;
     const references = kind === 'reference' && (projection !== 'family' || facetKind === 'family') ? [target] : owners;
     const dependencies = references.map(dependency => ({ owner: dependency, facet }));
+
+    if (kind === 'record' && facetKind === 'field') {
+        const { fields = new Map(), excluded = new Set(), source: copied = false, base = false } = evidenceOf(evidence);
+        const { name = '', key = '', copy = false } = facet;
+        const inputs = fields.has(name) || excluded.has(name) ? [] : [copied, base].filter(Boolean);
+        // A record composes own enumerable writers, not inherited property
+        // lookup. Retain that facet through producer joins and aliases.
+        const copyFacet = copy ? facet : { ...facet, key: `copy:${key}`, copy: true };
+
+        return { owner, facet, source, dependencies: inputs.map(owner => ({ owner, facet: copyFacet })) };
+    }
 
     // A context can supply missing source facts, never widen a projection's
     // declared evidence boundary through an identifier dependency.

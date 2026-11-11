@@ -13,7 +13,7 @@ export const sourceLifetime = ({ own, call = false, prior = false } = {}) => {
 
 // Compiler statement edges and source order become owned completion templates.
 // No branch, call, initializer, failure or lifetime is evaluated here.
-export const acquireStatementFlow = ({ typescript = {}, statements = [], initialization = [], own, expressionFor, location, absence = false } = {}) => {
+export const acquireStatementFlow = ({ typescript = {}, statements = [], initialization = [], own, expressionFor, naturalInitializer = () => false, location, absence = false } = {}) => {
     if (typeof own !== 'function' || typeof expressionFor !== 'function' || typeof location !== 'function') throw new TypeError('Expected compiler statement acquisition capabilities');
 
     const { SyntaxKind: { Block = -1, IfStatement = -1, FunctionDeclaration = -1, VariableStatement = -1, ReturnStatement = -1,
@@ -26,7 +26,7 @@ export const acquireStatementFlow = ({ typescript = {}, statements = [], initial
     const flows = new WeakMap();
     const read = node => node ? flows.get(node) : empty;
     const lifetimeFor = (group, prior) => sourceLifetime({ own, call: sequences.get(group) || false, prior });
-    const effect = (node, lifetime) => own({ kind: 'effect', argument: expressionFor(node, lifetime), location: location(node) });
+    const effect = (node, lifetime, initializes = false) => own({ kind: 'effect', argument: expressionFor(node, lifetime), initializes, location: location(node) });
     const compile = (node = {}) => {
         const { lifetime = false, test = false } = contexts.get(node) ?? {};
         const { kind = -2, expression = false, thenStatement = false, elseStatement = false,
@@ -43,12 +43,16 @@ export const acquireStatementFlow = ({ typescript = {}, statements = [], initial
 
         if (kind === ExpressionStatement) return effect(expression, lifetime);
 
-        if (kind === VariableStatement) return declarations.reduce((prior, { initializer = false, name: { kind = -2 } = {} } = {}) => {
+        if (kind === VariableStatement) return declarations.reduce((prior, { initializer = false, name = {}, name: { kind = -2 } = {} } = {}) => {
             if (kind !== Identifier) return own({ kind: 'unsupported', location: location(node), owner: unknownOwner({ code: 'unsupported-statement', location: location(node) }) });
 
-            if (!initializer) return prior;
+            if (!initializer) {
+                const omitted = naturalInitializer(name);
 
-            return combine([prior, effect(initializer, sourceLifetime({ own, call: prior === empty ? false : prior, prior: lifetime }))]);
+                return omitted ? combine([prior, own({ kind: 'effect', argument: omitted, initializes: true, location: location(name) })]) : prior;
+            }
+
+            return combine([prior, effect(initializer, sourceLifetime({ own, call: prior === empty ? false : prior, prior: lifetime }), true)]);
         }, empty);
 
         return own({ kind: 'unsupported', location: location(node), owner: unknownOwner({ code: 'unsupported-statement', location: location(node) }) });

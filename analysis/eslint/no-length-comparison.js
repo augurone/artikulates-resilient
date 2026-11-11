@@ -14,8 +14,8 @@ const isLengthMember = ({
     propertyName === 'length'
 );
 
-const isZeroLiteral = ({ type = '', value = 0 } = {}) => (
-    type === 'Literal' && value === 0
+const isCountLiteral = ({ type = '', value = false } = {}, expected) => (
+    type === 'Literal' && value === expected
 );
 
 const isLengthPresenceComparison = ({
@@ -23,10 +23,10 @@ const isLengthPresenceComparison = ({
     left = {},
     right = {}
 } = {}) => (
-    (['===', '!==', '>'].includes(operator) &&
-        isLengthMember(left) && isZeroLiteral(right)) ||
-    (['===', '!==', '<'].includes(operator) &&
-        isZeroLiteral(left) && isLengthMember(right))
+    (['===', '!==', '>', '<='].includes(operator) && isLengthMember(left) && isCountLiteral(right, 0)) ||
+    (['>=', '<'].includes(operator) && isLengthMember(left) && isCountLiteral(right, 1)) ||
+    (['===', '!==', '<', '>='].includes(operator) && isCountLiteral(left, 0) && isLengthMember(right)) ||
+    (['<=', '>'].includes(operator) && isCountLiteral(left, 1) && isLengthMember(right))
 );
 
 export default {
@@ -38,7 +38,7 @@ export default {
         },
         schema: [],
         messages: {
-            lengthComparison: 'Use !collection.length or !!collection.length for a zero/non-zero check. Preserve exact cardinality comparisons such as length === [1...].'
+            lengthComparison: 'Use !collection.length or !!collection.length for a zero/non-zero check. Preserve exact cardinality comparisons such as length === 1.'
         }
     },
     create(context = {}) {

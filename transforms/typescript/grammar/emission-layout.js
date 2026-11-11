@@ -1,3 +1,4 @@
+import { append, put, retain } from '../../../analysis/collections.js';
 import { isFunction } from '../../../analysis/host/function.js';
 import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds } from '../../utils/ast-boundary.js';
@@ -6,11 +7,12 @@ import { getSyntaxKinds } from '../../utils/ast-boundary.js';
 // normalized list disables every rule; justification starts at two or more
 // hyphens surrounded by whitespace. Admission must preserve those scopes too.
 const readDirectiveComment = (text = '') => {
-    const match = text.match(/\s-{2,}\s/u);
-    const [separator = ''] = match || [];
+    const match = text.match(/\s-{2,}\s/u) || [];
+    const [separator = ''] = match;
     const index = separator ? text.indexOf(separator) : text.length;
-    const [, action = '', names = ''] = text.slice(0, index).trim()
+    const directiveMatch = text.slice(0, index).trim()
         .match(/^eslint-(disable-next-line|disable-line|disable|enable)(?:\s+(.*))?$/su) || [];
+    const [, action = '', names = ''] = directiveMatch;
     const rules = [...new Set(names.split(',').map(name => name.trim().replace(/^(['"]?)(.*)\1$/su, '$2')).filter(Boolean))];
 
     return { action, rules, reason: text.slice(index + separator.length).trim() };
@@ -61,8 +63,9 @@ const applyEdits = (code, edits) => {
     return parts.join('') + code.slice(offset);
 };
 
-const readSyntax = (code, typescript, scriptKind = getObject(getObject(typescript).ScriptKind).JS) => {
-    const source = typescript.createSourceFile('emission.js', code, getObject(getObject(typescript).ScriptTarget).Latest, true, scriptKind);
+const readSyntax = (code, typescript, scriptKind = getObject(getObject(typescript).ScriptKind).JS, { source: original = {} } = {}) => {
+    const source = typescript.isSourceFile(original) && getObject(original).text === code ? original
+        : typescript.createSourceFile('emission.js', code, getObject(getObject(typescript).ScriptTarget).Latest, true, scriptKind);
     const nodes = [];
     const tokens = [];
     const visit = (node) => {
@@ -106,6 +109,160 @@ const readSyntax = (code, typescript, scriptKind = getObject(getObject(typescrip
         getObject(node).expression.getWidth(source) === 0);
 
     return { source, nodes, invalid, tokens: tokens.filter(token => getObject(token).kind !== getSyntaxKinds(typescript).EndOfFileToken), commentPayloads, payloads, directiveLines, nextLineTargets };
+};
+
+// A preserved comment is not a preserved unit. Original field identity owns
+// permission to separate a printer-expanded target line. Text/multiplicity only
+// transport that permission; an unowned or already-invalid scope gains none.
+const placeAuthoredBindingBoundaries = (code, typescript, placedSource, syntax) => {
+    if (!getObject(placedSource).kind) return code;
+
+    const original = typescript.getOriginalNode(placedSource);
+    const { text: authoredText = '', scriptKind } = getObject(original);
+
+    if (!/eslint-disable-next-line\b/u.test(authoredText)) return code;
+
+    const authored = readSyntax(authoredText, typescript, scriptKind, { source: original });
+
+    if (getObject(authored).invalid) return code;
+
+    const fieldsFor = ({ nodes = [] } = {}) => nodes.filter(node => typescript.isObjectBindingPattern(node)).flatMap((node) => {
+        const { elements = [] } = getObject(node);
+
+        return elements;
+    }).filter(node => typescript.isIdentifier(getObject(node).name) && !typescript.isComputedPropertyName(getObject(getObject(node).propertyName)));
+    const keyFor = (node) => {
+        const { name = {}, propertyName = {}, dotDotDotToken = false } = getObject(node);
+        const { text: nameText = '' } = getObject(name);
+        const { kind = 0, text: propertyText = '' } = getObject(propertyName);
+
+        return JSON.stringify([nameText, kind, propertyText, Boolean(dotDotDotToken)]);
+    };
+    const leadingFor = (text, node, source) => {
+        const range = (typescript.getLeadingCommentRanges(text, getObject(node).pos) || []).at(-1);
+        const { pos: start = -1, end = -1 } = getObject(range);
+        const target = node.getStart(source);
+        const payload = text.slice(start, end);
+        const { action = '' } = readDirectiveComment(payload.slice(2).replace(/\*\/$/u, ''));
+
+        return { start, end, target, text: payload, eligible: Boolean(range && action === 'disable-next-line' && /^\s*$/u.test(text.slice(end, target))) };
+    };
+    const owners = new Map();
+    fieldsFor(authored).forEach((field) => {
+        const leading = leadingFor(authoredText, field, original);
+
+        if (!getObject(leading).eligible) return;
+
+        const { target = 0, end = 0 } = leading;
+        const { end: fieldEnd = 0 } = getObject(field);
+        const { line = 0 } = original.getLineAndCharacterOfPosition(target);
+        const lineStart = authoredText.lastIndexOf('\n', target - 1) + 1;
+        const nextLine = authoredText.indexOf('\n', fieldEnd);
+        const lineEnd = nextLine < 0 ? authoredText.length : nextLine;
+        const isolated = original.getLineAndCharacterOfPosition(end).line + 1 === line &&
+            original.getLineAndCharacterOfPosition(fieldEnd - 1).line === line &&
+            /^\s*$/u.test(authoredText.slice(lineStart, target)) && /^\s*,?\s*$/u.test(authoredText.slice(fieldEnd, lineEnd));
+
+        if (isolated) put(owners, field, { ...leading, key: keyFor(field) });
+    });
+
+    if (!owners.size) return code;
+
+    const retained = new Map();
+    const changed = new Set();
+    const visit = (node) => {
+        const source = typescript.getOriginalNode(node);
+        const owner = owners.get(source);
+
+        if (owner) put(retained, source, (retained.get(source) || 0) + 1);
+
+        if (owner && keyFor(node) !== getObject(owner).key) retain(changed, source);
+
+        typescript.forEachChild(node, visit);
+    };
+
+    visit(placedSource);
+    const group = (table, key, entry) => append(table.get(key) || put(table, key, []), entry);
+    const expected = new Map();
+    owners.forEach((owner, field) => {
+        if (retained.get(field) === 1 && !changed.has(field)) group(expected, getObject(owner).text, owner);
+    });
+    const countsFor = (text, { commentPayloads = [] } = {}) => {
+        const counts = new Map();
+
+        commentPayloads.forEach(({ start = 0, end = 0 }) => {
+            const payload = text.slice(start, end);
+
+            put(counts, payload, (counts.get(payload) || 0) + 1);
+        });
+
+        return counts;
+    };
+    const authoredCounts = countsFor(authoredText, authored);
+    const printedCounts = countsFor(code, syntax);
+    const printed = new Map();
+    const { source = {}, tokens = [] } = syntax;
+
+    fieldsFor(syntax).forEach((field) => {
+        const leading = leadingFor(code, field, source);
+
+        if (getObject(leading).eligible) group(printed, getObject(leading).text, { ...leading, field, key: keyFor(field) });
+    });
+    const tokenEnds = new Map(tokens.map((token, index) => [getObject(token).end, index]));
+    const edits = new Map();
+    const separateAfter = (field) => {
+        const { end: fieldEnd = 0 } = getObject(field);
+        const index = tokenEnds.get(fieldEnd);
+
+        if (!Number.isInteger(index)) return;
+
+        const { kind = 0, end: tokenEnd = fieldEnd } = getObject(tokens.at(index + 1));
+        const comma = kind === getSyntaxKinds(typescript).CommaToken;
+        const following = tokens.at(index + (comma ? 2 : 1));
+        const start = comma ? tokenEnd : fieldEnd;
+        const limit = following ? following.getStart(source) : start;
+
+        if (following && start <= limit && source.getLineAndCharacterOfPosition(start).line === source.getLineAndCharacterOfPosition(limit).line &&
+            /^\s*$/u.test(code.slice(start, limit))) put(edits, `${start}:${limit}`, { start, end: limit, replacement: '\n' });
+    };
+
+    expected.forEach((fields, payload) => {
+        const targets = printed.get(payload) || [];
+
+        if (authoredCounts.get(payload) !== fields.length || printedCounts.get(payload) !== fields.length || targets.length !== fields.length) return;
+
+        const remaining = new Map();
+
+        fields.forEach(({ key = '' }) => put(remaining, key, (remaining.get(key) || 0) + 1));
+        const matched = targets.every(({ key = '' }) => {
+            const count = remaining.get(key) || 0;
+
+            put(remaining, key, count - 1);
+
+            return count > 0;
+        });
+
+        if (!matched) return;
+
+        targets.forEach(({ end = 0, target = 0, field = {} }) => {
+            const { line: targetLine = 0 } = source.getLineAndCharacterOfPosition(target);
+
+            if (targetLine !== source.getLineAndCharacterOfPosition(end).line + 1)
+                put(edits, `${end}:${target}`, { start: end, end: target, replacement: '\n' });
+
+            separateAfter(field);
+            const { parent = {} } = getObject(field);
+            const { elements = [], end: patternEnd = 0 } = getObject(parent);
+            const { line: closingLine = 0 } = source.getLineAndCharacterOfPosition(patternEnd - 1);
+            const { directiveLines = new Set() } = syntax;
+
+            // Closing syntax leaves the restored field line. A different line
+            // directive keeps its current scope; ordinary closing layout is free.
+            if (closingLine === targetLine || !directiveLines.has(closingLine)) separateAfter(elements.at(-1));
+        });
+    });
+
+    return applyEdits(code, [...edits.values()]);
 };
 
 const changesDirectiveLine = (code, source, directiveLines, start, end, replacement, nextLineTargets) => {
@@ -292,7 +449,8 @@ const layoutSyntax = (code, typescript, {
 
         if (!split) return;
 
-        const [comment = {}] = typescript.getLeadingCommentRanges(code, getObject(initializer).pos) || [];
+        const initializerComments = typescript.getLeadingCommentRanges(code, getObject(initializer).pos) || [];
+        const [comment = {}] = initializerComments;
         const { pos: commentStart = -1, kind: commentKind = 0 } = comment;
         const nextStart = commentStart >= 0 ? commentStart : startOf(initializer);
 
@@ -329,7 +487,8 @@ const layoutSyntax = (code, typescript, {
         const nextLine = code.indexOf('\n', end);
         const lineEnd = nextLine < 0 ? code.length : nextLine;
         const prefix = code.slice(lineStart, start);
-        const [indent = ''] = prefix.match(/^ */u) || [];
+        const prefixIndentMatch = prefix.match(/^ */u) || [];
+        const [indent = ''] = prefixIndentMatch;
         const gap = start - (prefix.match(/ *$/u) || [''])[0].length;
 
         if (!/^\/\*\s*eslint-enable\b[^\n]*\*\/$/u.test(text) ||
@@ -389,7 +548,8 @@ const layoutSyntax = (code, typescript, {
         if (typescript.isClassDeclaration(node) || typescript.isClassExpression(node)) {
             getObject(node).members.slice(1).forEach((member, index) => {
                 const [previous = {}] = getObject(node).members.slice(index, index + 1);
-                const [comment = {}] = typescript.getLeadingCommentRanges(code, getObject(member).pos) || [];
+                const memberComments = typescript.getLeadingCommentRanges(code, getObject(member).pos) || [];
+                const [comment = {}] = memberComments;
                 const { pos: position = startOf(member) } = comment;
                 const trailing = typescript.getTrailingCommentRanges(code, getObject(previous).end) || [];
                 const { end = getObject(previous).end } = getObject(trailing.at(-1));
@@ -447,7 +607,8 @@ const alignDeclarationContinuations = (code, typescript, { source = {}, nodes = 
         const lineStart = code.lastIndexOf('\n', position - 1) + 1;
         const ownStart = node.getStart(source);
         const ownLineStart = code.lastIndexOf('\n', ownStart - 1) + 1;
-        const [indent = ''] = code.slice(ownLineStart).match(/^ */u) || [];
+        const ownIndentMatch = code.slice(ownLineStart).match(/^ */u) || [];
+        const [indent = ''] = ownIndentMatch;
         const delta = position - lineStart - indent.length;
 
         if (lineStart === ownLineStart || delta <= 0 || !/^ *$/u.test(code.slice(lineStart, position))) return;
@@ -455,7 +616,8 @@ const alignDeclarationContinuations = (code, typescript, { source = {}, nodes = 
         const lines = code.slice(lineStart, getObject(node).end).split('\n');
         let offset = lineStart;
         lines.forEach((line) => {
-            const [spaces = ''] = line.match(/^ */u) || [];
+            const leadingSpacesMatch = line.match(/^ */u) || [];
+            const [spaces = ''] = leadingSpacesMatch;
             const start = offset;
             offset += line.length + 1;
 
@@ -486,7 +648,8 @@ const alignDeclarationContinuations = (code, typescript, { source = {}, nodes = 
         const ownLine = code.lastIndexOf('\n', ownStart - 1) + 1;
         const firstStart = first.getStart(source);
         const firstLine = code.lastIndexOf('\n', firstStart - 1) + 1;
-        const [indent = ''] = code.slice(ownLine).match(/^ */u) || [];
+        const entryIndentMatch = code.slice(ownLine).match(/^ */u) || [];
+        const [indent = ''] = entryIndentMatch;
         const prefix = code.slice(firstLine, firstStart);
         const delta = prefix.length - indent.length - 4;
 
@@ -497,7 +660,8 @@ const alignDeclarationContinuations = (code, typescript, { source = {}, nodes = 
         return code.slice(firstLine, getObject(node).end).split('\n').flatMap((line) => {
             const start = offset;
             offset += line.length + 1;
-            const [spaces = ''] = line.match(/^ */u) || [];
+            const lineSpacesMatch = line.match(/^ */u) || [];
+            const [spaces = ''] = lineSpacesMatch;
 
             return spaces.length >= delta && !payloads.some(range => start > getObject(range).start && start < getObject(range).end)
                 ? [{ start, end: start + delta, replacement: '' }] : [];
@@ -586,7 +750,8 @@ const placeInlineEmissionBoundaries = (code = '', typescript = {}, placedSource 
     const completed = new Map();
     const collect = (node) => {
         (typescript.getSyntheticTrailingComments(node) || []).forEach(({ text = '' }) => {
-            const [, names = '', reason = ''] = text.trim().match(/^eslint-disable-line\s+([^\n]+?)\s+--\s+(\S[^\n]*)$/u) || [];
+            const trailingDirectiveMatch = text.trim().match(/^eslint-disable-line\s+([^\n]+?)\s+--\s+(\S[^\n]*)$/u) || [];
+            const [, names = '', reason = ''] = trailingDirectiveMatch;
 
             if (!names || !reason) return;
 
@@ -637,7 +802,8 @@ const placeInlineEmissionBoundaries = (code = '', typescript = {}, placedSource 
         const start = source.getPositionOfLineAndCharacter(line, 0);
         const next = code.indexOf('\n', start);
         const end = next < 0 ? code.length : next;
-        const [indent = ''] = code.slice(start, end).match(/^ */u) || [];
+        const blockIndentMatch = code.slice(start, end).match(/^ */u) || [];
+        const [indent = ''] = blockIndentMatch;
         const preceding = commentPayloads.filter(range => /eslint-disable-next-line\b/u.test(content(code, range)) &&
             source.getLineAndCharacterOfPosition(getObject(range).end).line + 1 === line);
         const multilinePredecessor = preceding.some(range => source.getLineAndCharacterOfPosition(getObject(range).start).line !== line - 1);
@@ -677,8 +843,10 @@ const placeInlineEmissionBoundaries = (code = '', typescript = {}, placedSource 
 
         return [{ start: position, end: position, replacement },
             ...entries.map(({ start: begin = 0, end: limit = 0 }) => {
-                const [before = ''] = code.slice(start, begin).match(/ *$/u) || [];
-                const [after = ''] = code.slice(limit, end).match(/^ */u) || [];
+                const precedingSpacesMatch = code.slice(start, begin).match(/ *$/u) || [];
+                const [before = ''] = precedingSpacesMatch;
+                const followingSpacesMatch = code.slice(limit, end).match(/^ */u) || [];
+                const [after = ''] = followingSpacesMatch;
 
                 return { start: begin - before.length, end: limit,
                     replacement: after.length || limit === end ? '' : ' ' };
@@ -701,6 +869,12 @@ const formatResilientOutput = (code = '', typescript = {}, placedSource = {}) =>
     let result = placeEmissionBoundaries(code, typescript, placedSource);
 
     if (result !== code) syntax = readSyntax(result, typescript);
+
+    const owned = placeAuthoredBindingBoundaries(result, typescript, placedSource, syntax);
+
+    if (owned !== result) syntax = readSyntax(owned, typescript);
+
+    result = owned;
 
     // Nested completed constructs can expose further layout on later passes.
     // Require a fixed point, including continuation alignment, before returning.

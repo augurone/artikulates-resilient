@@ -61,4 +61,16 @@ const createNativeUndefinedReader = ({ sourceCode = {} } = {}) => {
     };
 };
 
-export { createNativeUndefinedReader, isNullLiteral };
+// `void` produces absence independently of lexical lookup. This only recognizes
+// the authored value; diagnostics must never remove its operand's effects.
+const createExplicitUndefinedReader = (options) => {
+    const isNativeUndefined = createNativeUndefinedReader(options);
+
+    return (node = {}) => {
+        const { type = '', operator = '' } = node ?? {};
+
+        return (type === 'UnaryExpression' && operator === 'void') || isNativeUndefined(node);
+    };
+};
+
+export { createNativeUndefinedReader, createExplicitUndefinedReader, isNullLiteral };

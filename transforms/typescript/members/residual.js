@@ -84,7 +84,6 @@ const lowerResidualMemberAccess = ({
         CallExpression = -1,
         Block = -1,
         EqualsGreaterThanToken = -1,
-        SingleLineCommentTrivia = -1,
         MultiLineCommentTrivia = -1
     } = getSyntaxKinds(typescript);
     const { factory = {} } = typescript;
@@ -112,12 +111,6 @@ const lowerResidualMemberAccess = ({
     const isFunctionNode = node => functionKinds.includes(getObject(node).kind);
     const isMember = node => memberKinds.includes(getObject(node).kind);
     const isBindingIdentifier = node => node && getObject(node).kind === Identifier;
-    const getKey = (node = {}) => {
-        const { pos = 0, end = 0 } = getObject(node);
-
-        return pos + ":" + end;
-    };
-
     const getChain = (node) => {
         const get = (current) => {
             if (!isMember(current)) return { root: current, segments: [] };
@@ -261,14 +254,6 @@ const lowerResidualMemberAccess = ({
         );
     };
     const { addSyntheticLeadingComment: addLeading, addSyntheticTrailingComment: addTrailing } = getObject(typescript);
-    const addMutationComment = node => isFunction(addLeading)
-        ? addLeading(
-            node,
-            SingleLineCommentTrivia,
-            " eslint-disable-next-line resilient/prefer-destructured-member-access -- member assignment retained because destructuring cannot express write semantics",
-            true
-        )
-        : node;
     // Static reads belong to their enclosing statement. An extractor IIFE
     // creates a second fake function boundary and invents an object fallback;
     // carry the binding plan outward instead.
@@ -289,9 +274,10 @@ const lowerResidualMemberAccess = ({
                 occupied: available
             });
             available = new Set([...available, alias]);
-            const argument = segKind === "element"
-                ? segArg || factory.createIdentifier("undefined")
-                : undefined;
+            let argument;
+
+            if (segKind === "element") argument = segArg || factory.createIdentifier("undefined");
+
             const pattern = getPattern({
                 segment,
                 alias,
@@ -379,7 +365,6 @@ const lowerResidualMemberAccess = ({
             ...bindings,
             ...getBindingNames({ typescript, node: nodeBody })
         ]);
-        let mutationKeys = new Set();
         const lowerMemberInitializer = (statement = {}) => {
             // Absent statement modifiers must stay absent in factory update.
             const { kind: stmtKind = 0, declarationList = {}, modifiers } = getObject(statement);
@@ -531,8 +516,9 @@ const lowerResidualMemberAccess = ({
                 destructuringAgreements,
                 kinds: ['repeated-parameter-read', 'selected-model-read']
             });
+            const { valueFamily = '' } = getObject(repeatedReadContract);
             const retainedArrayRead = getObject(repeatedReadAgreement).action === 'retain-source-phase-read' &&
-                getObject(repeatedReadContract).valueFamily === 'checker-proven-native-array';
+                valueFamily === 'checker-proven-native-array';
 
             if (isSortConsumerCapability || retainedArrayRead ||
                 getObject(projectionAgreement).action === 'retain-receiver-ordered-projection') return false;
@@ -842,53 +828,6 @@ const lowerResidualMemberAccess = ({
 
             return [statement];
         };
-        const collect = (child, parent = {}, statement = {}) => {
-            if (!child || isFunctionNode(child)) return;
-
-            if (hasCompletedDestructuringAgreement({ typescript, node: child, destructuringAgreements,
-                kinds: ['callable-operation'] })) return;
-
-            const { kind: parentKind = 0, expression: parentExpr = {} } = getObject(parent);
-
-            if (isMember(child) && parentKind === CallExpression && parentExpr === child) {
-                typescript.forEachChild(child, next => collect(next, child, statement));
-
-                return;
-            }
-
-            const { kind: childKind = 0 } = getObject(child);
-            const { isStatement } = getObject(typescript);
-            const nextStatement = childKind !== Block &&
-                isFunction(isStatement) &&
-                isStatement(child)
-                ? child
-                : statement;
-
-            if (!isMember(child)) {
-                typescript.forEachChild(child, next => collect(next, child, nextStatement));
-
-                return;
-            }
-
-            const { root = {}, segments = [] } = getChain(child);
-            const [lastSegment = {}] = segments.slice(-1);
-            const finalName = getSegmentName(lastSegment);
-            const { text: rootText = "" } = getObject(root);
-
-            if (rootText &&
-                bindings.has(rootText) &&
-                segments.length &&
-                !["length", "size"].includes(finalName) &&
-                isWrite(child, parent)) {
-                mutationKeys = new Set([
-                    ...mutationKeys,
-                    getKey(nextStatement)
-                ]);
-            }
-
-            typescript.forEachChild(child, next => collect(next, child, nextStatement));
-        };
-        collect(nodeBody, {}, {});
         const replace = (child, parent = {}) => {
             if (!child || isFunctionNode(child)) return child;
 
@@ -975,22 +914,12 @@ const lowerResidualMemberAccess = ({
         const rewrittenBody = hasStatementHosts || nodeBodyKind === Block
             ? typescript.visitEachChild(hostedBody, child => replace(child, hostedBody), context)
             : replace(nodeBody, node);
-        const annotate = (child) => {
-            if (!child || isFunctionNode(child)) return child;
-
-            if (mutationKeys.has(getKey(child))) return addMutationComment(child);
-
-            return typescript.visitEachChild(child, annotate, context);
-        };
-        const finalBody = mutationKeys.size
-            ? annotate(rewrittenBody)
-            : rewrittenBody;
 
         return updateFunction({
             typescript,
             node,
             parameters: nodeParameters,
-            body: finalBody
+            body: rewrittenBody
         });
     };
     const visit = (node, inheritedBindings = new Set()) => {

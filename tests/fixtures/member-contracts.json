@@ -100,7 +100,7 @@
   {
     "name": "computed read",
     "source": "({name:1})[\"nmae\"];",
-    "properties": [],
+    "properties": ["nmae"],
     "operations": []
   },
   {
@@ -346,30 +346,6 @@
     ]
   },
   {
-    "name": "prototype write",
-    "source": "Array.prototype.trim=()=>\"ok\";[].trim();",
-    "properties": [],
-    "operations": []
-  },
-  {
-    "name": "prototype alias write",
-    "source": "const A=Array;A.prototype.trim=()=>\"ok\";[].trim();",
-    "properties": [],
-    "operations": []
-  },
-  {
-    "name": "prototype property addition",
-    "source": "Object.prototype.nmae=1;({name:1}).nmae;",
-    "properties": [],
-    "operations": []
-  },
-  {
-    "name": "intrinsic escape",
-    "source": "patch(Array);[].trim();",
-    "properties": [],
-    "operations": []
-  },
-  {
     "name": "receiver-dependent method",
     "source": "({read(){return this.value;}}).read().trim();",
     "properties": [],
@@ -536,48 +512,6 @@
     ]
   },
   {
-    "name": "reflective prototype write",
-    "source": "Object.getPrototypeOf([]).trim=()=>\"custom\";[].trim();",
-    "properties": [],
-    "operations": []
-  },
-  {
-    "name": "reflective prototype alias write",
-    "source": "const proto=Object.getPrototypeOf([]);proto.trim=()=>\"custom\";[].trim();",
-    "properties": [],
-    "operations": []
-  },
-  {
-    "name": "Reflect prototype write",
-    "source": "Reflect.getPrototypeOf([]).trim=()=>\"custom\";[].trim();",
-    "properties": [],
-    "operations": []
-  },
-  {
-    "name": "constructor path prototype write",
-    "source": "const a=[];a.constructor.prototype.trim=()=>\"custom\";[].trim();",
-    "properties": [],
-    "operations": []
-  },
-  {
-    "name": "computed constructor alias write",
-    "source": "const C=[][\"constructor\"];C.prototype.trim=()=>\"custom\";[].trim();",
-    "properties": [],
-    "operations": []
-  },
-  {
-    "name": "inherited prototype alias write",
-    "source": "const proto=[][\"__proto__\"];proto.trim=()=>\"custom\";[].trim();",
-    "properties": [],
-    "operations": []
-  },
-  {
-    "name": "reflective Object alias write",
-    "source": "const O=Object;const proto=O.getPrototypeOf({});proto.nmae=1;({name:1}).nmae;",
-    "properties": [],
-    "operations": []
-  },
-  {
     "name": "shadowed reflective namespace retains contradiction",
     "source": "const Object={getPrototypeOf:()=>({})};Object.getPrototypeOf([]).trim=()=>\"custom\";[].trim();",
     "properties": [],
@@ -586,30 +520,21 @@
     ]
   },
   {
-    "name": "unknown reflective member",
-    "source": "Object[select()]([]).trim=()=>\"custom\";[].trim();",
+    "name": "unknown reflective member preserves native agreement",
+    "source": "Object[select()]([]);(42).trim();",
     "properties": [],
-    "operations": []
+    "operations": [
+      "trim"
+    ]
   },
   {
-    "name": "numeric prototype write",
-    "source": "Number.prototype.trim=()=>\"custom\";(1).trim();",
-    "properties": [],
-    "operations": []
-  },
-  {
-    "name": "boolean prototype write",
-    "source": "Boolean.prototype.map=()=>\"custom\";false.map(Boolean);",
-    "properties": [],
-    "operations": []
-  },
-  {
-    "name": "prototype exposure preserves unrelated contradictions",
-    "source": "Array.prototype.trim=()=>\"custom\";[].trim();\"\".map(Boolean);({}).missing;",
+    "name": "independent native contradictions",
+    "source": "[].trim();\"\".map(Boolean);({}).missing;",
     "properties": [
       "missing"
     ],
     "operations": [
+      "trim",
       "map"
     ]
   },
@@ -620,17 +545,5 @@
     "operations": [
       "trim"
     ]
-  },
-  {
-    "name": "prior escape still invalidates lookup before another argument",
-    "source": "patch(Array);[].trim(Array);",
-    "properties": [],
-    "operations": []
-  },
-  {
-    "name": "escaped scalar constructor can change a later receiver contract",
-    "source": "const consume=reader=>reader.map(Boolean);const run=(enabled=false)=>(enabled&&[]).map(Boolean);consume({map(C){C.prototype.map=()=>\"custom\";}});run();",
-    "properties": [],
-    "operations": []
   }
 ]

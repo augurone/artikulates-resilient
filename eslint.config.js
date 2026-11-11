@@ -1,9 +1,25 @@
+import { dirname, isAbsolute, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import js from '@eslint/js';
 import * as importPlugin from 'eslint-plugin-import-x';
 import nodePlugin from 'eslint-plugin-n';
 import globals from 'globals';
 
 import resilient from 'eslint-plugin-resilient/eslint';
+
+// Self-lint reads the public standard helper bodies through their installed
+// export identities. Other bare imports retain the host's unresolved boundary.
+const standardModules = new Map(['object', 'array', 'function'].map((name) => {
+    const source = `eslint-plugin-resilient/standard/${name}`;
+
+    return [source, fileURLToPath(import.meta.resolve(source))];
+}));
+const resolveSource = ({ from = '', source = '' } = {}) => {
+    if (standardModules.has(source)) return standardModules.get(source);
+
+    return source.startsWith('.') || isAbsolute(source) ? resolve(dirname(from), source) : '';
+};
 
 export default [
     {
@@ -27,7 +43,7 @@ export default [
     resilient.configs.safety,
     {
         name: 'resilient/local-policy',
-        settings: { resilient: { evidenceMessages: true } },
+        settings: { resilient: { evidenceMessages: true, resolver: resolveSource } },
         rules: { 'prefer-const': 'error', 'no-empty': ['error', { allowEmptyCatch: true }] },
         linterOptions: { reportUnusedDisableDirectives: 'error', reportUnusedInlineConfigs: 'error' }
     },
@@ -128,6 +144,10 @@ export default [
                 {
                     selector: 'ClassExpression',
                     message: 'Classes are forbidden. Use function expressions instead.'
+                },
+                {
+                    selector: 'FunctionExpression:not(:matches(Property[method=true], Property[kind!="init"], MethodDefinition) > FunctionExpression)',
+                    message: 'Traditional function expressions are forbidden. Use arrow functions instead.'
                 }
             ]
         }

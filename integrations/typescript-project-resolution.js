@@ -140,15 +140,23 @@ const normalizeRoute = ({ context = {}, custom = {}, options = {}, projectRoot =
 
     return { owner, resolved: { ...resolvedModule, resolvedUsingTsExtension: /\.tsx?$/u.test(specifier) } };
 };
-const runtimeImportNode = ({ parent = {} } = {}) => {
-    const { isTypeOnly = false, importClause = {} } = parent;
+// A whole type-only declaration erases its request. Inline type specifiers
+// erase bindings, but verbatim emit keeps the empty request and its effects.
+// Provider traversal, emit closure and route planning share this decision.
+const runtimeImportNode = ({ parent = {} } = {}, { verbatimModuleSyntax = false } = {}) => {
+    const { isTypeOnly = false, importClause = false, exportClause = false } = parent;
     const selectedClause = importClause ? importClause : {};
-    const { isTypeOnly: clauseTypeOnly = false, namedBindings = {}, name = '' } = selectedClause;
-    const selectedBindings = namedBindings ? namedBindings : {};
-    const { elements = [] } = selectedBindings;
-    const namesOnlyType = elements.length && elements.every(({ isTypeOnly: typeOnly = false } = {}) => typeOnly);
+    const { isTypeOnly: clauseTypeOnly = false, namedBindings = false, name = false } = selectedClause;
 
-    return !isTypeOnly && !clauseTypeOnly && (name || !namesOnlyType);
+    if (isTypeOnly || clauseTypeOnly) return false;
+
+    if (verbatimModuleSyntax || name) return true;
+
+    const bindings = typescript.isExportDeclaration(parent) ? exportClause : namedBindings;
+    const selectedBindings = bindings ? bindings : {};
+    const { elements = false } = selectedBindings;
+
+    return !Array.isArray(elements) || elements.some(({ isTypeOnly = false } = {}) => !isTypeOnly);
 };
 const createResolution = ({ fileNames = [], selected = fileNames, options = {}, projectRoot = '', outDir = '', provider = '', eslintConfig = '', timeout = 0 } = {}) => {
     const { rootDir = projectRoot, target = typescript.ScriptTarget.Latest } = options;
@@ -175,7 +183,7 @@ const createResolution = ({ fileNames = [], selected = fileNames, options = {}, 
                 const mode = typescript.getModeForUsageLocation(source, node, options);
                 const { resolvedModule = false, affectingLocations = [] } = typescript.resolveModuleName(text, name, options, typescript.sys, undefined, undefined, mode);
 
-                return { importer: name, specifier: text, typescriptResolution: resolvedModule, runtime: !!runtimeImportNode(node),
+                return { importer: name, specifier: text, typescriptResolution: resolvedModule, runtime: runtimeImportNode(node, options),
                     sourceOutputMap, projectRoot, packageScope: owningPackage(name), resolutionInputs: affectingLocations.filter(existsSync) };
             });
         });
@@ -232,4 +240,4 @@ const rewriteImports = (code, fileName, routes) => {
         .reduce((text, { start = 0, end = 0, text: replacement = '' } = {}) => text.slice(0, start) + replacement + text.slice(end), code);
 };
 
-export { assertEsmModule, createResolution, importNodes, outputName, rewriteImports, runExtension, owningPackage };
+export { assertEsmModule, createResolution, importNodes, outputName, rewriteImports, runExtension, owningPackage, runtimeImportNode };

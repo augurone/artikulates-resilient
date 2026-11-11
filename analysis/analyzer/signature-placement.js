@@ -25,7 +25,7 @@ const placementQueries = (entries, declarations) => {
 
         if (placement) return complete(decision(placement, reason, references));
 
-        const guarded = leaves.map(index => declarations.checkCallable({ index, ...observation })).filter(({ required = true } = {}) => !required);
+        const guarded = leaves.map(index => declarations.checkPresence({ index, ...observation })).filter(({ required = true } = {}) => !required);
 
         if (guarded.length) return complete(decision('body', 'guarded-provider', references, false, guarded));
 
@@ -39,7 +39,7 @@ const placementQueries = (entries, declarations) => {
 // this is neither a caller-derived signature nor a second completion evaluator.
 export const prepareSignaturePlacement = ({ index = {}, model = {}, declarations = {} } = {}) => {
     const { bindings: lexical = [], declarations: bindings = [], references = [], identities = new WeakMap(), parents = new WeakMap(), writes = new Set(),
-        opaqueExecutions = new Set(), executionOf = new WeakMap(), callableResolutions = new WeakMap(), initializerNames = new Map(),
+        opaqueExecutions = new Set(), opaqueInitializers = new Set(), executionOf = new WeakMap(), callableResolutions = new WeakMap(), initializerNames = new Map(),
         functionEntries = [], ownFunctionCount = 0, initializerFacts = new WeakMap() } = index;
     const functions = new Map(functionEntries.slice(0, ownFunctionCount).map((entry) => {
         const { execution = false } = entry;
@@ -155,7 +155,7 @@ export const prepareSignaturePlacement = ({ index = {}, model = {}, declarations
         const declarationLocation = locationOf(statement);
         const { range: [start = -1] = [] } = patternLocation;
         const nested = parents.get(statement) !== body;
-        const unsupported = opaqueExecutions.has(execution) || async || generator;
+        const unsupported = opaqueExecutions.has(execution) || opaqueInitializers.has(execution) || async || generator;
         const unavailable = identities.get(init) !== binding && callableResolutions.get(init) !== identities.get(init);
         const unlocated = !located || ![parameterLocation, patternLocation, declarationLocation].every(({ range = [] } = {}) => validRange(range));
         const reason = [unsupported && 'unsupported-execution', unavailable && 'unavailable-alias', unlocated && 'unavailable-location', writes.has(binding) && 'written-parameter', retained,

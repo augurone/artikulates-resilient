@@ -1,5 +1,6 @@
 /node_modules/
 /.artifacts/
+/tests/fixtures/fp-ts/
 .DS_Store
 npm-debug.log*
 .env*.local

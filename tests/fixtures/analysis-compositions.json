@@ -1,0 +1,161 @@
+[
+  {
+    "name": "record discrimination",
+    "body": "const item=left?{tag:\"yes\",value:42}:{tag:\"no\",value:\"ok\"};const copy={...item,...(right?{other:0}:{other:1})};const {tag=\"\",value=\"\"}=copy;return tag===\"yes\"?value:0;",
+    "async": false
+  },
+  {
+    "name": "record rest and overwrite",
+    "body": "const item=left?{value:42,drop:0}:{value:\"ok\",drop:0};const {drop=0,...rest}=item;const copy={...rest,...(right?{value:false}:{})};const {value=\"\"}=copy;return value;",
+    "async": false
+  },
+  {
+    "name": "nested closure copy",
+    "body": "const make=value=>()=>({...value});const get=make({value:left?42:\"ok\"});const {value=\"\"}=get();return value;",
+    "async": false
+  },
+  {
+    "name": "distinct captures",
+    "body": "const make=value=>()=>value;const first=make(42);const second=make(\"ok\");return left?first():second();",
+    "async": false
+  },
+  {
+    "name": "destructured capture",
+    "body": "const make=({value=\"\"}={})=>()=>value;return make({value:left?42:\"ok\"})();",
+    "async": false
+  },
+  {
+    "name": "array spread and at",
+    "body": "const first=[left?42:\"ok\"];const items=[false,...first];return items.at(-1);",
+    "async": false
+  },
+  {
+    "name": "map and flatMap",
+    "body": "const items=[left?42:\"ok\"];const result=items.map(value=>({value})).flatMap(({value=\"\"}={})=>[value]);const [value=\"\"]=result;return value;",
+    "async": false
+  },
+  {
+    "name": "filter and find",
+    "body": "const values=[left?42:\"ok\",false];return values.filter(value=>typeof value!==\"boolean\").find(()=>true);",
+    "async": false
+  },
+  {
+    "name": "reduce",
+    "body": "return [left?42:\"ok\"].reduce((prior,value)=>value,false);",
+    "async": false
+  },
+  {
+    "name": "reduceRight",
+    "body": "return [left?42:\"ok\"].reduceRight((prior,value)=>value,false);",
+    "async": false
+  },
+  {
+    "name": "some and every",
+    "body": "return right?[left].some(value=>value):[left].every(value=>value);",
+    "async": false
+  },
+  {
+    "name": "defaults through call",
+    "body": "const take=(value=42)=>value;return take(left?void 0:right?null:\"ok\");",
+    "async": false
+  },
+  {
+    "name": "native call and apply",
+    "body": "const take=(first=42,second=\"\")=>right?first:second;return left?take.call(null,42,\"ok\"):take.apply(null,[42,\"ok\"]);",
+    "async": false
+  },
+  {
+    "name": "computed keys",
+    "body": "const item={[`value`]:left?42:\"ok\"};const values=[item];const {value=\"\"}=values[-0];return value;",
+    "async": false
+  },
+  {
+    "name": "guarded callable and alias",
+    "body": "const callback=left?()=>42:\"ok\";const action=callback;if(typeof action===\"function\")return action();return callback;",
+    "async": false
+  },
+  {
+    "name": "normalizer and default",
+    "body": "const normalize=value=>typeof value===\"object\"&&value?{...value}:{};const {value=42}=normalize(left?{value:\"ok\"}:false);return value;",
+    "async": false
+  },
+  {
+    "name": "catch and finalizer",
+    "body": "const run=()=>{if(left)throw 42;return \"ok\";};try{return run();}catch(error){return error;}finally{if(right)return false;}",
+    "async": false
+  },
+  {
+    "name": "throw through capture",
+    "body": "const make=value=>()=>{throw value;};const fail=make(left?42:\"ok\");try{fail();}catch(error){return error;}",
+    "async": false
+  },
+  {
+    "name": "no completion",
+    "body": "const fail=()=>{throw 42;};return fail();",
+    "async": false
+  },
+  {
+    "name": "short circuit call",
+    "body": "const fail=()=>{throw 42;};return !!left&&fail();",
+    "async": false
+  },
+  {
+    "name": "primitive expression",
+    "body": "return left?`${right?42:0}`:1+(right?2:3);",
+    "async": false
+  },
+  {
+    "name": "async capture",
+    "body": "const make=value=>async()=>value;return await make(left?42:\"ok\")();",
+    "async": true
+  },
+  {
+    "name": "all conditional slots",
+    "body": "const [value=\"\"]=await Promise.all([left?Promise.resolve(42):Promise.resolve(\"ok\")]);return value;",
+    "async": true
+  },
+  {
+    "name": "all conditional arrays",
+    "body": "const [value=\"\"]=await Promise.all(left?[Promise.resolve(42)]:[Promise.resolve(\"ok\")]);return value;",
+    "async": true
+  },
+  {
+    "name": "allSettled correlation",
+    "body": "const [item={}]=await Promise.allSettled([left?Promise.resolve(42):Promise.reject(\"ok\")]);const copy={...item,...(right?{extra:0}:{extra:1})};if(copy.status===\"fulfilled\")return copy.value;return false;",
+    "async": true
+  },
+  {
+    "name": "unique aggregate rejection",
+    "body": "try{await Promise.all([Promise.reject(left?42:\"ok\"),Promise.resolve(false)]);}catch(error){return error;}",
+    "async": true
+  },
+  {
+    "name": "async finally",
+    "body": "try{return await Promise.resolve(left?42:\"ok\");}finally{if(right)return false;}",
+    "async": true
+  },
+  {
+    "name": "null versus undefined",
+    "body": "return left?null:void 0;"
+  },
+  {
+    "name": "forwarded fallthrough",
+    "body": "const take=()=>{if(left)return 42;};return take();"
+  },
+  {
+    "name": "nested signature and default",
+    "body": "const take=({nested:{value=42}={}}={})=>value;return take(left?{nested:{value:\"ok\"}}:{});"
+  },
+  {
+    "name": "sparse iterator and defaults",
+    "body": "const values=[,left?42:\"ok\"];const [head=false,value=\"\"]=values;return right?head:value;"
+  },
+  {
+    "name": "short circuit collection failure",
+    "body": "const fail=()=>{throw 42;};return [left].some(value=>value&&fail());"
+  },
+  {
+    "name": "primitive native chain",
+    "body": "return left?\"text\".trim().toUpperCase():/text/.test(\"text\");"
+  }
+]

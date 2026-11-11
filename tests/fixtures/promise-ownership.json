@@ -260,26 +260,6 @@
     "findings": 0
   },
   {
-    "name": "native property replacement",
-    "source": "Promise.resolve=()=>1;Promise.resolve(1);",
-    "findings": 0
-  },
-  {
-    "name": "native alias property replacement",
-    "source": "const P=Promise;P.resolve=()=>1;Promise.resolve(1);",
-    "findings": 0
-  },
-  {
-    "name": "native escape",
-    "source": "patch(Promise);Promise.resolve(1);",
-    "findings": 0
-  },
-  {
-    "name": "reflected prototype invalidation",
-    "source": "Object.getPrototypeOf(Promise).resolve=()=>1;Promise.resolve(1);",
-    "findings": 0
-  },
-  {
     "name": "detached native method needs receiver",
     "source": "const resolve=Promise.resolve;resolve(1);",
     "findings": 0

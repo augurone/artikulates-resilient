@@ -1,8 +1,9 @@
 import { absent, all, createOwner, readField, request } from 'eslint-plugin-resilient/agreement';
 
 import { append, put } from '../collections.js';
-import { propertyName } from '../estree-properties.js';
+import { sourcePropertyName as propertyName } from '../estree-properties.js';
 import { traverse } from '../traversal.js';
+import { acquireArgumentLists } from './argument-positions.js';
 import { locationOf } from './locations.js';
 import { ownsRecordFields } from './records.js';
 import { uncertainty, unknownOwner } from './uncertainty.js';
@@ -14,7 +15,23 @@ const unknownDefaultOwner = unknownOwner({ code: 'unsupported-signature' });
 
 export const argumentMetadata = (node = {}) => {
     const acquired = new WeakMap();
-    const propertiesOf = ({ type = '', properties = [] } = {}) => ownsRecordFields({ type, properties }) ? properties : [];
+    const layouts = acquireArgumentLists();
+    const arrays = new WeakMap();
+    const propertiesOf = (node = {}) => {
+        const { type = '', properties = [], elements = [] } = node;
+
+        if (arrays.has(node)) return arrays.get(node);
+
+        if (type === 'ArrayExpression') {
+            const values = layouts({ arguments: elements });
+            const unknown = values.findIndex(({ type = '' } = {}) => type === 'SpreadElement');
+            const selected = unknown < 0 ? values : values.slice(0, unknown);
+
+            return put(arrays, node, selected.map((value, slot) => ({ type: 'Property', key: { type: 'Literal', value: slot }, value })));
+        }
+
+        return ownsRecordFields({ type, properties }) ? properties : [];
+    };
 
     traverse(node, { enter: current => propertiesOf(current).filter(({ type = '' } = {}) => type === 'Property').map(({ value = {} } = {}) => value),
         leave: (current) => {
@@ -43,7 +60,8 @@ export const prepareCalls = ({ calls = [], functions = [], expressionFor } = {})
         const { name = '', property: { name: member = '' } = {} } = callee;
         const expression = expressionFor(node);
         const { function: { signature = {} } = {} } = expression;
-        const spread = argumentsList.some(({ type = '' } = {}) => type === 'SpreadElement');
+        const { kind = '' } = expression;
+        const spread = kind === 'opaque' && argumentsList.some(({ type = '' } = {}) => type === 'SpreadElement');
         const { descriptor: { index: signatureIndex = false } = {} } = signature;
         const eligible = signatureIndex !== false && !conditional && !spread;
         const code = [conditional && 'optional-call', spread && 'spread-call', signatureIndex === false && 'unresolved-call', 'unsupported-signature'].find(Boolean);
@@ -67,8 +85,8 @@ export const callOutcome = (statuses) => {
     return statuses.includes('unknown') ? 'unknown' : 'agreement';
 };
 
-const evaluateParameter = ({ parameter = {}, argument = {}, callLocation = {}, observation = {}, protocol = '' } = {}, summarize, readValue, defaultOwner) => {
-    if (typeof summarize !== 'function' || typeof readValue !== 'function' || typeof defaultOwner !== 'function') {
+const evaluateParameter = ({ parameter = {}, argument = {}, callLocation = {}, observation = {}, protocol = '' } = {}, summarize, readValue, defaultOwner, readSlot) => {
+    if (typeof summarize !== 'function' || typeof readValue !== 'function' || typeof defaultOwner !== 'function' || typeof readSlot !== 'function') {
         throw new TypeError('Expected call evidence reading, default selection and summarization');
     }
 
@@ -105,7 +123,8 @@ const evaluateParameter = ({ parameter = {}, argument = {}, callLocation = {}, o
     const obligations = [root];
     const pending = { owner: selectedOwner, parameter, path: index || protocol ? path : '', metadata: source };
 
-    traverse(pending, { enter: ({ owner = false, parameter: { fields = [], complete = false, closed = false } = {}, path = '', metadata = {} } = {}) => {
+    traverse(pending, { enter: ({ owner = false, parameter: { fields = [], complete = false, closed = false, emptyArrayDefault = false, fallback: arrayFallback = false } = {},
+        path = '', metadata = {} } = {}) => {
         const { location = {}, fields: locations = new Map(), closed: literal = false } = metadata;
         const declared = new Set(fields.map(({ name = '' } = {}) => name));
 
@@ -115,7 +134,7 @@ const evaluateParameter = ({ parameter = {}, argument = {}, callLocation = {}, o
             Object.freeze({ kind: 'excessProperty', path: path ? `${path}.${name}` : name, status: 'contradiction', location, facts: Object.freeze([]) })));
 
         return fields.flatMap((parameter) => {
-            const { name = '', expected = '', selectable = false, fallback = false, defaulted = false, supported = false } = parameter;
+            const { name = '', slot = -1, expected = '', selectable = false, fallback = false, defaulted = false, supported = false } = parameter;
             const selectedPath = path ? `${path}.${name}` : name;
             const metadata = locations.get(name) || { location };
             const { location: span = location } = metadata;
@@ -126,17 +145,21 @@ const evaluateParameter = ({ parameter = {}, argument = {}, callLocation = {}, o
                 return [];
             }
 
-            const { fact = {}, cases = [] } = readField({ ...observation, owner, name });
+            const emptySlot = emptyArrayDefault && owner === arrayFallback;
+            const selectedSlot = slot >= 0 && !emptySlot && readSlot(owner, slot);
+            const { fact = false, cases = [] } = slot >= 0 ? { cases: [{ state: emptySlot ? 'absent' : 'present', owner: selectedSlot }] }
+                : readField({ ...observation, owner, name });
 
-            return cases.flatMap(({ state = '', owner: source = false } = {}) => {
+            return cases.flatMap((entry = {}) => {
+                const { state = '', owner: source = false } = entry;
                 const omitted = state === 'absent';
                 const selected = omitted ? fallback || missingOwner : source || unresolvedOwner;
-                const actual = omitted ? {} : readValue(selected);
+                const actual = omitted ? {} : readValue(selected, entry);
                 const { absence = '' } = actual;
                 const unknownDefault = defaulted && !fallback && (omitted || absence === 'undefined');
 
                 if ((!supported && !expected) || unknownDefault) {
-                    append(obligations, Object.freeze({ path: selectedPath, expected, status: 'unknown', location: span, facts: Object.freeze([summarize(fact)]) }));
+                    append(obligations, Object.freeze({ path: selectedPath, expected, status: 'unknown', location: span, facts: Object.freeze(fact ? [summarize(fact)] : []) }));
 
                     return [];
                 }
@@ -147,7 +170,7 @@ const evaluateParameter = ({ parameter = {}, argument = {}, callLocation = {}, o
                 const { status = '', facts = [] } = request({ ...observation, owner: valueOwner, required: expected || unrestricted, consumer: `Call ${selectedPath}` });
 
                 append(obligations, Object.freeze({ path: selectedPath, expected, status, location: span, absence,
-                    facts: Object.freeze([fact, ...facts].map(fact => summarize(fact))) }));
+                    facts: Object.freeze([...(fact ? [fact] : []), ...facts].map(fact => summarize(fact))) }));
 
                 return status === 'contradiction' ? [] : [{ owner: valueOwner, parameter, path: selectedPath, metadata }];
             });
@@ -157,8 +180,7 @@ const evaluateParameter = ({ parameter = {}, argument = {}, callLocation = {}, o
     return obligations;
 };
 
-// eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Required query callbacks are forwarded to evaluateParameter, which guards their capabilities before consuming them.
-export const checkCall = ({ call = {}, summarize, observation = {}, readValue, defaultOwner } = {}) => {
+export const checkCall = ({ call = {}, summarize, observation = {}, readValue, defaultOwner, readSlot } = {}) => {
     const { eligible = false, signature = {}, protocol = false, argumentsList = [], cause = {}, descriptor: { location = {}, callee = 'Function' } = {} } = call;
 
     if (!eligible) return Object.freeze({ status: 'unknown', ...cause, obligations: Object.freeze([]) });
@@ -175,7 +197,7 @@ export const checkCall = ({ call = {}, summarize, observation = {}, readValue, d
     const obligations = Object.freeze([...arity, ...parameters.filter(({ rest = false, index = -1 } = {}) => !rest && (!handled || index < argumentsList.length)).flatMap((parameter) => {
         const { index = -1 } = parameter;
 
-        return evaluateParameter({ parameter, argument: argumentsList.at(index), callLocation: location, observation, protocol }, summarize, readValue, defaultOwner);
+        return evaluateParameter({ parameter, argument: argumentsList.at(index), callLocation: location, observation, protocol }, summarize, readValue, defaultOwner, readSlot);
     })]);
     const statuses = obligations.map(({ status = '' } = {}) => status);
 

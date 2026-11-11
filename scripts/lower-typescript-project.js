@@ -237,9 +237,19 @@ const runLowering = async ({
         return {
             ok: false, diagnostics: [error],
             fluency: report ? {
-                complete: false, fixEnabled: fixAll, fixApplied: fixAll ? null : false,
-                raw: null, fixed: null, postFix: null, published: null,
+                complete: false, fixEnabled: fixAll,
+                // eslint-disable-next-line resilient/no-null-assignment -- Null marks an unavailable fix outcome; false means fixing was disabled.
+                fixApplied: fixAll ? null : false,
+                // eslint-disable-next-line resilient/no-null-assignment -- Null marks a raw measurement that did not occur.
+                raw: null,
+                // eslint-disable-next-line resilient/no-null-assignment -- Null marks a fixed measurement that did not occur.
+                fixed: null,
+                // eslint-disable-next-line resilient/no-null-assignment -- Null marks a post-fix measurement that did not occur.
+                postFix: null,
+                // eslint-disable-next-line resilient/no-null-assignment -- Null marks publication that did not occur.
+                published: null,
                 coverage: { expected: 0, measured: 0, expectedFiles: [] }, files: [], error: error.message
+            // eslint-disable-next-line resilient/no-undefined-assignment -- The public result preserves an absent fluency field when no measurement report was requested.
             } : undefined
         };
     }
@@ -341,6 +351,7 @@ const runLowering = async ({
                     source, filePath, rawSha256: sha256, publishedSha256: sha256,
                     changed: false, publishedMode: fixAll ? 'fixed' : 'raw', profile,
                     raw: result,
+                    // eslint-disable-next-line resilient/no-null-assignment -- The report uses null until a post-fix observation exists; an empty result would assert success.
                     postFix: null
                 }));
             }
@@ -465,8 +476,11 @@ const runLowering = async ({
         };
         const published = await publishArtifacts({ stageRoot, outDir: resolvedOutDir, report, manifest, artifactRoot,
             prepare, buildManifest, javascript, write });
-        const fluency = measure ? published : undefined;
+        let fluency;
 
+        if (measure) fluency = published;
+
+        // eslint-disable-next-line resilient/no-undefined-assignment -- The public lowering result preserves an absent optional manifest path instead of inventing a path or false sentinel.
         return { ok: true, diagnostics: [], fluency, outDir: resolvedOutDir, manifest: manifest || undefined };
     } catch (error) {
         write(`${error.message}\n`);
@@ -474,9 +488,20 @@ const runLowering = async ({
         return {
             ok: false, diagnostics: [...loweringDiagnostics, error],
             fluency: measure ? {
-                complete: false, fixEnabled: fixAll, fixApplied: fixAll ? null : false, raw: null, fixed: null, postFix: null, published: null,
+                complete: false, fixEnabled: fixAll,
+                // eslint-disable-next-line resilient/no-null-assignment -- Null marks an unavailable fix outcome; false means fixing was disabled.
+                fixApplied: fixAll ? null : false,
+                // eslint-disable-next-line resilient/no-null-assignment -- Null marks a raw measurement that did not occur.
+                raw: null,
+                // eslint-disable-next-line resilient/no-null-assignment -- Null marks a fixed measurement that did not occur.
+                fixed: null,
+                // eslint-disable-next-line resilient/no-null-assignment -- Null marks a post-fix measurement that did not occur.
+                postFix: null,
+                // eslint-disable-next-line resilient/no-null-assignment -- Null marks publication that did not occur.
+                published: null,
                 coverage: { expected: expected.length, measured: files.length, expectedFiles: expected },
                 files, error: error.message
+            // eslint-disable-next-line resilient/no-undefined-assignment -- The public result preserves an absent fluency field when no measurement report was requested.
             } : undefined
         };
     } finally {

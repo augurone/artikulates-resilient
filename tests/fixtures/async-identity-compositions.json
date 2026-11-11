@@ -1,0 +1,76 @@
+{
+  "positions": [
+    [
+      "[p,p]",
+      "true"
+    ],
+    [
+      "[p,q]",
+      "true"
+    ],
+    [
+      "[flag?p:q,p]",
+      "flag"
+    ],
+    [
+      "[flag?p:q,p]",
+      "!flag"
+    ],
+    [
+      "flag?[p,p]:[p,q]",
+      "flag"
+    ],
+    [
+      "flag?[p,q]:[p,p]",
+      "!flag"
+    ],
+    [
+      "[flag?p:q,flag?q:p]",
+      "true"
+    ],
+    [
+      "flag?[p,q]:[q,p]",
+      "true"
+    ]
+  ],
+  "forwards": [
+    [
+      "direct",
+      "value=>value"
+    ],
+    [
+      "nested",
+      "value=>(()=>value)()"
+    ],
+    [
+      "resolve",
+      "value=>Promise.resolve(value)"
+    ],
+    [
+      "async",
+      "async value=>value"
+    ],
+    [
+      "await",
+      "async value=>await value"
+    ]
+  ],
+  "carries": [
+    [
+      "direct",
+      "const a=x;const b=y;"
+    ],
+    [
+      "copies",
+      "const a={...x};const {...b}=y;"
+    ],
+    [
+      "capture",
+      "const copy=value=>()=>({...value});const a=copy(x)();const b=copy(y)();"
+    ],
+    [
+      "rebuild",
+      "const {status:left=\"\"}=x;const {status:right=\"\"}=y;const a={status:left};const b={status:right};"
+    ]
+  ]
+}

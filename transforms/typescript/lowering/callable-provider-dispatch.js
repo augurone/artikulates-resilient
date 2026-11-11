@@ -28,17 +28,18 @@ const placeCallableProviderDispatch = ({
                 kinds: ['callable-provider-dispatch', 'collection-reconstruction']
             }) : {};
         const { action = '' } = getObject(agreement);
+        const { operationRole = '' } = getObject(contract);
 
         if (['retain-provider-dispatch', 'operational-work-queue'].includes(action)) return action;
 
         if (action === 'operational-collection-builder' &&
-            getObject(contract).operationRole === 'set-visitation') return 'operational-set-visitation';
+            operationRole === 'set-visitation') return 'operational-set-visitation';
 
         if (action === 'operational-collection-builder' &&
-            getObject(contract).operationRole === 'set-visitation-sort') return 'operational-set-sort';
+            operationRole === 'set-visitation-sort') return 'operational-set-sort';
 
         if (action === 'operational-collection-builder' &&
-            getObject(contract).operationRole === 'observable-set-union') return 'operational-set-union';
+            operationRole === 'observable-set-union') return 'operational-set-union';
 
         let found = '';
 
@@ -90,13 +91,13 @@ const placeCallableProviderDispatch = ({
         const propertyOwnsCall = kind !== PropertyAssignment && hasPropertyOwner(node);
 
         const action = statementKinds.includes(kind) && !propertyOwnsCall ? actionFor(node) : '';
-        const reason = {
+        const { [action]: reason = '' } = {
             'operational-work-queue': 'Live queue visitation observes shift, unshift, and push on the same array.',
             'operational-set-visitation': 'Set forEach visitation and callback output identity precede native sort.',
             'operational-set-sort': 'Native sort returns the same array populated by live Set visitation.',
             'operational-set-union': 'Membership observes the same copied Set before this live add.',
             'retain-provider-dispatch': 'Checker-resolved provider callable retains its receiver and source call order.'
-        }[action] || '';
+        };
 
         const annotate = () => {
             if (!action || annotated) return;

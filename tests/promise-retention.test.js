@@ -2,9 +2,12 @@ import { strictEqual, ok } from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import test from 'node:test';
 
-test('live promise ownership queries release every host node before and after demand', () => {
-    const { execPath = '' } = process;
-    const source = `
+// Actual collection of host syntax and discarded caller graphs is independently observed; the queried facets share the retention owner.
+
+{
+    test('live promise ownership queries release every host node before and after demand', () => {
+        const { execPath = '' } = process;
+        const source = `
         import {parse,VisitorKeys} from 'espree';
         import {setImmediate} from 'node:timers/promises';
         import {createProgramAnalysis} from 'eslint-plugin-resilient/analyzer';
@@ -29,11 +32,12 @@ test('live promise ownership queries release every host node before and after de
         await collect();console.log(JSON.stringify({before,after:references.filter(ref=>ref.deref()).length,
             sampled:references.length,unhandled:results.filter(x=>x.unhandled).length}));
     `;
-    const result = JSON.parse(execFileSync(execPath, ['--expose-gc', '--input-type=module', '-e', source], { encoding: 'utf8' }));
-    const { before = -1, after = -1, sampled = 0, unhandled = 0 } = result;
+        const result = JSON.parse(execFileSync(execPath, ['--expose-gc', '--input-type=module', '-e', source], { encoding: 'utf8' }));
+        const { before = -1, after = -1, sampled = 0, unhandled = 0 } = result;
 
-    strictEqual(before, 0);
-    strictEqual(after, 0);
-    ok(sampled > 50);
-    strictEqual(unhandled, 4);
-});
+        strictEqual(before, 0);
+        strictEqual(after, 0);
+        ok(sampled > 50);
+        strictEqual(unhandled, 4);
+    });
+}

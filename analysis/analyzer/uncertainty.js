@@ -10,6 +10,7 @@ const reasons = new Map([
     ['opaque-execution', 'Dynamic execution or parameter initialization prevents local inference'],
     ['unresolved-call', 'No supported direct local callable identity'],
     ['imported-result', 'Imported signature is known; dependency result execution is not established'],
+    ['cyclic-value', 'Cyclic value initialization has no grounded producer'],
     ['optional-call', 'Optional invocation is outside call evaluation'],
     ['spread-call', 'Spread arguments are outside call evaluation'],
     ['recursive-call', 'Recursive invocation requires a fixed point'],

@@ -1,4 +1,5 @@
 import { append } from '../collections.js';
+import { failureBodyFor } from '../promise-chains.js';
 import { traverse } from '../traversal.js';
 import { createReporter } from './support/reporter.js';
 
@@ -27,28 +28,25 @@ export default {
     meta: {
         type: 'problem',
         docs: {
-            description: 'Disallow catch blocks that silently discard failures',
+            description: 'Disallow failure handlers that silently discard failures',
             url: 'https://github.com/augurone/artikulates-resilient/blob/main/docs/rules/no-silent-catch.md'
         },
         schema: [],
         messages: {
-            silentCatch: 'Handle, translate, rethrow, or explicitly return from this catch block; do not silently discard the failure.'
+            silentCatch: 'Handle, translate, rethrow, or explicitly return from this failure handler; do not silently discard the failure.'
         }
     },
     create(context = {}) {
         const report = createReporter(context);
+        const check = (node) => {
+            const body = failureBodyFor(node);
+            const { type: bodyType = '' } = body;
 
-        return {
-            CatchClause({ body = {} } = {}) {
-                const { type: bodyType = '' } = body;
+            if (bodyType !== 'BlockStatement' || hasMeaningfulStatement(body)) return;
 
-                if (bodyType !== 'BlockStatement' || hasMeaningfulStatement(body)) return;
-
-                report({
-                    node: body,
-                    messageId: 'silentCatch'
-                });
-            }
+            report({ node: body, messageId: 'silentCatch' });
         };
+
+        return { CatchClause: check, CallExpression: check };
     }
 };

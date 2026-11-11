@@ -2,10 +2,11 @@ import { deepStrictEqual, strictEqual, throws } from 'node:assert/strict';
 import test from 'node:test';
 
 import { createDecisions } from '../analysis/analyzer/decisions.js';
+import { counter } from './support/work.js';
 
 const counts = decisions => ({ nodes: decisions.count(), work: decisions.work() });
-const threeVariables = () => {
-    const decisions = createDecisions();
+const threeVariables = (options = {}) => {
+    const decisions = createDecisions(options);
     const variables = Array.from({ length: 3 }, (_, index) => decisions.variable(`flag:${index}`));
     const assignments = Array.from({ length: 8 }, (_, bits) => variables.map((_, index) => Boolean(bits & (1 << index))));
     const minterms = assignments.map(values => values.reduce((root, value, index) => (
@@ -52,7 +53,7 @@ test('distinct terminal identity requests return existing operands without retai
 });
 
 test('all 256 three-variable functions retain their full truth tables and complements', () => {
-    const { decisions = {}, assignments = [], formulas = [] } = threeVariables();
+    const { decisions = {}, assignments = [], formulas = [] } = threeVariables({ memoEntries: 16 });
 
     formulas.forEach((node, mask) => {
         const inverse = decisions.not(node);
@@ -72,9 +73,11 @@ test('shared composition and projection preserve every selected and removed alte
 
     formulas.forEach((node, mask) => {
         const projected = decisions.project(node, variable => variable !== 2, { key: 'omit-third' });
+        const local = decisions.project(node, variable => variable !== 2, { key: 'local-omit-third', local: true });
         const prior = formulas.at(Math.max(0, mask - 1));
         const combined = decisions.or(node, prior);
 
+        strictEqual(local, projected);
         assignments.forEach((values, index) => {
             const withoutThird = index & 3;
             const expected = Boolean(mask & (1 << withoutThird)) || Boolean(mask & (1 << (withoutThird | 4)));
@@ -85,6 +88,7 @@ test('shared composition and projection preserve every selected and removed alte
         const before = counts(decisions);
 
         strictEqual(decisions.project(node, variable => variable !== 2, { key: 'omit-third' }), projected);
+        strictEqual(decisions.project(node, variable => variable !== 2, { key: 'local-omit-third', local: true }), projected);
         strictEqual(decisions.or(node, prior), combined);
         deepStrictEqual(counts(decisions), before);
     });
@@ -109,6 +113,57 @@ test('shared composition and projection preserve every selected and removed alte
     throws(() => decisions.project(source, omitFirst, { key: Symbol('invalid namespace') }), TypeError);
     throws(() => decisions.project(source, false, { key: '17' }), /Expected a decision projection predicate/u);
     deepStrictEqual(counts(decisions), before);
+});
+
+test('local projections reuse completed requirements through successive and wide joins', () => {
+    [64, 128].forEach((width) => {
+        const decisions = createDecisions();
+        const variables = Array.from({ length: width }, (_, index) => decisions.variable(`flag:${index}`));
+        const keep = variable => variable % 2 === 0;
+        const work = counter();
+        const onVisit = () => work.onWork({ kind: 'projection' });
+        const options = { key: 'one-source-site', local: true, onVisit };
+        const chain = variables.reduce(({ root = 1, expected = 1, other = 1 } = {}, variable, index) => {
+            const next = decisions.and(root, variable);
+            const selected = keep(index) ? decisions.and(expected, variable) : expected;
+
+            strictEqual(decisions.project(next, keep, options), selected);
+
+            return { root: next, expected: selected, other: keep(index) ? other : decisions.and(other, variable) };
+        }, { root: 1, expected: 1, other: 1 });
+        const { root: prefix = 1, expected: kept = 1, other: opposite = 1 } = chain;
+        const branches = Array.from({ length: width }, (_, index) => {
+            const variable = decisions.variable(`branch:${index}`);
+            const root = decisions.and(variable, prefix);
+            const expected = keep(width + index) ? decisions.and(variable, kept) : kept;
+
+            strictEqual(decisions.project(root, keep, options), expected);
+
+            return { root, expected };
+        });
+        const wide = branches.reduce((root, { root: branch = 0 } = {}) => decisions.or(root, branch), 0);
+        const expected = branches.reduce((root, { expected: branch = 0 } = {}) => decisions.or(root, branch), 0);
+
+        strictEqual(decisions.project(wide, keep, options), expected);
+        strictEqual(work.get('projection') <= width * 4, true, 'Completed subroots must stop a walk instead of repeating each prefix beneath every join');
+        strictEqual(decisions.project(prefix, variable => !keep(variable), { key: 'different-source-site', local: true }), opposite);
+
+        const later = decisions.variable('later');
+        const extension = decisions.and(later, prefix);
+        const failure = new Error('interrupted local projection');
+        const interrupted = { ...options, onVisit: () => { throw failure; } };
+
+        throws(() => decisions.project(extension, keep, interrupted), error => error === failure);
+        strictEqual(decisions.project(prefix, keep, interrupted), kept);
+        strictEqual(decisions.project(extension, keep, options), decisions.and(later, kept));
+        const before = counts(decisions);
+        const prior = work.read();
+
+        branches.toReversed().forEach(({ root = 0, expected = 0 } = {}) => strictEqual(decisions.project(root, keep, interrupted), expected));
+        strictEqual(decisions.project(wide, keep, interrupted), expected);
+        deepStrictEqual(counts(decisions), before);
+        deepStrictEqual(work.read(), prior);
+    });
 });
 
 test('allocation-free identities succeed at capacity while new work still fails', () => {
@@ -150,7 +205,7 @@ test('allocation-free identities succeed at capacity while new work still fails'
     strictEqual(zero.and(inverse, value), 0);
     deepStrictEqual(counts(zero), full);
 
-    const mixed = createDecisions({ limit: 7 });
+    const mixed = createDecisions({ limit: 5 });
     const first = mixed.variable('first');
     const second = mixed.variable('second');
     const source = mixed.and(first, second);

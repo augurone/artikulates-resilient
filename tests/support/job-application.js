@@ -52,6 +52,7 @@ export const observeJobApplication = async (directory) => {
         get read() {
             providerTrace = [...providerTrace, 'lookup'];
 
+            // eslint-disable-next-line no-restricted-syntax -- The provider oracle distinguishes receiver-preserving invocation from a detached call.
             return function read() {
                 providerTrace = [...providerTrace, this === provider ? 'receiver' : 'detached'];
 

@@ -10,7 +10,8 @@ export const indexSource = ({ typescript = {}, sourceFile = {}, census = false }
     const { forEachChild = false, isFunctionLike = false, isTypeNode = false, SyntaxKind: {
         BindingElement = -1, ArrayBindingPattern = -1, ObjectBindingPattern = -1, Identifier = -1, FunctionDeclaration = -1, FunctionExpression = -1,
         VariableDeclaration = -1, ClassDeclaration = -1, ImportClause = -1, ImportSpecifier = -1, NamespaceImport = -1, CallExpression = -1, Block = -1,
-        SourceFile = -1, ModuleBlock = -1, CaseBlock = -1, CatchClause = -1, ForStatement = -1, ForInStatement = -1, ForOfStatement = -1
+        SourceFile = -1, ModuleBlock = -1, CaseBlock = -1, CatchClause = -1, ForStatement = -1, ForInStatement = -1, ForOfStatement = -1,
+        VariableStatement = -1, DeclareKeyword = -1
     } = {}, NodeFlags: { Const = 0, Let = 0 } = {} } = typescript;
 
     if ([forEachChild, isFunctionLike, isTypeNode].some(value => typeof value !== 'function')) throw new TypeError('Expected compiler syntax readers');
@@ -87,8 +88,14 @@ export const indexSource = ({ typescript = {}, sourceFile = {}, census = false }
         // binding. Unsupported Annex B branch declarations retain uncertainty.
         if (kind === FunctionDeclaration) declare(name, scope, { callable: [SourceFile, Block].includes(parentKind) ? node : false });
 
-        if (kind === VariableDeclaration) declare(name, (parentFlags & (Const | Let)) || parentKind === CatchClause ? scope : executionScopes.get(execution),
-            { initializer, stable: Boolean(parentFlags & Const) });
+        if (kind === VariableDeclaration) {
+            const { kind: container = -1, modifiers = [] } = getObject(parents.get(parent));
+            const naturalAbsence = Boolean(parentFlags & Let) && !initializer && container === VariableStatement &&
+                !modifiers.some(({ kind = -1 } = {}) => kind === DeclareKeyword);
+
+            declare(name, (parentFlags & (Const | Let)) || parentKind === CatchClause ? scope : executionScopes.get(execution),
+                { initializer, stable: Boolean(parentFlags & Const), naturalAbsence });
+        }
 
         if ([ClassDeclaration, ImportClause, ImportSpecifier, NamespaceImport].includes(kind)) declare(name, scope);
 

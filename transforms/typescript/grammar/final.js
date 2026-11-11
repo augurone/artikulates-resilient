@@ -21,11 +21,13 @@ import {
     hasCompletedDestructuringAgreement,
     isCompletedLiveCollectionLoop
 } from '../policy/destructuring-agreements.js';
-import { getPlacementContract, getPlacementReason, getPlacementBindingDecision, getExactUndefinedReason, getPlacementSymbol } from '../policy/placement.js';
+import { getPlacementContract, getPlacementReason, getPlacementBindingDecision, getExactUndefinedReason, getPlacementSymbol,
+    isPlacementArray } from '../policy/placement.js';
 import { getBindingNames } from '../understand/imports.js';
 import {
     getConsumerContractKey
 } from '../understand/type-evidence.js';
+import { annotateGeneratedAbsence } from './absence.js';
 import { createCollectionAccumulatorRebind } from './algebra.js';
 import {
     getBindingAgreementReason,
@@ -277,16 +279,26 @@ const lowerFinalGrammar = ({
         // default. Preserve the source read rather than fabricating a throw.
         if (!defaultInitializer) return false;
 
-        const binding = factory.createBindingElement(
-            undefined,
-            factory.createComputedPropertyName(argument),
-            alias,
-            defaultInitializer
-        );
+        const { text: indexText = '' } = getObject(argument);
+        // A checker-proven Array or tuple receiver is a list, so its static
+        // position is written as list destructuring; other receivers keep a key.
+        const position = argumentKind === NumericLiteral && /^(?:0|[1-9]\d*)$/u.test(indexText) &&
+            isPlacementArray({ typescript, node: source, placement }) ? Number(indexText) : -1;
+        const pattern = position >= 0
+            ? factory.createArrayBindingPattern([
+                ...Array.from({ length: position }, () => factory.createOmittedExpression()),
+                factory.createBindingElement(undefined, undefined, alias, defaultInitializer)
+            ])
+            : factory.createObjectBindingPattern([factory.createBindingElement(
+                undefined,
+                factory.createComputedPropertyName(argument),
+                alias,
+                defaultInitializer
+            )]);
         const parameter = factory.createParameterDeclaration(
             undefined,
             undefined,
-            factory.createObjectBindingPattern([binding]),
+            pattern,
             undefined,
             undefined,
             // The source read throws on an absent receiver; a `{}` default would not.
@@ -868,7 +880,8 @@ const lowerFinalGrammar = ({
             const { contract: collectionOwner = {}, agreement: collectionDecision = {} } = getDestructuringDecisionForNode({
                 typescript, node: declaration, destructuringAgreements, kinds: ['collection-reconstruction']
             });
-            const { type: collectionType = '' } = getObject(getObject(collectionOwner).collection);
+            const { collection = {} } = getObject(collectionOwner);
+            const { type: collectionType = '' } = getObject(collection);
             const { action = '' } = collectionDecision;
             const kind = ['single-collection-update', 'fresh-copy-reconstruction', 'fresh-collection-rebind',
                 'materialized-collection-reduce', 'operational-collection-builder'].includes(action)
@@ -922,6 +935,7 @@ const lowerFinalGrammar = ({
         )));
         const reassigned = mutatedAccumulatorNames.size
             ? lowered.map((statement) => {
+                // Factory updates retain the native absence of declaration modifiers.
                 const { kind: statementKind = 0, declarationList = {}, modifiers } = getObject(statement);
 
                 if (statementKind !== VariableStatement) return statement;
@@ -952,7 +966,9 @@ const lowerFinalGrammar = ({
         const {
             initializer: visitedInit = {},
             name: visitedName = {},
+            // The declaration factory requires absent definite-assignment syntax to remain absent.
             exclamationToken: visitedExclamation,
+            // An absent type annotation must not become an invented compiler node.
             type: visitedType
         } = getObject(visited);
         const { kind: nameKind = 0, text: nameText = '' } = getObject(visitedName);
@@ -1493,10 +1509,11 @@ const annotateFinalExceptions = ({
         const { declarationList: { declarations: originalDeclarations = [] } = {} } = getObject(typescript.getOriginalNode(statement));
         const [{ name: originalPattern = {}, initializer: originalRead = {} } = {}] = originalDeclarations;
         const { agreement: readAgreement = {}, contract: readContract = {} } = getSelectionDecision(originalRead);
+        const { operationRole: readRole = '' } = getObject(readContract);
 
         if (originalDeclarations.length === 1 && getObject(originalPattern).kind === ArrayBindingPattern &&
             ['selected-model-read', 'retain-source-phase-read'].includes(getObject(readAgreement).action) &&
-            getObject(readContract).operationRole === 'selected-field-read') return getObject(getObject(readContract).source).provider || '';
+            readRole === 'selected-field-read') return getObject(getObject(readContract).source).provider || '';
 
         const { declarationList: { declarations = [] } = {} } = getObject(statement);
         const [{ name: { elements = [] } = {} } = {}] = declarations;
@@ -1520,7 +1537,9 @@ const annotateFinalExceptions = ({
             typescript, node: statement, destructuringAgreements, kinds: ['curried-selected-tuple-binding']
         });
 
-        return getObject(tupleAgreement).action === 'curried-selected-tuple-binding' ? getObject(tuple).receiverName || '' : '';
+        const { receiverName = '' } = getObject(tuple);
+
+        return getObject(tupleAgreement).action === 'curried-selected-tuple-binding' ? receiverName || '' : '';
     };
 
     const getCallReason = (statement) => {
@@ -1583,7 +1602,8 @@ const annotateFinalExceptions = ({
             const { agreement: absence = {} } = getDestructuringDecisionForNode({
                 typescript, node: element, destructuringAgreements, kinds: ['exact-provider-forward', 'closed-structural-model']
             });
-            const absenceReason = !initializer && getObject(absence).canonical === 'undefined'
+            const { canonical = '' } = getObject(absence);
+            const absenceReason = !initializer && canonical === 'undefined'
                 ? 'Source field retains its natural absence.' : '';
 
             const { agreement = {} } = byKind.has('curried-selected-tuple-binding')
@@ -1648,8 +1668,10 @@ const annotateFinalExceptions = ({
             typescript, node: declaration, destructuringAgreements, kinds: ['repeated-parameter-read']
         });
 
+        const { operationRole = '' } = getObject(contract);
+
         return getObject(agreement).action === 'retain-source-phase-read' &&
-            getObject(contract).operationRole === 'source-binding-phase' ? contract : {};
+            operationRole === 'source-binding-phase' ? contract : {};
     };
     const getStatementTimingReason = (statement) => {
         const {
@@ -1667,8 +1689,10 @@ const annotateFinalExceptions = ({
                     typescript, node: declaration, destructuringAgreements, kinds: ['same-phase-selected-binding']
                 });
 
+                const { operationRole = '' } = getObject(contract);
+
                 return getObject(agreement).action === 'bind-at-source-phase' &&
-                    getObject(contract).operationRole === 'same-phase-selected-binding';
+                    operationRole === 'same-phase-selected-binding';
             });
         const sourceBindingPhase = statementKind === VariableStatement && declarations.length === 1 && byKind.has('repeated-parameter-read') &&
             declarations.some(declaration => Object.keys(getSourceBindingPhase(declaration)).length);
@@ -1767,7 +1791,8 @@ const annotateFinalExceptions = ({
                 const requiredTupleReason = getRequiredTupleReason(next);
                 const safeDefaultReason = requiredTupleReason ||
                     retainedAgreementReason;
-                const [sourceDeclaration = {}] = getObject(getObject(child).declarationList).declarations || [];
+                const sourceDeclarations = getObject(getObject(child).declarationList).declarations || [];
+                const [sourceDeclaration = {}] = sourceDeclarations;
                 const sourceSymbol = getPlacementSymbol({ typescript, node: getObject(sourceDeclaration).initializer, placement });
                 const { parameterRange = '', aliasSignature = false } = getSourceBindingPhase(sourceDeclaration);
                 const phaseSymbol = aliasSignature ? parameterRanges.get(parameterRange) : false;
@@ -1835,8 +1860,9 @@ const annotateFinalExceptions = ({
                 typescript, node, destructuringAgreements,
                 kinds: ['deferred-signature-selection']
             });
+            const { parameter: deferredParameter = false } = getObject(deferredContract);
             const deferred = getObject(deferredAgreement).action === 'retain-deferred-signature-selection'
-                ? new Set([getObject(deferredContract).parameter].filter(Boolean)) : new Set();
+                ? new Set([deferredParameter].filter(Boolean)) : new Set();
             const names = new Set(parameters.flatMap((parameter) => {
                 const { name: paramName = {}, dotDotDotToken = false } = getObject(parameter);
 
@@ -1965,7 +1991,7 @@ const annotateFinalExceptions = ({
         return visited;
     };
 
-    return typescript.visitNode(sourceFile, visit);
+    return annotateGeneratedAbsence({ typescript, sourceFile: typescript.visitNode(sourceFile, visit), context, add });
 };
 
 export {

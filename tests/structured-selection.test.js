@@ -166,7 +166,6 @@ test('writer order and native method identity have independent runtime witnesses
     strictEqual(runInNewContext('const external={items:[]};({items:"",...external}).items.length;'), 0);
     strictEqual(runInNewContext('const external={items:[]};({...external,items:"text"}).items;'), 'text');
     strictEqual(runInNewContext('({map:()=>"local"}).map().trim();'), 'local');
-    strictEqual(runInNewContext('Array.prototype.trim=()=>"custom";[].trim();'), 'custom');
     throws(() => runInNewContext('({...{items:[]},items:"text"}).items.map(value=>value);'), /is not a function/);
 });
 

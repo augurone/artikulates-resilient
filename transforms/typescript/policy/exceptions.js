@@ -169,7 +169,8 @@ const annotateCyclicRuntimeBindingReferences = ({
 
         if (hasDisable) return node;
 
-        if (!boundaryKinds.includes(getObject(node).kind) || !isFunction(addSyntheticLeadingComment)) {
+        if (!boundaryKinds.includes(getObject(node).kind) || !isFunction(addSyntheticLeadingComment) ||
+            !isFunction(getSyntheticTrailingComments) || !isFunction(setSyntheticTrailingComments)) {
             return addSyntheticTrailingComment(
                 node,
                 MultiLineCommentTrivia,
@@ -199,7 +200,8 @@ const annotateCyclicRuntimeBindingReferences = ({
         const ownedReasons = ['authored order', 'recursive binding', 'recursive agreement', 'source lifetime',
             'source declaration lifetime preserves early-reference initialization'];
         const retained = comments => comments.filter(({ text = '' } = {}) => {
-            const [, reason = ''] = text.match(/^\s*eslint-(?:disable|enable)(?:-(?:next-)?line)? no-use-before-define -- (.*?)\s*$/u) || [];
+            const retainedDirectiveMatch = text.match(/^\s*eslint-(?:disable|enable)(?:-(?:next-)?line)? no-use-before-define -- (.*?)\s*$/u) || [];
+            const [, reason = ''] = retainedDirectiveMatch;
 
             return !ownedReasons.includes(reason);
         });
@@ -244,9 +246,10 @@ const annotateCyclicRuntimeBindingReferences = ({
 
         if (nodeKind === Parameter || typescript.isTypeNode(node) && !runtimeHeritage) return node;
 
-        const currentStatement = nodeKind === SourceFileKind
-            ? undefined
-            : statement || (parentKind === SourceFileKind ? node : {});
+        let currentStatement;
+
+        if (!(nodeKind === SourceFileKind)) currentStatement = statement || (parentKind === SourceFileKind ? node : {});
+
         const currentOwner = boundaryKinds.includes(nodeKind) && !getObject(owner).kind ? node : owner;
         const currentIndex = statementIndex.get(currentStatement);
         const cleaned = clearOwnedException(node);
@@ -551,12 +554,7 @@ const annotateRetainedDynamicMemberAccess = ({
         const safe = addSyntheticLeadingComment(node, SingleLineCommentTrivia,
             ' eslint-disable-next-line resilient/prefer-safe-transformations -- live setter timing.', true);
 
-        if (bindingShape === 'destructured-entry') return addSyntheticLeadingComment(
-            safe,
-            SingleLineCommentTrivia,
-            ' eslint-disable-next-line resilient/prefer-destructured-member-access -- computed write retains live setter and __proto__ behavior',
-            true
-        );
+        if (bindingShape === 'destructured-entry') return safe;
 
         const member = addSyntheticLeadingComment(safe, SingleLineCommentTrivia,
             ' eslint-disable-next-line resilient/prefer-destructured-member-access -- key Get order', true);
@@ -645,7 +643,8 @@ const annotateRetainedDynamicMemberAccess = ({
     const originalSource = typescript.getOriginalNode(sourceFile);
     const { text: authoredText = '' } = getObject(originalSource);
     const { byKind = new Map() } = destructuringAgreements;
-    const [{ contract: { authoredComments = [] } = {} } = {}] = byKind.get('indexed-operation') || [];
+    const indexedOperations = byKind.get('indexed-operation') || [];
+    const [{ contract: { authoredComments = [] } = {} } = {}] = indexedOperations;
     const authoredScope = (node) => {
         const original = typescript.getOriginalNode(node);
         const { pos = -1 } = getObject(original);
@@ -659,7 +658,8 @@ const annotateRetainedDynamicMemberAccess = ({
             const directive = authoredText.slice(pos + 2, end).replace(/\s+--[\s\S]*$/u, '').trim();
             const match = directive.match(/^eslint-disable-next-line(?:\s+(.*))?$/u);
 
-            const [, names = ''] = match || [];
+            const nextLineParts = match || [];
+            const [, names = ''] = nextLineParts;
             const { line: commentLine = -1 } = originalSource.getLineAndCharacterOfPosition(end);
 
             if (!match || commentLine + 1 !== line) return [];
@@ -814,13 +814,13 @@ const annotateRetainedDynamicMemberAccess = ({
         const { arrow: collisionArrow = {} } = getObject(collision);
 
         if (collision && typescript.isFunctionLike(node) && node !== collisionArrow) {
-            // eslint-disable-next-line resilient/prefer-safe-transformations, resilient/prefer-destructured-member-access -- Private collision proof rejects nested function owners whose lexical member scope differs.
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- Private collision proof rejects nested function owners whose lexical member scope differs.
             collision.competing = true;
         }
 
         if (collision && [...leading, ...typescript.getSyntheticTrailingComments(node) || []]
             .some(({ text = '' } = {}) => /^\s*eslint-(?:disable|enable)/u.test(text))) {
-            // eslint-disable-next-line resilient/prefer-safe-transformations, resilient/prefer-destructured-member-access -- Private collision proof rejects competing generated scopes without altering source or caller-owned metadata.
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- Private collision proof rejects competing generated scopes without altering source or caller-owned metadata.
             collision.competing = true;
         }
 
@@ -939,7 +939,7 @@ const annotateRetainedDynamicMemberAccess = ({
             const rhsRules = rhsDestructuring && ['retain-source-phase-read', 'selected-model-read'].includes(getObject(rhsRead).action)
                 ? ['prefer-destructuring'] : [];
 
-            addIndexedComment(target, [...rules, ...memberRules],
+            addIndexedComment(target, rules,
                 `${updateReason} update preserves key, mutation and result phase`, enclosingScope);
             addIndexedComment(target, rhsRules,
                 'Assignment target and key precede the selected field Get', enclosingScope);
@@ -1050,7 +1050,8 @@ const annotateRetainedStaticMemberAccess = ({
         const comments = requestedRules.includes('resilient/prefer-destructured-member-access')
             ? initialComments.map((comment) => {
                 const { kind = 0, text = '' } = getObject(comment);
-                const [, names = '', explanation = ''] = text.match(/^ eslint-disable-next-line ([^\n]+?) -- ([^\n]+)$/u) || [];
+                const lineDirectiveMatch = text.match(/^ eslint-disable-next-line ([^\n]+?) -- ([^\n]+)$/u) || [];
+                const [, names = '', explanation = ''] = lineDirectiveMatch;
 
                 return kind === SingleLineCommentTrivia && names.split(', ').includes('resilient/prefer-safe-transformations') &&
                     explanation === collectionReason ? { ...comment,
@@ -1062,7 +1063,8 @@ const annotateRetainedStaticMemberAccess = ({
 
         const trailing = typescript.getSyntheticTrailingComments(node) || [];
         const previousIndex = comments.findLastIndex(({ kind = 0, text = '' }) => {
-            const [, names = ''] = text.match(/^ eslint-disable ([^\n]+?) -- [\s\S]+ $/u) || [];
+            const scopeDirectiveMatch = text.match(/^ eslint-disable ([^\n]+?) -- [\s\S]+ $/u) || [];
+            const [, names = ''] = scopeDirectiveMatch;
 
             return kind === MultiLineCommentTrivia && Boolean(names) && trailing.some(comment => (
                 getObject(comment).kind === MultiLineCommentTrivia && getObject(comment).text === ` eslint-enable ${names} `
@@ -1186,10 +1188,11 @@ const annotateRetainedStaticMemberAccess = ({
                 const { agreement: tupleRead = {}, contract: tupleContract = {} } = getDestructuringDecisionForNode({
                     typescript, node: parent, destructuringAgreements, kinds: ['short-circuit-tuple-argument']
                 });
+                const { tupleOwnerName = '', tuplePropertyName = '' } = getObject(tupleContract);
                 const tupleReceiver = getObject(parent).expression === original &&
                     getObject(tupleRead).action === 'retain-receiver-ordered-tuple-argument' &&
-                    getObject(tupleContract).tupleOwnerName === getObject(expression).text &&
-                    getObject(tupleContract).tuplePropertyName === getObject(name).text;
+                    tupleOwnerName === getObject(expression).text &&
+                    tuplePropertyName === getObject(name).text;
 
                 reads += cardinality ? 0 : 1;
                 complete &&= cardinality || tupleReceiver || ['retain-source-phase-read', 'selected-model-read',
@@ -1212,6 +1215,8 @@ const annotateRetainedStaticMemberAccess = ({
         return complete && reads > 0 && directOwner;
     };
     const isolateCompletedRead = (node = {}, reason = '') => {
+        if (!isFunction(addSyntheticTrailingComment)) return node;
+
         const rule = 'resilient/prefer-destructured-member-access';
         const read = addSyntheticLeadingComment(node, MultiLineCommentTrivia,
             ` eslint-disable ${rule} -- ${reason}\n`, true);
@@ -1273,7 +1278,8 @@ const annotateRetainedStaticMemberAccess = ({
         const operationBoundary = placementKinds.includes(getObject(node).kind) ? getOperationBoundary(node) : {};
         const arrowBoundary = getObject(node).kind === ArrowFunction && getObject(getObject(node).body).kind !== Block
             ? getOperationBoundary(getObject(node).body) : {};
-        const boundary = getObject(operationBoundary).reason ? operationBoundary : arrowBoundary;
+        const { reason: selectedOperationReason = '' } = getObject(operationBoundary);
+        const boundary = selectedOperationReason ? operationBoundary : arrowBoundary;
         const { rules: ownedRules = [] } = boundary;
         const authoredRules = inheritedAuthoredRules(node, ownedRules);
         const activeRules = applyScopes(new Set([...enclosingRules, ...authoredRules]),
@@ -1329,8 +1335,9 @@ const annotateRetainedStaticMemberAccess = ({
         const { contract: indexedParent = {} } = getDestructuringDecisionForNode({
             typescript, node: sourceParent, destructuringAgreements, kinds: ['indexed-operation']
         });
+        const { memberBoundary = false } = getObject(indexedParent);
         const collectionReceiverOwned = getObject(repeatedReadContract).valueFamily === 'checker-proven-native-array' &&
-            (nestedCardinalityReceiver || getObject(indexedParent).memberBoundary);
+            (nestedCardinalityReceiver || memberBoundary);
         const retainedRepeatedRead = [PropertyAccessExpression, getSyntaxKinds(typescript).ElementAccessExpression].includes(readKind) &&
             !isSourceReceiverRead(getOriginal(node)) &&
             ['retain-source-phase-read', 'selected-model-read'].includes(getObject(repeatedReadAgreement).action) &&
@@ -1497,7 +1504,8 @@ const groupNextLineExceptions = ({ typescript = {}, sourceFile = {}, context = {
     const { SingleLineCommentTrivia = -1, MultiLineCommentTrivia = -1 } = getSyntaxKinds(typescript);
     const { EmitFlags: { NoLeadingComments = 0 } = {} } = typescript;
     const directive = ({ kind = 0, text = '', hasTrailingNewLine = false } = {}) => {
-        const [, names = '', reason = ''] = text.trim().replace(/\s*\n\s*/gu, ' ').match(/^\s*eslint-disable-next-line\s+([^\r\n]+?)\s+--\s+(\S[^\r\n]*)$/u) || [];
+        const placedDirectiveMatch = text.trim().replace(/\s*\n\s*/gu, ' ').match(/^\s*eslint-disable-next-line\s+([^\r\n]+?)\s+--\s+(\S[^\r\n]*)$/u) || [];
+        const [, names = '', reason = ''] = placedDirectiveMatch;
         const rules = names.split(',').map(name => name.trim());
 
         return [SingleLineCommentTrivia, MultiLineCommentTrivia].includes(kind) && hasTrailingNewLine && reason &&

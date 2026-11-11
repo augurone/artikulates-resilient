@@ -10,6 +10,7 @@ export default {
             url: 'https://github.com/augurone/artikulates-resilient/blob/main/docs/rules/operator-linebreak.md'
         },
         schema: base.meta.schema,
+        // eslint-disable-next-line resilient/no-null-assignment -- Null is the delegated ESLint option sentinel for an unspecified operator style; a string would select a policy.
         defaultOptions: [null, {}],
         fixable: base.meta.fixable,
         messages: base.meta.messages

@@ -58,9 +58,8 @@ const createShapeProvider = ({
             getSourceFile,
             getTypeChecker
         } = program;
-        const programSourceFile = isFunction(getSourceFile)
-            ? getSourceFile.call(program, fileName)
-            : undefined;
+        const programSourceFile = isFunction(getSourceFile) ? getSourceFile.call(program, fileName) : false;
+
         const {
             TSX = -1,
             TS = -1
@@ -79,9 +78,9 @@ const createShapeProvider = ({
                 input: { typescript, sourceFile }
             })
         };
-        const checker = isFunction(getTypeChecker)
-            ? getTypeChecker.call(program)
-            : undefined;
+        let checker;
+
+        if (isFunction(getTypeChecker)) checker = getTypeChecker.call(program);
 
         if (checker) Object.defineProperty(declarations, '__checker', {
             configurable: true,
@@ -91,10 +90,18 @@ const createShapeProvider = ({
 
         const census = createSourceCensus({ typescript, sourceFile });
         collectTypeDeclarationBindings({ typescript, sourceFile, declarations, checker, census });
-        const diagnostics = invokeProvider({
+        const { VariableDeclarationList = -1 } = getSyntaxKinds(typescript);
+        const { NodeFlags: { Using = 0 } = {} } = typescript;
+        // Resource acquisition owns disposal at scope exit. Ordinary binding
+        // normalization cannot erase that protocol or retarget its receiver.
+        const resources = census.select(VariableDeclarationList)
+            .filter(({ flags = 0 } = {}) => flags & Using)
+            .map(() => ({ fileName, kind: 'UnsupportedDeclaration',
+                text: 'using and await using require resource disposal lowering' }));
+        const diagnostics = [...invokeProvider({
             provider: getUnsupportedTypeDiagnostics,
             input: { typescript, census, sourceFile, declarations, checker }
-        });
+        }), ...resources];
         const usedUnions = [];
         const usedObjects = [...invokeProvider({
             provider: getRuntimeReferences,

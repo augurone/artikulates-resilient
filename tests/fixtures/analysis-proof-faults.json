@@ -1,0 +1,1320 @@
+[
+  {
+    "name": "lost value guard",
+    "file": "analysis/analyzer/values.js",
+    "edits": [
+      [
+        "const reach = and(reached, gate);",
+        "const reach = reached;"
+      ]
+    ],
+    "test": "analysis-composition-contracts.test.js",
+    "pattern": "record discrimination, direct",
+    "law": "selection"
+  },
+  {
+    "name": "wrong copy writer",
+    "file": "analysis/agreement/source-owners.js",
+    "edits": [
+      [
+        "[copied, base].filter(Boolean)",
+        "[base, copied].filter(Boolean)"
+      ]
+    ],
+    "test": "shape-contracts-public.test.js",
+    "pattern": "record copy preserves demanded supplied fields",
+    "law": "selection"
+  },
+  {
+    "name": "stale dependent evidence",
+    "file": "analysis/agreement/source-owners.js",
+    "edits": [
+      [
+        "invalidate({ owners, observation });",
+        "void owners;"
+      ]
+    ],
+    "test": "shape-contracts-public.test.js",
+    "pattern": "copied-field judgments retain revisions",
+    "law": "revision"
+  },
+  {
+    "name": "producer retains caller projection",
+    "file": "analysis/agreement/field-evidence.js",
+    "edits": [
+      [
+        "new WeakRef(presence)",
+        "{ deref: () => presence }"
+      ]
+    ],
+    "test": "lifetimes.test.js",
+    "pattern": "live sources release discarded output",
+    "law": "storage"
+  },
+  {
+    "name": "callable reads discard all receiver validity",
+    "file": "analysis/analyzer/model.js",
+    "edits": [
+      [
+        "const lifetime = receiverLifetimeFor(node);",
+        "const lifetime = callableSources.has(bindingFor(node)) ? false : receiverLifetimeFor(node);"
+      ],
+      [
+        "const safe = namespaceBindings.has(bindingFor(node)) || members.safe(node);",
+        "const safe = !callableSources.has(bindingFor(node)) && (namespaceBindings.has(bindingFor(node)) || members.safe(node));"
+      ]
+    ],
+    "test": "lifetime-contracts.test.js",
+    "pattern": "callable reads retain their proved caller lifetime",
+    "law": "lifetime"
+  },
+  {
+    "name": "formal aliases lose their sole transfer",
+    "file": "analysis/analyzer/member-boundaries.js",
+    "edits": [
+      [
+        "const formalTransfer = from >= 0 && to > from && owner === execution && targetExecution === execution;",
+        "const formalTransfer = false && from >= 0 && to > from && owner === execution && targetExecution === execution;"
+      ]
+    ],
+    "test": "entry-contracts.test.js",
+    "pattern": "native entry observations agree with independent caller requirements",
+    "law": "lifetime"
+  },
+  {
+    "name": "truth test escapes receiver",
+    "file": "analysis/analyzer/member-boundaries.js",
+    "edits": [
+      [
+        "if (use === 'ConditionalExpression' && test === container) return;",
+        "if (false) return;"
+      ]
+    ],
+    "test": "lifetime-contracts.test.js",
+    "pattern": "truth observation does not retire a receiver",
+    "law": "lifetime"
+  },
+  {
+    "name": "capture borrows invoking frame",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "const owner = environments.contextFor(context, provider);",
+        "const owner = context;"
+      ]
+    ],
+    "test": "lifetime-contracts.test.js",
+    "pattern": "captured values belong to creation instances",
+    "law": "identity"
+  },
+  {
+    "name": "settlement loses status condition",
+    "file": "analysis/analyzer/settlements.js",
+    "edits": [
+      [
+        "outcomes.restrict(outcomes.complete(record('fulfilled', fulfilled || unknown)), normal, visit)",
+        "outcomes.restrict(outcomes.complete(record('fulfilled', fulfilled || unknown)), 1, visit)"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "settlement status selects its own payload",
+    "law": "completion"
+  },
+  {
+    "name": "aggregate invents rejection order",
+    "file": "analysis/analyzer/settlements.js",
+    "edits": [
+      [
+        "const failure = competing ? values.joined([values.restrict(error, not(competing), visit), values.restrict(unknown, competing, visit)]) : error;",
+        "const failure = error;"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "concurrent rejection payloads cannot",
+    "law": "completion"
+  },
+  {
+    "name": "module initialization invents caller returns",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "const initialized = outcomes.outcome({ ...entry, returns: false, sites: false });",
+        "const initialized = entry;"
+      ]
+    ],
+    "test": "module-contracts-public.test.js",
+    "pattern": "export initialization cannot contribute return sites",
+    "law": "identity"
+  },
+  {
+    "name": "array selection loses its position",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "valueModel.selectSlot(receiver, position, absentValue,",
+        "valueModel.selectSlot(receiver, 0, absentValue,"
+      ]
+    ],
+    "test": "analysis-composition-contracts.test.js",
+    "pattern": "array spread and at, direct",
+    "law": "selection"
+  },
+  {
+    "name": "finalizer preserves replaced completion",
+    "file": "analysis/analyzer/outcomes.js",
+    "edits": [
+      [
+        "join(restrict(entry, normal, visit), outcome({ ...cleanup,",
+        "join(restrict(entry, 1, visit), outcome({ ...cleanup,"
+      ]
+    ],
+    "test": "analysis-composition-contracts.test.js",
+    "pattern": "catch and finalizer, direct",
+    "law": "completion"
+  },
+  {
+    "name": "consumer borrows another requirement",
+    "file": "analysis/analyzer/analysis.js",
+    "edits": [
+      [
+        "const { status = '', fact = {} } = request({ ...observation, owner, required });",
+        "const { status = '', fact = {} } = request({ ...observation, owner, required: 'string' });"
+      ]
+    ],
+    "test": "analysis-composition-contracts.test.js",
+    "pattern": "record discrimination, direct",
+    "law": "consumer"
+  },
+  {
+    "name": "unknown hides independent contradiction",
+    "file": "analysis/agreement/requirements.js",
+    "edits": [
+      [
+        "if (outcomes.includes('contradiction')) return 'contradiction';",
+        "if (outcomes.includes('contradiction')) return outcomes.includes('unknown') ? 'unknown' : 'contradiction';"
+      ]
+    ],
+    "test": "composition.test.js",
+    "pattern": "shared producer composition preserves every combination",
+    "law": "evidence"
+  },
+  {
+    "name": "direct calls retain unnecessary property proofs",
+    "file": "analysis/analyzer/model.js",
+    "edits": [
+      [
+        "if (type === 'CallExpression' && callee === node && callableSources.has(bindingFor(node))) return false;",
+        "if (false) return false;"
+      ]
+    ],
+    "test": "completion-contracts.test.js",
+    "pattern": "one owned function body serves many isolated contexts",
+    "law": "storage"
+  },
+  {
+    "name": "property keys lose inert normalization",
+    "file": "analysis/estree-properties.js",
+    "edits": [
+      [
+        "? { known: true, name: String(value) }",
+        "? { known: true, name: typeof value === 'bigint' ? `${value}n` : String(value) }"
+      ]
+    ],
+    "test": "property-key-evidence.test.js",
+    "pattern": "inert computed key spellings share record and slot evidence",
+    "law": "identity"
+  },
+  {
+    "name": "literal comparison discards known family",
+    "file": "analysis/analyzer/values.js",
+    "edits": [
+      [
+        "if (mode === 'literal') return and(reach,\n                !incomplete && families.length && !families.includes(typeof name) ? 0 : unknownGate);",
+        "if (mode === 'literal') return and(reach, unknownGate);"
+      ]
+    ],
+    "test": "literal-comparison.test.js",
+    "pattern": "number family without a constant",
+    "law": "selection"
+  },
+  {
+    "name": "signed BigInt property loses key evidence",
+    "file": "analysis/estree-properties.js",
+    "edits": [
+      [
+        "if (form === 'UnaryExpression' && operator === '-' && operand === 'Literal' && typeof supplied === 'bigint') return primitivePropertyName(-supplied);",
+        "if (false) return primitivePropertyName(-supplied);"
+      ]
+    ],
+    "test": "property-key-evidence.test.js",
+    "pattern": "signed BigInt property keys normalize",
+    "law": "identity"
+  },
+  {
+    "name": "family comparison requires a literal subject arm",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "const literalTest = !exact && !typeTest && !tagTest && typeof text === 'string' && ['===', '!=='].includes(operator);",
+        "const literalTest = !exact && (firstConstant ? b.literal : a.literal) && !typeTest && !tagTest && typeof text === 'string' && ['===', '!=='].includes(operator);"
+      ]
+    ],
+    "test": "literal-comparison.test.js",
+    "pattern": "number family without a constant",
+    "law": "selection"
+  },
+  {
+    "name": "guarded case merge drops an earlier condition",
+    "law": "selection",
+    "file": "analysis/analyzer/values.js",
+    "edits": [
+      [
+        "put(cases, target, or(cases.get(target) || 0, gate));",
+        "put(cases, target, gate);"
+      ]
+    ],
+    "test": "value-cases.test.js",
+    "pattern": "case enumeration preserves ordered identities"
+  },
+  {
+    "name": "settlement decisions conflate distinct inputs",
+    "law": "identity",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "const key = inputs ? inputs.get(name) || put(inputs, name, Symbol(name)) : name;",
+        "const key = conditionKey(expression, context, kind);"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "opaque settlements retain independent choices"
+  },
+  {
+    "name": "opaque thenables acquire native promise settlement identity",
+    "law": "identity",
+    "file": "analysis/analyzer/settlements.js",
+    "edits": [
+      [
+        "uncertain(entry, key)",
+        "uncertain(entry)"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "repeated opaque adoption stays uncertain"
+  },
+  {
+    "name": "unresolved promise calls share a placeholder identity",
+    "law": "identity",
+    "file": "analysis/analyzer/demand.js",
+    "mutation": {
+      "kind": "initializer",
+      "target": "unknownPromise",
+      "replacement": "() => outcomes.outcome({ value: promiseValue, normal: 1, effects: 1 })"
+    },
+    "test": "promise-contracts-public.test.js",
+    "pattern": "unmodeled promise factories preserve invocation identity"
+  },
+  {
+    "name": "native promise settlement is recreated by each adopter",
+    "law": "identity",
+    "file": "analysis/analyzer/demand.js",
+    "mutation": {
+      "kind": "initializer",
+      "target": "unknownPromise",
+      "replacement": "() => outcomes.outcome({ value: normalValue(promiseValue), normal: 1, effects: 1 })"
+    },
+    "test": "promise-contracts-public.test.js",
+    "pattern": "native promise settlement identity survives separate aggregate observers"
+  },
+  {
+    "name": "native promise envelopes forget execution-only settlement choices",
+    "law": "completion",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "const competing = normal && thrown && and(settlementGate(normal), settlementGate(thrown));",
+        "const competing = 0;"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "native promise settlement identity survives separate aggregate observers"
+  },
+  {
+    "name": "forwarded promises recreate settlement decisions",
+    "law": "storage",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "const existing = outcomes.restrict(outcomes.complete(preserved), intact, selection);",
+        "const existing = outcomes.restrict(unknownPromise(expression, context), intact, selection);"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "successive async adoption shares completion"
+  },
+  {
+    "name": "settlement choices disappear during value projection",
+    "law": "completion",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "input ? 'settlement' : 'completion'",
+        "'completion'"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "opaque settlements retain independent choices"
+  },
+  {
+    "name": "noncomputed BigInt keys lose source evidence",
+    "law": "identity",
+    "file": "analysis/estree-properties.js",
+    "edits": [
+      [
+        "if (form === 'Literal' && typeof value === 'bigint')",
+        "if (computed && form === 'Literal' && typeof value === 'bigint')"
+      ]
+    ],
+    "test": "property-key-evidence.test.js",
+    "pattern": "literal and computed BigInt keys"
+  },
+  {
+    "name": "cached case joins flatten descendant links",
+    "law": "storage",
+    "file": "analysis/analyzer/values.js",
+    "edits": [
+      [
+        "evidence.map(({ contributions = false } = {}) => contributions).filter(Boolean)",
+        "evidence.flatMap(({ contributions = false } = {}) => contributions ? contributions.inputs || [contributions] : [])"
+      ]
+    ],
+    "test": "value-cases.test.js",
+    "pattern": "guarded case links retain linear storage for successive joins"
+  },
+  {
+    "name": "cyclic copy components erase grounded alternatives",
+    "law": "evidence",
+    "file": "analysis/agreement/dependencies.js",
+    "edits": [
+      [
+        "data: copied ? copied.get(node) : sharedData, premises:",
+        "data: copied ? unknownData(facet) : sharedData, premises:"
+      ]
+    ],
+    "test": "shape-contracts-public.test.js",
+    "pattern": "cyclic copy alternatives retain independent"
+  },
+  {
+    "name": "cyclic members share an ordered copy answer",
+    "law": "selection",
+    "file": "analysis/agreement/dependencies.js",
+    "edits": [
+      [
+        "data: copied ? copied.get(node) : sharedData, premises:",
+        "data: sharedData, premises:"
+      ]
+    ],
+    "test": "shape-contracts-public.test.js",
+    "pattern": "cyclic copy members retain their own"
+  },
+  {
+    "name": "retirement reprojects already retired contributions",
+    "law": "storage",
+    "file": "analysis/agreement/field-evidence.js",
+    "edits": [
+      [
+        "put(cache, target, target);",
+        "void target;"
+      ]
+    ],
+    "test": "shape-contracts-public.test.js",
+    "pattern": "successive retired copies reuse"
+  },
+  {
+    "name": "retirement retains nested field ownership",
+    "law": "lifetime",
+    "file": "analysis/agreement/knowledge.js",
+    "edits": [
+      [
+        "select: retireCase });",
+        "select: entry => entry });"
+      ]
+    ],
+    "test": "shape-contracts-public.test.js",
+    "pattern": "copying a borrowed field preserves"
+  },
+  {
+    "name": "cyclic writers revive overwritten base fields",
+    "law": "selection",
+    "file": "analysis/agreement/knowledge.js",
+    "edits": [
+      [
+        "base && (!source || (supplied & 1))",
+        "base"
+      ]
+    ],
+    "test": "shape-contracts-public.test.js",
+    "pattern": "cyclic copy writers cannot prove"
+  },
+  {
+    "name": "field filtering loses established retirement",
+    "law": "storage",
+    "file": "analysis/agreement/field-evidence.js",
+    "edits": [
+      [
+        "(retire && retired) || (open && !(presenceMask & 1)) ? source : cache.get(source)",
+        "(open && !(presenceMask & 1)) ? source : cache.get(source)"
+      ]
+    ],
+    "test": "shape-contracts-public.test.js",
+    "pattern": "successive retired copies reuse"
+  },
+  {
+    "name": "open copies flatten shared contributions",
+    "law": "storage",
+    "file": "analysis/agreement/knowledge.js",
+    "edits": [
+      [
+        "projectFields, selectPresence }",
+        "projectFields, selectPresence, visitFields }"
+      ],
+      [
+        "return projectFields({ data: input, observation, cache: openFields, open: true, select: (entry) => {\n            const { state = '' } = entry;\n\n            return state === 'absent' ? { state: 'unknown' } : entry;\n        } });",
+        "const cases = [];\n        visitFields({ data: input, observation }, entry => append(cases, entry.state === 'absent' ? { state: 'unknown' } : entry));\n        return fieldEvidence({ cases });"
+      ]
+    ],
+    "test": "shape-contracts-public.test.js",
+    "pattern": "open copies share alternatives"
+  },
+  {
+    "name": "cyclic presence is lost beside unresolved values",
+    "law": "evidence",
+    "file": "analysis/agreement/knowledge.js",
+    "edits": [
+      [
+        "inputs.reduce((count, { data: { presenceMask = 0 } = {} } = {}) => count + Number(presenceMask === 2), 0)",
+        "0"
+      ]
+    ],
+    "test": "shape-contracts-public.test.js",
+    "pattern": "grounded cyclic presence survives"
+  },
+  {
+    "name": "async return skips fulfilled payload readoption",
+    "law": "completion",
+    "file": "analysis/analyzer/settlements.js",
+    "edits": [
+      [
+        "return { completion: adopt ? outcomes.sequence(observed, completion, visit) : observed, protocol: 0 };",
+        "return { completion: observed, protocol: 0 };"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "async returns readopt"
+  },
+  {
+    "name": "binding reads replay completed initializer executions",
+    "law": "identity",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "const retained = initializedValue(expression, context, gate);",
+        "const retained = false;"
+      ]
+    ],
+    "test": "entry-contracts.test.js",
+    "pattern": "stored initializer reuse stays bounded"
+  },
+  {
+    "name": "async envelopes retain projected guard histories",
+    "law": "storage",
+    "file": "analysis/analyzer/values.js",
+    "edits": [
+      [
+        "const unchanged = restricted && conditions.filter(name => name !== 'guard')",
+        "const unchanged = false && conditions.filter(name => name !== 'guard')"
+      ]
+    ],
+    "test": "value-cases.test.js",
+    "pattern": "condition projection preserves"
+  },
+  {
+    "name": "native rejection identity changes between guarded observers",
+    "law": "identity",
+    "file": "analysis/analyzer/outcomes.js",
+    "edits": [
+      [
+        "restricted(rejections || (thrown && Object.freeze({ source: {}, gate: thrown })), thrown)",
+        "restricted(thrown && Object.freeze({ source: {}, gate: thrown }), thrown)"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "repeated rejection sources"
+  },
+  {
+    "name": "native resolve replaces rejection provenance",
+    "law": "identity",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "const existing = outcomes.restrict(outcomes.complete(preserved), intact, selection);",
+        "const existing = outcomes.restrict(promised(resolve(preserved, expression, context, intact), expression, context), intact, selection);"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "repeated rejection sources"
+  },
+  {
+    "name": "promise retirement keeps rejected member snapshots",
+    "law": "lifetime",
+    "file": "analysis/analyzer/settlements.js",
+    "edits": [
+      [
+        "error: values.retire(error)",
+        "error"
+      ]
+    ],
+    "test": "promise-contracts-local.test.js",
+    "pattern": "payload retirement preserves"
+  },
+  {
+    "name": "rejection restrictions lose source guards",
+    "law": "selection",
+    "file": "analysis/analyzer/outcomes.js",
+    "edits": [
+      [
+        "rejections: restricted(rejections, gate)",
+        "rejections"
+      ]
+    ],
+    "test": "promise-contracts-local.test.js",
+    "pattern": "rejection contribution gates"
+  },
+  {
+    "name": "rejection graph traversal expands shared paths",
+    "law": "storage",
+    "file": "analysis/analyzer/outcomes.js",
+    "edits": [
+      [
+        "if (seen.has(node)) return [];\n\n            retain(seen, node);",
+        "if (false) return [];\n\n            retain(seen, node);"
+      ]
+    ],
+    "test": "promise-contracts-local.test.js",
+    "pattern": "rejection contribution diamonds"
+  },
+  {
+    "name": "promise adoption revives exposed protocols",
+    "law": "lifetime",
+    "file": "analysis/analyzer/settlements.js",
+    "edits": [
+      [
+        "if (promise === 'known' && !exposed)",
+        "if (promise === 'known')"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "escaped adoption protocols"
+  },
+  {
+    "name": "protocol restrictions forget inherited exposure",
+    "law": "lifetime",
+    "file": "analysis/analyzer/settlements.js",
+    "edits": [
+      [
+        "return { entry, exposed: exposed || protocolUnknown };",
+        "return { entry, exposed: protocolUnknown };"
+      ]
+    ],
+    "test": "promise-contracts-local.test.js",
+    "pattern": "protocol projection shares"
+  },
+  {
+    "name": "borrowed return bindings revive native protocols",
+    "law": "lifetime",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "transfer ? valueModel.escape(value, selection, { protocol: true }) : value",
+        "transfer ? valueModel.escape(value, selection) : value"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "escaped adoption protocols"
+  },
+  {
+    "name": "native resolve assumes every opaque input creates a fresh envelope",
+    "law": "identity",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "{ protocolUnknown: true, borrowed: true }",
+        "{ protocolUnknown: false, borrowed: false }"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "native resolve can return"
+  },
+  {
+    "name": "allSettled swallows abrupt protocol failures",
+    "law": "completion",
+    "file": "analysis/analyzer/settlements.js",
+    "edits": [
+      [
+        "const setup = protocol ? outcomes.join",
+        "const setup = false ? outcomes.join"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "aggregate protocol failures"
+  },
+  {
+    "name": "settlement protocol projection expands shared paths",
+    "law": "storage",
+    "file": "analysis/analyzer/settlements.js",
+    "edits": [
+      [
+        "if (read(state)) return [];",
+        "if (false) return [];"
+      ]
+    ],
+    "test": "promise-contracts-local.test.js",
+    "pattern": "protocol projection shares"
+  },
+  {
+    "name": "native observers replay completed adoption effects",
+    "law": "completion",
+    "file": "analysis/analyzer/settlements.js",
+    "edits": [
+      [
+        "outcomes.outcome({ ...settlement, effects: 0 })",
+        "outcomes.outcome({ ...settlement })"
+      ]
+    ],
+    "test": "promise-contracts-local.test.js",
+    "pattern": "native observers do not replay"
+  },
+  {
+    "name": "nested array payloads are consumed as direct aggregate slots",
+    "law": "lifetime",
+    "file": "analysis/analyzer/member-boundaries.js",
+    "edits": [
+      [
+        "relation === 'element' ? Number(mode === 2) : forwarded",
+        "relation === 'element' ? Number(mode > 0) : forwarded"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "adoption does not consume"
+  },
+  {
+    "name": "temporary adopted call permission survives carrier publication",
+    "law": "lifetime",
+    "file": "analysis/analyzer/member-boundaries.js",
+    "edits": [
+      [
+        "call && type === 'CallExpression' && !published && adoptedImmediately(call)",
+        "call && type === 'CallExpression' && adoptedImmediately(call)"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "adopted function results"
+  },
+  {
+    "name": "awaited receiver aliases preserve stale member snapshots",
+    "law": "lifetime",
+    "file": "analysis/analyzer/member-boundaries.js",
+    "edits": [
+      [
+        "if (use === 'AwaitExpression') {",
+        "if (use === 'AwaitExpression') return;\n\n        if (use === 'AwaitExpression') {"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "adoption can publish"
+  },
+  {
+    "name": "adopted nonpromises gain native envelope proofs",
+    "law": "lifetime",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "truthGate: and(native, priorGate)",
+        "truthGate: priorGate"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "adoption can publish"
+  },
+  {
+    "name": "projected native envelopes lose stable identity",
+    "law": "identity",
+    "file": "analysis/analyzer/values.js",
+    "edits": [
+      [
+        "promiseIdentity: sharedIdentity(evidence, 'promiseIdentity')",
+        "promiseIdentity: false"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "completed native identity"
+  },
+  {
+    "name": "native resolve drops guarded intact inputs",
+    "law": "evidence",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "const existing = outcomes.restrict(outcomes.complete(preserved), intact, selection);",
+        "const existing = empty;"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "native resolve keeps guarded"
+  },
+  {
+    "name": "protocol lifetime selection expands shared paths",
+    "law": "storage",
+    "file": "analysis/analyzer/values.js",
+    "edits": [
+      [
+        "if (cacheFor(entry).has(keyFor(selection))) return [];",
+        "if (false && cacheFor(entry).has(keyFor(selection))) return [];"
+      ]
+    ],
+    "test": "promise-contracts-local.test.js",
+    "pattern": "protocol lifetime selection"
+  },
+  {
+    "name": "lifetime selection forgets inherited protocol exposure",
+    "law": "lifetime",
+    "file": "analysis/analyzer/values.js",
+    "edits": [
+      [
+        "mode === 'protocol' && (retired || protocolUnknown)",
+        "mode === 'protocol' && protocolUnknown"
+      ]
+    ],
+    "test": "promise-contracts-local.test.js",
+    "pattern": "protocol lifetime selection"
+  },
+  {
+    "name": "protocol lifetime proof collapses guarded alternatives",
+    "law": "selection",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "const native = source ? lifetimeGate(source, 'protocol') : 0;",
+        "const native = source && valueModel.evidenceFor(source, selection).promises.every(promise => promise === 'known') ? 1 : 0;"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "native protocol alternatives"
+  },
+  {
+    "name": "native resolve swallows synchronous constructor failure",
+    "law": "completion",
+    "file": "analysis/analyzer/demand.js",
+    "mutation": {
+      "kind": "marked-call",
+      "target": "resolve:constructor",
+      "replacement": "continuation"
+    },
+    "test": "promise-contracts-public.test.js",
+    "pattern": "native resolve preserves synchronous"
+  },
+  {
+    "name": "native resolve invents constructor acquisition for nonpromises",
+    "law": "completion",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "const exposed = not(or(intact, ordinary));",
+        "const exposed = 1;"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "constructor acquisition and thenable rejection"
+  },
+  {
+    "name": "discarded awaits bypass receiver effect acquisition",
+    "law": "lifetime",
+    "file": "analysis/analyzer/member-boundaries.js",
+    "edits": [
+      [
+        "if (use === 'AwaitExpression') {",
+        "if (use === 'AwaitExpression' && discardsReceiver(enclosing)) return;\n\n        if (use === 'AwaitExpression') {"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "discarded await retains implicit"
+  },
+  {
+    "name": "inert discarded awaits lose established member evidence",
+    "law": "evidence",
+    "file": "analysis/analyzer/member-boundaries.js",
+    "edits": [
+      [
+        "discardResult: copies.consumer(source) || (type === 'AwaitExpression' && discardsReceiver(source))",
+        "discardResult: copies.consumer(source)"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "inert discarded await"
+  },
+  {
+    "name": "selected field transfers retain stale containing snapshots",
+    "law": "lifetime",
+    "file": "analysis/analyzer/member-boundaries.js",
+    "edits": [
+      [
+        "if (memberContainer !== node && !observesMember && !memberAlias && !returnedMember) hazard",
+        "if (false && memberContainer !== node && !observesMember && !memberAlias && !returnedMember) hazard"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "selected mutable member transfers"
+  },
+  {
+    "name": "selected field retirement precedes carrier acquisition",
+    "law": "lifetime",
+    "file": "analysis/analyzer/member-boundaries.js",
+    "edits": [
+      [
+        "false, carrier || memberContainer);",
+        "false, memberContainer);"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "primitive member transfers"
+  },
+  {
+    "name": "selected member uses stop before conditional forwarding",
+    "law": "selection",
+    "file": "analysis/analyzer/member-boundaries.js",
+    "edits": [
+      [
+        "memberContainer === node ? valueUse : selectedUse;",
+        "memberContainer === node ? valueUse : { node: parents.get(memberContainer), value: memberContainer };"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "inert selected member awaits"
+  },
+  {
+    "name": "primitive selected fields cannot establish their lifetime proof",
+    "law": "evidence",
+    "file": "analysis/analyzer/member-boundaries.js",
+    "edits": [
+      [
+        "put(latestLifetime, binding, { lifetime: true, call, prior, ordered:",
+        "put(latestLifetime, binding, { lifetime: true, call: type === 'MemberExpression' ? false : call, prior, ordered:"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "primitive member transfers"
+  },
+  {
+    "name": "returned member publication erases closed capture reads",
+    "law": "lifetime",
+    "file": "analysis/analyzer/member-boundaries.js",
+    "edits": [
+      [
+        "!memberAlias && !returnedMember) hazard(",
+        "!memberAlias) hazard("
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "returned selected members preserve closed capture"
+  },
+  {
+    "name": "copy publication retires the containing record",
+    "law": "lifetime",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "retireCopiedFields(valueModel.restrict(value, and(not(shallow), deep), selection))",
+        "valueModel.retire(valueModel.restrict(value, and(not(shallow), deep), selection))"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "copy publication preserves primitive siblings"
+  },
+  {
+    "name": "record copy publication preserves exposed child protocols",
+    "law": "lifetime",
+    "file": "analysis/analyzer/record-fields.js",
+    "edits": [
+      [
+        "{ source: entry, retire: true, retireProtocol: true }",
+        "{ source: entry, retire: true, retireProtocol: false }"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "copied member aliases retire native promise"
+  },
+  {
+    "name": "array copy publication preserves exposed slot protocols",
+    "law": "lifetime",
+    "file": "analysis/analyzer/record-fields.js",
+    "edits": [
+      [
+        "slots.map(value => value && valueModel.retire(value, { protocol: true }))",
+        "slots.map(value => value && valueModel.retire(value))"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "copied member aliases retire native promise"
+  },
+  {
+    "name": "opaque copy reads erase a separately known alternative",
+    "law": "selection",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "const inert = spread && lifetimeGate(input, 'copy-inert');",
+        "const inert = 0;"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "selected copy proofs retain guarded"
+  },
+  {
+    "name": "copy read safety ignores overlapping unsafe contributions",
+    "law": "evidence",
+    "file": "analysis/analyzer/values.js",
+    "edits": [
+      [
+        "mode === 'copy-inert' && name === 'unsafe' ? !inert : inert",
+        "mode === 'copy-inert' && name === 'unsafe' ? false : inert"
+      ]
+    ],
+    "test": "copy-retirement-laws.test.js",
+    "pattern": "copy read safety keeps known"
+  },
+  {
+    "name": "copy retirement discards its caller owned projection cache",
+    "law": "storage",
+    "file": "analysis/analyzer/record-fields.js",
+    "edits": [
+      [
+        "return (value) => {\n        if (!value) return value;",
+        "return (value) => {\n        const cache = new WeakMap();\n        if (!value) return value;"
+      ]
+    ],
+    "test": "copy-retirement-laws.test.js",
+    "pattern": "copy retirement shares projected"
+  },
+  {
+    "name": "copy paths lose selected value aliases",
+    "law": "identity",
+    "file": "analysis/analyzer/member-copies.js",
+    "edits": [
+      [
+        "return ['Identifier', 'MemberExpression'].includes(initialized) && initializer;",
+        "return false;"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "selected copy retirement follows whole"
+  },
+  {
+    "name": "copy publication is skipped by a different closure execution",
+    "law": "lifetime",
+    "file": "analysis/analyzer/member-copies.js",
+    "edits": [
+      [
+        "const crossed = providers && (providers.size > 1 || !providers.has(executionOf.get(node)));",
+        "const crossed = false;"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "copy publication retires captured"
+  },
+  {
+    "name": "ancestor copies fail to retire previously acquired descendant aliases",
+    "law": "lifetime",
+    "file": "analysis/analyzer/member-copies.js",
+    "edits": [
+      [
+        "const deep = (type === 'Identifier' ? regions.containing(path) : []).map((region) => {",
+        "const deep = [].map((region) => {"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "copied ancestors retire earlier"
+  },
+  {
+    "name": "copied descendant aliases retain exposed promise protocols",
+    "law": "lifetime",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "valueModel.retire(valueModel.restrict(value, not(deep), selection), { protocol: true })",
+        "valueModel.retire(valueModel.restrict(value, not(deep), selection))"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "copied descendant aliases retire native"
+  },
+  {
+    "name": "each descendant alias retains its own publication history",
+    "law": "storage",
+    "file": "analysis/analyzer/member-copies.js",
+    "edits": [
+      [
+        "[...new Set(deep)].map(lifetime => ({ lifetime, deep: true }))",
+        "[...new Set(deep)].map(lifetime => ({ lifetime: structuredClone(lifetime), deep: true }))"
+      ]
+    ],
+    "test": "copy-retirement-laws.test.js",
+    "pattern": "descendant copy publications share bounded"
+  },
+  {
+    "name": "selected destructuring retires its fields before acquisition",
+    "law": "lifetime",
+    "file": "analysis/analyzer/member-boundaries.js",
+    "edits": [
+      [
+        "|| ['ObjectPattern', 'ArrayPattern'].includes(selectedPattern)",
+        "|| false"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "copied ancestors retire earlier"
+  },
+  {
+    "name": "closed absent property lookup invents an opaque effect",
+    "law": "evidence",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "state === 'present' || (state === 'absent' && standardPrototype)",
+        "state === 'present'"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "copy publication preserves member diagnostics"
+  },
+  {
+    "name": "copied value wrappers hide original property diagnostics",
+    "law": "consumer",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "const expression = kind === 'copied-source' ? target : queried;",
+        "const expression = queried;"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "copy publication preserves member diagnostics"
+  },
+  {
+    "name": "selected copy acquisition captures whole array transfer ownership",
+    "law": "lifetime",
+    "file": "analysis/analyzer/member-copies.js",
+    "edits": [
+      [
+        "if (!selection) return false;",
+        "if (!path) return false;"
+      ]
+    ],
+    "test": "promise-contracts-public.test.js",
+    "pattern": "selected copy acquisition leaves whole"
+  },
+  {
+    "name": "plain rest copies lose their inert read evidence",
+    "law": "evidence",
+    "file": "analysis/analyzer/values.js",
+    "edits": [
+      [
+        "(nativeTag || (mode === 'copy-inert' && plain))",
+        "nativeTag"
+      ]
+    ],
+    "test": "copy-retirement-laws.test.js",
+    "pattern": "copy read safety keeps known"
+  },
+  {
+    "name": "re-export requests discard completed intermediate resolutions",
+    "law": "storage",
+    "file": "analysis/analyzer/export-resolutions.js",
+    "edits": [
+      [
+        "const requestedKey = keyFor(requested);",
+        "cache.clear();\n        const requestedKey = keyFor(requested);"
+      ]
+    ],
+    "test": "export-resolution-laws.test.js",
+    "pattern": "overlapping module re-exports share completed"
+  },
+  {
+    "name": "cached re-export routes omit their binding contribution",
+    "law": "identity",
+    "file": "analysis/analyzer/export-resolutions.js",
+    "edits": [
+      [
+        "merge(result, cache.get(input))",
+        "result"
+      ]
+    ],
+    "test": "export-resolution-laws.test.js",
+    "pattern": "cached routes retain absent"
+  },
+  {
+    "name": "cached re-export routes erase ambiguity",
+    "law": "evidence",
+    "file": "analysis/analyzer/export-resolutions.js",
+    "edits": [
+      [
+        "ambiguous: a || b || Boolean(first && second && first !== second)",
+        "ambiguous: false"
+      ]
+    ],
+    "test": "export-resolution-laws.test.js",
+    "pattern": "cached routes retain absent"
+  },
+  {
+    "name": "cached re-export routes erase unresolved dependencies",
+    "law": "evidence",
+    "file": "analysis/analyzer/export-resolutions.js",
+    "edits": [
+      [
+        "unresolved: u || v",
+        "unresolved: false"
+      ]
+    ],
+    "test": "export-resolution-laws.test.js",
+    "pattern": "cached routes retain absent"
+  },
+  {
+    "name": "cyclic re-export caching publishes a partial component",
+    "law": "evidence",
+    "file": "analysis/analyzer/export-resolutions.js",
+    "edits": [
+      [
+        "const result = members.reduce((result, key) => {",
+        "const result = members.slice(0, 1).reduce((result, key) => {"
+      ]
+    ],
+    "test": "export-resolution-laws.test.js",
+    "pattern": "cyclic export summaries complete every"
+  },
+  {
+    "name": "cached re-export absence is confused with an unresolved route",
+    "law": "evidence",
+    "file": "analysis/analyzer/export-resolutions.js",
+    "edits": [
+      [
+        "const empty = Object.freeze({ target: false, ambiguous: false, unresolved: false });",
+        "const empty = Object.freeze({ target: false, ambiguous: false, unresolved: true });"
+      ]
+    ],
+    "test": "export-resolution-laws.test.js",
+    "pattern": "cached routes retain absent"
+  },
+  {
+    "name": "default export snapshots collapse into their source binding",
+    "law": "identity",
+    "file": "analysis/analyzer/modules.js",
+    "edits": [
+      [
+        "kind === 'Identifier' ? { stable: true, immutable: true, init: declaration } : declaration",
+        "kind === 'Identifier' ? locals.get(specifierName(declaration)) : declaration"
+      ]
+    ],
+    "test": "module-contracts-public.test.js",
+    "pattern": "default export binding identity: separate snapshots"
+  },
+  {
+    "name": "default export snapshots lose callable initializer evidence",
+    "law": "evidence",
+    "file": "analysis/analyzer/modules.js",
+    "edits": [
+      [
+        "{ stable: true, immutable: true, init: declaration }",
+        "{ immutable: true, init: declaration }"
+      ]
+    ],
+    "test": "module-contracts-public.test.js",
+    "pattern": "default export binding identity retains value"
+  },
+  {
+    "name": "import access drops its direct provider initialization",
+    "law": "completion",
+    "file": "analysis/analyzer/model.js",
+    "edits": [
+      [
+        "const importProvider = importProviders.get(imported);",
+        "const importProvider = false;"
+      ]
+    ],
+    "test": "module-contracts-public.test.js",
+    "pattern": "import initialization gates namespaces"
+  },
+  {
+    "name": "direct imported calls skip route initialization",
+    "law": "completion",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "const acquired = kind === 'call' && lookup;",
+        "const acquired = false;"
+      ]
+    ],
+    "test": "module-contracts-public.test.js",
+    "pattern": "import initialization separates direct signature"
+  },
+  {
+    "name": "unavailable imports erase independently known signatures",
+    "law": "consumer",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "return { value: admitted(outcomes.outcome({ ...unavailable, calls })) };",
+        "return { value: unavailable };"
+      ]
+    ],
+    "test": "module-contracts-public.test.js",
+    "pattern": "import initialization separates direct signature"
+  },
+  {
+    "name": "unresolved import routes erase caller-owned input constraints",
+    "law": "consumer",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "const execute = allowed && !initializing && !unresolved && Boolean(normalOf(available));",
+        "const execute = allowed && resultReady && !initializing && !unresolved && Boolean(normalOf(available));"
+      ]
+    ],
+    "test": "module-contracts-public.test.js",
+    "pattern": "configured caller inputs survive"
+  },
+  {
+    "name": "cache absence replacing predecessor lifetime evidence",
+    "law": "lifetime",
+    "file": "analysis/analyzer/demand.js",
+    "edits": [
+      [
+        "const predecessor = standalone.get(executionOf(call)) === context && selectTask(call, context, gate);",
+        "const predecessor = false;"
+      ]
+    ],
+    "test": "lifetime-contracts.test.js",
+    "pattern": "standalone lifetime demand preserves query order: record/local"
+  },
+  {
+    "name": "expression selections lose reached-site lifetime ownership",
+    "law": "selection",
+    "file": "analysis/analyzer/bindings.js",
+    "edits": [
+      [
+        "if (['IfStatement', 'DoWhileStatement', 'ConditionalExpression', 'LogicalExpression'].includes(type)) retain(controlExecutions, execution);",
+        "if (['IfStatement', 'DoWhileStatement'].includes(type)) retain(controlExecutions, execution);"
+      ]
+    ],
+    "test": "lifetime-contracts.test.js",
+    "pattern": "expression selection preserves receiver reach: false and"
+  }
+]

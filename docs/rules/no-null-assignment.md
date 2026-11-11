@@ -5,6 +5,7 @@ Its implementation uses syntax and lexical ownership.
 
 The current supported behavior and boundary cases are verified by:
 
+- [explicit-absence-values.test.js](../../tests/explicit-absence-values.test.js)
 - [absence-signatures.test.js](../../tests/absence-signatures.test.js)
 - [rule-canary.test.js](../../tests/rule-canary.test.js)
 

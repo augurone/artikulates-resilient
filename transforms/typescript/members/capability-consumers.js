@@ -54,11 +54,26 @@ const completeCapabilityReturnBoundaries = ({ typescript = {}, body = {} } = {})
     return body;
 };
 
+const getAvailableAlias = ({ candidates = [], stem = '', occupied = new Set(), reserved = '' } = {}) => {
+    const isAvailable = candidate => candidate !== reserved && !occupied.has(candidate);
+    const available = candidates.find(isAvailable);
+
+    if (available) return available;
+
+    // Occupied names and the separately reserved alias can each reject at most one suffix.
+    const remaining = Array.from({ length: occupied.size + 2 }, (_, index) => `${stem}${index + 2}`)
+        .find(isAvailable);
+
+    if (!remaining) throw new Error('Unable to allocate a distinct capability name.');
+
+    return remaining;
+};
+
 const getCapabilityAlias = ({ receiver = '', member = '', occupied = new Set() } = {}) => {
     const stem = `${receiver}${member.charAt(0).toUpperCase()}${member.slice(1)}`;
     const candidates = [stem, `${stem}Capability`, `${stem}2`];
 
-    return candidates.find(candidate => !occupied.has(candidate)) || `${stem}Capability`;
+    return getAvailableAlias({ candidates, stem, occupied });
 };
 
 const getNodeKey = ({ typescript = {}, node = {} } = {}) => {
@@ -68,16 +83,14 @@ const getNodeKey = ({ typescript = {}, node = {} } = {}) => {
     return getConsumerContractKey(original);
 };
 
-const getSortReceiverAlias = ({ occupied = new Set() } = {}) => {
+const getSortReceiverAlias = ({ occupied = new Set(), reserved = '' } = {}) => {
     const candidates = ['_resilientSorted', '_resilientSortReceiver', '_resilientSortedValue'];
 
-    return candidates.find(candidate => !occupied.has(candidate)) || '_resilientSortedValue';
+    return getAvailableAlias({ candidates, stem: '_resilientSorted', occupied, reserved });
 };
 
-// The source sorting receiver is evaluated before its comparator argument in
-// source. Stage only a non-identifier receiver so graceful capability
-// disagreement never skips Array.from(), slice(), or another source-owned
-// prerequisite expression.
+// A comparator getter can reassign even an identifier receiver. Preserve the
+// receiver selected before the getter on both sorting and declined-sort paths.
 const createSortConsumerStatements = ({
     typescript = {},
     call = {},
@@ -86,7 +99,8 @@ const createSortConsumerStatements = ({
     memberName = '',
     occupied = new Set(),
     useFunctionStandard = false,
-    sameFunctionProvider = false
+    sameFunctionProvider = false,
+    returnReceiver = false
 } = {}) => {
     const {
         SyntaxKind: { Identifier = -1, SingleLineCommentTrivia = -1 } = {},
@@ -104,18 +118,6 @@ const createSortConsumerStatements = ({
     } = getObject(callback);
     const { kind: providerKind = 0, text: providerName = '' } = getObject(provider);
     const { text: providerMemberName = '' } = getObject(providerMember);
-    const { expression: receiver = {}, name = {} } = getObject(callee);
-    const { kind: receiverKind = 0 } = getObject(receiver);
-    const receiverName = receiverKind === Identifier ? '' : getSortReceiverAlias({ occupied });
-    const receiverReference = receiverName ? factory.createIdentifier(receiverName) : receiver;
-    const stagedReceiver = receiverName
-        ? factory.createVariableStatement(
-            undefined,
-            factory.createVariableDeclarationList([
-                factory.createVariableDeclaration(receiverReference, undefined, undefined, receiver)
-            ], Const)
-        )
-        : undefined;
     const directAlias = callbackKind === Identifier ? callbackName : '';
     const sourceProvider = sourceProviderName || (providerKind === Identifier ? providerName : '');
     const sourceMember = memberName || providerMemberName;
@@ -126,30 +128,42 @@ const createSortConsumerStatements = ({
 
     if (!capabilityAlias) return { statements: [], receiverName: '' };
 
+    const { expression: receiver = {}, name = {} } = getObject(callee);
+    const { kind: receiverKind = 0 } = getObject(receiver);
+    const receiverName = receiverKind === Identifier && !returnReceiver
+        ? ''
+        : getSortReceiverAlias({ occupied, reserved: capabilityAlias });
+    const receiverReference = receiverName ? factory.createIdentifier(receiverName) : receiver;
+    const stagedReceiver = receiverName ? factory.createVariableStatement(
+        undefined,
+        factory.createVariableDeclarationList([
+            factory.createVariableDeclaration(receiverReference, undefined, undefined, receiver)
+        ], Const)
+    ) : false;
+
     // Preserve the source evaluation order for `receiver.sort(O.compare)`:
     // evaluate the receiver, then read the provider field, then decide
     // whether that field is callable.  This deliberately stays in the
     // consumer scope instead of letting parameter lowering hoist the getter.
-    const capabilityBinding = sourceProvider && sourceMember
-        ? factory.createVariableStatement(
-            undefined,
-            factory.createVariableDeclarationList([
-                factory.createVariableDeclaration(
-                    factory.createObjectBindingPattern([
-                        factory.createBindingElement(
-                            undefined,
-                            factory.createIdentifier(sourceMember),
-                            factory.createIdentifier(providerAlias),
-                            undefined
-                        )
-                    ]),
-                    undefined,
-                    undefined,
-                    factory.createIdentifier(sourceProvider)
-                )
-            ], Const)
-        )
-        : undefined;
+    const capabilityBinding = sourceProvider && sourceMember ? factory.createVariableStatement(
+        undefined,
+        factory.createVariableDeclarationList([
+            factory.createVariableDeclaration(
+                factory.createObjectBindingPattern([
+                    factory.createBindingElement(
+                        undefined,
+                        factory.createIdentifier(sourceMember),
+                        factory.createIdentifier(providerAlias),
+                        undefined
+                    )
+                ]),
+                undefined,
+                undefined,
+                factory.createIdentifier(sourceProvider)
+            )
+        ], Const)
+    ) : false;
+
     const orderedBinding = capabilityBinding && sameFunctionProvider && isFunction(addSyntheticLeadingComment)
         ? addSyntheticLeadingComment(
             capabilityBinding,
@@ -162,7 +176,8 @@ const createSortConsumerStatements = ({
     const guarded = createCallableCapabilityGuard({
         typescript,
         alias: capabilityAlias || alias,
-        useFunctionStandard
+        useFunctionStandard,
+        returnExpression: returnReceiver ? receiverReference : false
     });
     const replacementCallee = factory.updatePropertyAccessExpression(callee, receiverReference, name);
     const replacement = factory.updateCallExpression(
@@ -177,7 +192,7 @@ const createSortConsumerStatements = ({
         ? addSyntheticLeadingComment(sourceReturn, SingleLineCommentTrivia,
             ' eslint-disable-next-line resilient/prefer-safe-transformations -- Source sort retains receiver identity and native mutation.', true)
         : sourceReturn;
-    const annotatedReturn = isFunction(addSyntheticLeadingComment)
+    const annotatedReturn = !returnReceiver && isFunction(addSyntheticLeadingComment)
         ? addSyntheticLeadingComment(
             normalReturn,
             SingleLineCommentTrivia,
@@ -223,14 +238,14 @@ const lowerSortCapabilityConsumer = ({
     };
     const { kind: bodyKind = 0, whenTrue = {}, whenFalse = {}, condition = {}, statements = [] } = getObject(body);
     const {
-        action = '', callKey = '', grammarPlacement = '', evidence = [], source = {}
+        action = '', callKey = '', grammarPlacement = '', evidence = [], source = {}, fallback = ''
     } = contract;
     const { provider: sourceProvider = '', member: sourceMember = '' } = getObject(source);
 
     if (action !== 'guard-sort-capability' || !callKey || !grammarPlacement) return node;
 
     const occupied = new Set([
-        ...parameters.map(({ name = {} } = {}) => getObject(name).text).filter(Boolean),
+        ...parameters.flatMap(({ name = {} } = {}) => getBindingNames({ typescript, node: name })),
         ...getBindingNames({ typescript, node: body })
     ]);
     const useFunctionStandard = Boolean(getObject(standard).function);
@@ -243,7 +258,8 @@ const lowerSortCapabilityConsumer = ({
         sourceProviderName: sourceProvider,
         memberName: sourceMember,
         useFunctionStandard,
-        sameFunctionProvider
+        sameFunctionProvider,
+        returnReceiver: fallback === 'receiver'
     });
     let nextBody = body;
     let receiverName = '';
@@ -377,7 +393,7 @@ const lowerDirectCapabilityConsumers = ({
     if (!functionKinds.includes(kind) || action !== 'guard-function-undefined' || !receiver || !member || !callKey) return node;
 
     const occupied = new Set([
-        ...parameters.map(({ name = {} } = {}) => getObject(name).text).filter(Boolean),
+        ...parameters.flatMap(({ name = {} } = {}) => getBindingNames({ typescript, node: name })),
         ...getBindingNames({ typescript, node: body })
     ]);
     const alias = getCapabilityAlias({ receiver, member, occupied });

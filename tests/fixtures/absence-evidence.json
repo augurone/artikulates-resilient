@@ -176,11 +176,11 @@
     ]
   },
   {
-    "name": "effectful parameter initialization is opaque",
+    "name": "body guards survive ordered scalar default entry",
     "source": " const fold = (state, tuple, option = mutate(tuple)) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; return state; }; ",
     "required": [
-      true,
-      true
+      false,
+      false
     ]
   },
   {

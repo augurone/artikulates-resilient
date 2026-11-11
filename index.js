@@ -179,11 +179,15 @@ const coreRules = {
         {
             "selector": "ClassExpression",
             "message": "Classes are forbidden. Use function expressions instead."
+        },
+        {
+            "selector": "FunctionExpression:not(:matches(Property[method=true], Property[kind!=\"init\"], MethodDefinition) > FunctionExpression)",
+            "message": "Traditional function expressions are forbidden. Use arrow functions instead."
         }
     ]
 };
 const plugin = {
-    meta: Object.freeze({ name: 'eslint-plugin-resilient', version: '0.7.6', namespace: 'resilient' }),
+    meta: Object.freeze({ name: 'eslint-plugin-resilient', version: '0.7.7', namespace: 'resilient' }),
     rules: product.rules,
     imports: createImportsConfig
 };

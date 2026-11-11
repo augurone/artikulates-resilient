@@ -213,11 +213,14 @@ const lowerGuardedConditionalReturns = ({
         ], true);
     };
     const lowerBlock = (block) => {
-        const lowerStatements = (remaining) => {
-            const [rawStatement = {}] = remaining;
+        const { statements: blockStatements = [] } = getObject(block);
+        const statements = blockStatements.flatMap((rawStatement) => {
             const { kind: rawKind = 0 } = getObject(rawStatement);
 
-            if (!rawKind) return [];
+            // The outer visitor has already lowered nested function bodies.
+            if (functionKinds.has(rawKind)) return [rawStatement];
+
+            if (rawKind === Block) return [lowerBlock(rawStatement)];
 
             const statement = typescript.visitEachChild(
                 rawStatement,
@@ -234,15 +237,12 @@ const lowerGuardedConditionalReturns = ({
             const lowered = lowerReturn(statement, block);
             const { kind: loweredKind = 0 } = getObject(lowered);
             const fullyLowered = loweredKind === Block ? lowerBlock(lowered) : lowered;
-            const { kind: fullyLoweredKind = 0, statements: fullyLoweredStatements = [] } = getObject(fullyLowered);
+            const { statements: fullyLoweredStatements = [] } = getObject(fullyLowered);
 
-            return [
-                ...(fullyLoweredKind === Block ? fullyLoweredStatements : [fullyLowered]),
-                ...lowerStatements(remaining.slice(1))
-            ];
-        };
-        const { statements: blockStatements = [] } = getObject(block);
-        const statements = lowerStatements(blockStatements);
+            // Only lowerReturn's synthetic block expands this statement.
+            // Authored blocks retain their lexical bindings and TDZ boundary.
+            return lowered !== statement && loweredKind === Block ? fullyLoweredStatements : [fullyLowered];
+        });
         const directiveIndex = statements.findIndex(({ expression = {} } = {}) => {
             const { kind: expressionKind = 0 } = expression;
 

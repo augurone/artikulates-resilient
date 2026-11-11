@@ -767,6 +767,7 @@ const setMemberOptionality = ({
 
         return {
             ...member,
+            // eslint-disable-next-line resilient/no-undefined-assignment -- Compiler node copies remove optionality with absent questionToken; false is not a compiler token.
             questionToken: optional ? questionToken || { kind: QuestionToken } : undefined
         };
     });
@@ -818,6 +819,7 @@ const getTypeMembers = ({
         return sourceMembers.map((member) => {
             const mappedMember = { ...member, ...(mappedOverSource ? {} : { type: mappedType }) };
 
+            // eslint-disable-next-line resilient/no-undefined-assignment -- The mapped minus-optional modifier must clear the copied TypeScript questionToken using its native absent-node state.
             if (modifierKind === MinusToken) return { ...mappedMember, questionToken: undefined };
 
             return questionToken ? { ...mappedMember, questionToken } : mappedMember;
@@ -954,7 +956,10 @@ const getIndexedAccessMemberTypes = ({
         node: indexType,
         declarations
     });
-    const recordValue = getNativeUtilityName({ typescript, node: objectType, declarations }) === 'Record' ? secondArgument : undefined;
+    const recordValue = getNativeUtilityName({ typescript, node: objectType, declarations }) === 'Record'
+        ? secondArgument
+        : false;
+
     const members = recordValue
         ? [{ type: recordValue }]
         : keys.flatMap((key) => {
@@ -1660,7 +1665,7 @@ const resolveTypeInfo = ({
 
     if (nodeKind === UndefinedKeywordKind2) return {
         kind: 'undefined',
-        canonical: '{}'
+        canonical: 'void 0'
     };
 
     const identifierValue = (() => {
@@ -1999,6 +2004,7 @@ const createTypeResolutionContext = () => {
             const checkerContract = getCheckerContract({ typescript, node, checker, declarations, typeText });
             const { kind: checkerTypeKind = 0 } = checkerTypeNode;
             const syntaxOptions = checkerTypeKind
+                // eslint-disable-next-line resilient/no-undefined-assignment -- Clear the copied checker before syntax-only recursion to prevent repeating the checker query.
                 ? { ...options, checker: undefined, declarations: { ...declarations }, node: checkerTypeNode }
                 : options;
 

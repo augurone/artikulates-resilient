@@ -113,7 +113,12 @@
     {
       "id": "operator-placement",
       "rule": "operator-linebreak",
-      "anchor": "const brokenOperator = 1\n    +\n    2;"
+      "binding": "brokenOperator"
+    },
+    {
+      "id": "falsifiable-property-name",
+      "rule": "no-falsifiable-property-key",
+      "anchor": "const unnamedField = { '': 'value' };"
     }
   ],
   "explanations": [
@@ -163,6 +168,379 @@
         "producer",
         "bad-import-provider.js at line 6"
       ]
+    },
+    {
+      "id": "reflective-lookup-preserves-operation",
+      "rule": "signature-contract-operation",
+      "anchor": "return count.trim();",
+      "includes": [
+        "number-like",
+        "string-like"
+      ]
+    },
+    {
+      "id": "collection-callback-family-guidance",
+      "rule": "signature-contract-call-site",
+      "anchor": "[42].map(readTitle)",
+      "includes": [
+        "object-like",
+        "number-like"
+      ]
+    },
+    {
+      "id": "array-pattern-family-guidance",
+      "rule": "signature-contract-destructuring",
+      "anchor": "const { label = '' } = items;",
+      "includes": [
+        "array-like",
+        "object-like"
+      ]
+    }
+  ],
+  "isolated": [
+    {
+      "id": "ambient-keeps-operation",
+      "rule": "signature-contract-operation",
+      "anchor": "count.trim()",
+      "neighbor": [
+        "const count = 42;",
+        "const count = 'ready';"
+      ],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "computed-key-contract",
+      "rule": "signature-contract-operation",
+      "anchor": "title.trim()",
+      "neighbor": [
+        "[field]: 42",
+        "[field]: 'ready'"
+      ],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "computed-parameter-contract",
+      "rule": "signature-contract-operation",
+      "anchor": "read('title', { title: 42 }).trim()",
+      "neighbor": [
+        "{ title: 42 }",
+        "{ title: 'ready' }"
+      ],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "split-result-contract",
+      "rule": "signature-contract-operation",
+      "anchor": "'news,art'.split(',').trim()",
+      "neighbor": [
+        "'news,art'.split(',').trim()",
+        "'news,art'.split(',').join(',')"
+      ],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "split-receiver-contract",
+      "rule": "signature-contract-operation",
+      "anchor": "value.split(',')",
+      "neighbor": [
+        "const value = 42;",
+        "const value = 'ready';"
+      ],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "foreach-synchronous-contract",
+      "rule": "signature-contract-call-site",
+      "anchor": "[].forEach(callback)",
+      "neighbor": [
+        "const visit = async item => item;",
+        "const visit = item => item;"
+      ],
+      "complete": true
+    },
+    {
+      "id": "entry-default-obligation",
+      "rule": "signature-contract-call-site",
+      "anchor": "normalizeTitle(42)",
+      "neighbor": [
+        "normalizeTitle(42)",
+        "normalizeTitle('ready')"
+      ]
+    },
+    {
+      "id": "entry-scalar-after-field",
+      "rule": "signature-contract-operation",
+      "anchor": "read({ name: '' }, 42).trim()",
+      "neighbor": [
+        "read({ name: '' }, 42).trim()",
+        "read({ name: '' }, 42).toFixed()"
+      ],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "entry-root-default",
+      "rule": "signature-contract-operation",
+      "anchor": "read().trim()",
+      "neighbor": [
+        "read().trim(); // Invalid: 42 has no string trim operation.",
+        "read().toFixed(); // Corrected: consume the established numeric result."
+      ],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "entry-leaf-default",
+      "rule": "signature-contract-operation",
+      "anchor": "read().trim()",
+      "neighbor": [
+        "read().trim(); // Invalid: the executed default returns a number.",
+        "read().toFixed(); // Corrected: consume the completed lazy numeric default."
+      ],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "entry-skipped-throw",
+      "rule": "signature-contract-operation",
+      "anchor": "read({ name: 42 }).trim()",
+      "neighbor": [
+        "read({ name: 42 }).trim()",
+        "read({ name: 42 }).toFixed()"
+      ],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "entry-known-with-unknown",
+      "rule": "signature-contract-operation",
+      "anchor": "total.trim()",
+      "neighbor": [
+        "estimated ? 42 : fetchTotal()",
+        "estimated ? 'ready' : fetchTotal()"
+      ]
+    },
+    {
+      "id": "entry-formal-alias",
+      "rule": "signature-contract-operation",
+      "anchor": "read({ name: 42 }).name.trim()",
+      "neighbor": [
+        "read({ name: 42 }).name.trim()",
+        "read({ name: 42 }).name.toFixed()"
+      ],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "reflection-array-result",
+      "rule": "signature-contract-operation",
+      "anchor": "Reflect.ownKeys({}).trim()",
+      "neighbor": [
+        "Reflect.ownKeys({}).trim()",
+        "Reflect.ownKeys({}).join(',')"
+      ],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "reflection-boolean-result",
+      "rule": "signature-contract-operation",
+      "anchor": "hasKey.trim()",
+      "neighbor": [
+        "hasKey.trim()",
+        "String(hasKey).trim()"
+      ],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "catch-possible-operation",
+      "rule": "signature-contract-operation",
+      "anchor": "parseCount.trim()",
+      "neighbor": [
+        "parseCount.trim()",
+        "parseCount.toFixed()"
+      ],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "catch-awaited-operation",
+      "rule": "signature-contract-operation",
+      "anchor": "failureCount.trim()",
+      "neighbor": [
+        "failureCount.trim()",
+        "failureCount.toFixed()"
+      ],
+      "complete": true
+    },
+    {
+      "id": "catch-result-operation",
+      "rule": "signature-contract-operation",
+      "anchor": "read('{').trim()",
+      "neighbor": [
+        "read('{').trim()",
+        "read('{').toFixed()"
+      ],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "catch-pattern-scope",
+      "rule": "signature-contract-operation",
+      "anchor": "outsideCount.trim()",
+      "neighbor": [
+        "outsideCount.trim()",
+        "outsideCount.toFixed()"
+      ],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "catch-pattern-module-scope",
+      "rule": "signature-contract-operation",
+      "anchor": "moduleCatchCount.trim()",
+      "neighbor": [
+        "moduleCatchCount.trim()",
+        "moduleCatchCount.toFixed()"
+      ],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "arguments-owner-scope",
+      "rule": "signature-contract-operation",
+      "anchor": "independentCount.trim()",
+      "neighbor": [
+        "independentCount.trim()",
+        "independentCount.toFixed()"
+      ],
+      "nativeError": "TypeError"
+    },
+    {
+      "id": "arguments-explicit-arity",
+      "rule": "signature-contract-call-site",
+      "anchor": "readImplicit(42)",
+      "neighbor": [
+        "function () { return arguments[0]; }",
+        "function (...values) { return values.at(0); }"
+      ],
+      "complete": true
+    },
+    {
+      "id": "native-length-result",
+      "rule": "signature-contract-operation",
+      "anchor": "([].length).trim()",
+      "neighbor": [
+        "([].length).trim()",
+        "([].length).toFixed()"
+      ],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "native-static-result",
+      "rule": "signature-contract-operation",
+      "anchor": "Math.max(1, 2).trim()",
+      "neighbor": ["Math.max(1, 2).trim()", "Math.max(1, 2).toFixed()"],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "native-string-slice",
+      "rule": "signature-contract-operation",
+      "anchor": "'abc'.slice(1).map(Boolean)",
+      "neighbor": ["'abc'.slice(1).map(Boolean)", "'abc'.slice(1).trim()"],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "dropped-conditional-promise",
+      "rule": "no-unhandled-promise-chain",
+      "anchor": "enabled ? loadCount() : 0",
+      "neighbor": ["enabled ? loadCount() : 0;", "void (enabled ? loadCount() : 0);"],
+      "complete": true
+    },
+    {
+      "id": "dropped-logical-promise",
+      "rule": "no-unhandled-promise-chain",
+      "anchor": "enabled && loadCount()",
+      "neighbor": ["enabled && loadCount();", "void (enabled && loadCount());"],
+      "complete": true
+    },
+    {
+      "id": "dropped-mapped-promises",
+      "rule": "no-unhandled-promise-chain",
+      "anchor": "[1, 2].map(() => loadCount())",
+      "neighbor": ["[1, 2].map(() => loadCount());", "const pending = loadCount();\n        [pending].map(value => value);\n        return pending;"],
+      "complete": true
+    },
+    {
+      "id": "native-json-result",
+      "rule": "signature-contract-operation",
+      "anchor": "JSON.stringify({ value: 1 }).map(Boolean)",
+      "neighbor": ["JSON.stringify({ value: 1 }).map(Boolean)", "JSON.stringify({ value: 1 }).trim()"],
+      "nativeError": "TypeError",
+      "complete": true
+    },
+    {
+      "id": "silent-promise-catch",
+      "rule": "no-silent-catch",
+      "anchor": "() => {}",
+      "neighbor": ["() => {}", "() => { return; }"],
+      "complete": true
+    },
+    {
+      "id": "silent-promise-rejection",
+      "rule": "no-silent-catch",
+      "anchor": "() => {}",
+      "neighbor": ["() => {}", "() => { return; }"]
+    },
+    {
+      "id": "member-write-targets-retain-reads",
+      "rule": "prefer-destructured-member-access",
+      "anchor": "record.label",
+      "neighbor": ["return record.label;", "const { label = '' } = record;\n\n        return label;"]
+    },
+    {
+      "id": "tuple-source-contract",
+      "rule": "no-destructuring-fallback",
+      "anchor": "pair || []",
+      "neighbor": ["const [value = ''] = pair || [];", "const [value = ''] = pair;"],
+      "complete": true
+    },
+    {
+      "id": "named-pattern-source-contract",
+      "rule": "no-destructuring-fallback",
+      "anchor": "defaults || {}",
+      "neighbor": ["const read = ({ value = '' } = defaults || {}) => value;", "const read = ({ value = '' } = defaults) => value;"],
+      "complete": true
+    },
+    {
+      "id": "assigned-pattern-source-contract",
+      "rule": "no-destructuring-fallback",
+      "anchor": "source || {}",
+      "neighbor": ["({ value = '' } = source || {});", "({ value = '' } = source);"],
+      "complete": true
+    },
+    {
+      "id": "length-at-least-one",
+      "rule": "no-length-comparison",
+      "anchor": "items.length >= 1",
+      "neighbor": ["items.length >= 1", "!!items.length"],
+      "complete": true
+    },
+    {
+      "id": "mirrored-length-at-most-zero",
+      "rule": "no-length-comparison",
+      "anchor": "0 >= items.length",
+      "neighbor": ["0 >= items.length", "!items.length"],
+      "complete": true
     }
   ]
 }

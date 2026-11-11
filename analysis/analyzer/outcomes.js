@@ -3,8 +3,8 @@ import { traverse } from '../traversal.js';
 import { valueInputs } from './values.js';
 
 const outcome = ({ normal = 0, thrown = 0, returned = 0, broken = 0, continued = 0, uncertain = 0, effects = 0, value = false,
-    result = false, returns = false, sites = false, calls = false, unresolved = false } = {}) => (
-    Object.freeze({ normal, thrown, returned, broken, continued, uncertain, effects, value, result, returns, sites, calls, unresolved })
+    result = false, error = false, rejections = false, returns = false, sites = false, calls = false, unresolved = false } = {}) => (
+    Object.freeze({ normal, thrown, returned, broken, continued, uncertain, effects, value, result, error, rejections, returns, sites, calls, unresolved })
 );
 const joined = (left, right) => left && right ? Object.freeze({ inputs: Object.freeze([left, right]) }) : left || right;
 const restricted = (contribution, gate) => contribution && gate ? Object.freeze({ input: contribution, gate }) : false;
@@ -29,24 +29,31 @@ export const createOutcomes = ({ decisions: { and, or, not } = {}, values = {}, 
 
         if (gate === 1) return entry;
 
-        const { normal = 0, thrown = 0, returned = 0, broken = 0, continued = 0, uncertain = 0, effects = 0, value = false, result = false,
-            returns = false, sites = false, calls = false } = entry;
+        const { normal = 0, thrown = 0, returned = 0, broken = 0, continued = 0, uncertain = 0, effects = 0, value = false, result = false, rejections = false,
+            error = false, returns = false, sites = false, calls = false } = entry;
 
         return outcome({ ...entry, normal: and(normal, gate), thrown: and(thrown, gate), returned: and(returned, gate), uncertain: and(uncertain, gate), effects: and(effects, gate),
             broken: and(broken, gate), continued: and(continued, gate), value: values.restrict(value, gate, visit), result: values.restrict(result, gate, visit),
-            returns: restricted(returns, gate), sites: restricted(sites, gate), calls: restricted(calls, gate) });
+            error: values.restrict(error, gate, visit), rejections: restricted(rejections, gate), returns: restricted(returns, gate),
+            sites: restricted(sites, gate), calls: restricted(calls, gate) });
     };
     const join = ({ normal: a = 0, thrown: at = 0, returned: ar = 0, uncertain: au = 0, effects: ae = 0, value: av = false, result: resultA = false,
-        returns: returnsA = false, sites: sitesA = false, calls: callsA = false, unresolved: ax = false, broken: ab = 0, continued: ac = 0 } = {},
+        error: errorA = false, rejections: sourceA = false, returns: returnsA = false, sites: sitesA = false, calls: callsA = false,
+        unresolved: ax = false, broken: ab = 0, continued: ac = 0 } = {},
     { normal: b = 0, thrown: bt = 0, returned: br = 0, uncertain: bu = 0, effects: be = 0, value: bv = false, result: resultB = false,
-        returns: returnsB = false, sites: sitesB = false, calls: callsB = false, unresolved: bx = false, broken: bb = 0, continued: bc = 0 } = {}) => outcome({
+        error: errorB = false, rejections: sourceB = false, returns: returnsB = false, sites: sitesB = false, calls: callsB = false,
+        unresolved: bx = false, broken: bb = 0, continued: bc = 0 } = {}) => outcome({
         normal: or(a, b), thrown: or(at, bt), returned: or(ar, br), uncertain: or(au, bu), effects: or(ae, be), value: values.joined([av, bv]), result: values.joined([resultA, resultB]),
-        broken: or(ab, bb), continued: or(ac, bc), returns: joined(returnsA, returnsB), sites: joined(sitesA, sitesB), calls: joined(callsA, callsB), unresolved: ax || bx
+        error: values.joined([errorA, errorB]), rejections: joined(sourceA || (at && Object.freeze({ source: {}, gate: at })),
+            sourceB || (bt && Object.freeze({ source: {}, gate: bt }))),
+        broken: or(ab, bb), continued: or(ac, bc), returns: joined(returnsA, returnsB),
+        sites: joined(sitesA, sitesB), calls: joined(callsA, callsB), unresolved: ax || bx
     });
+    const follow = (left, reached) => join(outcome({ ...left, normal: 0, value: false, sites: false }), reached);
     const sequence = (left, right, visit) => {
         const { normal = 0 } = left;
 
-        return join(outcome({ ...left, normal: 0, value: false, sites: false }), restrict(right, normal, visit));
+        return follow(left, restrict(right, normal, visit));
     };
     // Conditional expression sites follow the same selected conditions as values.
     // Calls and bindings establish their own use site instead of exposing a callee's sites.
@@ -65,11 +72,13 @@ export const createOutcomes = ({ decisions: { and, or, not } = {}, values = {}, 
         return outcome({ ...entry, normal: 0, value: false, sites: false, returned: normal, result: value,
             returns: sites || (value ? Object.freeze({ value, location, operator }) : false) });
     };
-    const thrown = ({ normal = 0, thrown: failure = 0, effects = 0, calls = false, unresolved = false } = {}) => outcome({ thrown: or(normal, failure), effects, calls, unresolved });
+    const thrown = ({ normal = 0, thrown: failure = 0, value = false, error = false, effects = 0, calls = false, unresolved = false } = {}) => outcome({
+        thrown: or(normal, failure), error: values.joined([error, value]), effects, calls, unresolved
+    });
     const caught = (entry, handler, visit) => {
         const { thrown = 0 } = entry;
 
-        return join(outcome({ ...entry, thrown: 0, uncertain: 0 }), restrict(handler, thrown, visit));
+        return join(outcome({ ...entry, thrown: 0, error: false, rejections: false, uncertain: 0 }), restrict(handler, thrown, visit));
     };
     const finalized = (entry, cleanup, visit) => {
         const { normal = 0, effects = 0, calls: cleanupCalls = false } = cleanup;
@@ -80,10 +89,11 @@ export const createOutcomes = ({ decisions: { and, or, not } = {}, values = {}, 
 
         return outcome({ ...completed, calls: joined(calls, cleanupCalls) });
     };
-    const invoked = ({ normal = 0, returned = 0, thrown = 0, uncertain = 0, effects = 0, result = false, unresolved = false, returns = false, calls = false } = {}, location, visit) => {
+    const invoked = ({ normal = 0, returned = 0, thrown = 0, uncertain = 0, effects = 0, result = false, error = false,
+        rejections = false, unresolved = false, returns = false, calls = false } = {}, location, visit) => {
         const absentValue = values.restrict(absent, and(normal, not(uncertain)), visit);
 
-        return outcome({ normal: or(normal, returned), thrown, uncertain, effects, value: values.joined([result, absentValue]), unresolved, calls,
+        return outcome({ normal: or(normal, returned), thrown, uncertain, effects, value: values.joined([result, absentValue]), error, rejections, unresolved, calls,
             returns: joined(returns, absentValue ? Object.freeze({ value: absentValue, location, fallthrough: true }) : false) });
     };
     // A call owns its body contributions. Callee/argument evaluation is sequenced
@@ -132,6 +142,41 @@ export const createOutcomes = ({ decisions: { and, or, not } = {}, values = {}, 
         });
 
         return Object.freeze(selected);
+    };
+    // The aggregate owns this temporary projection. Process the contribution
+    // DAG in parent-before-child order so every edge propagates its gate once,
+    // including shared diamonds. No intermediate outcome retains a flat list.
+    const rejectionCases = (entries, visit) => {
+        const root = { inputs: entries.map(({ rejections = false, thrown = 0 } = {}) => (
+            restricted(rejections || (thrown && Object.freeze({ source: {}, gate: thrown })), thrown)
+        )).filter(Boolean) };
+        const seen = new Set();
+        const order = new Set();
+
+        traverse(root, { enter: (node) => {
+            if (seen.has(node)) return [];
+
+            retain(seen, node);
+
+            if (typeof visit === 'function') visit();
+
+            return valueInputs(node);
+        }, leave: node => retain(order, node) });
+        const gates = new Map([[root, 1]]);
+        const selected = new Map();
+
+        [...order].toReversed().forEach((node) => {
+            if (typeof visit === 'function') visit();
+
+            const { source = false, gate: ownGate = 1 } = node;
+            const gate = and(gates.get(node) || 0, ownGate);
+
+            if (source && gate) put(selected, source, or(selected.get(source) || 0, gate));
+
+            valueInputs(node).forEach(child => put(gates, child, or(gates.get(child) || 0, gate)));
+        });
+
+        return Object.freeze([...selected].map(([source = false, gate = 0] = []) => Object.freeze({ source, gate })));
     };
     const describe = ({ returns = false } = {}, visit) => {
         const selected = [];
@@ -200,5 +245,6 @@ export const createOutcomes = ({ decisions: { and, or, not } = {}, values = {}, 
         return read(returns);
     };
 
-    return { empty, continuation, complete, outcome, restrict, join, sequence, located, returned, thrown, caught, finalized, invoked, called, describeCalls, describe, mapReturns };
+    return { empty, continuation, complete, outcome, restrict, join, sequence, follow, located, returned, thrown, caught, finalized, invoked, called,
+        describeCalls, rejectionCases, describe, mapReturns };
 };

@@ -6,28 +6,48 @@ import { createAnalysis } from 'eslint-plugin-resilient/analyzer';
 
 test('bounded unknown causes survive aliases, contradictions and source revisions', () => {
     const inputs = Array.from({ length: 40 }, (_, index) => createOwner({ evidence: unresolved({
-        code: 'external-input', reason: 'Unresolved external input', location: { range: [index, index + 1] }
+        code: 'external-input', reason: index ? 'A external input' : 'Z external input', location: { range: [index, index + 1] }
     }) }));
+    const duplicate = createOwner({ evidence: unresolved({ code: 'external-input', reason: 'A external input', location: { range: [0, 1] } }) });
     const known = ['text', 42].map(value => createOwner({ evidence: fromESTree({ type: 'Literal', value }) }));
-    const joined = inputs.reduce((owner, next) => createOwner({ evidence: producer({ owners: [owner, next] }) }), known.at(0));
+    const joined = [...inputs, duplicate].reduce((owner, next) => createOwner({ evidence: producer({ owners: [owner, next] }) }), known.at(0));
     const owner = createOwner({ evidence: producer({ owners: [joined, ...known] }) });
     const alias = createOwner({ evidence: reference({ owner }) });
     const first = readFamily({ owner: alias });
-    const { state = '', causes = [], causesTruncated = false } = first;
+    const { state = '', reason = '', causes = [], causesTruncated = false } = first;
 
     strictEqual(state, 'contradictory');
+    strictEqual(reason, 'A external input');
     strictEqual(causes.length, 8);
     strictEqual(causesTruncated, true);
     ok(causes.every((cause) => {
-        const { location: { range = [] } = {} } = cause;
+        const { reason = '', location: { range = [] } = {} } = cause;
 
-        return Object.isFrozen(cause) && Object.isFrozen(range);
+        return reason === 'A external input' && Object.isFrozen(cause) && Object.isFrozen(range);
     }));
+    const cycle = (reverse = false) => {
+        const left = createOwner({ evidence: unresolved() });
+        const right = createOwner({ evidence: unresolved() });
+
+        replaceEvidence({ owner: left, evidence: producer({ owners: [right, ...inputs.slice(0, 20), ...known] }) });
+        replaceEvidence({ owner: right, evidence: producer({ owners: [left, ...inputs.slice(20).toReversed(), duplicate] }) });
+
+        return readFamily({ owner: reverse ? right : left });
+    };
+    [cycle(), cycle(true)].forEach(({ state = '', reason = '', families = [], incomplete = false, causes: selected = [], causesTruncated = false } = {}) => {
+        strictEqual(state, 'contradictory');
+        strictEqual(reason, 'A external input');
+        deepStrictEqual(families, ['string', 'number']);
+        strictEqual(incomplete, true);
+        deepStrictEqual(selected, causes);
+        strictEqual(causesTruncated, true);
+    });
     replaceEvidence({ owner: joined, evidence: fromESTree({ type: 'Literal', value: 'ready' }) });
     const next = readFamily({ owner: alias });
-    const { state: nextState = '', incomplete = false, causes: remaining = [], causesTruncated: truncated = false } = next;
+    const { state: nextState = '', reason: nextReason = '', incomplete = false, causes: remaining = [], causesTruncated: truncated = false } = next;
 
     strictEqual(nextState, 'contradictory');
+    strictEqual(nextReason, '');
     strictEqual(incomplete, false);
     deepStrictEqual(remaining, []);
     strictEqual(truncated, false);

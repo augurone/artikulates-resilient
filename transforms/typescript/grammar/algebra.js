@@ -182,9 +182,10 @@ const createMaterializedCollectionReduction = ({
 };
 
 // A callable capability remains absent until its actual consumer requires it.
-// The caller's natural bare return is the dialect response for that specific
-// consumer; no callback implementation is invented at the provider boundary.
-const createCallableCapabilityGuard = ({ typescript = {}, alias = '', useFunctionStandard = false } = {}) => {
+// The consumer owns the disagreement response; no callback implementation is
+// invented at the provider boundary.
+const createCallableCapabilityGuard = ({ typescript = {}, alias = '', useFunctionStandard = false,
+    returnExpression = false } = {}) => {
     const {
         factory = {},
         SyntaxKind: {
@@ -204,15 +205,17 @@ const createCallableCapabilityGuard = ({ typescript = {}, alias = '', useFunctio
             factory.createToken(EqualsEqualsEqualsToken),
             factory.createStringLiteral('function', true)
         );
-    const bareReturn = factory.createReturnStatement();
-    const guardedReturn = isFunction(addSyntheticLeadingComment)
+    const response = returnExpression
+        ? factory.createReturnStatement(returnExpression)
+        : factory.createReturnStatement();
+    const guardedReturn = !returnExpression && isFunction(addSyntheticLeadingComment)
         ? addSyntheticLeadingComment(
-            bareReturn,
+            response,
             SingleLineCommentTrivia,
             ' eslint-disable-next-line consistent-return -- Checked capability disagreement owns this function\'s natural undefined response.',
             true
         )
-        : bareReturn;
+        : response;
     const guard = factory.createIfStatement(
         factory.createPrefixUnaryExpression(
             ExclamationToken,

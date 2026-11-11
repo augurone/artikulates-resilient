@@ -1,4 +1,4 @@
-import { strictEqual, deepStrictEqual, throws } from 'node:assert/strict';
+import { strictEqual, deepStrictEqual, throws, ok } from 'node:assert/strict';
 import test from 'node:test';
 
 import { createOwner, fromESTree, reference, producer, request, replaceEvidence, replaceAll, isCurrent, inspect } from 'eslint-plugin-resilient/agreement';
@@ -154,4 +154,44 @@ test('an update observer failure propagates after the atomic revision has commit
     throws(() => replaceEvidence({ owner: root, evidence: number, onWork: () => { throw failure; } }), error => error === failure);
     strictEqual(isCurrent(old), false);
     strictEqual(request({ owner: tip, required: 'number' }).status, 'agreement');
+});
+
+test('shared diamonds bound demand and revision work by owned nodes rather than paths', (context) => {
+    [8, 32].forEach((depth) => {
+        const source = createOwner({ evidence: text });
+        const tip = Array.from({ length: depth }).reduce(prior => createOwner({ evidence: producer({ owners: [alias(prior), alias(prior)] }) }), source);
+        const work = counter();
+        const { onWork } = work;
+        const old = request({ owner: tip, required: 'string', onWork });
+        const before = work.get('establishment');
+
+        const { status = '' } = old;
+
+        strictEqual(status, 'agreement');
+        ok(before > 0 && before <= 3 * depth + 1);
+        strictEqual(request({ owner: tip, required: 'number', onWork }).status, 'contradiction');
+        strictEqual(work.get('establishment'), before);
+        const updates = counter();
+        const { onWork: recordUpdate } = updates;
+
+        replaceEvidence({ owner: source, evidence: number, onWork: recordUpdate });
+        strictEqual(isCurrent(old), false);
+        strictEqual(inspect(old).historicalOutcome, 'agreement');
+        ok(updates.get('invalidation') > 0 && updates.get('invalidation') <= 3 * depth + 1);
+        ok(updates.get('invalidation-edge') <= 4 * depth);
+        const dirty = counter();
+        const { onWork: recordDirty } = dirty;
+
+        replaceEvidence({ owner: source, evidence: text, onWork: recordDirty });
+        replaceEvidence({ owner: source, evidence: number, onWork: recordDirty });
+        strictEqual(dirty.get('invalidation'), 0);
+        strictEqual(dirty.get('invalidation-edge'), 0);
+        const rebuilt = counter();
+        const { onWork: recordRebuild } = rebuilt;
+
+        strictEqual(request({ owner: tip, required: 'number', onWork: recordRebuild }).status, 'agreement');
+        ok(rebuilt.get('establishment') <= 3 * depth + 1);
+        strictEqual(isCurrent(old), false);
+        context.diagnostic(`Depth ${depth}: ${before} establishments, ${updates.get('invalidation')} invalidations, ${updates.get('invalidation-edge')} invalidation edges`);
+    });
 });

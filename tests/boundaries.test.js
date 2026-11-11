@@ -9,6 +9,7 @@ import {
 const own = node => createOwner({ evidence: fromESTree(node) });
 
 test('missing or forged handles cannot become evidence through defaults', () => {
+    // eslint-disable-next-line resilient/no-null-assignment, resilient/no-undefined-assignment -- Forged-handle controls deliberately supply native undefined and null so defaults cannot manufacture evidence.
     [undefined, false, null, {}, []].forEach((value) => {
         throws(() => createOwner({ evidence: value }), TypeError);
         throws(() => reference({ owner: value }), TypeError);
@@ -32,6 +33,7 @@ test('an empty field name remains valid while a missing field name is rejected',
 
 test('absent ESTree literal payloads stay unknown instead of acquiring a default family', () => {
     const absent = own({ type: 'Literal' });
+    // eslint-disable-next-line resilient/no-null-assignment -- This ESTree fixture needs an actual null literal payload to distinguish known null from missing parser data.
     const nullish = own({ type: 'Literal', value: null });
     const { status: missingStatus = '', fact: { families = [], state = '' } = {} } = request({ owner: absent, required: 'boolean' });
     const { status: nullishStatus = '' } = request({ owner: nullish, required: 'nullish' });
@@ -73,6 +75,7 @@ test('observers receive one frozen event argument and noncallable observers stay
         strictEqual(args.length, 1);
         strictEqual(Object.isFrozen(event), true);
     });
+    // eslint-disable-next-line resilient/no-null-assignment, resilient/no-undefined-assignment -- Observer controls include null and undefined to verify that noncallable observers remain absent.
     [undefined, false, null, 0, '', {}].forEach((observer) => {
         const { status = '' } = request({ owner, required: 'string', onWork: observer });
 

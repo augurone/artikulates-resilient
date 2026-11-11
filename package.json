@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-resilient",
-  "version": "0.7.6",
+  "version": "0.7.7",
   "type": "module",
   "description": "Native-JavaScript discipline and contract analysis for explicit code",
   "license": "MIT",
@@ -87,6 +87,7 @@
     "lint": "node scripts/lint.js",
     "lint:report": "node scripts/lint.js --report",
     "test": "node --test --test-concurrency=2 tests/*.test.js",
+    "check:fp-ts": "node scripts/check-fp-ts.js",
     "check:package": "node scripts/check-package.js",
     "check": "npm run lint && npm run check:package",
     "release": "node scripts/release.js",

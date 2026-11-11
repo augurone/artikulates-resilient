@@ -6,7 +6,7 @@ import path from 'node:path';
 import typescript from 'typescript';
 
 import { validateManifest } from './typescript-project-artifacts.js';
-import { assertEsmModule, createResolution, outputName, owningPackage, rewriteImports } from './typescript-project-resolution.js';
+import { assertEsmModule, createResolution, outputName, owningPackage, rewriteImports, runtimeImportNode } from './typescript-project-resolution.js';
 
 const portableStandard = Object.freeze({
     object: 'eslint-plugin-resilient/standard/object',
@@ -258,38 +258,22 @@ const dynamicImportSpecifier = ({ expression = {}, arguments: argumentsList = []
 
     return kind === typescript.SyntaxKind.ImportKeyword && typescript.isStringLiteralLike(argument) ? specifier : '';
 };
-const runtimeSpecifier = (node) => {
-    if (typescript.isImportDeclaration(node)) {
-        // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An absent compiler clause stays nullish until its record boundary; a boolean would expose prototype fields.
-        const { importClause, moduleSpecifier = {} } = node;
-        const clause = importClause ?? {};
-        const { namedBindings = false, name = false, isTypeOnly = false } = clause;
-        const namesOnlyType = namedBindings && typescript.isNamedImports(namedBindings) &&
-            namedBindings.elements.every(({ isTypeOnly: typeOnly = false } = {}) => typeOnly);
-        const isRuntime = !isTypeOnly && (!importClause || name || !namesOnlyType);
+const runtimeSpecifier = (node, options) => {
+    if (typescript.isImportDeclaration(node) || typescript.isExportDeclaration(node)) {
+        const { moduleSpecifier = {} } = node;
         const { text: specifier = '' } = moduleSpecifier;
 
-        return isRuntime && typescript.isStringLiteralLike(moduleSpecifier) ? specifier : '';
-    }
-
-    if (typescript.isExportDeclaration(node)) {
-        const { isTypeOnly = false, moduleSpecifier = {}, exportClause = {} } = node;
-        const selectedClause = exportClause ? exportClause : {};
-        const { elements = [] } = selectedClause;
-        const namesOnlyType = elements.length && elements.every(({ isTypeOnly: typeOnly = false } = {}) => typeOnly);
-        const { text: specifier = '' } = moduleSpecifier;
-
-        return !isTypeOnly && !namesOnlyType && typescript.isStringLiteralLike(moduleSpecifier) ? specifier : '';
+        return typescript.isStringLiteralLike(moduleSpecifier) && runtimeImportNode(moduleSpecifier, options) ? specifier : '';
     }
 
     if (typescript.isCallExpression(node)) return dynamicImportSpecifier(node);
 
     return '';
 };
-const runtimeModuleSpecifiers = (sourceFile) => {
+const runtimeModuleSpecifiers = (sourceFile, options) => {
     let names = [];
     const visit = (node) => {
-        const specifier = runtimeSpecifier(node);
+        const specifier = runtimeSpecifier(node, options);
 
         if (specifier) names = [...names, specifier];
 
@@ -313,7 +297,7 @@ const closeEmitSelection = ({ selected = [], program = {}, resolution = {}, proj
 
         if (!sourceFile) throw new Error(`Selected emit source is absent from the TypeScript program: ${fileName}`);
 
-        runtimeModuleSpecifiers(sourceFile).forEach((specifier) => {
+        runtimeModuleSpecifiers(sourceFile, program.getCompilerOptions()).forEach((specifier) => {
             const { resolved: resolvedModule = {}, external = '' } = resolution.resolve(specifier, fileName);
             const resolved = resolvedModule ?? {};
             const { resolvedFileName = '' } = resolved;
@@ -355,7 +339,7 @@ const planRuntimeRoutes = ({ files = [], program = {}, resolution = {}, destinat
     const importerDestination = destinations.find(({ fileName = '' } = {}) => fileName === importer);
     const { published: importerOutput = '' } = importerDestination;
 
-    return runtimeModuleSpecifiers(sourceFile).map((specifier) => {
+    return runtimeModuleSpecifiers(sourceFile, program.getCompilerOptions()).map((specifier) => {
         // eslint-disable-next-line resilient/no-null-assignment -- Published routes use JSON null to preserve the absence of a resolution contract.
         const { resolved = false, owner = 'typescript', external = '', contract = null } = resolution.resolve(specifier, importer);
         const selectedResolution = resolved ? resolved : {};
@@ -418,7 +402,6 @@ const prepareProject = ({ project = '', outDir = '', report = '', manifest = '',
     const { compilerOptions: rawCompilerOptions = {}, resilient: selectedResilient = {} } = selectedConfig;
     const resilientConfig = getResilientConfig(selectedResilient);
     const { file: optionalConfigFile = '', config: optionalConfig = {} } = readOptionalProjectConfig(selectedProject);
-    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Optional project fields preserve omission so precedence and published configuration retain the authored shape.
     const { emit: optionalEmit, standard: optionalStandard, provider: configuredProvider = '', resolution: resolutionConfig = {} } = optionalConfig;
     const projectRoot = path.dirname(selectedProject);
     const providerFile = provider || (configuredProvider ? path.resolve(projectRoot, configuredProvider) : '');
