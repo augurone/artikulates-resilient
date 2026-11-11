@@ -31,7 +31,7 @@ const source = (name = '', type = '{ operation: () => number }') => [
     '    return () => operation;',
     '}'
 ].join('\n');
-const names = ['ordinaryFactory', 'getAltValidation', 'getApplicativeValidation', 'getFunctorComposition'];
+const names = ['ordinaryFactory', 'makePrimaryOperations', 'makeParallelOperations', 'composeOperations'];
 const records = names.map((name) => {
     const { agreements = [], contracts = new Map(), code = '' } = compile(source(name));
     const [record = {}] = agreements.filter(({ name: property = '' } = {}) => property === 'operation');
@@ -121,7 +121,7 @@ assert.equal(mixedOwner, 'typeclass-factory');
     assert.notEqual(owner, 'typeclass-factory',
         'A proved field cannot lend ownership to a sibling.');
 });
-const explicit = compile(source('getAltValidation').replace('const { operation }', 'const { operation = () => 9 }'));
+const explicit = compile(source('makePrimaryOperations').replace('const { operation }', 'const { operation = () => 9 }'));
 const { code: explicitCode = '', agreements: explicitAgreements = [] } = explicit;
 assert.match(explicitCode, /operation = \(\) => 9/u);
 assert.ok(!explicitAgreements.some(({ name = '' } = {}) => name === 'operation'));

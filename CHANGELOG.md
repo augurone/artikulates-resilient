@@ -1,6 +1,139 @@
 # Changelog
 
-## Unreleased
+## 0.7.6 — Unreleased
+
+- Keep project lowering and proof execution ESM only: `.ts`/`.tsx` to `.js` in
+  `"type": "module"` packages. Remove CommonJS emission, require hooks and alternate
+  module-extension routing; repository fixtures and configuration use `.js`.
+- Use ESM Node globals in repository and production lint profiles so CommonJS
+  wrapper bindings are no longer accepted as globals.
+
+Ground-up rearchitecture of the JavaScript analyzer and agreement model since
+0.7.5.
+
+### Breaking changes
+
+- Replace the `./contracts` graph, document and tree APIs with `./agreement`
+  for source-owned evidence and judgments, and `./analyzer` for JavaScript
+  analysis sessions. The retired APIs have no compatibility wrapper. See the
+  [current API contracts](https://github.com/augurone/artikulates-resilient/blob/main/docs/reference/contracts.md).
+- Remove the `./project` subpath; `createProjectAdapter` remains a named export
+  of the root package. Add `./production`, `./eslint`, `./check` and `./audit`.
+- Rework `resilient-inspect` around configured source inspection and retire the
+  old graph inspection flags.
+- Retire legacy benchmark and campaign runners. `resilient-check` owns lint
+  enforcement; `resilient-measure` retains read-only consumer reporting.
+- Measurement reports use schema 2: selected configurations and tool identity
+  are separate records, and raw directive comments are distinct from audited
+  exception entries. Update schema-1 report consumers for these fields.
+- Pin Node to `22.13.0` and raise the ESLint peer requirement to `^10.12.0`.
+  Limit package contents to runtime implementation,
+  configuration, consumer commands, README, CHANGELOG and license; detailed documentation
+  and tests remain in the repository.
+
+### Analysis and rule behavior
+
+- Rebuild JavaScript analysis around ESTree acquisition, lexical identities,
+  shared demand evaluation and source-owned agreement. Keep requirements
+  separate from actual values, and preserve known contradictions alongside
+  unknown evidence. Absence and no normal completion retain distinct meanings.
+- Add immutable analysis descriptors and queries for calls, call results,
+  returns, fields, invocation and promise ownership. Agreement owners support
+  validated batch evidence replacement, dependent invalidation and explicit
+  stale-judgment checks; edited JavaScript requires a new source session.
+- Connect configured extra roots to the analyzer's actual source closure.
+  Explicit root arrays/callbacks and `resilient.imports` ancestor/inferred-file
+  selection contribute authored calls and imports, with shared filename
+  identities. Findings remain owned by the linted file; filename conventions
+  do not invent framework calls or props.
+- Retain all 23 Resilient rule IDs and the `recommended`, `contracts`, `safety`
+  and `imports` presets while replacing their shared analysis implementation.
+- Resolve native `undefined` through lexical bindings and dynamic lookup
+  boundaries, preserving shadowed values and uncertainty from `eval`, `with`
+  and Annex B bindings. Absence diagnostics distinguish exact absence from
+  broader falsey checks.
+- Extend mutation findings to member targets inside assignment patterns,
+  `for-in`/`for-of` assignment targets and mutating tagged-template members.
+  Preserve the existing named-binding/property exception options.
+- Fix `no-destructuring-fallback` crashing on destructured loop declarations
+  whose `VariableDeclarator` has no initializer.
+
+### Commands, performance and verification
+
+- Preserve query/fragment module identity when the Node-test ESM host routes
+  source imports to reference/raw/fixed artifacts; keep physical file guards and
+  coverage separate from the runtime module URL.
+- Require ESLint 10.12.0 or compatible 10.x with the preserved effective policy;
+  keep the import plugin at the declared 4.18.1-compatible range. Derive installed
+  verification tool versions and isolated-host ESLint selection from their owned
+  metadata rather than maintaining competing version declarations.
+- Document consumer CI enforcement separately from read-only fluency measurement,
+  retaining reports after failed enforcement without masking the job's failure.
+
+- Add `resilient-check` for configured lint/fix enforcement and exception
+  auditing, with ordinary terminal output and opt-in `--json`. Add the packaged
+  `production()` flat-config factory, keeping repository authoring checks out
+  of the consumer profile.
+- Rebuild `resilient-inspect` around a file and unique `--find` text or UTF-16
+  `--offset`, with optional `--config`. Reuse the actual configured ESLint
+  parser/session to report findings, suppressions, observations, available
+  producer locations, active files and unknown boundaries.
+- Restore explicit `--standalone` inspection with the built-in contract profile
+  and relative JavaScript source closure. Reuse the current parser/session path
+  without loading project configuration or restoring the retired graph engine.
+- Restore `resilient-measure` with project/configuration selection and saved
+  read-only reports. Schema 3 records active/suppressed findings, raw directives,
+  audited exceptions, source/tool hashes and selected per-file configurations.
+  Add resolved dependency versions/manifest hashes, consumer manifest/lockfile
+  identity and an environment fingerprint; reject changed identity inputs and
+  report destinations that would overwrite them.
+  Measurement honors consumer policy and reports incomplete captures as failures.
+- Restore exception-inventory CLI reporting through `resilient-audit` and the
+  existing audit script. It shares the measurement owner and parsed SourceCode;
+  `--inventory [--unused]` returns completed report data while default audit mode
+  enforces exception policy. Release completed AST/session state by retaining
+  plain report records rather than SourceCode objects across measured files.
+- Reduce repeated Boolean work with terminal short-circuits and shared decision
+  results. Store projection caches by namespace without repeating namespace
+  text in every entry; keep explicit work limits and operational failures.
+- Make self-lint concurrency explicit, with a tuned default of six workers and
+  `--concurrency <N|off|auto>` overrides. Accept file/glob arguments, `--report`
+  and `--stats`; retain source hashes, findings, exception audits and timing
+  information while keeping result caching disabled.
+- Use ordinary `node` commands from PATH and record the local version in
+  `.nvmrc`, removing the checkout's private runtime and its ignore exceptions.
+  Restore GitHub Actions for pushes and pull requests with the Node version
+  from `package.json`, `npm ci` and the complete `npm run check` gate. Generated
+  `.artifacts/` output is disposable and recreated when needed.
+- Restore `npm run release` and `release:check` for version preparation and
+  verification through the current acceptance gate. Synchronize package/lock
+  versions and both plugin metadata records, then promote the release notes.
+  Add a read-only `--dry-run` preview and restore prior file contents if
+  verification fails.
+- Replace history-specific and source-replay checks with functional agreement,
+  analyzer and rule coverage. `npm run check` runs lint and exception
+  enforcement, workspace internal tests, and public/host tests through a normal
+  isolated package installation. Package checks verify shipped bytes and
+  prevent imports from escaping the consumer.
+- Keep `tests/fixtures/bad.js` visible to editors and direct linting, with
+  executable negative cases for all 23 exported rules, explanations and valid
+  controls. Only default repository lint excludes test fixtures; explicit file
+  arguments expose their findings. Preserve complete piped diagnostic output.
+
+### Documentation and repository organization
+
+- Organize agreement, analyzer, ESLint and shared host code under `analysis/`,
+  with project resolution and host integration under `integrations/`.
+- Replace chronological engineering packets with maintained architecture,
+  verification and feature guides. Update consumer and supporting
+  reference documentation to current APIs while retaining the normative
+  language references and earlier release history.
+- Remove retired analysis, historical bundles and exploratory runners from the
+  active project. Maintained commands and tests have no dependency on an archive
+  or another checkout.
+- Restore repository, homepage, issue and discovery metadata, package CHANGELOG
+  and link detailed README documentation to the official repository. Restore
+  ignore protections for local environment files, private-key files and npm logs.
 
 ## 0.7.5 — 2026-10-08
 

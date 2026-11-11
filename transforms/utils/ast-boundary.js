@@ -1,4 +1,17 @@
-import { getObject } from '../../rules/support/object.js';
+import { isFunction } from '../../analysis/host/function.js';
+import { getObject } from '../../analysis/host/object.js';
+
+const getNodeKind = (node) => {
+    const { kind } = getObject(node);
+
+    return kind;
+};
+
+const getNodeInitializer = (node) => {
+    const { initializer } = getObject(node);
+
+    return initializer;
+};
 
 const getSyntaxKinds = ({ SyntaxKind = {} } = {}) => getObject(SyntaxKind);
 
@@ -21,8 +34,8 @@ const hasAuthoredLayoutDirective = ({ typescript = {}, sourceFile = {}, node = {
 };
 
 const getSourceRange = ({ typescript = {}, node = {} } = {}) => {
-    const { getOriginalNode = false } = typescript;
-    const original = typeof getOriginalNode === 'function' ? getOriginalNode(node) : node;
+    const { getOriginalNode } = typescript;
+    const original = isFunction(getOriginalNode) ? getOriginalNode(node) : node;
     const { pos = -1, end = -1 } = getObject(original);
 
     if (!Number.isInteger(pos) || !Number.isInteger(end) || pos < 0 || end < pos) return '';
@@ -72,11 +85,11 @@ const getNodeShape = ({
 
 const getNodeText = ({ node = {}, sourceFile = {} } = {}) => {
     const {
-        getText = false,
+        getText,
         pos = 0
     } = node;
 
-    return typeof getText === 'function' && (!('pos' in node) || pos >= 0)
+    return isFunction(getText) && (!('pos' in node) || pos >= 0)
         ? getText.call(node, sourceFile)
         : '';
 };
@@ -85,10 +98,10 @@ const requireDeclarationName = () => {
     throw new TypeError('A variable declaration name is required.');
 };
 
-const updateVariableDeclarationFields = ({
-    factory = {}, declaration = {}, name = requireDeclarationName(), initializer = undefined
-} = {}) => {
-    const { exclamationToken = undefined, type = undefined } = getObject(declaration);
+// eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An omitted compiler initializer must remain absent; a fallback changes the declaration being updated.
+const updateVariableDeclarationFields = ({ factory = {}, declaration = {}, name = requireDeclarationName(), initializer } = {}) => {
+    // Optional compiler tokens and types pass through unchanged to the update factory.
+    const { exclamationToken, type } = getObject(declaration);
 
     return factory.updateVariableDeclaration(declaration, name, exclamationToken, type, initializer);
 };
@@ -102,7 +115,8 @@ const updateVariableInitializer = ({
 } = {}) => {
     // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- A default changes the native null-statement TypeError message before any factory Get.
     const { modifiers } = statement;
-    const { name = requireDeclarationName(), exclamationToken = undefined, type = undefined } = declaration;
+    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Optional compiler tokens and types pass through unchanged to the update factory.
+    const { name = requireDeclarationName(), exclamationToken, type } = declaration;
 
     const updatedList = factory.updateVariableDeclarationList(declarationList, [
         factory.updateVariableDeclaration(declaration, binding || name, exclamationToken, type, initializer)
@@ -115,7 +129,8 @@ const updateVariableInitializer = ({
     return factory.updateVariableStatement(statement, modifiers, nextList);
 };
 
-const updateBindingInitializer = ({ factory = {}, element = {}, initializer = undefined } = {}) => {
+// eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An omitted initializer removes the compiler binding default; a replacement node changes the emitted contract.
+const updateBindingInitializer = ({ factory = {}, element = {}, initializer } = {}) => {
     // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Defaults change the native null-element TypeError message before the binding factory Get.
     const { dotDotDotToken, propertyName, name = requireDeclarationName() } = element;
 
@@ -123,36 +138,39 @@ const updateBindingInitializer = ({ factory = {}, element = {}, initializer = un
 };
 
 const updateCallArguments = ({ factory = {}, call = {}, args = [] } = {}) => {
-    const { expression = requireDeclarationName(), typeArguments = undefined } = call;
+    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Omitted compiler type arguments stay absent at this factory boundary.
+    const { expression = requireDeclarationName(), typeArguments } = call;
 
     return factory.updateCallExpression(call, expression, typeArguments, args);
 };
 
 const updateIfBranches = ({ factory = {}, statement = {}, transform = requireDeclarationName() } = {}) => {
-    const { expression = requireDeclarationName(), thenStatement = requireDeclarationName(), elseStatement = undefined } = statement;
+    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- The branch transform observes native absence when the source has no else.
+    const { expression = requireDeclarationName(), thenStatement = requireDeclarationName(), elseStatement } = statement;
 
     return factory.updateIfStatement(statement, expression, transform(thenStatement), transform(elseStatement));
 };
 
 const updateFunction = ({ typescript = {}, node = {}, parameters = [], body = {} } = {}) => {
     const {
-        isFunctionDeclaration = false,
-        isFunctionExpression = false,
+        isFunctionDeclaration,
+        isFunctionExpression,
         factory = {}
     } = getObject(typescript);
     const {
-        updateFunctionDeclaration = false,
-        updateFunctionExpression = false,
-        updateArrowFunction = false
+        updateFunctionDeclaration,
+        updateFunctionExpression,
+        updateArrowFunction
     } = getObject(factory);
+    /* Optional compiler function fields must reach their matching update factory unchanged, including absent body and tokens. */
     const {
-        body: nodeBody = undefined,
-        modifiers: nodeModifiers = undefined,
-        asteriskToken: nodeAsterisk = undefined,
-        name: nodeName = undefined,
-        typeParameters: nodeTypeParams = undefined,
-        type: nodeType = undefined,
-        equalsGreaterThanToken: nodeEqualsGreater = undefined
+        body: nodeBody,
+        modifiers: nodeModifiers,
+        asteriskToken: nodeAsterisk,
+        name: nodeName,
+        typeParameters: nodeTypeParams,
+        type: nodeType,
+        equalsGreaterThanToken: nodeEqualsGreater
     } = getObject(node);
 
     // An overload declaration has no executable body. It supplies source shape
@@ -161,7 +179,7 @@ const updateFunction = ({ typescript = {}, node = {}, parameters = [], body = {}
 
     const nextBody = body ? body : nodeBody;
 
-    if (typeof isFunctionDeclaration === 'function' && isFunctionDeclaration.call(typescript, node) && typeof updateFunctionDeclaration === 'function') return updateFunctionDeclaration.call(
+    if (isFunction(isFunctionDeclaration) && isFunctionDeclaration.call(typescript, node) && isFunction(updateFunctionDeclaration)) return updateFunctionDeclaration.call(
         factory,
         node,
         nodeModifiers,
@@ -173,7 +191,7 @@ const updateFunction = ({ typescript = {}, node = {}, parameters = [], body = {}
         nextBody
     );
 
-    if (typeof isFunctionExpression === 'function' && isFunctionExpression.call(typescript, node) && typeof updateFunctionExpression === 'function') return updateFunctionExpression.call(
+    if (isFunction(isFunctionExpression) && isFunctionExpression.call(typescript, node) && isFunction(updateFunctionExpression)) return updateFunctionExpression.call(
         factory,
         node,
         nodeModifiers,
@@ -185,7 +203,7 @@ const updateFunction = ({ typescript = {}, node = {}, parameters = [], body = {}
         nextBody
     );
 
-    if (typeof updateArrowFunction === 'function') return updateArrowFunction.call(
+    if (isFunction(updateArrowFunction)) return updateArrowFunction.call(
         factory,
         node,
         nodeModifiers,
@@ -217,6 +235,8 @@ export {
     hasAuthoredLayoutDirective,
     getSourceRange,
     getNodeShape,
+    getNodeKind,
+    getNodeInitializer,
     getNodeText,
     getSyntaxKinds,
     markGuardedNode,

@@ -1,10 +1,10 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds } from '../../utils/ast-boundary.js';
 
 const annotateRetainedMutationBoundaries = ({ typescript = {}, sourceFile = {} } = {}) => {
     const {
         BinaryExpression = -1,
-        CallExpression = -1,
         ClassDeclaration = -1,
         Constructor = -1,
         ExpressionStatement = -1,
@@ -18,13 +18,13 @@ const annotateRetainedMutationBoundaries = ({ typescript = {}, sourceFile = {} }
         ThisKeyword = -1
     } = getSyntaxKinds(typescript);
     const {
-        addSyntheticLeadingComment = false,
-        addSyntheticTrailingComment = false,
+        addSyntheticLeadingComment,
+        addSyntheticTrailingComment,
         SyntaxKind: { FirstAssignment = -1, LastAssignment = -1 } = {}
     } = typescript;
 
-    if (typeof addSyntheticLeadingComment !== 'function' ||
-        typeof addSyntheticTrailingComment !== 'function') return sourceFile;
+    if (!isFunction(addSyntheticLeadingComment) ||
+        !isFunction(addSyntheticTrailingComment)) return sourceFile;
 
     const isThisWrite = (node = {}) => {
         const { kind = 0, expression = {} } = getObject(node);
@@ -35,16 +35,6 @@ const annotateRetainedMutationBoundaries = ({ typescript = {}, sourceFile = {} }
         return kind === ExpressionStatement && expressionKind === BinaryExpression &&
             leftKind === PropertyAccessExpression && getObject(target).kind === ThisKeyword &&
             operatorKind >= FirstAssignment && operatorKind <= LastAssignment;
-    };
-    const isFreshSliceReverse = (node = {}) => {
-        const { kind = 0, expression: reverseMember = {} } = getObject(node);
-        const { kind: reverseKind = 0, name: reverseName = {}, expression: sliceCall = {} } = getObject(reverseMember);
-        const { kind: sliceCallKind = 0, expression: sliceMember = {} } = getObject(sliceCall);
-        const { kind: sliceKind = 0, name: sliceName = {} } = getObject(sliceMember);
-
-        return kind === CallExpression && reverseKind === PropertyAccessExpression &&
-            getObject(reverseName).text === 'reverse' && sliceCallKind === CallExpression &&
-            sliceKind === PropertyAccessExpression && getObject(sliceName).text === 'slice';
     };
     const isParameterPropertyConstructor = (node = {}) => {
         const { kind = 0, parameters = [] } = getObject(node);
@@ -69,14 +59,6 @@ const annotateRetainedMutationBoundaries = ({ typescript = {}, sourceFile = {} }
             addSyntheticLeadingComment(
                 node, SingleLineCommentTrivia,
                 ' eslint-disable-next-line resilient/prefer-safe-transformations -- Native class state is intentionally updated on this instance.',
-                true
-            );
-        }
-
-        if (isFreshSliceReverse(node)) {
-            addSyntheticTrailingComment(
-                node, MultiLineCommentTrivia,
-                ' eslint-disable-line resilient/prefer-safe-transformations -- Reverse mutates a fresh slice. ',
                 true
             );
         }

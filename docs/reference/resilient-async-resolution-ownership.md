@@ -1,246 +1,107 @@
-# Async Resolution Ownership
+# Async resolution ownership
 
-## Notes for *Style Is Grammar*
+Promise forwarding and local resolution are distinct ownership choices under
+[Semantics](semantics.md#s-09-async-and-failure-contracts) and
+[Policy](policy.md). Both are valid ECMAScript. The examples below explain their
+execution boundary; they do not introduce an unconditional `return await` rule.
 
-Another example of style becoming grammar appears in `async` functions.
+## Fulfillment and execution scope
 
-Both forms are valid ECMAScript:
+An async function always returns a promise. Returning another promise causes
+the async result to adopt its eventual state. Consequently a caller awaiting
+either form can ordinarily receive the same eventual successful value:
 
-``` js
-return response.json();
-```
-
-``` js
-return await response.json();
-```
-
-Because an `async` function adopts a returned promise, the caller can
-ordinarily observe the same eventual value from either form.
-
-But they do not express the same local responsibility.
-
-`return response.json();` forwards an unresolved asynchronous operation
-and relies on the surrounding async machinery to adopt its result.
-
-`return await response.json();` resolves that operation inside the
-function before returning its result.
-
-This creates a useful grammatical distinction:
-
-``` text
-promise forwarding
-        versus
-resolution ownership
-```
-
-If the function owns the outcome of an asynchronous operation, `await`
-keeps that resolution visible within the function's scope:
-
-``` text
-operation → resolution → established value → return
-```
-
-If the function deliberately delegates resolution, returning the promise
-can express that instead.
-
-The distinction becomes observable around local failure handling: an
-awaited rejection remains within the surrounding `try`/`catch`; a
-returned, un-awaited promise can reject after that scope has been
-exited.
-
-The Resilient rule therefore should not simply be "always use
-`return await`."
-
-The stronger semantic principle is:
-
-> **An async function that owns the outcome of an asynchronous operation
-> should resolve that operation within its own execution scope before
-> returning it.**
-
-The syntax then exposes ownership rather than leaving promise adoption
-to imply it.
-
-------------------------------------------------------------------------
-
-# Technical Reference: `return await` and Async Resolution Ownership
-
-Consider:
-
-``` js
-const saveArticle = async ({ article = {} } = {}) => {
-    const response = await save(article);
-
-    return response.json();
-};
-```
-
-and:
-
-``` js
-const saveArticle = async ({ article = {} } = {}) => {
-    const response = await save(article);
-
-    return await response.json();
-};
-```
-
-## Ordinary Fulfillment
-
-An `async` function always returns a promise. When it returns another
-promise, its returned promise adopts the eventual state of that promise.
-Consequently, a caller such as:
-
-``` js
-const article = await saveArticle({ article });
-```
-
-ordinarily receives the parsed value in either implementation.
-
-Therefore, `return await` should not be justified by claiming that the
-caller otherwise receives the inner promise as its final value.
-
-## Execution-Scope Distinction
-
-With `return response.json();`, `response.json()` is invoked and its
-promise is returned. The async function delegates settlement through
-promise adoption.
-
-With `return await response.json();`, the async function suspends until
-the operation settles. On fulfillment, the resulting value becomes the
-value of the `await` expression and is then returned.
-
-``` text
-return promise
-
-operation
-   ↓
-Promise
-   ↓
-return
-   ↓
-async promise adoption
-   ↓
-eventual result
-```
-
-versus:
-
-``` text
-return await promise
-
-operation
-   ↓
-Promise
-   ↓
-await
-   ↓
-settled result
-   ↓
-return
-```
-
-## Observable Failure-Handling Difference
-
-The distinction becomes behaviorally significant inside `try`/`catch`.
-
-### Promise Forwarding
-
-``` js
-const saveArticle = async ({ article = {} } = {}) => {
-    try {
-        const response = await save(article);
-
-        return response.json();
-    } catch (error) {
-        return handleError(error);
-    }
-};
-```
-
-If `save(article)` rejects, the rejection occurs at the first `await`
-and can be handled by the local `catch`.
-
-If `response.json()` returns a promise that later rejects, that promise
-has already been returned from the `try` block. Its rejection is adopted
-by the promise returned from `saveArticle`, but the local `catch` does
-not handle that asynchronous rejection.
-
-### Local Resolution
-
-``` js
-const saveArticle = async ({ article = {} } = {}) => {
-    try {
-        const response = await save(article);
-
-        return await response.json();
-    } catch (error) {
-        return handleError(error);
-    }
-};
-```
-
-Here `response.json()` settles while execution remains associated with
-the `await` inside the `try`. A rejection is therefore thrown at the
-`await` expression and can be handled by the surrounding `catch`.
-
-This makes resolution ownership observable rather than purely stylistic.
-
-## Resilient Interpretation
-
-Resilient can distinguish two legitimate agreements.
-
-### Forwarding
-
-``` js
+```javascript
 return operation();
 ```
 
-The function intentionally delegates settlement of the returned promise.
-
-``` text
-function
-   ↓
-operation
-   ↓
-unresolved promise
-   ↓
-return / adoption
-```
-
-### Resolution Ownership
-
-``` js
+```javascript
 return await operation();
 ```
 
-The function owns settlement of the operation before completing its
-return.
+The first form forwards settlement through async promise adoption. The second
+awaits settlement within the function's execution scope, then returns the
+fulfilled value or receives the rejection as a throw at the await expression.
+It is incorrect to justify the second form by claiming the first leaves the
+caller with an unresolved inner promise as its final awaited value.
 
-``` text
-function
-   ↓
-operation
-   ↓
-await
-   ↓
-fulfilled value / local rejection
-   ↓
-return
+Same eventual fulfillment is not general behavioral equivalence. Rejection
+handling, finalization, observable scheduling, thenable effects and identity
+claims require the actual boundary to be examined.
+
+## Local catch ownership
+
+```javascript
+const forward = async (operation) => {
+    try {
+        return operation();
+    } catch (error) {
+        return handleFailure(error);
+    }
+};
+
+const resolveLocally = async (operation) => {
+    try {
+        return await operation();
+    } catch (error) {
+        return handleFailure(error);
+    }
+};
 ```
 
-The relevant grammar principle is therefore not:
+Both catches can handle a synchronous throw while calling `operation`. If it
+returns a promise that later rejects, the first function has already returned
+from its `try`; the local catch does not handle that rejection. Its returned
+async promise adopts the rejection. In the second function the rejection is
+thrown at `await` inside the try and can be handled locally.
 
-> Always use `return await`.
+The semantic ownership principle is: when a function owns the outcome of an
+async operation, it resolves that operation in the scope responsible for the
+outcome. When it deliberately delegates settlement, direct promise return can
+express that forwarding boundary. A rewrite cannot infer local ownership merely
+from the presence of an async function or a catch elsewhere in the body.
 
-It is:
+## Cleanup and completion
 
-> **An async function that owns the outcome of an asynchronous operation
-> should resolve that operation within its own execution scope before
-> returning it.**
+`finally` has its ordinary ECMAScript effect on the pending completion. In a
+direct promise return, local cleanup can run before that returned promise settles.
+An awaited return reaches the finalizer after the awaited operation settles.
+A return or throw in the finalizer can replace an earlier return or failure.
+Mutating a returned object during finalization also differs from changing an
+already captured primitive result.
 
-Conversely, direct promise return remains meaningful when forwarding is
-intentional.
+Promise `.finally()` is a separate protocol: successful cleanup normally forwards
+the prior outcome, while a thrown or rejected cleanup can replace it. Converting
+chains to async/await must preserve callback arguments, receiver/callable identity,
+effects, outcome replacement and failure order. A lower count of chain syntax is
+not evidence of preservation.
 
-This distinction gives static analysis an executable indication of
-ownership rather than requiring intent to be inferred from implicit
-promise adoption.
+## Visible ownership is not installed handling
+
+Returning a promise forwards it. Awaiting joins its settlement to the current
+scope. A callable rejection handler can handle or translate a rejection, with
+any new failure belonging to the resulting promise. Assignment and `void` can
+make retention or deliberate detachment visible, but neither installs a rejection
+handler. The mere spelling `.then`, `.catch` or `.finally` does not establish
+native Promise identity, callable handlers or eventual successful handling.
+
+An async return-family agreement concerns fulfillment. Rejection remains a
+separate possible completion; lack of a normal fulfilled result is distinct from
+an unknown fulfilled value or a fulfilled undefined value. Unknown external work
+must not become a proved native promise or a fabricated successful outcome.
+
+## Current support and verification
+
+The JavaScript analyzer's supported completion owner and promise ownership rules
+share source evidence. [Async completion tests](../../tests/async-completion.test.js)
+compare the supported catch/finally behavior with native execution;
+[ownership tests](../../tests/promise-ownership.test.js) exercise rule behavior and
+retained failure boundaries. These establish their covered forms, not arbitrary
+async program equivalence.
+
+The TypeScript compiler acquisition bridge has its own bounded execution surface;
+it does not acquire general async execution merely because the JavaScript owner
+supports a form. The [TypeScript guide](../engineering/typescript.md) separates
+that boundary from emission support. Any conversion must follow the
+[preservation procedure](resilient-proofs.md#7-transformation-proof-procedure)
+and retain an exact supported boundary or diagnostic when proof is missing.

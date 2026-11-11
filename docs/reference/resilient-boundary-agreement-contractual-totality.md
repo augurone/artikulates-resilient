@@ -1,526 +1,140 @@
-# Resilient: Boundary Agreement and Contractual Totality
+# Boundary agreement and contractual totality
 
-## Purpose
+This note explains a conditional model of boundary agreement. It is subordinate
+to [Semantics](semantics.md), [Grammar](grammar.md) and [Policy](policy.md), and
+uses the [agreement algebra](resilient-algebra-invariants-generic.md). It does not
+claim that arbitrary runtime data is statically validated or that every program
+is safe, terminating or fully analyzed.
 
-This note captures a compact mathematical interpretation of the Resilient model discussed here. The goal is not to replace ECMAScript semantics with mathematics, but to describe the same contract behavior at a higher level while preserving the rule that **executable source evidence determines how much agreement may be claimed**.
+## Domains and evidence
 
-The central idea is:
+Let `U` be possible runtime inputs, `T` the domain established for an operation,
+and `R` its promised normal-result agreement. The intended composition is:
 
-> An operation should not reason over unconstrained input. Executable boundary constructs establish the smallest agreement required by the operation, and that agreement is propagated only as far as the source justifies it.
-
----
-
-## 1. Core spaces
-
-Let:
-
-- \(U\) be the unconstrained space of possible runtime inputs arriving at a boundary.
-- \(T\) be an operational domain: the values for which a particular operation has established an agreement.
-- \(R\) be the return contract: the values the analyzed operation is guaranteed to return with respect to that contract.
-
-At the most compact level:
-
-\[
-\boxed{
-U \xrightarrow{\alpha_T} T \xrightarrow{f} R
-}
-\]
-
-where \(\alpha_T\) is an agreement mapping and \(f\) is the operation performed over the established domain.
-
-The composition is:
-
-\[
-\boxed{
-f \circ \alpha_T : U \rightarrow R
-}
-\]
-
-This is a statement of **contractual totality**, not a claim that arbitrary runtime execution can never fail.
-
----
-
-## 2. Agreement is not merely validation
-
-The boundary does not magically make an input “valid.” It establishes what the operation is entitled to assume.
-
-A useful first abstraction is:
-
-\[
-x \in U
-\quad
-\xrightarrow{\text{boundary agreement}}
-\quad
-x' \in T
-\]
-
-followed by:
-
-\[
-f : T \rightarrow R
-\]
-
-The important distinction is semantic:
-
-\[
-\text{unknown input}
-\rightarrow
-\text{established agreement}
-\rightarrow
-\text{operation}
-\rightarrow
-\text{return contract}
-\]
-
-Resilient therefore treats defaults, guards, destructuring, transformations, and related constructs as **evidence of agreement**, not merely syntax or convenience.
-
----
-
-## 3. Identity and stability
-
-Agreement should preserve information that already satisfies the required domain.
-
-For all \(t \in T\):
-
-\[
-\boxed{
-\alpha_T(t) = t
-}
-\]
-
-This is the identity/stability constraint.
-
-A valid `0` remains `0`.  
-A valid `false` remains `false`.  
-An already-agreed array remains that array.
-
-Agreement does not sanitize a value merely because it crossed a boundary.
-
----
-
-## 4. Defaults belong to the operational vocabulary
-
-An earlier formulation treated fallback values as a separate space \(F_T\):
-
-\[
-T \cup F_T
-\]
-
-That is often unnecessarily strong and does not accurately describe ordinary JavaScript defaults.
-
-Values such as:
-
-```js
-''
-[]
-{}
-0
-false
+```text
+U --αT--> T --f--> R
 ```
 
-can themselves be legitimate members of the operational domain.
+`αT` denotes the executable boundary mapping whose premises must be proved. It
+is not an analyzer operation that converts uncertainty into a value. A default,
+predicate, destructuring step, guard or transformation establishes only the
+agreement its actual semantics justify. Some paths can throw, stop or remain
+unknown rather than reach `T`.
 
-A fallback is therefore better understood as a **distinguished member of the domain selected when the executable construct permits that selection**, rather than an “invalid-but-safe” parallel space.
+For each use, ask what it requires, what the source established, what the
+operation changes, what normal result it promises, and where evidence stops.
+The governing evidence law is:
 
-Abstractly, where the source really establishes such a mapping:
+```text
+claimed agreement ⊆ agreement justified by executable evidence
+```
 
-\[
-\delta_T : U \setminus T \rightarrow T
-\]
+When a requirement exceeds known evidence, the unanswered part stays unknown.
+When established evidence conflicts with the requirement, there is a
+contradiction. A missing proof is not by itself evidence of runtime failure.
 
-and:
+## Identity and stability
 
-\[
-\alpha_T(u)=
-\begin{cases}
-u & u \in T \\
-\delta_T(u) & u \notin T
-\end{cases}
-\]
+Where a boundary claims to resolve an existing agreement without changing it:
 
-However, this abstraction must not be allowed to claim more than ECMAScript actually executes.
+```text
+∀t ∈ T, αT(t) = t
+```
 
----
+The equality includes observable identity where relevant. A valid zero remains
+zero; false remains false; an already-agreed object, array or callable remains
+that same value. The boundary does not sanitize a value merely because it crossed
+a scope. A deliberate representation change requires a declared mapping and
+preservation proof rather than silently claiming this identity law.
 
-## 5. ECMAScript constrains the proof
+Fallbacks belong to the operational domain when their contract admits them;
+they are not an inherently invalid parallel space. An empty collection may be a
+valid collection result. A default is a distinguished value chosen only when
+the actual construct permits that selection.
+
+## ECMAScript defaults establish a local mapping
+
+For an authored default, the faithful mapping is:
+
+```text
+αdefault(u) = fallback   if u is undefined
+              u         otherwise
+```
 
 Consider:
 
-```js
-const fn = ({
-  items = [],
-  count = 0,
-} = {}) => {
-  // ...
+```javascript
+const selectItems = ({ items = [] } = {}) => items;
+```
+
+An omitted argument or undefined `items` can select an empty array. A provided
+array retains its identity. A provided null, false or string does not become an
+array. A null outer argument also retains native destructuring failure. The
+default expression can have effects and executes only when selected.
+
+Thus a default can establish absence handling without establishing a total
+mapping from all `U` to an array domain. Moving the property Get to another phase,
+adding a container fallback, or coercing all provided values would be a different
+program and needs its own declared policy/behavior proof.
+
+An explicit predicate and branch can establish stronger local evidence:
+
+```javascript
+const selectArray = ({ items = [] } = {}) => {
+    if (!Array.isArray(items)) return [];
+
+    return items;
 };
 ```
 
-JavaScript parameter defaults do **not** map every value outside some desired domain into the default.
+On normal return this authored function selects an array family while preserving
+provided array identity. That does not validate elements or prove an inert
+iterator, prototype or callback. It is a stronger authored boundary, not a
+normalization the analyzer may silently invent for `selectItems`.
 
-The default applies when the corresponding value is `undefined`.
+## Composition and contractual totality
 
-So the more faithful local mapping for a default is approximately:
+Agreement can accumulate through several owned steps:
 
-\[
-\boxed{
-\alpha_{\text{default}}(u)=
-\begin{cases}
-\delta_T & u = \texttt{undefined} \\
-u & \text{otherwise}
-\end{cases}
-}
-\]
-
-Consequently:
-
-```js
-items: undefined
+```text
+U --absence handling--> V1 --guard--> V2 --transformation--> T --operation--> R
 ```
 
-may establish `[]`, while:
+Every arrow needs its own evidence, scope and effect/completion conditions.
+Established evidence can propagate; unknown branches, aliases, mutation and
+effects can withhold or invalidate premises. A later consumer need not rediscover
+an established agreement, but cannot assume a stronger one or reuse stale proof.
 
-```js
-items: null
-items: false
-items: "foo"
+The conditional totality proposition is:
+
+```text
+If αT maps every admitted input in U to T,
+and f establishes its promised result R over T,
+then f ∘ αT establishes R over that admitted input domain.
 ```
 
-do not automatically become `[]`.
-
-This distinction is fundamental:
-
-> **The executable construct determines how much agreement the analyzer is entitled to claim.**
-
-The mathematics must describe the program. The program must not be assumed to implement stronger mathematics than its source establishes.
-
----
-
-## 6. Guards establish stronger refinements
-
-A stronger operational agreement requires stronger executable evidence.
-
-For example:
-
-```js
-const fn = ({ items = [] } = {}) => {
-  const safeItems = Array.isArray(items) ? items : [];
-
-  return safeItems.map(/* ... */);
-};
-```
-
-After the explicit predicate and fallback, the subsequent operation has evidence for an array domain:
-
-\[
-\alpha_{\text{Array}} : U \rightarrow T_{\text{Array}}
-\]
-
-The source has now justified the stronger agreement required by `.map()`.
-
-This gives Resilient a useful principle:
-
-\[
-\boxed{
-\text{required agreement}
-\leq
-\text{agreement justified by executable evidence}
-}
-\]
-
-When an operation requires more agreement than the source has established, the analyzer has found a contract defect.
-
----
-
-## 7. Agreement is compositional
-
-There need not be one universal agreement function.
-
-A real program establishes increasingly specific agreements through a sequence of executable constructs:
-
-\[
-\boxed{
-U
-\xrightarrow{\alpha_1}
-V_1
-\xrightarrow{\alpha_2}
-V_2
-\xrightarrow{\alpha_3}
-V_3
-\xrightarrow{f}
-R
-}
-\]
-
-For example:
-
-\[
-U
-\xrightarrow{\text{default}}
-V_1
-\xrightarrow{\text{guard}}
-V_2
-\xrightarrow{\text{transformation}}
-V_3
-\xrightarrow{\text{operation}}
-R
-\]
-
-Each arrow corresponds to source evidence.
-
-A default may establish absence handling.  
-A predicate may establish a structural refinement.  
-A transformation may establish a new output shape.  
-A return establishes the contract visible to the caller.
-
-The analyzer's job is therefore not simply to classify values. It is to **derive and propagate agreements through executable paths**.
-
----
-
-## 8. Contractual totality
-
-Suppose an agreement mapping has genuinely established:
-
-\[
-\alpha_T : U \rightarrow T
-\]
-
-and the operation is contractually total over that established domain:
-
-\[
-f : T \rightarrow R
-\]
-
-Then, with respect to the analyzed contract:
-
-\[
-\boxed{
-f \circ \alpha_T : U \rightarrow R
-}
-\]
-
-### Compact proof
-
-Let \(u \in U\) be arbitrary.
-
-If the executable agreement establishes:
-
-\[
-\alpha_T(u) \in T
-\]
-
-and the analyzed operation establishes:
-
-\[
-\forall t \in T,\quad f(t) \in R
-\]
-
-then:
-
-\[
-f(\alpha_T(u)) \in R
-\]
-
-Therefore:
-
-\[
-\boxed{
-\forall u \in U,\quad
-(f \circ \alpha_T)(u) \in R
-}
-\]
-
-with respect to the contract that has actually been established and analyzed.
-
----
-
-## 9. What contractual totality does **not** prove
-
-This formulation does **not** mean:
-
-> “The program can never crash.”
-
-That would be stronger than the grammar or static analysis can establish.
-
-Execution can still be affected by things outside the local value contract, including:
-
-- explicit `throw`;
-- external I/O failure;
-- platform or process failure;
-- nontermination;
-- side effects;
-- unmodeled runtime behavior.
-
-The defensible claim is narrower:
-
-> **No value admitted through an analyzed agreement should become structurally unknown to a downstream operation without evidence that the required agreement was never established, was weakened, or was broken.**
-
-Unknown is therefore evidence, not automatically failure.
-
----
-
-## 10. The analyzer interpretation
-
-The mathematical model maps naturally onto Resilient's static-analysis problem.
-
-For each operation, determine:
-
-1. **What agreement does this operation require?**
-2. **What agreement has executable source established?**
-3. **How does that agreement transform across this operation?**
-4. **What return agreement becomes visible to the caller?**
-5. **Where does evidence become insufficient?**
-
-Conceptually:
-
-\[
-\boxed{
-\text{Source Evidence}
-\rightarrow
-\text{Agreement}
-\rightarrow
-\text{Propagation}
-\rightarrow
-\text{Operation}
-\rightarrow
-\text{Return Agreement}
-}
-\]
-
-A defect occurs when:
-
-\[
-\boxed{
-A_{\text{required}} \nsubseteq A_{\text{established}}
-}
-\]
-
-The important point is that the analyzer does not invent the missing contract. It reports the disagreement.
-
----
-
-## 11. Resilient as a grammar of agreement
-
-The mathematical formulation exposes why Resilient is more than a collection of lint rules.
-
-Its recurring ECMAScript vocabulary includes constructs such as:
-
-- destructured signatures;
-- explicit defaults;
-- guards and predicates;
-- returned transformations;
-- owned promises;
-- local module boundaries.
-
-Those forms carry recurring contractual jobs.
-
-Their composition forms a grammar:
-
-\[
-\boxed{
-\text{boundary}
-\rightarrow
-\text{absence}
-\rightarrow
-\text{refinement}
-\rightarrow
-\text{operation}
-\rightarrow
-\text{return}
-\rightarrow
-\text{responsibility}
-}
-\]
-
-Resilient can therefore be understood as a functional ECMAScript dialect in which ordinary language constructs are used consistently enough that contractual meaning can be derived from executable code.
-
----
-
-## 12. The compact model
-
-The entire idea can be reduced to three constraints.
-
-### Evidence
-
-Only claim an agreement justified by executable semantics:
-
-\[
-\boxed{
-A_{\text{claimed}}
-\subseteq
-A_{\text{evidenced}}
-}
-\]
-
-### Stability
-
-Preserve values that already satisfy the agreement:
-
-\[
-\boxed{
-\forall t \in T,\quad \alpha_T(t)=t
-}
-\]
-
-### Composition
-
-Once an agreement is established, propagate it through operations whose requirements it satisfies:
-
-\[
-\boxed{
-U
-\xrightarrow{\text{agreement}}
-T
-\xrightarrow{\text{operation}}
-R
-}
-\]
-
-or, across a resolved program:
-
-\[
-\boxed{
-U
-\xrightarrow{\alpha_1}
-V_1
-\xrightarrow{\alpha_2}
-V_2
-\xrightarrow{\cdots}
-V_n
-\xrightarrow{f}
-R
-}
-\]
-
-The contract is therefore not an annotation imposed on the program.
-
-**The executable program is the evidence from which the contract is derived.**
-
----
-
-## Summary
-
-Resilient's mathematical interpretation is not primarily “domain normalization.”
-
-It is **boundary agreement and agreement propagation**.
-
-An unconstrained value enters a program. Executable constructs progressively establish what may safely be assumed about that value. Operations consume only agreements they are entitled to require. Transformations establish new agreements. Returns establish what callers may rely upon.
-
-The core relationship is:
-
-\[
-\boxed{
-\text{uncertainty}
-\rightarrow
-\text{agreement}
-\rightarrow
-\text{operation}
-\rightarrow
-\text{known contract}
-}
-\]
-
-And the governing constraint is:
-
-> **Never infer more agreement than the executable source provides evidence for.**
-
-That keeps the mathematical model subordinate to ECMAScript semantics while giving Resilient a compact formal vocabulary for describing what its analyzer measures.
+For any admitted `u`, the first premise gives `αT(u) ∈ T`; the second gives
+`f(αT(u)) ∈ R`. The conclusion follows from those premises. The notation speaks
+about the stated value/result contract; it does not independently establish that
+either premise holds for a real function. If the model includes abrupt or absent
+normal completion, those outcomes must remain explicit rather than be hidden in
+the arrow. Normal-result containment can also be written
+`NormalResults(f, t) ⊆ R`; it does not assert that this set is nonempty.
+
+Contractual totality therefore does not prove absence of explicit throws,
+rejections, external I/O failure, platform failure, nontermination, side effects
+or unmodeled behavior. It is not a claim that a program cannot crash.
+
+## Current implementation boundary
+
+The architecture separates producer evidence from consumer requirements and
+retains known conflicts beside incomplete evidence. Revisions invalidate owned
+premises; arbitrary JavaScript source edits require a new source session.
+See [architecture](../engineering/architecture.md) and
+[preservation obligations](resilient-proofs.md).
+
+The model does not imply whole-program activation, arbitrary external execution,
+unlimited precision or linear work. An implementation claim needs a supported
+acquisition boundary, representative functional proof and a stated cost model.
+TypeScript annotations express requirements and declaration identity; only
+supported executable evidence establishes actual values.

@@ -6,32 +6,37 @@ import typescript from 'typescript';
 import { createTypeScriptTransformer } from 'eslint-plugin-resilient/typescript';
 
 import { renderResolverPredicate } from '../transforms/typescript/grammar/resolver-predicates.js';
-import { createResolverPolicy, getResolverRequirements } from '../transforms/typescript/policy/resolvers.js';
+import { createResolverPolicy } from '../transforms/typescript/policy/resolvers.js';
 import { getObjectDiscriminator, getObjectShapeCheck, getTypeInfo, getRuntimeKind,
     getDeclarationMap } from '../transforms/typescript/understand/type-resolution.js';
+import { loadModule } from './support/module.js';
 
 const missing = () => { throw new Error('Missing resolver proof capability'); };
-const { getUnionResolverSource = missing } = createResolverPolicy({
-    getTypeInfo: ({ node = {} } = {}) => node, getRuntimeKind,
-    getObjectDiscriminator: () => ({}), getObjectShapeCheck: () => ({})
+const nativeSource = 'export const read = (input: Date | number) => input;';
+const nativeFile = typescript.createSourceFile('native-constructor.ts', nativeSource, typescript.ScriptTarget.ESNext, true);
+const nativeOptions = { target: typescript.ScriptTarget.ESNext, strict: true };
+const nativeHost = typescript.createCompilerHost(nativeOptions);
+const nativeProgram = typescript.createProgram([nativeFile.fileName], nativeOptions, {
+    ...nativeHost, getSourceFile: (name, version) => name === nativeFile.fileName ? nativeFile : nativeHost.getSourceFile(name, version)
 });
-const primitive = formatting => ({ kind: 'array', check: formatting });
-const repeated = getUnionResolverSource({ parts: [primitive('Array.isArray(VALUE)'), primitive('Array . isArray ( VALUE )')] });
-assert.equal(repeated.branches.length, 0, 'Equivalent semantic predicates cannot be distinguished by formatting.');
-assert.equal(repeated.fallback.value, 'input');
-const single = getUnionResolverSource({ parts: [primitive('this text is never inspected'), { kind: 'function', check: 'unrelated' }] });
-assert.deepEqual(single.branches.map(({ predicate = {} } = {}) => getResolverRequirements(predicate)), [['array-content'], ['function']]);
-assert.equal(renderResolverPredicate({ predicate: single.branches[0].predicate }), 'Array.isArray(input) && input.length');
-assert.equal(renderResolverPredicate({ predicate: single.branches[0].predicate, standard: { array: true } }), 'hasArrayContent(input)');
-assert.equal(renderResolverPredicate({ predicate: single.branches[1].predicate, standard: { function: true } }), 'isFunction(input)');
-assert.throws(() => createResolverPolicy({}), /Missing resolver capability/u);
+const { code: nativeEmitted = '' } = createTypeScriptTransformer({ typescript, program: nativeProgram })
+    .transform({ fileName: nativeFile.fileName, code: nativeSource });
+const { outputText: nativeRuntime = '' } = typescript.transpileModule(nativeEmitted, {
+    compilerOptions: { target: typescript.ScriptTarget.ESNext, module: typescript.ModuleKind.ESNext }
+});
+const nativePublished = await loadModule(nativeRuntime);
+const nativeValue = new Date(0);
+const { resolveDateNumber = missing } = nativePublished;
+assert.equal(resolveDateNumber(nativeValue).value, nativeValue);
+assert.equal(resolveDateNumber(nativeValue).kind, 'object');
+assert.equal(resolveDateNumber({ getTime: () => 0 }).kind, 'any', 'An authored look-alike cannot borrow constructor identity.');
 
 const sourceFile = typescript.createSourceFile('predicates.ts', [
-    'type Empty = { tag: ""; payload: number };',
+    'type BaseValue = { tag: ""; payload: number };',
     'type Zero = { tag: 0; payload: number };',
     'type False = { tag: false; payload: number };',
-    'type Left = { left: number };',
-    'type Right = { right: number };'
+    'type Inbound = { inbound: number };',
+    'type Outbound = { outbound: number };'
 ].join('\n'), typescript.ScriptTarget.ESNext, true);
 const declarations = getDeclarationMap({ typescript, sourceFile });
 const { getUnionResolverSource: resolve = missing } = createResolverPolicy({
@@ -39,23 +44,27 @@ const { getUnionResolverSource: resolve = missing } = createResolverPolicy({
 });
 const parts = sourceFile.statements.map(({ type = {} } = {}) => type);
 const union = resolve({ typescript, sourceFile, declarations, parts });
-assert.equal(union.branches.length, 5);
-assert.deepEqual(union.branches.slice(0, 3).map(({ predicate: { value = undefined } = {} } = {}) => value), ['', 0, false]);
+assert.equal(union.branches.length, 2, 'A partial literal property does not partition the complete five-arm union.');
+const partition = resolve({ typescript, sourceFile, declarations, parts: parts.slice(0, 3) });
+assert.equal(partition.branches.length, 3);
+// eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Literal payloads must distinguish false, zero, empty text and missing values.
+assert.deepEqual(partition.branches.map(({ predicate: { value } = {} } = {}) => value), ['', 0, false]);
 const isObject = value => Object.prototype.toString.call(value) === '[object Object]';
 const modelCheck = (property, input) => isObject(input) && property in input;
 const evaluate = (predicate = {}, input = {}) => runInNewContext(renderResolverPredicate({ predicate, standard: { object: true } }), {
     input, isObject, modelCheck
 });
-union.branches.slice(0, 3).forEach(({ predicate = {} } = {}, index) => {
-    const { value = undefined } = predicate;
+partition.branches.forEach(({ predicate = {} } = {}, index) => {
+    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- The resolver receives the exact literal payload, including all falsey values.
+    const { value } = predicate;
     assert.equal(evaluate(predicate, { tag: value }), true);
     assert.equal(evaluate(predicate, { tag: 'different' }), false);
     assert.equal(evaluate(predicate, {}), false);
-    assert.equal(union.branches[index].presence, 'discriminated');
+    assert.equal(partition.branches[index].presence, 'discriminated');
 });
-const { branches: [, , , { predicate: left = {} } = {}] = [] } = union;
-[false, 0, '', undefined].forEach(value => assert.equal(evaluate(left, { left: value }), true));
-assert.equal(evaluate(left, {}), false);
+const { branches: [{ predicate: inbound = {} } = {}] = [] } = union;
+[false, 0, '', undefined].forEach(value => assert.equal(evaluate(inbound, { inbound: value }), true));
+assert.equal(evaluate(inbound, {}), false);
 assert.deepEqual(union.fallback, { kind: 'any', value: 'input', action: 'preserve', presence: 'unmatched', content: 'not-applicable' });
 
 // Execute the public emitted resolver, including preserved unmatched identity.
@@ -66,10 +75,9 @@ const { code: emitted = '' } = transform({ fileName: 'falsey.ts', code: [
     'export const read = (input: Off | On) => input;'
 ].join('\n') });
 const { outputText = '' } = typescript.transpileModule(emitted, {
-    compilerOptions: { target: typescript.ScriptTarget.ESNext, module: typescript.ModuleKind.CommonJS }
+    compilerOptions: { target: typescript.ScriptTarget.ESNext, module: typescript.ModuleKind.ESNext }
 });
-const published = {};
-runInNewContext(outputText, { exports: published, isObject });
+const published = await loadModule(`const isObject = ${isObject};\n${outputText}`);
 const { resolveOffOn = missing } = published;
 assert.equal(resolveOffOn({ tag: false, value: 0 }).value.tag, false);
 assert.equal(resolveOffOn({ tag: true, value: '' }).value.tag, true);

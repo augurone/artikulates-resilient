@@ -1,35 +1,13 @@
 # no-else
 
-Disallows every `else` and `else if` branch. Use an early return or separate
-guard clause instead.
+This rule is implemented in [the current package](../../analysis/eslint/no-else.js).
+Its implementation uses syntax and lexical ownership.
 
-## What this finding means
+The current supported behavior and boundary cases are verified by:
 
-An alternate branch keeps the main path nested and makes later work depend on
-more active conditions than necessary. Guard clauses and early exits expose
-the decision, avoid work on rejected paths, and keep loop or recursive bodies
-from carrying avoidable state.
+- [control-layout.test.js](../../tests/control-layout.test.js)
+- [native-absence.test.js](../../tests/native-absence.test.js)
+- [rule-canary.test.js](../../tests/rule-canary.test.js)
 
-```javascript
-// Incorrect
-if (condition) {
-    return valueA;
-} else {
-    return valueB;
-}
-
-// Correct
-if (condition) return valueA;
-return valueB;
-```
-
-## Boundaries and non-goals
-
-The rule changes branch shape, not the decision itself. Preserve the original
-return, throw, and side-effect ownership when moving the rejected path first.
-
-## Repair recipes
-
-Turn the alternate condition into an early return, then leave the successful
-path unindented. See [Writing Resilient](../ai/writing-resilient.md) for
-boundary-first control flow.
+[Language policy](../reference/policy.md) remains normative. Unsupported analysis
+remains unknown; no legacy analyzer is used to fill gaps.

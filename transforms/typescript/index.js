@@ -1,10 +1,22 @@
+import { createHash, randomUUID } from 'node:crypto';
+import { resolve } from 'node:path';
+
+import { createTypeScriptAnalysis } from 'eslint-plugin-resilient/analyzer/typescript';
+
+import { isFunction } from '../../analysis/host/function.js';
+import { getObject, isObject } from '../../analysis/host/object.js';
+import {
+    updateFunction,
+    updateVariableDeclarationFields
+} from '../utils/ast-boundary.js';
+import { getCompilerOptionsIdentity } from '../utils/compiler-shape.js';
 import { createDeferredSelectedPayloadBinding } from './grammar/deferred-selected-payload.js';
 import { placeEmissionBoundaries, placeInlineEmissionBoundaries } from './grammar/emission-layout.js';
 import {
     annotateFinalExceptions,
     lowerFinalGrammar
 } from './grammar/final.js';
-import { updateTypeOnlyImport } from './grammar/imports.js';
+import { annotateEmptyNamespaceImport, updateTypeOnlyImport } from './grammar/imports.js';
 import { renderResolverPredicate } from './grammar/resolver-predicates.js';
 import {
     formatResilientOutput,
@@ -29,9 +41,7 @@ import { lowerScopeEntryVarDeclarations } from './lowering/declarations.js';
 import { annotateDeclaredNullishResults } from './lowering/declared-nullish-results.js';
 import { lowerDetachedPromiseWork } from './lowering/detached-promise-work.js';
 import { annotateNativeFunctionDeclarationBoundaries, lowerFunctionDeclaration } from './lowering/functions.js';
-import { lowerGuardedBindingExtraction } from './lowering/guarded-bindings.js';
 import { lowerGuardedConditionalReturns } from './lowering/guarded-returns.js';
-import { lowerIndexedTreeReducer } from './lowering/indexed-tree.js';
 import { annotateRetainedMutationBoundaries } from './lowering/mutation-boundaries.js';
 import { annotateNativeClassBoundaries } from './lowering/native-class-boundary.js';
 import { annotateRetainedNullishEquality } from './lowering/nullish-equality.js';
@@ -81,16 +91,14 @@ import {
     annotateRetainedDynamicMemberAccess,
     annotateRetainedStaticMemberAccess,
     annotateRestArraySelectionBoundaries,
+    createAuthoredRuleScope,
     groupNextLineExceptions
 } from './policy/exceptions.js';
-import {
-    hasGuardFor,
-    hasOptionalFallbackFor
-} from './policy/guards.js';
 import { compilePlacementDecisions, getPlacementTypeInfo, hasPlacementAbsence } from './policy/placement.js';
 import { collectDestructuringAgreements } from './policy/source-agreements.js';
 import { getRuntimeGuardKinds } from './understand/binding-evidence.js';
 import {
+    collectEmptyNamespaceImports,
     getBindingNames,
     getRuntimeNames,
     getRuntimeReferences,
@@ -99,6 +107,7 @@ import {
 } from './understand/imports.js';
 import { collectPlacementEvidence } from './understand/placement-evidence.js';
 import { createShapeProvider } from './understand/shape.js';
+import { collectSourceEvidence } from './understand/source-report.js';
 import {
     getDeclarationMap,
     requireCompilerMember,
@@ -166,11 +175,6 @@ import {
     getTypeText,
     getUnionResolverSource
 } from './understand/type-evidence.js';
-import { getObject, isObject } from '../../rules/support/object.js';
-import {
-    updateFunction,
-    updateVariableDeclarationFields
-} from '../utils/ast-boundary.js';
 
 const hasRuntimeDeclaration = ({ declarations = {}, name = '' } = {}) => Object.keys(declarations)
     .some(declarationName => getRuntimeName(declarationName) === name);
@@ -180,7 +184,8 @@ const createTypeScriptTransformer = ({
     program = {},
     resolvers = {},
     standard = {},
-    target = undefined
+    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Omission inherits the compiler target; zero is a valid explicit ScriptTarget and must stay distinct.
+    target
 } = {}) => {
     const {
         SyntaxKind: {
@@ -211,8 +216,8 @@ const createTypeScriptTransformer = ({
 
     if (!isObject(typescript)) throw new TypeError('A TypeScript compiler implementation is required.');
 
-    const { getCompilerOptions = false } = getObject(program);
-    const programTarget = typeof getCompilerOptions === 'function'
+    const { getCompilerOptions } = getObject(program);
+    const programTarget = isFunction(getCompilerOptions)
         ? program.getCompilerOptions().target
         : undefined;
     const targetScript = target ?? programTarget ?? defaultTarget;
@@ -247,7 +252,8 @@ const createTypeScriptTransformer = ({
         return { contracts, diagnostics };
     };
 
-    const transform = ({ code = '', fileName = 'input.ts' } = {}) => {
+    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Omitted code selects original Program text; an explicitly supplied empty string remains a distinct source revision.
+    const transform = ({ code, fileName = 'input.ts' } = {}) => {
         const agreements = new Set();
         const {
             ModuleKind: {
@@ -273,6 +279,12 @@ const createTypeScriptTransformer = ({
             runtimeGuardKinds = new Set()
         } = createAnalysis({ code, fileName });
         let diagnostics = sourceDiagnostics;
+        const emptyNamespaceImports = collectEmptyNamespaceImports({ typescript, sourceFile, checker, program, census });
+        const authoredNamespaceRules = emptyNamespaceImports.size
+            ? createAuthoredRuleScope({ typescript, sourceFile, lineDirectives: true }) : () => new Set();
+        const annotateNamespace = node => emptyNamespaceImports.has(typescript.getOriginalNode(node))
+            ? annotateEmptyNamespaceImport({ typescript, node, imports: emptyNamespaceImports,
+                authoredRules: authoredNamespaceRules(node, ['import/namespace']) }) : node;
         const bindingReferences = collectBindingReferences({ typescript, sourceFile, census, checker });
         const { statements: runtimeBindingStatements = [] } = getObject(sourceFile);
         const runtimeBindingTargets = new Map(runtimeBindingStatements.flatMap(node => [...getRuntimeBindingIdentities({
@@ -281,11 +293,28 @@ const createTypeScriptTransformer = ({
         const runtimeBindingReferences = collectRuntimeBindingReferenceFacts({
             typescript, sourceFile, checker, bindingReferences, runtimeBindingTargets
         });
+        const tupleCandidate = ({ parameters = [] } = {}) => parameters.some(({ name: { kind = -1 } = {} } = {}) => kind === ArrayBindingPatternKind2);
+        const compilerCandidate = census.select(FunctionDeclarationKind3, ArrowFunctionKind2, FunctionExpressionKind2).some(tupleCandidate);
+        // Keep the existing syntax-only policy boundary independent of report
+        // acquisition. Broadening it would change programless emitted exceptions.
+        const syntaxRequirements = census.select(FunctionDeclarationKind3).some(tupleCandidate);
+        const { getSourceFile: readProgramSource } = program;
+        const { text: originalText = '' } = sourceFile;
+        // eslint-disable-next-line resilient/no-undefined-comparison -- Only actual code omission selects the owning Program text; null, false and an empty string cannot mask a source mismatch.
+        const compilerText = typeof code === 'undefined' ? originalText : code;
+        const sourceAnalysis = compilerCandidate ? createTypeScriptAnalysis({
+            typescript, sourceFile, census, sourceText: compilerText, filename: resolve(fileName),
+            program: isFunction(readProgramSource) ? program : false,
+            revision: createHash('sha256').update(compilerText).digest('hex'), programRevision: randomUUID(),
+            compilerOptionsIdentity: getCompilerOptionsIdentity(isFunction(getCompilerOptions) ? getCompilerOptions.call(program) : { target: targetScript })
+        }) : {};
+        const { source: compilerSource = false } = sourceAnalysis;
         const consumerContracts = collectConsumerBindingContracts({
-            typescript,
+            typescript, sourceAnalysis, syntaxRequirements,
             sourceFile, census,
             checker
         });
+        const sourceEvidence = collectSourceEvidence({ typescript, sourceFile, checker, sourceAnalysis, census });
         const unusedBindingContracts = collectUnusedBindingContracts({
             typescript,
             sourceFile, census,
@@ -389,7 +418,7 @@ const createTypeScriptTransformer = ({
             sourceFile, census,
             checker
         });
-        const arityReturnContracts = collectArityReturnContracts({ typescript, sourceFile, checker });
+        const arityReturnContracts = collectArityReturnContracts({ typescript, sourceFile, checker, census, bindingReferences });
         const switchReturnContracts = collectSwitchReturnContracts({ typescript, sourceFile, checker });
         const nullishEqualityContracts = collectNullishEqualityContracts({ typescript, sourceFile, census, checker });
         const operationalObjectBuilderContracts = collectOperationalObjectBuilderContracts({
@@ -618,8 +647,8 @@ const createTypeScriptTransformer = ({
         const objectResolverEntries = Object.entries(declarations)
             .filter(([name = '', declaration = {}]) => {
                 const runtimeName = getRuntimeName(name);
-                const { getSourceFile = false } = getObject(declaration);
-                const declarationSource = typeof getSourceFile === 'function'
+                const { getSourceFile } = getObject(declaration);
+                const declarationSource = isFunction(getSourceFile)
                     ? declaration.getSourceFile()
                     : undefined;
                 const { fileName: declFileName = '' } = getObject(declarationSource);
@@ -796,13 +825,6 @@ const createTypeScriptTransformer = ({
                         isTypeOnlyNamespace({ typescript, node })) return undefined;
 
                     if (nodeKind === VariableDeclarationListKind2) {
-                        const { agreement: requiredTupleAgreement = {} } = getDestructuringDecisionForNode({
-                            typescript,
-                            node: getObject(node).parent,
-                            destructuringAgreements,
-                            kinds: ['required-tuple-binding']
-                        });
-                        const { action: requiredTupleAction = '' } = requiredTupleAgreement;
                         const { agreement: lifetimeAgreement = {} } = getDestructuringDecisionForNode({
                             typescript,
                             node,
@@ -826,12 +848,16 @@ const createTypeScriptTransformer = ({
                         const defaultedDeclarations = normalizedDeclarations.flatMap((declaration = {}) => {
                             const {
                                 name: declName = {},
-                                // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An omitted initializer must remain absent in the declaration factory update.
+                                // An omitted initializer must remain absent in the declaration factory update.
                                 initializer: declInitializer
                             } = getObject(declaration);
                             const { kind: declNameKind = 0 } = getObject(declName);
                             const { kind: declInitKind = 0 } = getObject(declInitializer);
                             const isArrayBinding = declNameKind === ArrayBindingPatternKind2;
+                            const { agreement: requiredTupleAgreement = {} } = getDestructuringDecisionForNode({
+                                typescript, node: declName, destructuringAgreements, kinds: ['required-tuple-binding']
+                            });
+                            const { action: requiredTupleAction = '' } = requiredTupleAgreement;
                             const { elements: guardedElements = [] } = getObject(declName);
                             const isGuardedTupleBinding = isArrayBinding && guardedElements.length &&
                                 guardedElements.every(({ __resilientGuarded = false } = {}) => __resilientGuarded);
@@ -843,7 +869,7 @@ const createTypeScriptTransformer = ({
                             const { action: tupleAction = '' } = tupleAgreement;
 
                             if (isGuardedTupleBinding || isArrayBinding &&
-                                ['guard-tuple-content', 'guard-tuple-arity'].includes(tupleAction)) return [declaration];
+                                tupleAction === 'preserve-native-tuple') return [declaration];
 
                             const reusableSourceKinds = [
                                 IdentifierKind5,
@@ -868,7 +894,6 @@ const createTypeScriptTransformer = ({
                                 : updateBindingPattern({
                                     typescript,
                                     pattern: declName,
-                                    sourceFile,
                                     declarations,
                                     placement,
                                     destructuringAgreements
@@ -884,27 +909,7 @@ const createTypeScriptTransformer = ({
                                 ? tupleReceiver
                                 : sourceNode || declInitializer;
                             const { elements: tupleElements = [] } = getObject(pattern);
-                            const tupleCarrier = createTupleCarrier({
-                                source: declInitializer,
-                                containerAgreement: { state: 'known', owner: 'typed-producer' },
-                                owner: 'typed-producer',
-                                placement: 'statement',
-                                positions: tupleElements.map((element = {}, index) => {
-                                    // An emitted initializer is the position's proven family; without
-                                    // one the caller still owns the position's agreement.
-                                    const { initializer: positionInitializer = undefined } = getObject(element);
-
-                                    return {
-                                        index,
-                                        agreement: {
-                                            state: positionInitializer ? 'known' : 'caller-owned',
-                                            owner: 'typed-producer'
-                                        },
-                                        consumer: 'binding',
-                                        suppliedBy: element
-                                    };
-                                })
-                            });
+                            const tupleCarrier = createTupleCarrier({ source: declInitializer });
                             let tuplePattern = isTupleCarrier
                                 ? createTupleCarrierPattern({ factory, elements: tupleElements })
                                 : pattern;
@@ -944,11 +949,11 @@ const createTypeScriptTransformer = ({
                         );
                         const { parent: declarationStatement = {} } = getObject(node);
                         const {
-                            addSyntheticLeadingComment = false,
+                            addSyntheticLeadingComment,
                             SingleLineCommentTrivia = -1
                         } = typescript;
 
-                        hasLegacyRequiredTupleSelection && typeof addSyntheticLeadingComment === 'function' &&
+                        hasLegacyRequiredTupleSelection && isFunction(addSyntheticLeadingComment) &&
                             addSyntheticLeadingComment(
                                 declarationStatement,
                                 SingleLineCommentTrivia,
@@ -966,13 +971,7 @@ const createTypeScriptTransformer = ({
                     ];
 
                     if (!functionKinds.includes(nodeKind)) {
-                        const visitedNode = visitEachChild(node, visit, context);
-                        const loweredIndexed = lowerIndexedTreeReducer({
-                            typescript,
-                            node: visitedNode
-                        });
-
-                        return loweredIndexed;
+                        return visitEachChild(node, visit, context);
                     }
 
                     // Collection reconstruction consumes source-range checker
@@ -989,7 +988,7 @@ const createTypeScriptTransformer = ({
                         typescript,
                         node: collectionPlacedNode,
                         destructuringAgreements,
-                        reservedNames,
+                        source: compilerSource,
                         agreements
                     });
                     const providerForwardedNode = lowerProviderForwarding({
@@ -1030,29 +1029,33 @@ const createTypeScriptTransformer = ({
                     if (!visitedBodyKind) return visited;
 
                     const { parameters: originalParameters = [] } = getObject(node);
-                    const { agreement: requiredTupleAgreement = {} } = getDestructuringDecisionForNode({
-                        typescript,
-                        node,
-                        destructuringAgreements,
-                        kinds: ['required-tuple-binding']
+                    const { agreement: tupleConsumerAgreement = {} } = getDestructuringDecisionForNode({
+                        typescript, node, destructuringAgreements, kinds: ['consumer-callback', 'consumer']
                     });
-                    const { action: requiredTupleAction = '' } = requiredTupleAgreement;
+                    const { action: tupleConsumerAction = '' } = tupleConsumerAgreement;
                     const parameterResults = visitedParameters.map((parameter, parameterIndex) => {
                         const {
-                            // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An omitted parameter annotation must remain absent for the TypeScript factory.
+                            // An omitted parameter annotation must remain absent for the TypeScript factory.
                             type: paramType,
-                            // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An omitted parameter initializer must remain absent in the factory update.
+                            // An omitted parameter initializer must remain absent in the factory update.
                             initializer: paramInitializer,
-                            // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An omitted optionality token must remain absent in the factory update.
+                            // An omitted optionality token must remain absent in the factory update.
                             questionToken: paramQuestionToken,
                             name: paramName = {},
-                            // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An omitted parameter modifier list must remain absent in the factory update.
+                            // An omitted parameter modifier list must remain absent in the factory update.
                             modifiers: paramModifiers,
-                            // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An omitted rest token must remain absent in the factory update.
+                            // An omitted rest token must remain absent in the factory update.
                             dotDotDotToken: paramDotDotDotToken
                         } = getObject(parameter);
-                        const { kind: paramNameKind = 0, text: paramNameText = '' } = getObject(paramName);
+                        const { kind: paramNameKind = 0 } = getObject(paramName);
                         const isArrayBinding = paramNameKind === ArrayBindingPatternKind2;
+                        const { agreement: requiredTupleAgreement = {} } = getDestructuringDecisionForNode({
+                            typescript, node: paramName, destructuringAgreements, kinds: ['required-tuple-binding']
+                        });
+                        const { action: requiredTupleAction = '' } = requiredTupleAgreement;
+
+                        if (isArrayBinding && (tupleConsumerAction === 'preserve-native-tuple' || getObject(paramName).__resilientNativeTuple)) return { parameter, binding: {} };
+
                         const arraySourceNode = isArrayBinding
                             ? factory.createUniqueName('_resilientArgs')
                             : undefined;
@@ -1062,8 +1065,6 @@ const createTypeScriptTransformer = ({
                                 typescript,
                                 pattern: paramName,
                                 typeNode: paramType,
-                                body: visitedBody,
-                                sourceFile,
                                 declarations,
                                 placement,
                                 destructuringAgreements
@@ -1074,23 +1075,10 @@ const createTypeScriptTransformer = ({
                             : {};
                         const {
                             optional: infoOptional = false,
-                            requiresGuard: infoRequiresGuard = false,
                             canonical: infoCanonical = '',
                             kind: infoKind = ''
                         } = getObject(info);
                         const hasOptionalSignature = !!paramQuestionToken || !!infoOptional;
-                        const optionalByFallback = hasOptionalFallbackFor({
-                            typescript,
-                            node: visitedBody,
-                            sourceFile,
-                            name: paramNameText
-                        });
-                        const guarded = infoRequiresGuard && hasGuardFor({
-                            typescript,
-                            node: visitedBody,
-                            sourceFile,
-                            name: paramNameText
-                        });
                         const [originalParam = {}] = originalParameters.slice(parameterIndex, parameterIndex + 1);
                         const preservesUndefined = hasPlacementAbsence({ typescript, parameter: originalParam, placement });
                         const canonical = infoCanonical || (
@@ -1098,16 +1086,9 @@ const createTypeScriptTransformer = ({
                                 ? ''
                                 : '{}'
                         );
-                        const fallbackCanonical = optionalByFallback && infoKind === 'required'
-                            ? '{}'
-                            : canonical;
-                        const defaultInitializer = !paramInitializer && (hasOptionalSignature || optionalByFallback) &&
-                            !preservesUndefined &&
-                            (infoKind !== 'required' || guarded || optionalByFallback)
-                            ? getDefaultInitializer({
-                                factory,
-                                canonical: fallbackCanonical
-                            })
+                        const defaultInitializer = !paramInitializer && hasOptionalSignature &&
+                            !preservesUndefined && infoKind !== 'required'
+                            ? getDefaultInitializer({ factory, canonical })
                             : undefined;
 
                         const nextInitializer = defaultInitializer || paramInitializer;
@@ -1116,18 +1097,7 @@ const createTypeScriptTransformer = ({
                         const hasNameChange = parameterName !== paramName;
 
                         const { elements: parameterElements = [] } = getObject(normalizedName);
-                        const parameterCarrier = createTupleCarrier({
-                            source: arraySourceNode,
-                            containerAgreement: { state: 'known', owner: 'rest-caller' },
-                            owner: 'rest-caller',
-                            placement: 'signature',
-                            positions: parameterElements.map((element = {}, index) => ({
-                                index,
-                                agreement: { state: 'caller-owned', owner: 'rest-caller' },
-                                consumer: 'signature',
-                                suppliedBy: element
-                            }))
-                        });
+                        const parameterCarrier = createTupleCarrier({ source: arraySourceNode });
                         const binding = hasArrayBinding
                             ? factory.createVariableStatement(
                                 undefined,
@@ -1249,8 +1219,8 @@ const createTypeScriptTransformer = ({
                         node: mutableLoopFunction,
                         destructuringAgreements
                     });
-                    const { getOriginalNode = false } = typescript;
-                    const originalFunction = typeof getOriginalNode === 'function' ? getOriginalNode(node) : node;
+                    const { getOriginalNode } = typescript;
+                    const originalFunction = isFunction(getOriginalNode) ? getOriginalNode(node) : node;
                     const sortOwner = sortFunctionKeys.has(getConsumerContractKey(originalFunction));
                     const { parent: nodeParent = {} } = getObject(sortOwner ? originalFunction : node);
                     const { kind: parentKind = 0 } = getObject(nodeParent);
@@ -1267,16 +1237,9 @@ const createTypeScriptTransformer = ({
 
                 return visitNode(moduleSource, visit);
             }]).transformed[0];
-        // Source guards run before dynamic binding construction. Even an
-        // unchanged printed block owns compiler update/Get failures here.
-        const guardedBindingSource = diagnostics.length
-            ? transformedSource
-            : applyTransform(transformedSource, [context => root => lowerGuardedBindingExtraction({
-                typescript, sourceFile: root, context
-            })]).transformed[0];
         const keyedSource = diagnostics.length
-            ? guardedBindingSource
-            : applyTransform(guardedBindingSource, [context => (root) => {
+            ? transformedSource
+            : applyTransform(transformedSource, [context => (root) => {
                 const functionKinds = [
                     FunctionDeclarationKind3,
                     FunctionExpressionKind2,
@@ -1316,23 +1279,13 @@ const createTypeScriptTransformer = ({
             : applyTransform(keyedSource, [context => root => lowerResidualMemberAccess({
                 typescript, sourceFile: root, placement, destructuringAgreements, standard, agreements, context
             })]).transformed[0];
-        // Residual construction can introduce new patterns. The same guard
-        // utility places those after construction without moving the earlier
-        // source guard phase or its compiler failures.
-        const guardedResidualSource = diagnostics.length
-            ? residualSource
-            : applyTransform(residualSource, [context => root => lowerGuardedBindingExtraction({
-                typescript,
-                sourceFile: root,
-                context
-            })]).transformed[0];
         // Residual lowering can introduce a bounded `const { member } = NS`
         // alias after the first module pass. Re-run the same structural module
         // conversion here so a resolved local namespace export becomes a named
         // import instead of an unguarded object binding.
         const importedNamespaceSource = diagnostics.length
-            ? guardedResidualSource
-            : applyTransform(guardedResidualSource, [context => root => lowerImportedNamespaceMemberAccess({
+            ? residualSource
+            : applyTransform(residualSource, [context => root => lowerImportedNamespaceMemberAccess({
                 typescript,
                 sourceFile: root,
                 context
@@ -1392,7 +1345,7 @@ const createTypeScriptTransformer = ({
             return (
                 statementKind === ImportDeclarationKind2
             );
-        });
+        }).map(annotateNamespace);
         const runtimeStatements = loweredStatements.filter(({ kind: statementKind = 0 } = {}) => {
             return (
                 statementKind !== ImportDeclarationKind2
@@ -1629,7 +1582,17 @@ const createTypeScriptTransformer = ({
         return {
             code: diagnostics.length ? '' : formatResilientOutput(placeInlineEmissionBoundaries(outputText, typescript, placedSource), typescript),
             diagnostics,
-            agreements: [...agreements]
+            agreements: [...agreements],
+            sourceEvidence,
+            generatedHelpers: [
+                ...objectResolverEntries.map(([name = '']) => ({
+                    name: getRuntimeName(name), resolver: false,
+                    falsifies: (objectResolverProperties.get(name) || []).some(({ optional = false, agreement: { kind = '' } = {} } = {}) => (
+                        !optional && ['function', 'array', 'object', 'string', 'number', 'boolean', 'bigint'].includes(kind)
+                    ))
+                })),
+                ...unionResolverSources.map(({ name = '', branches = [] } = {}) => ({ name, resolver: !!branches.length, falsifies: false }))
+            ]
         };
     };
 
@@ -1644,7 +1607,8 @@ const createTypeScriptEmitTransformer = ({
     program = {},
     resolvers = {},
     standard = {},
-    target = undefined
+    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Omission inherits the compiler target; zero is a valid explicit ScriptTarget and must stay distinct.
+    target
 } = {}) => {
     const transformer = createTypeScriptTransformer({ typescript, program, resolvers, standard, target });
     const prepared = new Map();
@@ -1657,7 +1621,7 @@ const createTypeScriptEmitTransformer = ({
     const targetScript = target ?? programTarget;
     const prepare = ({ fileNames = [] } = {}) => {
         const results = fileNames.map((fileName) => {
-            const sourceFile = typeof getObject(program).getSourceFile === 'function' ? program.getSourceFile(fileName) : undefined;
+            const sourceFile = isFunction(getObject(program).getSourceFile) ? program.getSourceFile(fileName) : undefined;
             const { text = '' } = getObject(sourceFile);
             const result = transformer.transform({ code: text, fileName });
             // eslint-disable-next-line resilient/prefer-safe-transformations -- Private Program cache retains each prepared result for the corresponding compiler callback.

@@ -1,0 +1,440 @@
+{
+  "purpose": "Product observations frozen before removing the archived-checker host; existing source cases and semantic assertions remain.",
+  "cases": [
+    {
+      "name": "conditional",
+      "source": "const read = (flag = false) => flag ? [] : \"\";",
+      "messages": [
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns array, but another return path produces string.",
+          "line": 1,
+          "column": 39,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 41
+        },
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns string, but another return path produces array.",
+          "line": 1,
+          "column": 44,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 46
+        }
+      ]
+    },
+    {
+      "name": "statement returns",
+      "source": "const read = (flag = false) => { if(flag) return []; return \"\"; };",
+      "messages": [
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns array, but another return path produces string.",
+          "line": 1,
+          "column": 50,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 52
+        },
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns string, but another return path produces array.",
+          "line": 1,
+          "column": 61,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 63
+        }
+      ]
+    },
+    {
+      "name": "returned alias",
+      "source": "const read = (flag = false) => { const value = flag ? [] : \"\"; return value; };",
+      "messages": [
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This returned value can be array or string; every return path must produce one value family.",
+          "line": 1,
+          "column": 71,
+          "messageId": "inconsistentValue",
+          "endLine": 1,
+          "endColumn": 76
+        }
+      ]
+    },
+    {
+      "name": "forwarded call",
+      "source": "const select = (flag = false) => flag ? [] : \"\"; const read = (flag = false) => select(flag);",
+      "messages": [
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns array, but another return path produces string.",
+          "line": 1,
+          "column": 41,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 43
+        },
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns string, but another return path produces array.",
+          "line": 1,
+          "column": 46,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 48
+        },
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This returned value can be array or string; every return path must produce one value family.",
+          "line": 1,
+          "column": 81,
+          "messageId": "inconsistentValue",
+          "endLine": 1,
+          "endColumn": 93
+        }
+      ]
+    },
+    {
+      "name": "independent unknown",
+      "source": "const read = (flag = false, other = false) => { if(flag) return []; if(other) return external; return \"\"; };",
+      "messages": [
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns array, but another return path produces string.",
+          "line": 1,
+          "column": 65,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 67
+        },
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns string, but another return path produces array.",
+          "line": 1,
+          "column": 103,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 105
+        }
+      ]
+    },
+    {
+      "name": "fallthrough",
+      "source": "const read = (flag = false) => { if(flag) return []; };",
+      "messages": [
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns undefined, but another return path produces array.",
+          "line": 1,
+          "column": 32,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 55
+        },
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns array, but another return path produces undefined.",
+          "line": 1,
+          "column": 50,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 52
+        }
+      ]
+    },
+    {
+      "name": "bare return",
+      "source": "const read = (flag = false) => { if(flag) return; return []; };",
+      "messages": [
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns undefined, but another return path produces array.",
+          "line": 1,
+          "column": 43,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 50
+        },
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns array, but another return path produces undefined.",
+          "line": 1,
+          "column": 58,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 60
+        }
+      ]
+    },
+    {
+      "name": "null",
+      "source": "const read = (flag = false) => flag ? null : [];",
+      "messages": [
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns null, but another return path produces array.",
+          "line": 1,
+          "column": 39,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 43
+        },
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns array, but another return path produces null.",
+          "line": 1,
+          "column": 46,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 48
+        }
+      ]
+    },
+    {
+      "name": "null versus fallthrough",
+      "source": "const read = (flag = false) => { if(flag) return null; };",
+      "messages": [
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns undefined, but another return path produces null.",
+          "line": 1,
+          "column": 32,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 57
+        },
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns null, but another return path produces undefined.",
+          "line": 1,
+          "column": 50,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 54
+        }
+      ]
+    },
+    {
+      "name": "normal finally",
+      "source": "const read = (flag = false) => { try { return flag ? [] : \"\"; } finally { const local = \"\"; } };",
+      "messages": [
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns array, but another return path produces string.",
+          "line": 1,
+          "column": 54,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 56
+        },
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns string, but another return path produces array.",
+          "line": 1,
+          "column": 59,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 61
+        }
+      ]
+    },
+    {
+      "name": "return finally",
+      "source": "const read = (flag = false) => { try { return flag ? [] : \"\"; } finally { return 42; } };",
+      "messages": []
+    },
+    {
+      "name": "throw finally",
+      "source": "const read = (flag = false) => { try { return flag ? [] : \"\"; } finally { throw 42; } };",
+      "messages": []
+    },
+    {
+      "name": "conditional finally",
+      "source": "const read = (flag = false, replace = false) => { try { return flag ? [] : \"\"; } finally { if(replace) return 42; } };",
+      "messages": [
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns array, but another return path produces string.",
+          "line": 1,
+          "column": 71,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 73
+        },
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns string, but another return path produces array.",
+          "line": 1,
+          "column": 76,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 78
+        },
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns number, but another return path produces array.",
+          "line": 1,
+          "column": 111,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 113
+        }
+      ]
+    },
+    {
+      "name": "explicit catch",
+      "source": "const read = (flag = false) => { try { if(flag) return []; throw 42; } catch(error) { return \"\"; } };",
+      "messages": [
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns array, but another return path produces string.",
+          "line": 1,
+          "column": 56,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 58
+        },
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns string, but another return path produces array.",
+          "line": 1,
+          "column": 94,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 96
+        }
+      ]
+    },
+    {
+      "name": "nested function",
+      "source": "const read = (flag = false) => { const nested = (other = false) => other ? [] : \"\"; return flag ? 0 : 1; };",
+      "messages": [
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns array, but another return path produces string.",
+          "line": 1,
+          "column": 76,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 78
+        },
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns string, but another return path produces array.",
+          "line": 1,
+          "column": 81,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 83
+        }
+      ]
+    },
+    {
+      "name": "stable condition",
+      "source": "const read = (flag = false) => { if(flag) return \"yes\"; return flag ? [] : \"no\"; };",
+      "messages": []
+    },
+    {
+      "name": "three families",
+      "source": "const read = (a = false, b = false) => a ? [] : b ? \"\" : 42;",
+      "messages": [
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns array, but another return path produces string.",
+          "line": 1,
+          "column": 44,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 46
+        },
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns string, but another return path produces array.",
+          "line": 1,
+          "column": 53,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 55
+        },
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This function returns number, but another return path produces array.",
+          "line": 1,
+          "column": 58,
+          "messageId": "inconsistent",
+          "endLine": 1,
+          "endColumn": 60
+        }
+      ]
+    },
+    {
+      "name": "effect only",
+      "source": "const read = (flag = false) => { if(flag) return; external(); };",
+      "messages": []
+    },
+    {
+      "name": "defaults do not validate input",
+      "source": "const read = (value = \"\") => value; read([]); read(\"hello\");",
+      "messages": []
+    },
+    {
+      "name": "identical branches retain both sites",
+      "source": "const read = (flag = false, other = false) => { const value = flag ? [] : \"\"; return other ? value : value; };",
+      "messages": [
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This returned value can be array or string; every return path must produce one value family.",
+          "line": 1,
+          "column": 94,
+          "messageId": "inconsistentValue",
+          "endLine": 1,
+          "endColumn": 99
+        },
+        {
+          "ruleId": "resilient/signature-contract-return-consistency",
+          "severity": 2,
+          "message": "This returned value can be array or string; every return path must produce one value family.",
+          "line": 1,
+          "column": 102,
+          "messageId": "inconsistentValue",
+          "endLine": 1,
+          "endColumn": 107
+        }
+      ]
+    }
+  ]
+}

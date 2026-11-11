@@ -1,4 +1,5 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { updateFunction } from '../../utils/ast-boundary.js';
 import { getChildren } from '../../utils/ast-traversal.js';
 import { getDestructuringDecisionForNode } from '../policy/destructuring-agreements.js';
@@ -124,9 +125,9 @@ const lowerAritySignatures = ({ typescript = {}, statements = [], destructuringA
         );
         const nextParameters = [...emittedParameters.slice(0, firstOptional), rest];
         const { statements: bodyStatements = [] } = body;
-        const { getOriginalNode = false } = typescript;
+        const { getOriginalNode } = typescript;
         const switchIndex = bodyStatements.findIndex((statement = {}) => {
-            const original = typeof getOriginalNode === 'function' ? getOriginalNode(statement) : statement;
+            const original = isFunction(getOriginalNode) ? getOriginalNode(statement) : statement;
             const { pos = -1, end = -1 } = getObject(original);
 
             return typescript.isSwitchStatement(statement) && `${pos}:${end}` === dispatchRange;

@@ -1,0 +1,2014 @@
+[
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const read = (title = \"\") => title; const noise = external.value; read(unknown);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const read = (title = \"\") => title; read(...unknown);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const read = ({ title = \"\" } = {}, other = 0) => title; const arg = { title: 42 }; read(arg, external(arg));",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const getTitle = ({ title = \"\" } = {}) => title; getTitle({ title: value });",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const getTitle = ({ title = \"\" } = {}) => title; getTitle({});",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const run = ({ onDone } = {}) => onDone; run({});",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const getConfig = ({ config: { name = \"\" } = {} } = {}) => name; getConfig({ config: { name: nullValue } });",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const getTitle = (title = \"\") => title; getTitle(value);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const getTitle = ({ title = \"\" } = {}) => title; getTitle({ ...value });",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const passthrough = (value = {}) => value; passthrough({ extra: true });",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const setEntry = ({ cacheKey = \"\", entry = {} } = {}) => entry; setEntry({ cacheKey: \"current\", entry: {} });",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const getTitle = ({ title, ...rest } = {}) => title; getTitle({ ...value });",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const getRest = ({ title = \"\", ...rest } = {}) => rest; getRest({ title: \"\", extra: 42 });",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const api = { collect: (title = \"\", ...rest) => title }; api.collect(\"A\", 1, 2);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const requestGraphQL = ({ variables: { ...variables } = {} } = {}) => variables; requestGraphQL({ variables: { slugs: [], locale: \"en-US\" } });",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const toEntry = ({ context: { projectId = \"\", dataset = \"\", ...context } = {} } = {}) => context; toEntry({ context: { resolveLinks: false } });",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const run = callback => callback(\"ready\", true); run((value, ...rest) => value);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "function choose(a, b) { switch (arguments.length) { case 1: return a; case 2: return b(a); default: throw Error(\"count\"); } } choose(1);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "function choose(a, b, c) { switch (arguments.length) { case 1: return a; case 2: return b(a); case 3: return c(b(a)); } } choose(1, fn);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "function choose(a, b, c) { switch (arguments.length) { case 1: return a; case 2: return function () { return b(arguments[0]); }; case 3: return c(b(a)); } } choose(1, fn);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const read = (title = \"\") => title; const noise = external.value; read(42);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "argument expects string-like, but this call supplies number-like.",
+        "line": 1,
+        "column": 72,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 74
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const read = (title = \"\", count = 0) => title; read(42, external());",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "argument expects string-like, but this call supplies number-like.",
+        "line": 1,
+        "column": 53,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 55
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const read = () => \"\"; read(external.value);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "read accepts at most 0 arguments, but got 1.",
+        "line": 1,
+        "column": 24,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 44
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const read = () => \"\"; const run = values => { for (const value of values) read(value); };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "read accepts at most 0 arguments, but got 1.",
+        "line": 1,
+        "column": 76,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 87
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "function choose(a, b) { switch (arguments.length) { case 1: return b; case 2: return b(a); } } choose(1);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "choose requires b; provide the argument or add a default to the choose signature.",
+        "line": 1,
+        "column": 96,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 105
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "function choose(a, b) { b; switch (arguments.length) { case 1: return a; case 2: return b(a); } } choose(1);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "choose requires b; provide the argument or add a default to the choose signature.",
+        "line": 1,
+        "column": 99,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 108
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "function choose(a, b) { switch (arguments.length) { case b: return a; case 1: return a; } } choose(1);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "choose requires b; provide the argument or add a default to the choose signature.",
+        "line": 1,
+        "column": 93,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 102
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "function choose(a, b) { switch (arguments.length) { case 1: return eval(\"b\"); case 2: return b(a); } } choose(1);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "choose requires b; provide the argument or add a default to the choose signature.",
+        "line": 1,
+        "column": 104,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 113
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "function choose(a, b) { switch (arguments.length) { case 2: return b(a); } } choose(1);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "choose requires b; provide the argument or add a default to the choose signature.",
+        "line": 1,
+        "column": 78,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 87
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "function choose(a, b) { switch (arguments.length) { case 1: return arguments[1].value; case 2: return b(a); } } choose(1);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "choose requires b; provide the argument or add a default to the choose signature.",
+        "line": 1,
+        "column": 113,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 122
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "function choose(a, b) { switch (arguments.length) { case 1: return () => arguments[1].value; case 2: return b(a); } } choose(1);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "choose requires b; provide the argument or add a default to the choose signature.",
+        "line": 1,
+        "column": 119,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 128
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const choose = (a, b) => { switch (arguments.length) { case 1: return a; case 2: return b(a); } }; choose(1);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "choose requires b; provide the argument or add a default to the choose signature.",
+        "line": 1,
+        "column": 100,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 109
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "function choose(a, b) { switch (arguments.length) { case 1: return a; case 2: return b(a); } var arguments = { length: 2 }; } choose(1);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "script"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "choose requires b; provide the argument or add a default to the choose signature.",
+        "line": 1,
+        "column": 127,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 136
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "function choose(a, b) { switch (arguments.length) { case 1: return a; case 2: return b(a); } var { arguments } = source; } choose(1);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "script"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "choose requires b; provide the argument or add a default to the choose signature.",
+        "line": 1,
+        "column": 124,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 133
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "function arguments(a, b) { switch (arguments.length) { case 1: return a; case 2: return b(a); } } arguments(1);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "script"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "arguments requires b; provide the argument or add a default to the arguments signature.",
+        "line": 1,
+        "column": 99,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 111
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const getTitle = ({ title = \"\" } = {}) => title; getTitle({ title: 42 });",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "title expects string-like, but this call supplies number-like.",
+        "line": 1,
+        "column": 68,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 70
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const getConfig = ({ config: { name = \"\" } = {} } = {}) => name; getConfig({ config: { name: null } });",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "config.name expects string-like, but this call supplies null.",
+        "line": 1,
+        "column": 94,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 98
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const getTitle = (title = \"\") => title; getTitle(42);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "argument expects string-like, but this call supplies number-like.",
+        "line": 1,
+        "column": 50,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 52
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const getValue = (title = \"\", count = 0) => count; getValue(\"title\", \"count\");",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "argument[1] expects number-like, but this call supplies string-like.",
+        "line": 1,
+        "column": 70,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 77
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const getTitle = ({ title = \"\" } = {}) => title; const readTitle = getTitle; readTitle({ title: 42 });",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "title expects string-like, but this call supplies number-like.",
+        "line": 1,
+        "column": 97,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 99
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const apply = (callback, value) => callback(value); const getTitle = ({ title = \"\" } = {}) => title; apply(getTitle, { title: 42 });",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "title expects string-like, but this call supplies number-like.",
+        "line": 1,
+        "column": 102,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 132
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const inspect = () => { const items = [{ title: 42 }]; return items.map(({ title = \"\" } = {}) => title.trim()); };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "map.callback.title expects string-like, but this call supplies number-like.",
+        "line": 1,
+        "column": 63,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 111
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const getTitle = ({ title = \"\" } = {}) => title; getTitle({ title: \"A\", extra: true });",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "This call supplies excess property extra.",
+        "line": 1,
+        "column": 80,
+        "messageId": "excessProperty",
+        "endLine": 1,
+        "endColumn": 84
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const getTitle = (title) => title; getTitle();",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "getTitle requires title; provide the argument or add a default to the getTitle signature.",
+        "line": 1,
+        "column": 36,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 46
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const getTitle = (title = \"\") => title; getTitle(\"A\", \"B\");",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "getTitle accepts at most 1 argument, but got 2.",
+        "line": 1,
+        "column": 41,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 59
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const makeHandler = () => (value = \"\") => value.trim(); const handler = makeHandler(); handler(42);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "argument expects string-like, but this call supplies number-like.",
+        "line": 1,
+        "column": 96,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 98
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const api = { read: (title = \"\") => title }; api.read(42);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "argument expects string-like, but this call supplies number-like.",
+        "line": 1,
+        "column": 55,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 57
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const run = callback => callback(); const read = value => value; run(read);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "callback requires value; provide the argument or add a default to the callback signature.",
+        "line": 1,
+        "column": 66,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 75
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const run = callback => callback(\"ready\", true); const read = value => value; run(read);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "callback accepts at most 1 argument, but got 2.",
+        "line": 1,
+        "column": 79,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 88
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const run = callback => callback(); run(value => value);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "callback requires value; provide the argument or add a default to the callback signature.",
+        "line": 1,
+        "column": 37,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 56
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const api = { read: value => value }; const run = callback => callback(); run(api.read);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "callback requires value; provide the argument or add a default to the callback signature.",
+        "line": 1,
+        "column": 75,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 88
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const getTitle = ({ title = \"\" } = {}) => title; const alias = getTitle; alias({ title: false });",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "title expects string-like, but this call supplies boolean-like.",
+        "line": 1,
+        "column": 89,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 94
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-call-site",
+    "source": "const getTitle = (title = \"\") => title; getTitle(\"A\", 42);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-call-site",
+        "severity": 2,
+        "message": "getTitle accepts at most 1 argument, but got 2.",
+        "line": 1,
+        "column": 41,
+        "messageId": "arity",
+        "endLine": 1,
+        "endColumn": 58
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const isNamed = ({ name = \"\" } = {}) => !!name && name !== \"anonymous\";",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const label = (x = \"\") => { if (x) return \"a\"; return x ? 1 : \"b\"; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const label = (x = \"\") => { if (x) return \"a\"; if (x) return 1; return \"b\"; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const label = (x = \"\") => { const y = x; if (x) return \"a\"; return y ? 1 : \"b\"; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const label = (x = \"\") => { if (!x) return \"a\"; return x ? \"b\" : 1; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const label = (x = \"\") => x ? (x ? \"a\" : 1) : \"b\";",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const label = (x = \"\") => { let v = \"a\"; if (x) v = 1; if (x) return v; return 2; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const copy = value => { if (!value || typeof value !== \"object\") return { value }; return { value: Array.isArray(value) ? [] : {} }; };\nconst publish = (read = () => 0) => { const { value: published } = copy(read()); return published; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This returned value can be array or object; every return path must produce one value family.",
+        "line": 2,
+        "column": 89,
+        "messageId": "inconsistentValue",
+        "endLine": 2,
+        "endColumn": 98
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const label = (read = () => \"\") => read() || \"x\";",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const label = (flag = false, read = () => \"\") => { if (flag) return \"a\"; return read() && \"b\"; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const select = func => { const isFunction = () => true; if (!isFunction(func)) return [].forEach(() => {}); return () => {}; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const use = source => { const { child = {} } = source; const { value = 0 } = child ?? {}; return value || 150; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const getItems = (enabled) => { if (!enabled) return []; return []; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const passthrough = value => value;",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const getValue = (value) => { if (!value) return value; return unknownValue; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const getValue = (value) => { if (value) return []; return unknownValue; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const getValue = (value = {}) => { if (typeof value === \"string\") return value; return \"\"; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const notify = func => { if (!isFunction(func)) return; func(); };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const notify = ({ onDone } = {}) => { if (typeof onDone !== \"function\") return; onDone(); };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const getItems = ({ items = [] } = {}) => items;",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const run = flag => { if (flag) return; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const fail = () => { throw Error(\"stop\"); };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const getItems = async () => []; const getValue = async (enabled = false) => {     if (enabled) return [];     return getItems(); };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const read = () => { try { return []; } finally { return \"ok\"; } };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const read = () => { try { return []; } finally { const done = true; } };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const read = flag => { let value = \"\"; if (flag) return \"\"; try { return value; } finally { value = []; } };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const read = () => { try { throw Error(\"stop\"); } finally {} return []; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const read = () => { let value = \"ok\"; try { value = []; throw Error(\"stop\"); } catch (error) { return value.map(Boolean); } return \"unreachable\"; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const read = () => { outer: for (;;) { break outer; } return \"ok\"; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const read = () => { while (true) { return []; } return \"unreachable\"; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const label = (x = \"\") => { if (x) return \"a\"; return x ? \"c\" : 2; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns string, but another return path produces number.",
+        "line": 1,
+        "column": 43,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 46
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns number, but another return path produces string.",
+        "line": 1,
+        "column": 65,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 66
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const label = (first = \"\", second = \"\") => { let value = first; if (value) return \"a\"; value = second; return value ? 1 : \"b\"; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns string, but another return path produces number.",
+        "line": 1,
+        "column": 83,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 86
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns number, but another return path produces string.",
+        "line": 1,
+        "column": 119,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 120
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns string, but another return path produces number.",
+        "line": 1,
+        "column": 123,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 126
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const label = (read = () => \"\") => { if (read()) return \"a\"; return read() ? 1 : \"b\"; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns string, but another return path produces number.",
+        "line": 1,
+        "column": 57,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 60
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns number, but another return path produces string.",
+        "line": 1,
+        "column": 78,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 79
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns string, but another return path produces number.",
+        "line": 1,
+        "column": 82,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 85
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const shape = x => Array.isArray(x) ? [] : {}; const label = (flag = false, read = () => 0) => { if (flag) return \"x\"; return shape(read()); };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns array, but another return path produces object.",
+        "line": 1,
+        "column": 39,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 41
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns object, but another return path produces array.",
+        "line": 1,
+        "column": 44,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 46
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns string, but another return path produces array.",
+        "line": 1,
+        "column": 115,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 118
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This returned value can be array or object; every return path must produce one value family.",
+        "line": 1,
+        "column": 127,
+        "messageId": "inconsistentValue",
+        "endLine": 1,
+        "endColumn": 140
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const shape = x => Array.isArray(x) ? [] : {}; const copy = (read = () => 0) => { const r = shape(read()); return r; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns array, but another return path produces object.",
+        "line": 1,
+        "column": 39,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 41
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns object, but another return path produces array.",
+        "line": 1,
+        "column": 44,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 46
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This returned value can be array or object; every return path must produce one value family.",
+        "line": 1,
+        "column": 115,
+        "messageId": "inconsistentValue",
+        "endLine": 1,
+        "endColumn": 116
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const label = (flag = false) => { const value = flag ? \"a\" : 1; return value; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This returned value can be string or number; every return path must produce one value family.",
+        "line": 1,
+        "column": 72,
+        "messageId": "inconsistentValue",
+        "endLine": 1,
+        "endColumn": 77
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const isNamed = ({ name = \"\" } = {}) => name && name !== \"anonymous\";",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const parse = (text = \"\") => { const found = text.match(/a(b)?/u);\nif (found) { const [, name = \"\"] = found; return { names: name ? [name] : [] }; } return false; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns object, but another return path produces boolean.",
+        "line": 2,
+        "column": 50,
+        "messageId": "inconsistent",
+        "endLine": 2,
+        "endColumn": 79
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns boolean, but another return path produces object.",
+        "line": 2,
+        "column": 90,
+        "messageId": "inconsistent",
+        "endLine": 2,
+        "endColumn": 95
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const read = cb => { if (typeof cb !== \"function\") return [].forEach(() => {}); return \"\"; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns undefined, but another return path produces string.",
+        "line": 1,
+        "column": 59,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 79
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns string, but another return path produces undefined.",
+        "line": 1,
+        "column": 88,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 90
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const select = func => { if (typeof func !== \"function\") return; return func; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns undefined, but another return path produces function.",
+        "line": 1,
+        "column": 58,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 65
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns function, but another return path produces undefined.",
+        "line": 1,
+        "column": 73,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 77
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const getValue = flag => { if (flag) return \"\"; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns undefined, but another return path produces string.",
+        "line": 1,
+        "column": 26,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 50
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns string, but another return path produces undefined.",
+        "line": 1,
+        "column": 45,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 47
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const getValue = flag => { if (flag) return \"\"; return; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns string, but another return path produces undefined.",
+        "line": 1,
+        "column": 45,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 47
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns undefined, but another return path produces string.",
+        "line": 1,
+        "column": 49,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 56
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const read = flag => { let value = \"\"; if (flag) return 1; try { return value; } finally { value = 1; } };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns number, but another return path produces string.",
+        "line": 1,
+        "column": 57,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 58
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns string, but another return path produces number.",
+        "line": 1,
+        "column": 73,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 78
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const read = flag => { try { return []; } finally { if (flag) return \"ok\"; } };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns array, but another return path produces string.",
+        "line": 1,
+        "column": 37,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 39
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns string, but another return path produces array.",
+        "line": 1,
+        "column": 70,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 74
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const isFunction = value => !!value; const select = func => { if (!isFunction(func)) return [].forEach(() => {}); return () => {}; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns undefined, but another return path produces function.",
+        "line": 1,
+        "column": 93,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 113
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns function, but another return path produces undefined.",
+        "line": 1,
+        "column": 122,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 130
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const isFunction = value => typeof value === \"function\"; const select = func => { if (!isFunction(func)) return [].forEach(() => {}); return () => {}; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns undefined, but another return path produces function.",
+        "line": 1,
+        "column": 113,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 133
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns function, but another return path produces undefined.",
+        "line": 1,
+        "column": 142,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 150
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const select = func => { if (!isFunction(func)) return [].forEach(() => {}); return func; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const select = func => { if (typeof func !== \"function\") return [].forEach(() => {}); return func; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns undefined, but another return path produces function.",
+        "line": 1,
+        "column": 65,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 85
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns function, but another return path produces undefined.",
+        "line": 1,
+        "column": 94,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 98
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const getValue = (enabled) => { if (enabled) return []; return \"\"; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns array, but another return path produces string.",
+        "line": 1,
+        "column": 53,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 55
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns string, but another return path produces array.",
+        "line": 1,
+        "column": 64,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 66
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const getValue = (enabled = false) => enabled ? '' : null;",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns string, but another return path produces null.",
+        "line": 1,
+        "column": 49,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 51
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns null, but another return path produces string.",
+        "line": 1,
+        "column": 54,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 58
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const getValue = (enabled = false) => { return enabled ? '' : null; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns string, but another return path produces null.",
+        "line": 1,
+        "column": 58,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 60
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns null, but another return path produces string.",
+        "line": 1,
+        "column": 63,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 67
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const getValue = async (enabled = false) => { if (enabled) return []; return \"\"; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns array, but another return path produces string.",
+        "line": 1,
+        "column": 67,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 69
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns string, but another return path produces array.",
+        "line": 1,
+        "column": 78,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 80
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const select = func => isFunction(func) ? func : [].forEach(() => {});",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const select = func => { if (!func) return [].forEach(() => {}); return () => {}; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns undefined, but another return path produces function.",
+        "line": 1,
+        "column": 44,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 64
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns function, but another return path produces undefined.",
+        "line": 1,
+        "column": 73,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 81
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const select = func => { if (func) return () => {}; return [].forEach(() => {}); };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns function, but another return path produces undefined.",
+        "line": 1,
+        "column": 43,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 51
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns undefined, but another return path produces function.",
+        "line": 1,
+        "column": 60,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 80
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const select = func => {     if (!isFunction(func)) {         if (func) return () => {};         return [].forEach(() => {});     }     return () => {}; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns function, but another return path produces undefined.",
+        "line": 1,
+        "column": 80,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 88
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns undefined, but another return path produces function.",
+        "line": 1,
+        "column": 105,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 125
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns function, but another return path produces undefined.",
+        "line": 1,
+        "column": 144,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 152
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-return-consistency",
+    "source": "const outer = func => {     if (!isFunction(func)) return () => {         if (func) return () => {};         return [].forEach(() => {});     };     return () => {}; };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns function, but another return path produces undefined.",
+        "line": 1,
+        "column": 92,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 100
+      },
+      {
+        "ruleId": "resilient/signature-contract-return-consistency",
+        "severity": 2,
+        "message": "This function returns undefined, but another return path produces function.",
+        "line": 1,
+        "column": 117,
+        "messageId": "inconsistent",
+        "endLine": 1,
+        "endColumn": 137
+      }
+    ]
+  },
+  {
+    "rule": "no-unguarded-callback-invocation",
+    "source": "const run = ({ onDone } = {}) => { if (isFunction(onDone)) onDone(); };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "no-unguarded-callback-invocation",
+    "source": "const run = ({ onDone } = {}) => { if (typeof onDone === \"function\") onDone(); };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "no-unguarded-callback-invocation",
+    "source": "const run = ({ onDone } = {}) => isFunction(onDone) && onDone();",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "no-unguarded-callback-invocation",
+    "source": "const run = ({ onDone } = {}) => { if (!isFunction(onDone)) return; onDone(); };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "no-unguarded-callback-invocation",
+    "source": "const run = ({ onDone = noop } = {}) => onDone();",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "no-unguarded-callback-invocation",
+    "source": "const run = ({ onDone } = {}) => send(onDone);",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": []
+  },
+  {
+    "rule": "no-unguarded-callback-invocation",
+    "source": "const run = ({ onDone } = {}) => onDone();",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/no-unguarded-callback-invocation",
+        "severity": 2,
+        "message": "Guard optional callback onDone with isFunction(...) or a typeof function check before invoking it.",
+        "line": 1,
+        "column": 34,
+        "messageId": "unguarded",
+        "endLine": 1,
+        "endColumn": 42
+      }
+    ]
+  },
+  {
+    "rule": "no-unguarded-callback-invocation",
+    "source": "const run = ({ onDone } = {}) => { onDone(); };",
+    "languageOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "expected": [
+      {
+        "ruleId": "resilient/no-unguarded-callback-invocation",
+        "severity": 2,
+        "message": "Guard optional callback onDone with isFunction(...) or a typeof function check before invoking it.",
+        "line": 1,
+        "column": 36,
+        "messageId": "unguarded",
+        "endLine": 1,
+        "endColumn": 44
+      }
+    ]
+  }
+]

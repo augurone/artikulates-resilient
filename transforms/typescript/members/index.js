@@ -1,4 +1,5 @@
-import { getObject, hasContent } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject, hasContent } from '../../../analysis/host/object.js';
 import {
     getSyntaxKinds,
     updateBindingInitializer,
@@ -40,15 +41,14 @@ import {
     hasPlacementAbsence,
     isPlacementTuple,
     isPlacementArray,
-    getPlacementSymbol
+    getPlacementSymbol,
+    getPlacementPredicate
 } from '../policy/placement.js';
 import {
     getBindingNames,
     hasMutationFor
 } from '../understand/imports.js';
 import {
-    getCallExpressionName,
-    getCallIdentifierArgument,
     getConsumerContractKey,
     getDeclaration,
     getIdentifierName,
@@ -60,8 +60,6 @@ const updateBindingPattern = ({
     typescript = {},
     pattern = {},
     typeNode = {},
-    body = {},
-    sourceFile = {},
     declarations = {},
     placement = {},
     destructuringAgreements = {}
@@ -76,7 +74,7 @@ const updateBindingPattern = ({
     if (![ObjectBindingPattern, ArrayBindingPattern].includes(patternKind)) return pattern;
 
     if (patternKind === ObjectBindingPattern) return updateObjectBinding({
-        typescript, parameter: { name: pattern, type: typeNode }, body, sourceFile, declarations, placement, destructuringAgreements
+        typescript, parameter: { name: pattern, type: typeNode }, declarations, placement, destructuringAgreements
     });
 
     let changed = false;
@@ -89,15 +87,11 @@ const updateBindingPattern = ({
         });
         const { action: unusedBindingAction = '' } = unusedBindingAgreement;
 
-        if (unusedBindingAction === 'elide-unused-tuple-slot') {
-            changed = true;
-
-            return factory.createOmittedExpression();
-        }
+        if (['retain-tuple-slot-discard-binding', 'retain-unused-tuple-binding'].includes(unusedBindingAction)) return element;
 
         const {
             dotDotDotToken = {},
-            initializer: elemInit = undefined
+            initializer: elemInit
         } = getObject(element);
         const hasRestToken = hasContent(dotDotDotToken);
 
@@ -252,10 +246,10 @@ const lowerParameterMemberAccess = ({
             typescript,
             node: candidate,
             destructuringAgreements,
-            kinds: ['repeated-parameter-read']
+            kinds: ['repeated-parameter-read', 'selected-model-read']
         });
 
-        return getObject(agreement).action === 'retain-source-phase-read';
+        return ['retain-source-phase-read', 'selected-model-read'].includes(getObject(agreement).action);
     };
     const collectStructuralRead = (child) => {
         if (hasCompletedDestructuringAgreement({ typescript, node: child, destructuringAgreements,
@@ -496,29 +490,19 @@ const lowerParameterMemberAccess = ({
     const collectResidualReferences = (child) => {
         const {
             kind: childKind4 = 0,
-            text: childText = '',
-            parent: childParent = {}
+            text: childText = ''
         } = getObject(child);
-        const {
-            kind: parentKind = 0,
-            expression: parentExpr = {},
-            name: parentName = {}
-        } = getObject(childParent);
-        const { text: parentNameText = '' } = getObject(parentName);
 
-        if (!child || functionKinds.includes(childKind4)) return;
+        // Count actual remaining references, including deferred receiver uses.
+        if (!child) return;
 
-        const isLoweredMember = parentKind === PropertyAccessExpression &&
-            parentExpr === child &&
-            aliases.has(`${childText}.${parentNameText}`);
-
-        if (childKind4 === Identifier && parameterNames.has(childText) && !isLoweredMember) {
+        if (childKind4 === Identifier && parameterNames.has(childText)) {
             residualParameters = new Set([...residualParameters, childText]);
         }
 
         typescript.forEachChild(child, collectResidualReferences);
     };
-    collectResidualReferences(body);
+    collectResidualReferences(rewrittenBody);
     const signatureGroups = new Map([...groups.entries()]
         .filter(([objectName = '']) => !residualParameters.has(objectName)));
     const declarationStatements = [...groups.entries()]
@@ -528,35 +512,7 @@ const lowerParameterMemberAccess = ({
                 undefined,
                 factory.createVariableDeclarationList([
                     factory.createVariableDeclaration(
-                        factory.createObjectBindingPattern(members.map(({ propertyName = '', alias = '', canonical = '' } = {}) => (
-                            propertyName === alias
-                                ? factory.createBindingElement(
-                                    undefined,
-                                    undefined,
-                                    factory.createIdentifier(alias),
-                                    getAgreementDefaultInitializer({
-                                        typescript,
-                                        factory,
-                                        decision: getBindingDecision({ agreement: getBindingAgreement({ canonical }) }),
-                                        name: propertyName,
-                                        sourceName: objectName,
-                                        propertyName
-                                    })
-                                )
-                                : factory.createBindingElement(
-                                    undefined,
-                                    factory.createIdentifier(propertyName),
-                                    factory.createIdentifier(alias),
-                                    getAgreementDefaultInitializer({
-                                        typescript,
-                                        factory,
-                                        decision: getBindingDecision({ agreement: getBindingAgreement({ canonical }) }),
-                                        name: propertyName,
-                                        sourceName: objectName,
-                                        propertyName
-                                    })
-                                )
-                        ))),
+                        getMemberBindingPattern({ typescript, factory, members, sourceName: objectName }),
                         undefined,
                         undefined,
                         getObject(parameters.find(parameter => getObject(getObject(parameter).name).text === objectName)).name
@@ -580,11 +536,11 @@ const lowerParameterMemberAccess = ({
     const nextParameters = nodeParams.map((parameter) => {
         const {
             name: paramName = {},
-            // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An omitted parameter rest token must remain absent in the factory update.
+            // An omitted parameter rest token must remain absent in the factory update.
             dotDotDotToken,
-            modifiers: paramModifiers = undefined,
-            type: paramType = undefined,
-            initializer: paramInit = undefined
+            modifiers: paramModifiers,
+            type: paramType,
+            initializer: paramInit
         } = getObject(parameter);
         const { text: objectName = '' } = getObject(paramName);
         const members = signatureGroups.get(objectName);
@@ -633,7 +589,7 @@ const lowerDiscriminatedSwitchAccess = ({
         FunctionExpression = -1,
         ArrowFunction = -1
     } = getSyntaxKinds(typescript);
-    const { factory = {}, addSyntheticLeadingComment = false, SyntaxKind: { SingleLineCommentTrivia = -1 } = {} } = typescript;
+    const { factory = {}, addSyntheticLeadingComment, SyntaxKind: { SingleLineCommentTrivia = -1 } = {} } = typescript;
     const functionKinds = [FunctionDeclaration, FunctionExpression, ArrowFunction];
     const { symbols = false } = placement;
 
@@ -711,7 +667,9 @@ const lowerDiscriminatedSwitchAccess = ({
                 propertyName,
                 occupied: reservedNames
             }),
-            guarded: true,
+            guarded: false,
+            defaultInitializer: factory.createVoidExpression(factory.createNumericLiteral(0)),
+            sourceNode: accessNode,
             canonical: infoCanonical || '',
             signatureBoundary: getObject(selectedAgreement).action === 'selected-model-read' &&
                 getObject(selectedContract).signatureBoundary === true &&
@@ -748,7 +706,7 @@ const lowerDiscriminatedSwitchAccess = ({
 
         if (statementKind !== SwitchStatement ||
             caseBlockKind !== CaseBlock ||
-            !objectName) return { statement, prelude: undefined };
+            !objectName) return { statement };
 
         let occupied = new Set([
             ...reservedNames,
@@ -760,7 +718,15 @@ const lowerDiscriminatedSwitchAccess = ({
 
             if (![CaseClause].includes(clauseKind)) return clause;
 
-            const accesses = getCaseMembers({ clause, objectName });
+            const accesses = getCaseMembers({ clause, objectName }).filter((access) => {
+                const { agreement: { action = '' } = {} } = getDestructuringDecisionForNode({
+                    typescript, node: access, destructuringAgreements, kinds: ['selected-model-read']
+                });
+                const [{ kind: firstKind = 0, expression: firstExpression = {} } = {}] = clauseStmts;
+
+                return action === 'selected-model-read' &&
+                    clauseStmts.length === 1 && firstKind === getSyntaxKinds(typescript).ReturnStatement && firstExpression === access;
+            });
             let members = [];
             let rewrites = new Map();
 
@@ -809,7 +775,7 @@ const lowerDiscriminatedSwitchAccess = ({
             });
 
             if (members.every(({ signatureBoundary = false } = {}) => signatureBoundary) &&
-                typeof addSyntheticLeadingComment === 'function') addSyntheticLeadingComment(
+                isFunction(addSyntheticLeadingComment)) addSyntheticLeadingComment(
                 binding,
                 SingleLineCommentTrivia,
                 ' eslint-disable-next-line resilient/prefer-signature-destructuring -- selected payload Get remains after tag selection',
@@ -829,7 +795,7 @@ const lowerDiscriminatedSwitchAccess = ({
             factory.updateCaseBlock(caseBlock, nextClauses)
         );
 
-        return { statement: nextSwitch, prelude: undefined };
+        return { statement: nextSwitch };
     };
     const visit = (child, root = false) => {
         const { kind: childKind6 = 0, statements: childStatements = [] } = getObject(child);
@@ -1049,12 +1015,8 @@ const lowerLocalMemberAccess = ({
         Identifier = -1,
         PropertyAccessExpression = -1,
         IfStatement = -1,
-        CallExpression = -1,
         ConditionalExpression = -1,
-        ReturnStatement = -1,
-        BinaryExpression = -1,
-        EqualsEqualsToken = -1,
-        EqualsEqualsEqualsToken = -1
+        ReturnStatement = -1
     } = getSyntaxKinds(typescript);
     const { factory = {} } = typescript;
     const functionKinds = [FunctionDeclaration, FunctionExpression, ArrowFunction];
@@ -1077,7 +1039,7 @@ const lowerLocalMemberAccess = ({
             (declListFlags & ConstKind6)) {
             childDecls
                 .filter((decl = {}) => {
-                    const { name = {}, initializer = undefined, kind: declarationKind = 0 } = getObject(decl);
+                    const { name = {}, initializer, kind: declarationKind = 0 } = getObject(decl);
                     const { kind: nameKind = 0 } = getObject(name);
 
                     return declarationKind === VariableDeclaration &&
@@ -1120,40 +1082,10 @@ const lowerLocalMemberAccess = ({
         name: { text: nameText = '' } = {},
         argumentExpression: { text: argumentText = '' } = {}
     } = {}) => `${pos}:${end}:${nameText || argumentText}`;
-    const getReadGuardRoot = (condition) => {
-        const {
-            kind: conditionKind = 0,
-            operatorToken = {},
-            left = {},
-            right = {}
-        } = getObject(condition);
-        const { kind: operatorKind = 0 } = getObject(operatorToken);
+    const getReadGuardRoot = (condition = {}) => {
+        const { receiverName = '' } = getPlacementPredicate({ typescript, placement, expression: condition });
 
-        if (conditionKind === BinaryExpression &&
-            [EqualsEqualsToken, EqualsEqualsEqualsToken].includes(operatorKind)) {
-            const member = [left, right]
-                .find((cand = {}) => {
-                    const { expression = {}, name = {}, kind: candidateKind = 0 } = getObject(cand);
-                    const { kind: candExprKind = 0 } = getObject(expression);
-                    const { text: candNameText = '' } = getObject(name);
-
-                    return candidateKind === PropertyAccessExpression && candExprKind === Identifier && candNameText;
-                });
-
-            const { expression: memberExpr = {} } = getObject(member);
-            const { text: memberExprText = '' } = getObject(memberExpr);
-
-            return member ? memberExprText : '';
-        }
-
-        if (conditionKind !== CallExpression) return '';
-
-        const guardName = getCallExpressionName({ typescript, node: condition });
-        const isGuard = /^(?:_?[Ii]s[A-Z]|_?[Hh]as[A-Z]|is_)/.test(guardName);
-
-        return isGuard
-            ? getCallIdentifierArgument({ typescript, node: condition })
-            : '';
+        return receiverName;
     };
     const getGuardReturnRoot = ({ thenStatement = {}, expression = {}, kind: statementKind = 0 } = {}) => {
         if (statementKind !== IfStatement) return '';
@@ -1217,7 +1149,7 @@ const lowerLocalMemberAccess = ({
             typescript,
             node: child,
             destructuringAgreements,
-            kinds: ['receiver-ordered-projection']
+            kinds: ['receiver-ordered-projection', 'selected-model-read']
         })) return;
 
         const { contract: callbackOwner = {} } = getDestructuringDecisionForNode({
@@ -1247,7 +1179,7 @@ const lowerLocalMemberAccess = ({
         if (guardedAfter.has(objectName)) return;
 
         const binding = bindings.find((candidate = {}) => {
-            const { name: candName = '', statement: candStmt = {}, symbol: candSymbol = undefined } = getObject(candidate);
+            const { name: candName = '', statement: candStmt = {}, symbol: candSymbol } = getObject(candidate);
             const { end: candEnd = -1 } = getObject(candStmt);
 
             return candName === objectName &&

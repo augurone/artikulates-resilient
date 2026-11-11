@@ -1,4 +1,5 @@
-import { getObject, hasContent } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject, hasContent } from '../../../analysis/host/object.js';
 import { getSyntaxKinds, updateFunction } from '../../utils/ast-boundary.js';
 import {
     hasArrayLengthDecision,
@@ -27,12 +28,10 @@ import {
     isPlacementTuple,
     isPlacementArray,
     getPlacementSymbol,
-    getPlacementFact
+    getPlacementPredicate
 } from '../policy/placement.js';
 import { getBindingNames } from '../understand/imports.js';
 import {
-    getCallExpressionName,
-    getCallIdentifierArgument,
     getConsumerContractKey
 } from '../understand/type-evidence.js';
 
@@ -48,7 +47,6 @@ const lowerGenericMemberAccess = ({
             Const: ConstKind7 = 0
         } = {},
         SyntaxKind: {
-            SourceFile: SourceFileKind2 = -1,
             TypeOfExpression: TypeOfExpressionKind2 = -1,
             ReturnStatement: ReturnStatementKind2 = -1,
             EqualsGreaterThanToken: EqualsGreaterThanTokenKind5 = -1,
@@ -68,17 +66,9 @@ const lowerGenericMemberAccess = ({
         ElementAccessExpression = -1,
         IfStatement = -1,
         CallExpression = -1,
-        ConditionalExpression = -1,
-        BinaryExpression = -1,
-        EqualsEqualsToken = -1,
-        EqualsEqualsEqualsToken = -1,
-        ExclamationEqualsToken = -1,
-        ExclamationEqualsEqualsToken = -1,
-        NumericLiteral = -1,
-        StringLiteral = -1,
-        ReturnStatement = -1
+        NumericLiteral = -1
     } = getSyntaxKinds(typescript);
-    const { factory = {}, addSyntheticLeadingComment = false, SingleLineCommentTrivia = -1 } = typescript;
+    const { factory = {}, addSyntheticLeadingComment, SingleLineCommentTrivia = -1 } = typescript;
     const functionKinds = [FunctionDeclaration, FunctionExpression, ArrowFunction];
     const { body = {}, kind: nodeKind = 0, parameters: nodeParams = [] } = getObject(node);
     const { symbols = false } = placement;
@@ -101,7 +91,7 @@ const lowerGenericMemberAccess = ({
             (declListFlags & ConstKind7)) {
             childDecls
                 .filter((decl = {}) => {
-                    const { name = {}, initializer = undefined, kind: declarationKind = 0 } = getObject(decl);
+                    const { name = {}, initializer, kind: declarationKind = 0 } = getObject(decl);
                     const { kind: nameKind = 0 } = getObject(name);
 
                     return !hasCompletedDestructuringAgreement({ typescript, node: decl, destructuringAgreements,
@@ -135,8 +125,8 @@ const lowerGenericMemberAccess = ({
         .filter((parameter = {}) => {
             const { name = {}, dotDotDotToken = false } = getObject(parameter);
             const { kind = 0 } = getObject(name);
-            const { getOriginalNode = false } = typescript;
-            const original = typeof getOriginalNode === 'function' ? getOriginalNode(parameter) : parameter;
+            const { getOriginalNode } = typescript;
+            const original = isFunction(getOriginalNode) ? getOriginalNode(parameter) : parameter;
             const parameterRange = getConsumerContractKey(original);
             const capturedRestRead = dotDotDotToken && capturedRestParameters.has(parameterRange);
 
@@ -207,131 +197,21 @@ const lowerGenericMemberAccess = ({
             ? getPlacementReason({ typescript, placement, node: child, kind: checkerInfoKind })
             : ''
     ].find(Boolean) || '';
-    const getReadGuardRoot = (condition = {}) => {
-        const {
-            kind: conditionKind = 0,
-            operatorToken = {},
-            left = {},
-            right = {}
-        } = getObject(condition);
-        const { kind: operatorKind = 0 } = getObject(operatorToken);
-
-        if (conditionKind === CallExpression) {
-            const guardName = getCallExpressionName({ typescript, node: condition });
-            const guardMember = guardName.split('.').at(-1) || '';
-            const isGuard = /^(?:_?[Ii]s[A-Z]|_?[Hh]as[A-Z]|is_)/.test(guardMember);
-
-            return isGuard
-                ? getCallIdentifierArgument({ typescript, node: condition })
-                : "";
-        }
-
-        if (conditionKind === BinaryExpression &&
-            [EqualsEqualsToken, EqualsEqualsEqualsToken, ExclamationEqualsToken, ExclamationEqualsEqualsToken].includes(operatorKind)) {
-            const member = [left, right].find((cand = {}) => {
-                const { expression = {}, name = {}, kind: candidateKind = 0 } = getObject(cand);
-                const { kind: candExprKind = 0 } = getObject(expression);
-                const { text: candNameText = "" } = getObject(name);
-
-                return candidateKind === PropertyAccessExpression &&
-                    candExprKind === Identifier &&
-                    ["_tag", "tag"].includes(candNameText);
-            });
-
-            const { expression: memberExpr = {} } = getObject(member);
-            const { text: memberExprText = "" } = getObject(memberExpr);
-
-            return member ? memberExprText : "";
-        }
-
-        return "";
-    };
-    const getGuardReturnRoot = (stmt = {}) => {
-        const { thenStatement = {}, expression = {}, kind: statementKind = 0 } = getObject(stmt);
-
-        if (statementKind !== IfStatement) return "";
-
-        const { kind: thenKind = 0, statements: thenBody = [] } = getObject(thenStatement);
-        const thenStatements = thenKind === Block
-            ? thenBody
-            : [thenStatement];
-        const [first = {}] = thenStatements;
-        const { kind: firstKind = 0 } = getObject(first);
-
-        return firstKind === ReturnStatement
-            ? getReadGuardRoot(expression)
-            : "";
-    };
-    const isGuardedRead = (child = {}) => {
-        const { expression: childExpr = {} } = getObject(child);
-        const { text: objectName = "" } = getObject(childExpr);
-        const { parent: childParent = false } = getObject(child);
-        let current = childParent;
-
-        // eslint-disable-next-line resilient/prefer-prototype-methods -- Guard discovery stops before SourceFile parent Get; matching guards read parent first.
-        while (current && getObject(current).kind !== SourceFileKind2) {
-            const {
-                kind: currKind = 0,
-                condition: currCond = {},
-                expression: currExpr = {},
-                parent: currParent = undefined
-            } = getObject(current);
-
-            if (currKind === ConditionalExpression &&
-                getReadGuardRoot(currCond) === objectName) return true;
-
-            if (currKind === IfStatement &&
-                getReadGuardRoot(currExpr) === objectName) return true;
-
-            current = currParent;
-        }
-
-        return false;
-    };
     const getStatementKey = (statement = {}) => {
         const { pos = 0, end = 0 } = getObject(statement);
 
         return pos + ":" + end;
     };
-    const getSelectedTagBinding = (statement = {}) => {
-        const { kind: statementKind = 0, declarationList = {} } = getObject(statement);
-        const { declarations = [] } = getObject(declarationList);
-        const [declaration = {}] = declarations;
-        const { name: pattern = {}, initializer = {} } = getObject(declaration);
-        const { kind: patternKind = 0, elements = [] } = getObject(pattern);
-        const { kind: initializerKind = 0, text: sourceName = '' } = getObject(initializer);
-        const [element = {}] = elements;
-        const { name: alias = {} } = getObject(element);
-        const { text: aliasName = '' } = getObject(alias);
-        const { unionProperties = [] } = getPlacementFact({ typescript, placement, node: initializer });
-        const propertyName = getBindingPropertyName({ typescript, node: element });
+    const hasCompletedSelectionChain = (candidate = {}) => {
+        const { kind = 0, expression = {} } = getObject(candidate);
 
-        return statementKind === VariableStatement && patternKind === ObjectBindingPatternKind2 &&
-            elements.length === 1 && initializerKind === Identifier && sourceName &&
-            unionProperties.includes(propertyName) && aliasName
-            ? { aliasName, sourceName }
-            : {};
-    };
-    const getTerminatingSelectedAlias = (statement = {}) => {
-        const { kind: statementKind = 0, expression = {}, thenStatement = {} } = getObject(statement);
-        const { kind: expressionKind = 0, left = {}, right = {}, operatorToken = {} } = getObject(expression);
-        const { kind: operatorKind = 0 } = getObject(operatorToken);
-        const [identifier = {}] = [left, right].filter((candidate = {}) => getObject(candidate).kind === Identifier);
-        const [literal = {}] = [left, right].filter((candidate = {}) => getObject(candidate).kind === StringLiteral);
-        const { text: aliasName = '' } = getObject(identifier);
-        const { kind: thenKind = 0, statements = [] } = getObject(thenStatement);
-        const [first = {}] = statements;
-        const { kind: firstKind = 0 } = getObject(first);
-        const returns = thenKind === ReturnStatement || thenKind === Block && firstKind === ReturnStatement;
+        if (![PropertyAccessExpression, ElementAccessExpression].includes(kind)) return false;
 
-        return statementKind === IfStatement && expressionKind === BinaryExpression &&
-            [EqualsEqualsToken, EqualsEqualsEqualsToken].includes(operatorKind) &&
-            getObject(literal).kind === StringLiteral && returns
-            ? aliasName
-            : '';
+        return hasCompletedDestructuringAgreement({ typescript, node: candidate, destructuringAgreements,
+            kinds: ['selected-model-read'] }) || hasCompletedSelectionChain(expression);
     };
     const collectReads = (child, parent = {}, guardedRoots = new Set(), guardedAfter = new Map()) => {
-        if (!child) return;
+        if (!child || hasCompletedSelectionChain(child)) return;
 
         if (hasCompletedDestructuringAgreement({ typescript, node: child, destructuringAgreements,
             kinds: ['callable-operation'] })) return;
@@ -339,69 +219,13 @@ const lowerGenericMemberAccess = ({
         const {
             kind: childKind = 0,
             statements: childStmts = [],
-            condition: childCond = {},
-            whenTrue: childWhenTrue = {},
-            whenFalse: childWhenFalse = {},
             expression: childExpr = {},
-            thenStatement: childThen = {},
-            elseStatement: childElse = {},
             argumentExpression: childArg = {},
             pos: childPos = -1
         } = getObject(child);
 
         if (childKind === Block) {
-            let nextGuardedAfter = new Map(guardedAfter);
-            let selectedTagSources = new Map();
-            let selectedAfter = new Set();
-
-            childStmts.forEach((statement = {}) => {
-                const selectedAlias = getTerminatingSelectedAlias(statement);
-                const branchSource = selectedTagSources.get(selectedAlias);
-                collectReads(
-                    statement,
-                    child,
-                    new Set([...guardedRoots, ...selectedAfter, ...[branchSource].filter(Boolean)]),
-                    nextGuardedAfter
-                );
-                const root = getGuardReturnRoot(statement);
-                const { aliasName = '', sourceName = '' } = getSelectedTagBinding(statement);
-
-                if (root) nextGuardedAfter = new Map([...nextGuardedAfter, [root, statement]]);
-
-                if (aliasName && sourceName) {
-                    selectedTagSources = new Map([...selectedTagSources, [aliasName, sourceName]]);
-                }
-
-                if (selectedAlias && selectedTagSources.has(selectedAlias)) {
-                    selectedAfter = new Set([...selectedAfter, selectedTagSources.get(selectedAlias)]);
-                }
-            });
-
-            return;
-        }
-
-        if (childKind === ConditionalExpression) {
-            const root = getReadGuardRoot(childCond);
-            const nextGuardedRoots = root
-                ? new Set([...guardedRoots, root])
-                : guardedRoots;
-
-            collectReads(childCond, child, guardedRoots, guardedAfter);
-            collectReads(childWhenTrue, child, nextGuardedRoots, guardedAfter);
-            collectReads(childWhenFalse, child, nextGuardedRoots, guardedAfter);
-
-            return;
-        }
-
-        if (childKind === IfStatement) {
-            const root = getReadGuardRoot(childExpr);
-            const nextGuardedRoots = root
-                ? new Set([...guardedRoots, root])
-                : guardedRoots;
-
-            collectReads(childExpr, child, guardedRoots, guardedAfter);
-            collectReads(childThen, child, nextGuardedRoots, guardedAfter);
-            collectReads(childElse, child, nextGuardedRoots, guardedAfter);
+            childStmts.forEach(statement => collectReads(statement, child, guardedRoots, guardedAfter));
 
             return;
         }
@@ -503,7 +327,7 @@ const lowerGenericMemberAccess = ({
                 name: candName = "",
                 end: candEnd = -1,
                 parameter: candParam = false,
-                symbol: candSymbol = undefined
+                symbol: candSymbol
             } = getObject(candidate);
 
             return candName === objectName &&
@@ -532,8 +356,6 @@ const lowerGenericMemberAccess = ({
                 })
         );
 
-        if (guardedRoots.has(objectName) || isGuardedRead(child)) return;
-
         const checkerInfo = getPlacementContract({ typescript, node: child, placement });
         const { kind: checkerInfoKind = "", canonical: checkerInfoCanonical = "", optional: checkerOptional = false } = checkerInfo;
 
@@ -548,7 +370,7 @@ const lowerGenericMemberAccess = ({
         const exactPositionCanonical = exactStaticPosition && kind === 'array'
             ? 'undefined'
             : '';
-        const { name: bindingName = "", end: bindingEnd = 0, statement: bindingStmt = undefined, parameter: bindingParam = false, symbol: bindingSymbol = undefined } = getObject(binding);
+        const { name: bindingName = "", end: bindingEnd = 0, statement: bindingStmt, parameter: bindingParam = false, symbol: bindingSymbol } = getObject(binding);
         const { agreement: providerForwardAgreement = {} } = getDestructuringDecisionForNode({
             typescript,
             node: child,
@@ -644,7 +466,7 @@ const lowerGenericMemberAccess = ({
                 family: checkerInfoKind,
                 agreementReason: memberAgreementReason
             };
-            const { members: nextMembers = [], guardStatement: existingGuardStatement = undefined } = getObject(nextGroup);
+            const { members: nextMembers = [], guardStatement: existingGuardStatement } = getObject(nextGroup);
             occupied = new Set([...occupied, alias]);
             groups = new Map([...groups, [bindingKey, {
                 ...nextGroup,
@@ -691,7 +513,7 @@ const lowerGenericMemberAccess = ({
         }
 
         const group = parameterByName.get(childText);
-        const { symbol: groupSymbol = undefined, objectName: groupObjName = '' } = getObject(group);
+        const { symbol: groupSymbol, objectName: groupObjName = '' } = getObject(group);
         const isPropertyName = parentKind === PropertyAccessExpression && parentName === child;
         const isLoweredMember = parentKind === PropertyAccessExpression &&
             parentExpr === child &&
@@ -726,14 +548,14 @@ const lowerGenericMemberAccess = ({
     let insertions = new Map();
     [...groups.values()]
         .filter((group = {}) => {
-            const { parameter = false, statement = undefined } = getObject(group);
+            const { parameter = false, statement } = getObject(group);
 
             return !parameter && statement;
         })
         .forEach((group = {}) => {
             const {
-                guardStatement = undefined,
-                statement = undefined,
+                guardStatement,
+                statement,
                 objectName: groupObj = "",
                 members: groupMbrs = []
             } = getObject(group);
@@ -763,15 +585,9 @@ const lowerGenericMemberAccess = ({
             return [objectName, group];
         }));
     const getGuardRoot = (condition = {}) => {
-        const { kind: conditionKind = 0 } = getObject(condition);
+        const { receiverName = '' } = getPlacementPredicate({ typescript, placement, expression: condition });
 
-        if (conditionKind !== CallExpression) return "";
-
-        const guardName = getCallExpressionName({ typescript, node: condition });
-
-        return /^(?:_?[Ii]s[A-Z]|_?[Hh]as[A-Z]|is_)/.test(guardName)
-            ? getCallIdentifierArgument({ typescript, node: condition })
-            : "";
+        return receiverName;
     };
     const isGuardReturn = (statement = {}) => {
         const { kind: stmtKind = 0, thenStatement = {}, expression: stmtExpr = {} } = getObject(statement);
@@ -845,7 +661,7 @@ const lowerGenericMemberAccess = ({
             const hasRetainedMemberBoundary = elements.some(({ initializer = false, dotDotDotToken = false } = {}) => (
                 !initializer && !dotDotDotToken
             ));
-            const documentedArrow = hasRetainedMemberBoundary && typeof addSyntheticLeadingComment === 'function'
+            const documentedArrow = hasRetainedMemberBoundary && isFunction(addSyntheticLeadingComment)
                 ? addSyntheticLeadingComment(
                     arrow,
                     SingleLineCommentTrivia,
@@ -864,11 +680,11 @@ const lowerGenericMemberAccess = ({
     const parameters = nodeParams.map((parameter = {}) => {
         const {
             name: paramName = {},
-            // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An omitted parameter rest token must remain absent in the factory update.
+            // An omitted parameter rest token must remain absent in the factory update.
             dotDotDotToken,
-            modifiers: paramModifiers = undefined,
-            type: paramType = undefined,
-            initializer: paramInit = undefined
+            modifiers: paramModifiers,
+            type: paramType,
+            initializer: paramInit
         } = getObject(parameter);
         const { text: objectName = "" } = getObject(paramName);
         const group = signatureGroups.get(objectName);
@@ -924,7 +740,7 @@ const lowerGenericMemberAccess = ({
                     return !hasContent(dotDotDotToken);
                 })
                 .map((element = {}) => {
-                    const { name: elemName = {}, initializer: elemInit = undefined } = getObject(element);
+                    const { name: elemName = {}, initializer: elemInit } = getObject(element);
                     const { text: elemNameText = "" } = getObject(elemName);
 
                     return {

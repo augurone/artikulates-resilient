@@ -1,44 +1,12 @@
 # signature-contract-property
 
-Reports access to a property that is absent from a known closed object
-contract.
+This rule is implemented in [the current package](../../analysis/eslint/signature-contract-property.js).
+Its implementation uses the shared analyzer and source-owned evidence.
 
-## What this finding means
+The current supported behavior and boundary cases are verified by:
 
-A misspelled or removed property can remain valid JavaScript while failing only
-when the code runs. When an object was constructed locally or returned by a
-known function, Resilient can report the access at its source:
+- [structured-selection.test.js](../../tests/structured-selection.test.js)
+- [rule-canary.test.js](../../tests/rule-canary.test.js)
 
-```javascript
-const getUser = () => ({ name: '' });
-
-getUser().nmae; // reported
-```
-
-The rule also checks known object properties carried through local aliases and
-returns. A statically named access such as `user.nmae` is a source-code
-contract violation when the known object contains `name` but not `nmae`.
-
-Computed member keys are data, not statically named properties. The rule does
-not guess that `user[propertyName]` is a misspelling. For a data-driven read,
-prefer computed destructuring with an explicit default:
-
-```javascript
-const { [propertyName]: name = '' } = knownUser;
-```
-
-Open residual objects, unknown external values, and platform objects remain
-unknown rather than producing a guessed finding. Inherited `Object.prototype`
-members are allowed.
-
-This is an opt-in contract rule enabled by `resilient.configs.contracts`.
-
-## Boundaries and non-goals
-
-Only statically named properties of known closed objects are checked. Open,
-computed, external, and platform boundaries remain unknown.
-
-## Repair recipes
-
-Correct the property or add it at the known producer boundary. For data-driven
-keys, use computed destructuring with a default as shown above.
+[Language policy](../reference/policy.md) remains normative. Unsupported analysis
+remains unknown; no legacy analyzer is used to fill gaps.

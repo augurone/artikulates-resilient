@@ -1,5 +1,6 @@
-import { getObject } from '../../../rules/support/object.js';
-import { getSyntaxKinds } from '../../utils/ast-boundary.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
+import { getNodeKind, getSyntaxKinds } from '../../utils/ast-boundary.js';
 import { getDestructuringDecisionForNode } from '../policy/destructuring-agreements.js';
 
 // A terminating first arm makes its alternate guard the next statement in
@@ -11,8 +12,8 @@ const lowerOrderedDecisions = ({
         ThrowStatement = -1, ExclamationToken = -1,
         SingleLineCommentTrivia = -1, VariableStatement = -1,
         ObjectBindingPattern = -1, Identifier = -1 } = getSyntaxKinds(typescript);
-    const { factory = {}, addSyntheticLeadingComment = false,
-        getSyntheticLeadingComments = false } = typescript;
+    const { factory = {}, addSyntheticLeadingComment,
+        getSyntheticLeadingComments } = typescript;
     const getDecision = (node = {}) => getDestructuringDecisionForNode({
         typescript, node, destructuringAgreements,
         kinds: ['ordered-decision']
@@ -22,7 +23,7 @@ const lowerOrderedDecisions = ({
         const { kind = 0, statements = [] } = getObject(statement);
         const terminal = kind === Block ? statements.at(-1) || {} : statement;
 
-        return [ReturnStatement, ThrowStatement].includes(getObject(terminal).kind);
+        return [ReturnStatement, ThrowStatement].includes(getNodeKind(terminal));
     };
     const annotateDeferredBindings = (block = {}, guardedSource = '') => {
         const visitBinding = (node = {}) => {
@@ -31,17 +32,17 @@ const lowerOrderedDecisions = ({
             const deferred = kind === VariableStatement && declarations.some((declaration = {}) => {
                 const { name = {}, initializer = {} } = getObject(declaration);
 
-                return getObject(name).kind === ObjectBindingPattern &&
-                    getObject(initializer).kind === Identifier &&
+                return getNodeKind(name) === ObjectBindingPattern &&
+                    getNodeKind(initializer) === Identifier &&
                     getObject(initializer).text === guardedSource;
             });
-            const comments = typeof getSyntheticLeadingComments === 'function'
+            const comments = isFunction(getSyntheticLeadingComments)
                 ? getSyntheticLeadingComments(node) || [] : [];
             const alreadyAnnotated = comments.some(({ text = '' } = {}) => (
                 text.includes('resilient/prefer-signature-destructuring')
             ));
 
-            if (deferred && !alreadyAnnotated && typeof addSyntheticLeadingComment === 'function') {
+            if (deferred && !alreadyAnnotated && isFunction(addSyntheticLeadingComment)) {
                 addSyntheticLeadingComment(node, SingleLineCommentTrivia,
                     ' eslint-disable-next-line resilient/prefer-signature-destructuring -- Guarded payload Get remains after the original callback guard.', true);
             }
@@ -67,7 +68,7 @@ const lowerOrderedDecisions = ({
 
             if (statementKind === IfStatement &&
                 getAction(statement) === 'flatten-terminated-nested-decision' &&
-                getObject(thenStatement).kind === Block && terminates(thenStatement) &&
+                getNodeKind(thenStatement) === Block && terminates(thenStatement) &&
                 suffix.length && terminates(suffix.at(-1)) &&
                 !suffix.some(({ kind: suffixKind = 0 } = {}) => suffixKind === IfStatement)) {
                 changed = true;
@@ -86,7 +87,7 @@ const lowerOrderedDecisions = ({
 
             if (statementKind === IfStatement &&
                 getAction(statement) === 'flatten-terminal-guards' &&
-                getObject(elseStatement).kind === IfStatement) {
+                getNodeKind(elseStatement) === IfStatement) {
                 changed = true;
 
                 return [factory.updateIfStatement(statement, expression, thenStatement, undefined),
@@ -109,12 +110,12 @@ const annotateOrderedDecisionBoundaries = ({
     const { IfStatement = -1, SingleLineCommentTrivia = -1,
         ArrowFunction = -1, FunctionExpression = -1,
         FunctionDeclaration = -1 } = getSyntaxKinds(typescript);
-    const { addSyntheticLeadingComment = false, getSyntheticLeadingComments = false,
-        setSyntheticLeadingComments = false } = typescript;
+    const { addSyntheticLeadingComment, getSyntheticLeadingComments,
+        setSyntheticLeadingComments } = typescript;
 
-    if (typeof addSyntheticLeadingComment !== 'function' ||
-        typeof getSyntheticLeadingComments !== 'function' ||
-        typeof setSyntheticLeadingComments !== 'function') return sourceFile;
+    if (!isFunction(addSyntheticLeadingComment) ||
+        !isFunction(getSyntheticLeadingComments) ||
+        !isFunction(setSyntheticLeadingComments)) return sourceFile;
 
     const visit = (node = {}, ifDepth = 0) => {
         const { kind = 0 } = getObject(node);

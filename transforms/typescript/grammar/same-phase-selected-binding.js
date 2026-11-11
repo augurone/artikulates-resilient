@@ -1,4 +1,5 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds } from '../../utils/ast-boundary.js';
 import { getDestructuringDecisionForNode } from '../policy/destructuring-agreements.js';
 
@@ -8,7 +9,7 @@ const lowerSamePhaseSelectedBindings = ({
     const { VariableDeclaration = -1, VariableStatement = -1,
         PropertyAccessExpression = -1, SingleLineCommentTrivia = -1,
         Identifier = -1 } = getSyntaxKinds(typescript);
-    const { factory = {}, addSyntheticLeadingComment = false } = typescript;
+    const { factory = {}, addSyntheticLeadingComment } = typescript;
     const getRoot = (candidate = {}) => {
         const { kind = 0, expression = {} } = getObject(candidate);
 
@@ -29,7 +30,7 @@ const lowerSamePhaseSelectedBindings = ({
 
             return getObject(statementAgreement).action === 'bind-at-source-phase' &&
                 propertyPath.length > 1 &&
-                typeof addSyntheticLeadingComment === 'function'
+                isFunction(addSyntheticLeadingComment)
                 ? addSyntheticLeadingComment(transformed, SingleLineCommentTrivia,
                     ' eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An intermediate static Get must retain its native missing-receiver throw.', true)
                 : transformed;
@@ -56,7 +57,7 @@ const lowerSamePhaseSelectedBindings = ({
                     )
                 ])
             ), name);
-            const { exclamationToken = undefined, type = undefined } = getObject(node);
+            const { exclamationToken, type } = getObject(node);
 
             return factory.updateVariableDeclaration(node, binding, exclamationToken, type,
                 typescript.visitNode(root, visit));

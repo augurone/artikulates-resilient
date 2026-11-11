@@ -1,5 +1,6 @@
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getMemberAlias } from './member-access.js';
-import { getObject } from '../../../rules/support/object.js';
 
 // The completed agreement owns the argument sequence. Object binding reads
 // numeric properties without acquiring an iterator, unlike array binding.
@@ -8,12 +9,12 @@ import { getObject } from '../../../rules/support/object.js';
 const createRestArrayFixedSelection = ({ typescript = {}, node = {}, contract = {}, occupied = new Set() } = {}) => {
     const { factory = {}, NodeFlags: { Const: ConstKind = 0 } = {} } = typescript;
     const { expression: call = {} } = getObject(node);
-    const { expression: callee = {}, typeArguments = undefined, arguments: args = [] } = getObject(call);
+    const { expression: callee = {}, typeArguments, arguments: args = [] } = getObject(call);
     const { restName = '', positions = [] } = getObject(contract);
-    const { getOriginalNode = false } = typescript;
+    const { getOriginalNode } = typescript;
     const stillOwnsSourceReads = positions.every(({ sourceRange = '' } = {}, index) => {
         const [argument = {}] = args.slice(index, index + 1);
-        const original = typeof getOriginalNode === 'function' ? getOriginalNode(argument) : argument;
+        const original = isFunction(getOriginalNode) ? getOriginalNode(argument) : argument;
         const { pos = -1, end = -1 } = getObject(original);
 
         return `${pos}:${end}` === sourceRange;
@@ -58,14 +59,14 @@ const createRestArrayFixedSelection = ({ typescript = {}, node = {}, contract = 
 // the exact property Get without acquiring the rest array's iterator.
 const createRestArrayStagedSelection = ({ typescript = {}, node = {}, contract = {}, occupied = new Set() } = {}) => {
     const { factory = {}, NodeFlags: { Const: ConstKind = 0 } = {} } = typescript;
-    const { getOriginalNode = false } = typescript;
-    const original = typeof getOriginalNode === 'function' ? getOriginalNode(node) : node;
+    const { getOriginalNode } = typescript;
+    const original = isFunction(getOriginalNode) ? getOriginalNode(node) : node;
     const { pos = -1, end = -1 } = getObject(original);
     const { callbackRange = '', sourceRange = '', restName = '', index = -1 } = getObject(contract);
-    const { body: call = {}, parameters = [], modifiers = [], typeParameters = [], type = undefined } = getObject(node);
-    const { expression: precedingCall = {}, arguments: args = [], typeArguments = undefined } = getObject(call);
+    const { body: call = {}, parameters = [], modifiers = [], typeParameters = [], type } = getObject(node);
+    const { expression: precedingCall = {}, arguments: args = [], typeArguments } = getObject(call);
     const [read = {}] = args;
-    const originalRead = typeof getOriginalNode === 'function' ? getOriginalNode(read) : read;
+    const originalRead = isFunction(getOriginalNode) ? getOriginalNode(read) : read;
     const { pos: readPos = -1, end: readEnd = -1 } = getObject(originalRead);
 
     if (`${pos}:${end}` !== callbackRange || `${readPos}:${readEnd}` !== sourceRange ||

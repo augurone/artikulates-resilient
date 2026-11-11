@@ -1,25 +1,9 @@
 {
   "name": "eslint-plugin-resilient",
-  "version": "0.7.5",
-  "description": "Native-JavaScript discipline and contract analysis for explicit code",
+  "version": "0.7.6",
   "type": "module",
-  "main": "index.js",
-  "bin": {
-    "resilient-inspect": "scripts/inspect-stack.js",
-    "resilient-measure": "scripts/measure-project.js",
-    "resilient-lower": "scripts/lower-typescript-project.js",
-    "resilient-prove": "scripts/prove-typescript-project.js"
-  },
-  "exports": {
-    ".": "./index.js",
-    "./contracts": "./rules/contracts/index.js",
-    "./project": "./integrations/project.js",
-    "./standard/object": "./rules/support/object.js",
-    "./standard/array": "./rules/support/array.js",
-    "./standard/function": "./rules/support/function.js",
-    "./typescript": "./transforms/typescript/index.js",
-    "./fp-ts-proof": "./scripts/fp-ts-proof.config.js"
-  },
+  "description": "Native-JavaScript discipline and contract analysis for explicit code",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/augurone/artikulates-resilient.git"
@@ -28,26 +12,6 @@
   "bugs": {
     "url": "https://github.com/augurone/artikulates-resilient/issues"
   },
-  "files": [
-    "index.js",
-    "integrations",
-    "rules",
-    "transforms",
-    "scripts",
-    "scripts/inspect-stack.js",
-    "scripts/fluency-report.js",
-    "scripts/fp-ts-proof.config.js",
-    "scripts/lower-typescript-project.js",
-    "scripts/prove-typescript-project.js",
-    "docs/README.md",
-    "docs/reference",
-    "docs/rules",
-    "docs/guide",
-    "docs/ai",
-    "README.md",
-    "LICENSE",
-    "CHANGELOG.md"
-  ],
   "keywords": [
     "eslint",
     "eslintplugin",
@@ -60,39 +24,72 @@
     "destructuring",
     "defensive-programming"
   ],
-  "scripts": {
-    "lint": "node scripts/audit-eslint-exceptions.js && DEBUG=eslint:eslint,eslint:eslint-helpers node node_modules/eslint/bin/eslint.js . --ignore-pattern tests/fixtures",
-    "lint:javascript": "node scripts/audit-eslint-exceptions.js && DEBUG=eslint:eslint,eslint:eslint-helpers node node_modules/eslint/bin/eslint.js . --ignore-pattern transforms --ignore-pattern 'tests/typescript-*' --ignore-pattern tests/fixtures --ignore-pattern tests/proofs",
-    "postlint": "node scripts/report-outdated.js",
-    "test": "node --max-old-space-size=8192 tests/run.js",
-    "test:javascript": "node tests/run.js --family javascript",
-    "test:operations": "node tests/run.js --family operations",
-    "proof:catalogs": "node scripts/check-proof-catalogs.js",
-    "fixtures:check": "node scripts/check-fixtures.js",
-    "typescript:lower": "node scripts/check-typescript-library.js",
-    "typescript:fp-ts-corpus-check": "node scripts/check-fp-ts-corpus.js",
-    "consumer:check": "node scripts/check-consumer.js",
-    "inspect:stack": "node scripts/inspect-stack.js",
-    "benchmark": "node scripts/benchmark.js",
-    "release": "node scripts/release.js",
-    "release:check": "node scripts/release.js --check"
-  },
   "engines": {
-    "node": "^22.13.0 || >=24"
+    "node": "22.13.0"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./production": "./config/production.js",
+    "./check": "./scripts/check-eslint.js",
+    "./audit": "./scripts/audit-eslint-exceptions.js",
+    "./agreement": "./analysis/agreement/index.js",
+    "./analyzer": "./analysis/analyzer/index.js",
+    "./analyzer/typescript": "./transforms/typescript/understand/source-analysis.js",
+    "./eslint": "./analysis/eslint/index.js",
+    "./typescript": "./transforms/typescript/index.js",
+    "./typescript/config": "./config/typescript-lowering.json",
+    "./standard/object": "./analysis/host/object.js",
+    "./standard/array": "./analysis/host/array.js",
+    "./standard/function": "./analysis/host/function.js"
+  },
+  "bin": {
+    "resilient-check": "./scripts/check-eslint.js",
+    "resilient-measure": "./scripts/measure-project.js",
+    "resilient-audit": "./scripts/audit-eslint-exceptions.js",
+    "resilient-lower": "./scripts/lower-typescript-project.js",
+    "resilient-inspect": "./scripts/inspect-javascript.js",
+    "resilient-prove": "./scripts/prove-typescript-project.js"
+  },
+  "files": [
+    "analysis",
+    "index.js",
+    "integrations",
+    "config/production.js",
+    "scripts/check-eslint.js",
+    "scripts/measure-project.js",
+    "scripts/audit-eslint-exceptions.js",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "transforms",
+    "config/typescript-lowering.json",
+    "scripts/lower-typescript-project.js",
+    "scripts/inspect-javascript.js",
+    "scripts/prove-typescript-project.js",
+    "scripts/fix-javascript-worker.js",
+    "scripts/fluency-report.js"
+  ],
+  "dependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint-plugin-import-x": "^4.18.1",
+    "espree": "11.2.0",
+    "globals": "17.13.0",
+    "typescript": "6.0.3"
   },
   "peerDependencies": {
-    "eslint": "^10.9.1"
-  },
-  "dependencies": {
-    "eslint-plugin-import-x": "^4.17.1"
+    "eslint": "^10.12.0"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "eslint": "^10.9.1",
-    "eslint-plugin-eslint-plugin": "^7.6.2",
-    "eslint-plugin-n": "^18.3.0",
-    "globals": "^17.12.0",
-    "typescript": "^5.9.3"
+    "eslint": "10.12.0",
+    "eslint-plugin-n": "18.4.1"
   },
-  "license": "MIT"
+  "scripts": {
+    "lint": "node scripts/lint.js",
+    "lint:report": "node scripts/lint.js --report",
+    "test": "node --test --test-concurrency=2 tests/*.test.js",
+    "check:package": "node scripts/check-package.js",
+    "check": "npm run lint && npm run check:package",
+    "release": "node scripts/release.js",
+    "release:check": "node scripts/release.js --check"
+  }
 }

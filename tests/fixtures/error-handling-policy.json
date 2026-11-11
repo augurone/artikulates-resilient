@@ -1,0 +1,86 @@
+[
+  {
+    "source": "try { run(); } catch (error) { throw error; }",
+    "options": [],
+    "findings": []
+  },
+  {
+    "source": "try { run(); } catch (error) { log(error); }",
+    "options": [],
+    "findings": []
+  },
+  {
+    "source": "const runSafely = () => { try { run(); } catch (error) { return fallback(error); } };",
+    "options": [],
+    "findings": []
+  },
+  {
+    "source": "try { run(); } finally { cleanup(); }",
+    "options": [],
+    "findings": []
+  },
+  {
+    "source": "try { run(); } catch (error) {}",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/no-silent-catch",
+        "severity": 2,
+        "message": "Handle, translate, rethrow, or explicitly return from this catch block; do not silently discard the failure.",
+        "line": 1,
+        "column": 30,
+        "messageId": "silentCatch",
+        "endLine": 1,
+        "endColumn": 32
+      }
+    ]
+  },
+  {
+    "source": "try { run(); } catch {}",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/no-silent-catch",
+        "severity": 2,
+        "message": "Handle, translate, rethrow, or explicitly return from this catch block; do not silently discard the failure.",
+        "line": 1,
+        "column": 22,
+        "messageId": "silentCatch",
+        "endLine": 1,
+        "endColumn": 24
+      }
+    ]
+  },
+  {
+    "source": "try { run(); } catch (error) {;}",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/no-silent-catch",
+        "severity": 2,
+        "message": "Handle, translate, rethrow, or explicitly return from this catch block; do not silently discard the failure.",
+        "line": 1,
+        "column": 30,
+        "messageId": "silentCatch",
+        "endLine": 1,
+        "endColumn": 33
+      }
+    ]
+  },
+  {
+    "source": "try { run(); } catch (error) { /* ignored */ }",
+    "options": [],
+    "findings": [
+      {
+        "ruleId": "resilient/no-silent-catch",
+        "severity": 2,
+        "message": "Handle, translate, rethrow, or explicitly return from this catch block; do not silently discard the failure.",
+        "line": 1,
+        "column": 30,
+        "messageId": "silentCatch",
+        "endLine": 1,
+        "endColumn": 47
+      }
+    ]
+  }
+]

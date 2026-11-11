@@ -1,59 +1,12 @@
 # signature-contract-destructuring
 
-Reports known value shapes that contradict an object or array destructuring
-pattern, including a missing property on a known closed object.
+This rule is implemented in [the current package](../../analysis/eslint/signature-contract-destructuring.js).
+Its implementation uses the shared analyzer and source-owned evidence.
 
-## What this finding means
+The current supported behavior and boundary cases are verified by:
 
-Destructuring with the wrong object-or-array shape assumes a runtime contract
-that the available evidence has already disproved. The rule catches that
-boundary mismatch without treating unknown values as failures.
+- [structured-selection.test.js](../../tests/structured-selection.test.js)
+- [rule-canary.test.js](../../tests/rule-canary.test.js)
 
-```javascript
-const getValue = ({ value = [] } = {}) => {
-    if (!Array.isArray(value)) return {};
-
-    const { attr = '' } = value; // reported: array-like as object-like
-    return attr;
-};
-```
-
-Unknown values remain unknown and are not reported. Nested patterns are checked
-by their own shape: an object element inside an array pattern is valid.
-
-A property with a default expresses intentional absence and is not reported as
-missing. Object rest keeps the remaining object open, so unsupported property
-names remain unknown rather than becoming false findings:
-
-```javascript
-const getUser = () => ({ name: '' });
-
-const { name, missing = '' } = getUser(); // valid: the default owns absence
-const { nmae } = getUser(); // reported: `nmae` is absent
-```
-
-```javascript
-const [{ attr = '' } = {}] = []; // valid
-```
-
-Computed object properties are also valid for array-like values because arrays
-are objects at runtime:
-
-```javascript
-const getValue = (items = []) => {
-    const { [0]: value = {} } = items;
-    return value;
-};
-```
-
-The rule is enabled by `resilient.configs.contracts`.
-
-## Boundaries and non-goals
-
-Unknown values and open residual objects are not errors. Defaults deliberately
-own absence, and computed keys remain data-driven boundaries.
-
-## Repair recipes
-
-Correct the known producer shape or the destructuring pattern, then follow the
-evidence path described in the [diagnostic guide](../guide/diagnostic-explanations.md).
+[Language policy](../reference/policy.md) remains normative. Unsupported analysis
+remains unknown; no legacy analyzer is used to fill gaps.

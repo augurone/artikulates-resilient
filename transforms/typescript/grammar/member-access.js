@@ -1,4 +1,5 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds, markGuardedNode } from '../../utils/ast-boundary.js';
 import {
     annotateAgreementException,
@@ -7,7 +8,7 @@ import {
     getAgreementDefaultInitializer
 } from '../policy/defaults.js';
 
-const isStaticMemberRead = ({ typescript = {}, node = {}, parent: customParent = undefined } = {}) => {
+const isStaticMemberRead = ({ typescript = {}, node = {}, parent: customParent = false } = {}) => {
     const kinds = getSyntaxKinds(typescript);
     const {
         PropertyAccessExpression = -1, Identifier = -1,
@@ -120,7 +121,8 @@ const getMemberBindingPattern = ({
         return markAgreement(markGuardedNode(element), 'capability is probed before invocation');
     };
 
-    const buildElement = ({ member = {}, propertyKey = undefined, propertyName = '' } = {}) => {
+    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An absent property token is forwarded to the binding factory; replacing it changes shorthand syntax.
+    const buildElement = ({ member = {}, propertyKey, propertyName = '' } = {}) => {
         const {
             alias = '',
             canonical = '',
@@ -141,7 +143,8 @@ const getMemberBindingPattern = ({
                 evidence: agreementReason ? [agreementReason] : []
             });
         const { evidence: agreementEvidence = [] } = agreement;
-        const [contractReason = agreementReason] = agreementEvidence;
+        const [contractReason = agreementReason || (canonical === 'undefined'
+            ? 'Source Get retains absence and receiver failure.' : '')] = agreementEvidence;
         const initializer = defaultInitializer || (guarded ? undefined : getAgreementDefaultInitializer({
             typescript,
             factory,
@@ -156,8 +159,8 @@ const getMemberBindingPattern = ({
             factory.createIdentifier(alias),
             initializer
         );
-        const { setOriginalNode = false } = typescript;
-        const ownedElement = sourceNode && typeof setOriginalNode === 'function'
+        const { setOriginalNode } = typescript;
+        const ownedElement = sourceNode && isFunction(setOriginalNode)
             ? setOriginalNode(element, sourceNode) : element;
 
         // Retained absence is only honest when its owner is named on the binding.
@@ -270,7 +273,8 @@ const getMemberBindingStatement = ({
         ], ConstKind3)
     );
     const reason = members
-        .map(({ agreementReason = '' } = {}) => agreementReason)
+        .map(({ agreementReason = '', canonical = '' } = {}) => agreementReason ||
+            (canonical === 'undefined' ? 'Source Get retains absence and receiver failure.' : ''))
         .find(Boolean);
 
     return annotateAgreementException({

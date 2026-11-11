@@ -1,33 +1,12 @@
 # no-undefined-comparison
 
-Disallows equality comparisons that use `undefined` explicitly. Use a truthiness
-check when the contract is testing presence or absence.
+This rule is implemented in [the current package](../../analysis/eslint/no-undefined-comparison.js).
+Its implementation uses syntax and lexical ownership.
 
-## What this finding means
+The current supported behavior and boundary cases are verified by:
 
-Comparing directly with `undefined` encodes a presence decision as an
-identity check instead of using the contract's falsey semantics. The rule
-keeps missing-value checks aligned with the value strategy used by the rest of
-the code.
+- [absence-signatures.test.js](../../tests/absence-signatures.test.js)
+- [rule-canary.test.js](../../tests/rule-canary.test.js)
 
-```javascript
-// Incorrect
-const isMissing = value => value === undefined;
-const isPresent = value => typeof value !== 'undefined';
-
-// Correct
-const isMissing = value => !value;
-const isPresent = value => !!value;
-```
-
-Explicit assignment is handled by `no-undefined-assignment`.
-
-## Boundaries and non-goals
-
-Ordinary presence checks are covered, not external protocols that distinguish
-`undefined` from every other falsey value.
-
-## Repair recipes
-
-Use `!value` for absence and `!!value` for presence; retain a narrow documented
-exception only for an owned protocol boundary.
+[Language policy](../reference/policy.md) remains normative. Unsupported analysis
+remains unknown; no legacy analyzer is used to fill gaps.

@@ -1,278 +1,205 @@
 import * as importPlugin from 'eslint-plugin-import-x';
 
-import {
-    createProjectAdapter,
-    defaultExtensions,
-    normalizeExtensions
-} from './integrations/project.js';
-import noDestructuringFallback from './rules/no-destructuring-fallback.js';
-import noElse from './rules/no-else.js';
-import noLengthComparison from './rules/no-length-comparison.js';
-import noNestedIf from './rules/no-nested-if.js';
-import noNullAssignment from './rules/no-null-assignment.js';
-import noSilentCatch from './rules/no-silent-catch.js';
-import noUndefinedAssignment from './rules/no-undefined-assignment.js';
-import noUndefinedComparison from './rules/no-undefined-comparison.js';
-import noUnguardedCallbackInvocation from './rules/no-unguarded-callback-invocation.js';
-import noUnhandledPromiseChain from './rules/no-unhandled-promise-chain.js';
-import operatorLinebreak from './rules/operator-linebreak.js';
-import preferAsyncAwait from './rules/prefer-async-await.js';
-import preferDestructuredMemberAccess from './rules/prefer-destructured-member-access.js';
-import preferFalseyReturns from './rules/prefer-falsey-returns.js';
-import preferPrototypeMethods from './rules/prefer-prototype-methods.js';
-import preferSafeDestructuringDefaults from './rules/prefer-safe-destructuring-defaults.js';
-import preferSafeTransformations from './rules/prefer-safe-transformations.js';
-import preferSignatureDestructuring from './rules/prefer-signature-destructuring.js';
-import signatureContractCallSite from './rules/signature-contract-call-site.js';
-import signatureContractDestructuring from './rules/signature-contract-destructuring.js';
-import signatureContractOperation from './rules/signature-contract-operation.js';
-import signatureContractProperty from './rules/signature-contract-property.js';
-import signatureContractReturnConsistency from './rules/signature-contract-return-consistency.js';
+import product from 'eslint-plugin-resilient/eslint';
 
-let configs = {};
+import { createProjectAdapter, defaultExtensions, normalizeExtensions } from './integrations/project.js';
 
-const createProjectImportResolver = ({ resolver = () => '' } = {}) => ({
-    interfaceVersion: 3,
-    name: 'eslint-plugin-resilient:project',
-    resolve(modulePath = '', sourceFile = '') {
-        try {
-            const resolvedFile = resolver({
-                source: modulePath,
-                from: sourceFile
-            });
-
-            return resolvedFile
-                ? { found: true, path: resolvedFile }
-                : { found: false };
-        } catch {
-            return { found: false };
-        }
-    }
-});
-
-const createImportsConfig = ({ extensions = defaultExtensions, ...projectOptions } = {}) => {
+export const createImportsConfig = ({ extensions = defaultExtensions, ...projectOptions } = {}) => {
     const project = createProjectAdapter({ extensions, ...projectOptions });
-    const importExtensions = normalizeExtensions(extensions);
     const { resolver = () => '' } = project;
 
     return {
         settings: {
             resilient: project,
-            'import-x/resolver-next': [
-                createProjectImportResolver({ resolver }),
-                importPlugin.createNodeResolver({ extensions: importExtensions })
-            ]
+            'import-x/resolver-next': [{
+                interfaceVersion: 3,
+                name: 'eslint-plugin-resilient:project',
+                resolve: (source = '', from = '') => {
+                    const file = resolver({ source, from });
+
+                    return file ? { found: true, path: file } : { found: false };
+                }
+            }, importPlugin.createNodeResolver({ extensions: normalizeExtensions(extensions) })]
         }
     };
 };
 
+const coreRules = {
+    "no-console": "error",
+    "no-undef": "error",
+    "no-unused-vars": [
+        "error",
+        {
+            "ignoreRestSiblings": true
+        }
+    ],
+    "prefer-const": "error",
+    "no-nested-ternary": "error",
+    "no-unneeded-ternary": "error",
+    "eqeqeq": [
+        "error",
+        "always"
+    ],
+    "func-style": [
+        "error",
+        "expression"
+    ],
+    "prefer-destructuring": [
+        "error",
+        {
+            "VariableDeclarator": {
+                "array": true,
+                "object": true
+            },
+            "AssignmentExpression": {
+                "array": true,
+                "object": true
+            }
+        },
+        {
+            "enforceForRenamedProperties": true
+        }
+    ],
+    "indent": [
+        "error",
+        4,
+        {
+            "SwitchCase": 1
+        }
+    ],
+    "comma-dangle": [
+        "error",
+        "never"
+    ],
+    "comma-style": "error",
+    "semi": [
+        "error",
+        "always"
+    ],
+    "arrow-parens": [
+        "error",
+        "as-needed",
+        {
+            "requireForBlockBody": true
+        }
+    ],
+    "implicit-arrow-linebreak": "error",
+    "max-len": [
+        "error",
+        {
+            "code": 200,
+            "tabWidth": 4,
+            "ignorePattern": "^\\s*// eslint-disable-next-line \\S+(?:, \\S+)+ -- \\S"
+        }
+    ],
+    "no-multiple-empty-lines": [
+        "error",
+        {
+            "max": 1,
+            "maxEOF": 0,
+            "maxBOF": 0
+        }
+    ],
+    "no-trailing-spaces": "error",
+    "no-multi-spaces": "error",
+    "no-mixed-spaces-and-tabs": "error",
+    "eol-last": [
+        "error",
+        "always"
+    ],
+    "padded-blocks": [
+        "error",
+        {
+            "blocks": "never",
+            "classes": "never",
+            "switches": "never"
+        }
+    ],
+    "padding-line-between-statements": [
+        "error",
+        {
+            "blankLine": "always",
+            "prev": "*",
+            "next": "if"
+        },
+        {
+            "blankLine": "always",
+            "prev": "if",
+            "next": "*"
+        },
+        {
+            "blankLine": "always",
+            "prev": "*",
+            "next": "return"
+        },
+        {
+            "blankLine": "never",
+            "prev": "return",
+            "next": "return"
+        }
+    ],
+    "no-useless-return": "error",
+    "no-plusplus": [
+        "error",
+        {
+            "allowForLoopAfterthoughts": true
+        }
+    ],
+    "object-curly-newline": [
+        "error",
+        {
+            "consistent": true
+        }
+    ],
+    "object-curly-spacing": [
+        "error",
+        "always"
+    ],
+    "operator-linebreak": "off",
+    "no-use-before-define": [
+        "error",
+        {
+            "functions": true
+        }
+    ],
+    "consistent-return": "error",
+    "constructor-super": "error",
+    "class-methods-use-this": "error",
+    "max-classes-per-file": "error",
+    "no-restricted-syntax": [
+        "error",
+        {
+            "selector": "ChainExpression",
+            "message": "Optional chaining is forbidden. Use defensive destructuring instead."
+        },
+        {
+            "selector": "ClassDeclaration",
+            "message": "Classes are forbidden. Use function expressions instead."
+        },
+        {
+            "selector": "ClassExpression",
+            "message": "Classes are forbidden. Use function expressions instead."
+        }
+    ]
+};
 const plugin = {
-    meta: {
-        name: 'eslint-plugin-resilient',
-        version: '0.7.5',
-        namespace: 'resilient'
-    },
-    imports: createImportsConfig,
-    rules: {
-        'operator-linebreak': operatorLinebreak,
-        'prefer-signature-destructuring': preferSignatureDestructuring,
-        'no-destructuring-fallback': noDestructuringFallback,
-        'no-else': noElse,
-        'no-length-comparison': noLengthComparison,
-        'no-null-assignment': noNullAssignment,
-        'no-silent-catch': noSilentCatch,
-        'no-unguarded-callback-invocation': noUnguardedCallbackInvocation,
-        'no-unhandled-promise-chain': noUnhandledPromiseChain,
-        'prefer-async-await': preferAsyncAwait,
-        'no-nested-if': noNestedIf,
-        'no-undefined-assignment': noUndefinedAssignment,
-        'no-undefined-comparison': noUndefinedComparison,
-        'prefer-destructured-member-access': preferDestructuredMemberAccess,
-        'prefer-falsey-returns': preferFalseyReturns,
-        'prefer-prototype-methods': preferPrototypeMethods,
-        'prefer-safe-transformations': preferSafeTransformations,
-        'prefer-safe-destructuring-defaults': preferSafeDestructuringDefaults,
-        'signature-contract-call-site': signatureContractCallSite,
-        'signature-contract-destructuring': signatureContractDestructuring,
-        'signature-contract-operation': signatureContractOperation,
-        'signature-contract-property': signatureContractProperty,
-        'signature-contract-return-consistency': signatureContractReturnConsistency
-    },
-    get configs() {
-        return configs;
-    }
+    meta: Object.freeze({ name: 'eslint-plugin-resilient', version: '0.7.6', namespace: 'resilient' }),
+    rules: product.rules,
+    imports: createImportsConfig
+};
+const configs = {
+    recommended: { plugins: { resilient: plugin }, rules: { ...coreRules, ...product.configs.recommended.rules } },
+    contracts: { plugins: { resilient: plugin }, settings: { resilient: { evidenceMessages: true } }, rules: product.configs.contracts.rules },
+    safety: { plugins: { resilient: plugin }, rules: { ...product.configs.safety.rules, 'no-empty': ['error', { allowEmptyCatch: true }] } },
+    imports: { plugins: { import: importPlugin }, rules: {
+        "import/no-unresolved": "error",
+        "import/named": "error",
+        "import/namespace": "error",
+        "import/export": "error"
+    } }
 };
 
-const recommended = {
-    plugins: {
-        resilient: plugin
-    },
-    rules: {
-        'resilient/prefer-signature-destructuring': 'error',
-        'resilient/no-destructuring-fallback': 'error',
-        'resilient/no-else': 'error',
-        'resilient/no-length-comparison': 'error',
-        'resilient/no-null-assignment': 'error',
-        'resilient/no-nested-if': 'error',
-        'resilient/no-undefined-assignment': 'error',
-        'resilient/no-undefined-comparison': 'error',
-        'resilient/prefer-destructured-member-access': 'error',
-        'resilient/prefer-falsey-returns': 'error',
-        'resilient/prefer-prototype-methods': 'error',
-        'resilient/prefer-safe-destructuring-defaults': 'error',
-        'no-console': 'error',
-        'no-undef': 'error',
-        'no-unused-vars': ['error', { ignoreRestSiblings: true }],
-        'prefer-const': 'error',
-        'no-nested-ternary': 'error',
-        'no-unneeded-ternary': 'error',
-        'eqeqeq': ['error', 'always'],
-        'func-style': ['error', 'expression'],
-        'prefer-destructuring': [
-            'error',
-            {
-                VariableDeclarator: { array: true, object: true },
-                AssignmentExpression: { array: true, object: true }
-            },
-            { enforceForRenamedProperties: true }
-        ],
-        'indent': ['error', 4, { SwitchCase: 1 }],
-        'comma-dangle': ['error', 'never'],
-        'comma-style': 'error',
-        'semi': ['error', 'always'],
-        'arrow-parens': ['error', 'as-needed', { requireForBlockBody: true }],
-        'implicit-arrow-linebreak': 'error',
-        'max-len': ['error', { code: 200, tabWidth: 4,
-            ignorePattern: '^\\s*// eslint-disable-next-line \\S+(?:, \\S+)+ -- \\S' }],
-        'no-multiple-empty-lines': ['error', { max: 1, maxEOF: 0, maxBOF: 0 }],
-        'no-trailing-spaces': 'error',
-        'no-multi-spaces': 'error',
-        'no-mixed-spaces-and-tabs': 'error',
-        'eol-last': ['error', 'always'],
-        'padded-blocks': ['error', { blocks: 'never', classes: 'never', switches: 'never' }],
-        'padding-line-between-statements': [
-            'error',
-            { blankLine: 'always', prev: '*', next: 'if' },
-            { blankLine: 'always', prev: 'if', next: '*' },
-            { blankLine: 'always', prev: '*', next: 'return' },
-            { blankLine: 'never', prev: 'return', next: 'return' }
-        ],
-        'no-useless-return': 'error',
-        'no-plusplus': ['error', { allowForLoopAfterthoughts: true }],
-        'object-curly-newline': ['error', { consistent: true }],
-        'object-curly-spacing': ['error', 'always'],
-        'operator-linebreak': 'off',
-        'resilient/operator-linebreak': ['error', 'before', { overrides: { '&&': 'after', '||': 'after' } }],
-        'no-use-before-define': ['error', { functions: true }],
-        'consistent-return': 'error',
-        'constructor-super': 'error',
-        'class-methods-use-this': 'error',
-        'max-classes-per-file': 'error',
-        'no-restricted-syntax': [
-            'error',
-            {
-                selector: 'ChainExpression',
-                message: 'Optional chaining is forbidden. Use defensive destructuring instead.'
-            },
-            {
-                selector: 'ClassDeclaration',
-                message: 'Classes are forbidden. Use function expressions instead.'
-            },
-            {
-                selector: 'ClassExpression',
-                message: 'Classes are forbidden. Use function expressions instead.'
-            }
-        ]
-    }
-};
-
-const contracts = {
-    plugins: {
-        resilient: plugin
-    },
-    settings: {
-        resilient: {
-            evidenceMessages: true
-        }
-    },
-    rules: {
-        'resilient/signature-contract-call-site': 'error',
-        'resilient/signature-contract-destructuring': 'error',
-        'resilient/signature-contract-operation': 'error',
-        'resilient/signature-contract-property': 'error',
-        'resilient/signature-contract-return-consistency': 'error'
-    }
-};
-
-const safety = {
-    plugins: {
-        resilient: plugin
-    },
-    rules: {
-        'resilient/prefer-safe-transformations': 'error',
-        'resilient/no-silent-catch': 'error',
-        'resilient/no-unguarded-callback-invocation': 'error',
-        'resilient/no-unhandled-promise-chain': 'error',
-        'resilient/prefer-async-await': 'warn',
-        'no-empty': ['error', { allowEmptyCatch: true }]
-    }
-};
-
-const createTypeScriptConfig = ({
-    parser = {},
-    files = ['**/*.{ts,tsx}'],
-    ignores = ['node_modules/**'],
-    parserOptions = {},
-    rules = {}
-} = {}) => {
-    const {
-        parseForESLint = false,
-        parse = false
-    } = parser;
-
-    if (typeof parseForESLint !== 'function' && typeof parse !== 'function') {
-        throw new TypeError('A TypeScript ESLint parser is required.');
-    }
-
-    return {
-        files,
-        ignores,
-        languageOptions: {
-            parser,
-            parserOptions: {
-                ecmaVersion: 'latest',
-                sourceType: 'module',
-                ...parserOptions
-            }
-        },
-        plugins: {
-            resilient: plugin
-        },
-        rules: {
-            ...recommended.rules,
-            ...contracts.rules,
-            ...safety.rules,
-            ...rules
-        }
-    };
-};
-
-const imports = {
-    plugins: {
-        import: importPlugin
-    },
-    rules: {
-        'import/no-unresolved': 'error',
-        'import/named': 'error',
-        'import/namespace': 'error',
-        'import/export': 'error'
-    }
-};
-
-configs = { recommended, contracts, safety, imports, typescript: createTypeScriptConfig };
+Object.defineProperty(plugin, 'configs', { value: Object.freeze(configs), enumerable: true });
 
 export { createProjectAdapter };
-export { createImportsConfig };
-export { createTypeScriptConfig };
-
-export default plugin;
+export default Object.freeze(plugin);

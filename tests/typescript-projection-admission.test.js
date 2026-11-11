@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { runInNewContext } from 'node:vm';
 
 import typescript from 'typescript';
 
@@ -9,6 +8,7 @@ import {
     collectExactProjectionContracts,
     collectProviderForwardContracts
 } from '../transforms/typescript/understand/type-evidence.js';
+import { loadModule } from './support/module.js';
 
 const cases = [
     {
@@ -57,18 +57,15 @@ const program = typescript.createProgram([...sources.keys()], options, {
     getSourceFile: (name, version) => sources.get(name) || host.getSourceFile(name, version)
 });
 const checker = program.getTypeChecker();
-const execute = (code = '') => {
+const execute = async (code = '') => {
     const { outputText = '' } = typescript.transpileModule(code, {
-        compilerOptions: { module: typescript.ModuleKind.CommonJS, target: typescript.ScriptTarget.ESNext }
+        compilerOptions: { module: typescript.ModuleKind.ESNext, target: typescript.ScriptTarget.ESNext }
     });
-    const exports = {};
 
-    runInNewContext(outputText, { exports });
-
-    return exports;
+    return loadModule(outputText);
 };
 
-cases.forEach(({ name = '', code = '', provider = 0, projection = 0 } = {}) => {
+await Promise.all(cases.map(async ({ name = '', code = '', provider = 0, projection = 0 } = {}) => {
     const fileName = `${name}.ts`;
     const sourceFile = sources.get(fileName);
     const providerFacts = collectProviderForwardContracts({ typescript, sourceFile, checker });
@@ -88,8 +85,8 @@ cases.forEach(({ name = '', code = '', provider = 0, projection = 0 } = {}) => {
         assert.match(output, /\?\./u, `${name}: optional evaluation stays at source`);
     }
 
-    const sourceRuntime = execute(code);
-    const targetRuntime = execute(output);
+    const sourceRuntime = await execute(code);
+    const targetRuntime = await execute(output);
     const observe = ({ forward = false, project = false } = {}) => {
         let events = [];
         const failure = new Error('field failure');
@@ -103,7 +100,8 @@ cases.forEach(({ name = '', code = '', provider = 0, projection = 0 } = {}) => {
             } };
             const { call: presentCall = false } = forward(providerInput);
             const present = presentCall === callable;
-            const { call: absent = undefined } = name.includes('optional') ? forward(null) : {};
+            // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults, resilient/signature-contract-destructuring -- The fixture deliberately reads a missing call field to compare native absence.
+            const { call: absent } = name.includes('optional') ? forward(null) : {};
 
             return { present, absent, events };
         }
@@ -157,4 +155,4 @@ cases.forEach(({ name = '', code = '', provider = 0, projection = 0 } = {}) => {
     };
 
     assert.deepEqual(observe(targetRuntime), observe(sourceRuntime), `${name}: source/target result and Get trace`);
-});
+}));

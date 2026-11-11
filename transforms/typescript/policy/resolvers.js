@@ -41,11 +41,13 @@ const createResolverPolicy = ({
     const getUnionResolverSource = ({ typescript = {}, parts = [], sourceFile = {}, declarations = {}, resolvers = {}, name = '' } = {}) => {
         const branches = parts.map((part) => {
             const info = getTypeInfo({ typescript, node: part, sourceFile, declarations, resolvers });
-            const { kind: infoKind = '', resolver: infoResolver = '' } = info;
+            const { kind: infoKind = '', resolver: infoResolver = '', constructorName = '' } = info;
             const kind = getRuntimeKind(info);
-            const discriminator = getObjectDiscriminator({ typescript, node: part, sourceFile, declarations, resolvers });
+            // A completed constructor identity owns the runtime predicate;
+            // structural members cannot replace its native instance boundary.
+            const discriminator = constructorName ? {} : getObjectDiscriminator({ typescript, node: part, sourceFile, declarations, resolvers, unionParts: parts });
             const { kind: discriminatorKind = '' } = discriminator;
-            const shape = !discriminatorKind && kind === 'object'
+            const shape = !constructorName && !discriminatorKind && kind === 'object'
                 ? getObjectShapeCheck({ typescript, node: part, sourceFile, declarations, unionParts: parts })
                 : {};
             const { kind: shapeKind = '' } = shape;
@@ -89,4 +91,4 @@ const createResolverPolicy = ({
     return { getPredicate, getUnionResolverSource };
 };
 
-export { createResolverPolicy, requireResolverCapability, getResolverRequirements };
+export { createResolverPolicy, getResolverRequirements };

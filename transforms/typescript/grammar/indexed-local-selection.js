@@ -1,6 +1,7 @@
-import { getMemberAlias } from './member-access.js';
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds } from '../../utils/ast-boundary.js';
+import { getMemberAlias } from './member-access.js';
 
 const createIndexedLocalSelection = ({ typescript = {}, node = {}, contract = {}, occupied = new Set() } = {}) => {
     const { factory = {}, NodeFlags: { Const: ConstKind = 0 } = {} } = typescript;
@@ -14,14 +15,14 @@ const createIndexedLocalSelection = ({ typescript = {}, node = {}, contract = {}
     const { expression: secondAssignment = {} } = getObject(secondWrite);
     const { left: secondAccumulator = {}, right: secondCall = {} } = getObject(secondAssignment);
     const { expression: callee = {}, arguments: [secondPrefix = {}, secondRead = {}] = [],
-        typeArguments = undefined } = getObject(secondCall);
+        typeArguments } = getObject(secondCall);
     const {
         loopRange = '', firstReadRange = '', secondReadRange = '',
         selectionName = '', accumulatorName = '', firstProperty = '', secondProperty = ''
     } = getObject(contract);
-    const { getOriginalNode = false } = typescript;
+    const { getOriginalNode } = typescript;
     const range = (value = {}) => {
-        const original = typeof getOriginalNode === 'function' ? getOriginalNode(value) : value;
+        const original = isFunction(getOriginalNode) ? getOriginalNode(value) : value;
         const { pos = -1, end = -1 } = getObject(original);
 
         return `${pos}:${end}`;

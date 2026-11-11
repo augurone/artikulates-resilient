@@ -1,17 +1,24 @@
 // Intentionally invalid examples for every resilient rule.
-// The aggregate package lint excludes this fixture. Lint this file directly
-// when you want to see the diagnostics for each rejected pattern.
+// The default npm run lint excludes this fixture. Editors and direct ESLint
+// include it; npm run lint -- tests/fixtures/bad.js shows its diagnostics too.
 //
 // The sections are graded. The atomic tier rejects single tokens, the
 // control-flow tier rejects shapes, the effect tier rejects ownership, and
 // the agreement tiers reject programs whose parts each read reasonably but
 // cannot hold one contract together.
+//
+// tests/rule-canary.test.js verifies every public rule at executable negative
+// anchors, source explanations and valid controls. The repository configuration
+// test also checks that the normal lint path exposes these findings.
 
 import {
     getConfig,
     getItems,
-    getTitle
+    getTitle,
+    getValue as getProviderValue,
+    makeItemsReader
 } from './bad-import-provider.js';
+import { normalizePage as normalizeImportedPage } from './integration/contract-barrel.js';
 
 const process = () => {};
 const request = () => Promise.resolve();
@@ -92,7 +99,18 @@ const report = () => {};
     const isAbsent = value => undefined === value;
     const definedItems = (items = []) => items.filter(item => item !== undefined);
 
-    void [isMissing, isPresent, isAbsent, definedItems];
+    // H3: these supplied payloads are valid. A mechanical !value repair
+    // would turn zero, false and empty text into "missing". Retaining exact
+    // absence requires its named, reasoned statement exception.
+    const decodePayload = value => value === undefined ? 'missing' : value;
+    const decodedPayloads = [0, false, ''].map(decodePayload);
+
+    // H3: typeof can read an undeclared binding without throwing. A direct
+    // truthiness read would introduce a ReferenceError for this boundary.
+    const isOptionalBindingMissing = () => typeof optionalPayload === 'undefined';
+
+    void [isMissing, isPresent, isAbsent, definedItems, decodePayload,
+        decodedPayloads, isOptionalBindingMissing];
 }
 
 // no-destructuring-fallback
@@ -634,6 +652,20 @@ const report = () => {};
     getItems({}).toUpperCase();
     getConfig().items.toUpperCase();
 
+    // H1: the present provider establishes a numeric return, so this string
+    // operation contradicts it. Deleting the provider must instead leave an
+    // unknown import; the incremental transition is checked by project-tree.
+    getProviderValue().toUpperCase();
+
+    // H3: navigation must reach the establishing provider through a barrel
+    // and an import alias, rather than stopping at this consumer call.
+    normalizeImportedPage({}).items.toUpperCase();
+
+    // H3: a returned callable owns its own list signature. The explanation
+    // must reach that inner producer rather than its outer factory.
+    const readImportedItems = makeItemsReader();
+    readImportedItems({}).toUpperCase();
+
     const inspectMapped = () => {
         const mapped = ['ready'].map(item => item.toUpperCase());
         return mapped.toUpperCase();
@@ -693,7 +725,8 @@ const report = () => {};
         inspectCount,
         inspectEntries,
         getItemsAlias,
-        getPage
+        getPage,
+        readImportedItems
     ];
 }
 

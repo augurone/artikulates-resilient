@@ -1,4 +1,5 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getDestructuringDecisionForNode } from '../policy/destructuring-agreements.js';
 
 // The source comparison owns the nullish operation. Annotate only the
@@ -8,9 +9,9 @@ const annotateRetainedNullishEquality = ({
 } = {}) => {
     const { SyntaxKind: { VariableStatement = -1, ReturnStatement = -1,
         IfStatement = -1, ExpressionStatement = -1,
-        SingleLineCommentTrivia = -1 } = {}, addSyntheticLeadingComment = false } = typescript;
+        SingleLineCommentTrivia = -1 } = {}, addSyntheticLeadingComment } = typescript;
 
-    if (typeof addSyntheticLeadingComment !== 'function') return sourceFile;
+    if (!isFunction(addSyntheticLeadingComment)) return sourceFile;
 
     const ownerKinds = [VariableStatement, ReturnStatement, IfStatement, ExpressionStatement];
     const visit = (node = {}) => {

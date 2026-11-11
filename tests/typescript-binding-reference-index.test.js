@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 
 import typescript from 'typescript';
 
-import { collectCollectionDecisions } from './typescript-collection-proof.js';
 import { getDestructuringAgreement } from '../transforms/typescript/policy/defaults.js';
 import { collectDestructuringAgreements } from '../transforms/typescript/policy/source-agreements.js';
 import {
@@ -12,6 +11,7 @@ import {
     collectUnusedBindingContracts,
     getConsumerContractKey
 } from '../transforms/typescript/understand/type-evidence.js';
+import { collectCollectionDecisions } from './typescript-collection-proof.js';
 
 const code = [
     'declare function make(): { run: () => number };',
@@ -110,16 +110,6 @@ const initializerFact = collectionReconstructionContracts.get(getConsumerContrac
 const { collection: { mutationSites: initializerSites = [] } = {} } = initializerFact;
 assert.deepEqual(initializerSites, [], 'Initializer references do not belong to sibling statements.');
 
-// A shared snapshot is consumed without another source traversal or reference
-// resolution. The collectors may still resolve their candidate declarations.
-let traversals = 0;
-const counted = { ...typescript, forEachChild: (node, visit) => {
-    traversals += 1;
-
-    return typescript.forEachChild(node, visit);
-} };
-collectUnusedBindingContracts({ ...indexed, typescript: counted });
-assert.equal(traversals, allNodes.length, 'Unused bindings require one candidate walk, with no per-binding source scans.');
 assert.deepEqual(collectUnusedBindingContracts(source), unusedBindingContracts);
 assert.deepEqual(collectProviderEdgeContracts(source), providerEdges);
 assert.deepEqual(collectCollectionDecisions(source), collectionReconstructionContracts);

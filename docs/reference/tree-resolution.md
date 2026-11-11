@@ -1,158 +1,115 @@
-# Tree resolution and analysis strategy
+# Source resolution and analysis scope
 
-This document defines how Resilient chooses source for analysis. It separates
-the project-wide source index from the analysis context so that knowing about a
-file does not make that file semantically active.
+An inventory describes files that might be available. An analysis closure
+describes source used by a particular request. Knowing that a file exists does
+not activate its contracts or create findings for an unrelated root.
 
-## The two trees
-
-### Project Tree
-
-The Project Tree is the project-level inventory and relationship index. It may
-contain every known source file, including files that are unused by the current
-analysis request.
-
-It owns project topology and lifecycle information:
-
-- file identity and source version;
-- parser and project configuration identity;
-- forward module edges;
-- reverse dependent edges;
-- resolver outcomes and resolution errors;
-- which files are available to activate.
-
-The Project Tree does not infer value contracts and does not automatically make
-every indexed file part of an analysis.
-
-### Active Tree
-
-The Active Tree is the semantic context for one analysis request. It is the
-transitive closure of the selected roots through statically discoverable and
-successfully resolved dependency edges.
-
-```text
-Project Tree
-  ├── unused.js                 indexed, inactive
-  ├── test-helper.js             indexed, inactive
-  └── page.js                    active root
-       └── provider.js           active dependency
-            └── model.js         active dependency
-```
-
-The contract graph and analyzer receive Active Tree programs. Unused Project
-Tree entries cannot produce diagnostics merely because they are present.
+The current JavaScript path starts from the linted Program, configured extra
+roots and their supported static module edges. It provides no public ProjectTree/ActiveTree, project-wide
+watcher or incremental snapshot API. The [architecture guide](../engineering/architecture.md)
+describes the current owned-session boundary.
 
 ## Resolution algorithm
 
-For an analysis rooted at one or more files:
+The [module owner](../../analysis/analyzer/modules.js) performs these steps:
 
-1. Add the roots to the active set.
-2. Provide each active file's parsed program from the selected parser and
-   project options.
-3. Collect statically represented module sources from imports and local export
-   edges, including re-export barrels.
-4. Resolve each source using the project resolver.
-5. If resolution produces a concrete file, add it to the active queue unless it
-   has already been visited.
-6. If resolution fails, record an unknown edge and leave the dependency out of
-   the active semantic set.
-7. Repeat until the active queue is empty.
-8. Resolve local export and re-export contracts to a stable point, then run
-   diagnostics on the resulting Active Tree documents.
+1. Index the supplied root Program and its lexical bindings. Acquire configured
+   root snapshots in selection order, sharing filename identities.
+2. Collect top-level `ImportDeclaration`, sourced `ExportNamedDeclaration` and
+   `ExportAllDeclaration` edges. Bare imports also establish dependencies.
+3. Ask the host's optional `resolveModule({ from, source })` for a source snapshot.
+   An unavailable result supplies no dependency facts.
+4. Parse available dependency text with Espree and index each resolved filename
+   once in this root session. Reuse that record when another edge names it.
+5. Connect supported named/default/namespace imports and explicit reexports.
+   Missing exports and unresolved cyclic links supply no invented binding.
+   Star namespaces retain an open boundary rather than becoming closed records.
 
-The analyzer follows edges represented by its static module syntax. A dynamic
-import, external package, unsupported module form, or resolver failure does not
-become a guessed contract. It remains unknown until a caller supplies an
-appropriate resolver or evidence adapter.
+This JavaScript closure does not follow dynamic imports or `require` calls.
+The host supplies source text, not evaluated exports, inferred values or proof
+that module initialization succeeds. Execution and agreement owners interpret
+the acquired relationships separately.
 
-The compatibility adapter performs this process on demand from an ESLint root
-file. Its built-in fallback handles local relative `.js`, `.jsx`, and
-`index.js` paths. The `resilient.imports` adapter adds configured aliases,
-extensions, and root-scoped ancestor/inferred files; its default extensions
-also include `.mjs` and `.cjs`. The contract graph then propagates signatures,
-returns, properties, and re-export agreements across the loaded active files.
-See [`contracts.md`](contracts.md) for the current implementation boundary.
+## Filesystem resolution and configured candidates
 
-For ESLint consumers, activation is automatic and lazy: the first contract
-rule invocation activates the internal Project Tree for the current root and
-its statically resolvable local dependency closure. Later contract rules reuse that graph
-within the same run. Consumers enable the contracts preset; they do not call a
-project-activation API.
+The [ESLint module host](../../analysis/eslint/support/modules.js) owns file I/O.
+It requires an absolute importing filename. A configured
+`settings.resilient.resolver` function supplies the target; otherwise the host
+resolves relative or absolute specifiers locally. Bare packages need a resolver.
+A falsey custom result remains unavailable; it does not trigger a guessed route.
 
-## Project Tree strategy
+An available custom target must be an absolute filename. The host accepts `.js`
+and `.jsx` extensions and tries the target, a `.js` candidate and
+`index.js`. Explicit `.ts`/`.tsx` and other unsupported extensions are unavailable.
+Snapshots, including unavailable results, are cached only for this analysis.
 
-The Project Tree is an index around Active Tree resolution, not an eager request
-to analyze the whole repository.
+The [project adapter](../../integrations/project.js) adds configured aliases and
+ordered extension candidates. Candidate order is resolution policy; it is not
+a published ambiguity/provenance model. The adapter also returns ordered
+ancestor/inferred-root candidates. The ESLint host activates those selected
+roots together with explicit `settings.resilient.roots` configuration. An array
+lists filenames; a callback receives `{ fileName }` and returns that array.
+Relative entries resolve from ESLint's cwd. Duplicates share one module record.
+Missing/unsupported candidates supply no fabricated evidence; other read,
+configuration and parse failures propagate.
 
-The current caller-supplied implementation provides:
+Selection does not invent framework invocation. Actual calls and module
+relationships in the selected files contribute their supported evidence.
+Only the linted Program supplies findings for that file; adding a root does
+not copy that root's unrelated diagnostics into the result.
 
-1. **Indexing** — accept known project files and configuration identity without
-   activating every file.
-2. **Resolution** — turn a module edge into a concrete file, an explicit
-   unknown edge, or a resolution agreement that tooling can inspect.
-3. **Activation** — construct the Active Tree from explicit roots and resolved
-   local dependency edges.
-4. **Invalidation** — when a file, resolver, parser option, or relevant config
-   changes, identify the active roots and dependents that need recomputation.
-5. **Reuse** — retain parsed programs and completed analysis snapshots while
-   their source and project identities remain unchanged.
+Direct analyzer callers can provide `roots: [{ filename, source }]` to
+`createAnalysis` or `createProgramAnalysis`. A session's frozen `files` list
+records the distinct acquired filenames. [Configured-root behavior](../../tests/configured-roots.test.js)
+exercises real cross-file calls, inactive controls, cycles and edits.
 
-Project Tree indexing may be broad; Active Tree activation must remain narrow.
-This allows a project session to know that `unused.js` exists, while keeping its
-contracts and diagnostics outside an analysis rooted at `page.js`.
+## Parser and source ownership
 
-## Ownership boundaries
+`createAnalysis` parses JavaScript with Espree. `createProgramAnalysis` accepts
+a valid supplied ESTree Program; ESLint passes its selected parser's actual
+root tree. Dependency text is nevertheless parsed with Espree, in module mode,
+with JSX syntax enabled. The custom root parser and its options are not forwarded
+to dependency parsing. Accepting a root AST does not establish direct TypeScript
+or TSX project support. CommonJS export inference is unsupported.
 
-| Concern | Owner |
-| --- | --- |
-| File inventory and source versions | Project Tree |
-| Module resolution and dependency edges | Project Tree / resolver |
-| Root selection and dependency closure | Active Tree |
-| Value, shape, flow, and failure contracts | Resilient analyzer |
-| Contradiction diagnostics | Resilient analyzer |
-| Developer presentation | ESLint and later adapters |
+The analyzer owns the supported evidence it acquires before returning a session;
+public answers do not borrow caller ASTs for later interpretation. Contract rules
+share that root session during an ESLint traversal. A new Program traversal clears
+the prior session even if the host reuses its SourceCode object.
 
-The tree may decide which programs are available to the analyzer. It must not
-decide whether a value is string-like, array-like, unknown, or contradictory.
-Those meanings remain in the contract model and flow analysis.
+## Unknown edges and failures
+
+At the analyzer boundary, an absent `resolveModule` callback, unavailable source,
+unsupported dependency extension or missing export leaves the evidence unknown.
+Unknown cannot erase an
+independently established contradiction or stand in for JavaScript undefined.
+An unresolved/ambiguous decision is not permission to select a plausible contract.
+Separate import/syntax rules can still report their own policy findings.
+
+The filesystem host treats `ENOENT`, `ENOTDIR` and `EISDIR` as unavailable
+candidates. Other I/O failures propagate. Thrown resolver errors, malformed
+available snapshots and dependency parse errors are operational failures; they
+do not become successful unknown or empty lint results. This distinction belongs
+to the actual host contract, not a blanket rule that every missing file throws.
 
 ## Invariants
 
-The implementation and tests should preserve these invariants:
+- Only the linted Program, selected roots and successfully supplied static dependencies enter this closure;
+  unrelated project inventory supplies no evidence.
+- Filename identity selects acquired module records. Resolution must supply the
+  intended identity; equal spelling or shape cannot substitute for a provider.
+- Cycles are not evidence producers. Retain grounded source contributions and
+  incomplete relationships without inventing exports or successful initialization.
+- File, parser, resolver or configuration changes require a new analyzer session.
+  Prior immutable answers describe their prior source, not an edited project.
+- Source selection belongs to the host/module boundary. Value evidence,
+  completion, requirements and policy judgments belong to their semantic owners.
 
-- an unused indexed file cannot emit a diagnostic for an unrelated active root;
-- every active dependency is reachable from a selected root through recorded
-  edges;
-- unresolved or unsupported edges remain unknown rather than becoming guessed
-  contracts;
-- changing an active provider invalidates its affected consumers;
-- changing an unrelated inactive file does not change an active analysis result;
-- the same project snapshot, resolver, parser options, and roots produce the
-  same Active Tree and diagnostic result;
-- ESLint consumes the analyzer's result and does not create a second semantic
-  interpretation.
+## Separate TypeScript compiler closure
 
-## Implemented versus deliberately out of scope
-
-The 0.4.3 compatibility path already has the core of Active Tree resolution:
-on-demand loading of local relative dependencies, named/default imports,
-namespace imports, re-export barrels, finite cycles, cache reuse, and
-dependency file-state invalidation.
-
-The 0.5.0 release implemented the caller-supplied project substrate:
-
-- `createProjectTree` indexes parsed programs, source states, static edges, and
-  resolver outcomes;
-- `activate()` returns the explicit Active Tree and leaves unused files
-  inactive;
-- `getInvalidatedFiles()` reports dependent and identity-driven invalidation;
-- `analyze({ previousSnapshot })` reuses unchanged documents outside the
-  invalidation closure and clean-run equivalence is tested;
-- ESLint consumes the same contract graph exposed by the snapshot API.
-
-Filesystem-wide discovery, parser-backed loading, package/workspace resolution
-beyond configured aliases, dynamic imports, and editor or language-server
-adapters remain deliberately outside this release boundary.
-
-An LSP, editor extension, or standalone CLI can consume this API later. They are
-adapters; they are not prerequisites for the analysis product.
+The [TypeScript project lowerer](../engineering/typescript.md) uses its owning
+Program, compiler/provider resolution and selected emit roots. It includes their
+runtime dependency closure, excludes type-only runtime edges and rejects unresolved
+local runtime routes before publication. That compiler path does not make the
+JavaScript ESLint host TypeScript-aware. Its selected emit roots are separate
+from the JavaScript analyzer's configured context roots.

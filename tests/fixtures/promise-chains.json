@@ -1,0 +1,407 @@
+[
+  {
+    "name": "dot: then / dropped",
+    "source": "request.then(handle);",
+    "expected": [
+      {
+        "ruleId": "resilient/no-unhandled-promise-chain",
+        "severity": 2,
+        "message": "Handle or explicitly propagate this promise chain rejection; add catch, await, return, or void for intentional fire-and-forget work.",
+        "line": 1,
+        "column": 1,
+        "messageId": "unhandled",
+        "endLine": 1,
+        "endColumn": 21
+      }
+    ]
+  },
+  {
+    "name": "dot: then / void",
+    "source": "void request.then(handle);",
+    "expected": [
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 1,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 6,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 18
+      }
+    ]
+  },
+  {
+    "name": "dot: then / await",
+    "source": "await request.then(handle);",
+    "expected": [
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 1,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 7,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 19
+      }
+    ]
+  },
+  {
+    "name": "dot: then / assignment",
+    "source": "const result=request.then(handle);",
+    "expected": [
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 1,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 14,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 26
+      }
+    ]
+  },
+  {
+    "name": "dot: then / return",
+    "source": "const run=()=>request.then(handle);",
+    "expected": [
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 1,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 15,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 27
+      }
+    ]
+  },
+  {
+    "name": "dot: finally / dropped",
+    "source": "request.finally(handle);",
+    "expected": [
+      {
+        "ruleId": "resilient/no-unhandled-promise-chain",
+        "severity": 2,
+        "message": "Handle or explicitly propagate this promise chain rejection; add catch, await, return, or void for intentional fire-and-forget work.",
+        "line": 1,
+        "column": 1,
+        "messageId": "unhandled",
+        "endLine": 1,
+        "endColumn": 24
+      }
+    ]
+  },
+  {
+    "name": "dot: catch / dropped",
+    "source": "request.catch(handle);",
+    "expected": []
+  },
+  {
+    "name": "dot: then/then / dropped",
+    "source": "request.then(handle).then(handle);",
+    "expected": [
+      {
+        "ruleId": "resilient/no-unhandled-promise-chain",
+        "severity": 2,
+        "message": "Handle or explicitly propagate this promise chain rejection; add catch, await, return, or void for intentional fire-and-forget work.",
+        "line": 1,
+        "column": 1,
+        "messageId": "unhandled",
+        "endLine": 1,
+        "endColumn": 34
+      }
+    ]
+  },
+  {
+    "name": "dot: then/finally / dropped",
+    "source": "request.then(handle).finally(handle);",
+    "expected": [
+      {
+        "ruleId": "resilient/no-unhandled-promise-chain",
+        "severity": 2,
+        "message": "Handle or explicitly propagate this promise chain rejection; add catch, await, return, or void for intentional fire-and-forget work.",
+        "line": 1,
+        "column": 1,
+        "messageId": "unhandled",
+        "endLine": 1,
+        "endColumn": 37
+      }
+    ]
+  },
+  {
+    "name": "dot: then/catch / dropped",
+    "source": "request.then(handle).catch(handle);",
+    "expected": [
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 1,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 1,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 13
+      }
+    ]
+  },
+  {
+    "name": "dot: catch/then / dropped",
+    "source": "request.catch(handle).then(handle);",
+    "expected": [
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 1,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 1,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 27
+      }
+    ]
+  },
+  {
+    "name": "dot: then/catch/finally / dropped",
+    "source": "request.then(handle).catch(handle).finally(handle);",
+    "expected": [
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 1,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 1,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 13
+      }
+    ]
+  },
+  {
+    "name": "computed: then / dropped",
+    "source": "request[\"then\"](handle);",
+    "expected": [
+      {
+        "ruleId": "resilient/no-unhandled-promise-chain",
+        "severity": 2,
+        "message": "Handle or explicitly propagate this promise chain rejection; add catch, await, return, or void for intentional fire-and-forget work.",
+        "line": 1,
+        "column": 1,
+        "messageId": "unhandled",
+        "endLine": 1,
+        "endColumn": 24
+      }
+    ]
+  },
+  {
+    "name": "computed: then/catch / dropped",
+    "source": "request[\"then\"](handle)[\"catch\"](handle);",
+    "expected": [
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 1,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 1,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 16
+      }
+    ]
+  },
+  {
+    "name": "optional: then / dropped",
+    "source": "request?.then?.(handle);",
+    "expected": [
+      {
+        "ruleId": "resilient/no-unhandled-promise-chain",
+        "severity": 2,
+        "message": "Handle or explicitly propagate this promise chain rejection; add catch, await, return, or void for intentional fire-and-forget work.",
+        "line": 1,
+        "column": 1,
+        "messageId": "unhandled",
+        "endLine": 1,
+        "endColumn": 24
+      }
+    ]
+  },
+  {
+    "name": "optional: then/catch / dropped",
+    "source": "request?.then?.(handle)?.catch?.(handle);",
+    "expected": [
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 1,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 1,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 14
+      }
+    ]
+  },
+  {
+    "name": "wrapped: then / dropped",
+    "source": "(request?.then)(handle);",
+    "expected": [
+      {
+        "ruleId": "resilient/no-unhandled-promise-chain",
+        "severity": 2,
+        "message": "Handle or explicitly propagate this promise chain rejection; add catch, await, return, or void for intentional fire-and-forget work.",
+        "line": 1,
+        "column": 1,
+        "messageId": "unhandled",
+        "endLine": 1,
+        "endColumn": 24
+      }
+    ]
+  },
+  {
+    "name": "wrapped: then/catch / dropped",
+    "source": "((request?.then)(handle)?.catch)(handle);",
+    "expected": [
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 1,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 3,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 16
+      }
+    ]
+  },
+  {
+    "name": "computedWrapped: then / dropped",
+    "source": "(request?.[\"then\"])(handle);",
+    "expected": [
+      {
+        "ruleId": "resilient/no-unhandled-promise-chain",
+        "severity": 2,
+        "message": "Handle or explicitly propagate this promise chain rejection; add catch, await, return, or void for intentional fire-and-forget work.",
+        "line": 1,
+        "column": 1,
+        "messageId": "unhandled",
+        "endLine": 1,
+        "endColumn": 28
+      }
+    ]
+  },
+  {
+    "name": "computedWrapped: then/catch / dropped",
+    "source": "((request?.[\"then\"])(handle)?.[\"catch\"])(handle);",
+    "expected": [
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 1,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 3,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 20
+      }
+    ]
+  },
+  {
+    "name": "tag: then / dropped",
+    "source": "request.then`value`;",
+    "expected": [
+      {
+        "ruleId": "resilient/no-unhandled-promise-chain",
+        "severity": 2,
+        "message": "Handle or explicitly propagate this promise chain rejection; add catch, await, return, or void for intentional fire-and-forget work.",
+        "line": 1,
+        "column": 1,
+        "messageId": "unhandled",
+        "endLine": 1,
+        "endColumn": 20
+      }
+    ]
+  },
+  {
+    "name": "tag: then/catch / dropped",
+    "source": "request.then`value`.catch`value`;",
+    "expected": [
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 1,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 1,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 13
+      }
+    ]
+  },
+  {
+    "name": "computedTag: then / dropped",
+    "source": "request[\"then\"]`value`;",
+    "expected": [
+      {
+        "ruleId": "resilient/no-unhandled-promise-chain",
+        "severity": 2,
+        "message": "Handle or explicitly propagate this promise chain rejection; add catch, await, return, or void for intentional fire-and-forget work.",
+        "line": 1,
+        "column": 1,
+        "messageId": "unhandled",
+        "endLine": 1,
+        "endColumn": 23
+      }
+    ]
+  },
+  {
+    "name": "computedTag: then/catch / dropped",
+    "source": "request[\"then\"]`value`[\"catch\"]`value`;",
+    "expected": [
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 1,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 1,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 16
+      }
+    ]
+  },
+  {
+    "name": "wrappedTag: then / dropped",
+    "source": "(request?.[\"then\"])`value`;",
+    "expected": [
+      {
+        "ruleId": "resilient/no-unhandled-promise-chain",
+        "severity": 2,
+        "message": "Handle or explicitly propagate this promise chain rejection; add catch, await, return, or void for intentional fire-and-forget work.",
+        "line": 1,
+        "column": 1,
+        "messageId": "unhandled",
+        "endLine": 1,
+        "endColumn": 27
+      }
+    ]
+  },
+  {
+    "name": "wrappedTag: then/catch / dropped",
+    "source": "((request?.[\"then\"])`value`?.[\"catch\"])`value`;",
+    "expected": [
+      {
+        "ruleId": "resilient/prefer-async-await",
+        "severity": 1,
+        "message": "Prefer async and await over a promise then chain; add an explicit exception when the chain is required by the API or contract.",
+        "line": 1,
+        "column": 3,
+        "messageId": "asyncAwait",
+        "endLine": 1,
+        "endColumn": 20
+      }
+    ]
+  }
+]

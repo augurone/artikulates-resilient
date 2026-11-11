@@ -1,4 +1,4 @@
-import { getObject } from '../../../rules/support/object.js';
+import { getObject } from '../../../analysis/host/object.js';
 
 const getCollectionReconstructionAgreement = ({ ownership = false, collection = {}, action = 'retain-collection-boundary', boundaryReason = '', evidence = [] } = {}) => {
     // Other collection roles have separately admitted operational recipes.
@@ -18,6 +18,12 @@ const getCollectionReconstructionAgreement = ({ ownership = false, collection = 
     if (!updates || !returns) return retained('unknown-protocol');
 
     if (!staticUpdates) return retained('mixed-mutators');
+
+    // Native deletion owns one argument evaluation after copying, including
+    // for an empty Map, and must not introduce predicate bindings.
+    if (mutationSites.some(({ method: updateMethod = '' } = {}) => updateMethod === 'delete')) {
+        return { action: 'operational-collection-builder', boundaryReason: 'native-delete', evidence };
+    }
 
     if (operation) return { action: 'materialized-collection-reduce', boundaryReason: '', evidence };
 

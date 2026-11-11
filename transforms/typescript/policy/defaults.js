@@ -1,6 +1,7 @@
-import { getCollectionReconstructionAgreement } from './collection.js';
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSourceRange, getSyntaxKinds } from '../../utils/ast-boundary.js';
+import { getCollectionReconstructionAgreement } from './collection.js';
 
 const getNativeFunctionAction = ({ arrowEquivalent = false, lifetimeEquivalent = false } = {}) => {
     if (!lifetimeEquivalent) return 'retain-native-function-declaration';
@@ -153,91 +154,15 @@ const getDirectCapabilityAgreement = ({ capability = {} } = {}) => {
     };
 };
 
-const getTupleConsumerOutcome = ({ action = '', canonical = '', accumulator = '', resolver = {} } = {}) => {
-    const { innerCanonical = '' } = getObject(resolver);
-
-    if (action === 'direct' && canonical === '[]') return 'direct-result';
-
-    if (action === 'accumulator' && accumulator) return 'accumulator-result';
-
-    if (action === 'effect-result' && innerCanonical === '[]') return 'effect-result';
-
-    return 'unresolved';
-};
-
-// A tuple callback owns its malformed-input response only when the checker
-// proved the callback input and return-family resolver proved the same
-// callback's direct result. Positions remain exact source values.
-const getTupleConsumerAgreement = ({ consumer = {} } = {}) => {
-    const {
-        consumer: consumerKind = '',
-        tuple = {},
-        resolver = {},
-        positions = [],
-        accumulator = {}, outcome = '', flatStaticTuple = false
-    } = consumer;
-    const { required = false, arity = 0, containers = [] } = tuple;
-    const {
-        state = '', action = '', canonical = '', innerCanonical = '', reason = '', emission = '', expression = '', constructor = ''
-    } = resolver;
-    const { name: accumulatorName = '' } = accumulator;
-    const hasContainerAgreement = containers.length && containers.every(({ arity: containerArity = 0 } = {}) => containerArity);
-    const hasInvokedFunctionPosition = positions.some(({ kind = 'generic', invoked = false } = {}) => kind === 'function' && invoked);
-    const isAccumulatorAgreement = action === 'accumulator' && accumulatorName && expression === accumulatorName;
-
-    const isDirectTupleAgreement = action === 'direct' && canonical === '[]';
-    const isEffectTupleAgreement = action === 'effect-result' && innerCanonical === '[]' && constructor;
-    const exactPosition = outcome === 'exact-position' || flatStaticTuple &&
-        getTupleConsumerOutcome({ action, canonical, accumulator: accumulatorName, resolver }) === 'unresolved';
-    const isExactPositionAgreement = ['tuple-function', 'tuple-callback'].includes(consumerKind) && exactPosition &&
-        required && arity && containers.length === 1 && positions.length === arity &&
-        positions.every(({ path = [], invoked = false } = {}) => path.length === 1 && !invoked);
-
-    if (isExactPositionAgreement) return {
-        action: 'exact-tuple-position',
-        canonical: 'undefined',
-        fallback: { kind: 'exact-position' },
-        guard: '',
-        guards: [],
-        arity,
-        containers,
-        positions,
-        evidence: ['checker-proven static tuple positions preserve source undefined while container failure remains native']
-    };
-
-    if (!['tuple-callback', 'tuple-function'].includes(consumerKind) || !required || !hasContainerAgreement || !arity ||
-        state !== 'resolved' || emission === 'deferred' ||
-        !(isDirectTupleAgreement || isAccumulatorAgreement || isEffectTupleAgreement)) return {
-        action: 'retain-unresolved-tuple',
-        canonical: '',
-        guard: '',
-        evidence: [reason || 'tuple input or callback result awaits its dedicated lowering agreement']
-    };
-
-    const containerGuards = [...new Set(containers.map(({ arity: containerArity = 0 } = {}) => (
-        containerArity === 1 ? 'array-content' : 'array'
-    )))];
-
-    let fallback = {};
-
-    if (isAccumulatorAgreement) fallback = { kind: 'accumulator', name: accumulatorName };
-
-    if (isEffectTupleAgreement) fallback = { kind: 'effect', constructor, innerCanonical };
-
-    return {
-        action: arity === 1 ? 'guard-tuple-content' : 'guard-tuple-arity',
-        canonical: isDirectTupleAgreement ? canonical : '',
-        fallback,
-        guard: arity === 1 ? 'array-content' : 'array',
-        guards: [...containerGuards, ...(hasInvokedFunctionPosition ? ['function'] : [])],
-        arity,
-        containers,
-        positions,
-        evidence: [isEffectTupleAgreement
-            ? 'required tuple input and source-visible effect constructor agree on a guarded consumer boundary'
-            : 'required tuple input and direct callback return agree on a guarded consumer boundary']
-    };
-};
+// Returning a canonical value for malformed tuple input changes observable
+// execution. Neither a declared tuple nor a return family proves that rewrite.
+const getTupleConsumerAgreement = ({ consumer: { evidence = false, runtimeEvidence = false, sourceOrigins = false } = {} } = {}) => ({
+    action: 'preserve-native-tuple',
+    canonical: '',
+    guard: '',
+    evidence: evidence || ['tuple iteration and parameter initialization remain native'],
+    ...(runtimeEvidence ? { runtimeEvidence, sourceOrigins } : {})
+});
 
 // Policy consumes the normalized transformer evidence rather than asking each
 // lowering pass to reinterpret a checker record.  This is intentionally a
@@ -271,8 +196,7 @@ const getDestructuringAgreement = ({ entry = {} } = {}) => {
 
     if (['callable-operation', 'callable-operation-placement'].includes(kind)) return complete({
         action: getObject(contract).action === 'retain-callable-operation' ? 'retain-callable-operation' : 'retain',
-        rules: ['resilient/signature-contract-operation',
-            getObject(contract).argumentRead ? 'resilient/prefer-destructured-member-access' : ''].filter(Boolean),
+        rules: (getObject(contract).argumentReadRanges || []).length ? ['resilient/prefer-destructured-member-access'] : [],
         evidence: getObject(contract).evidence || []
     });
 
@@ -422,6 +346,7 @@ const getDestructuringAgreement = ({ entry = {} } = {}) => {
 
     if (kind === 'arity-return-partition') return complete({
         action: getObject(contract).action || 'retain',
+        rules: getObject(contract).rules || [],
         evidence: getObject(contract).evidence || []
     });
 
@@ -432,6 +357,7 @@ const getDestructuringAgreement = ({ entry = {} } = {}) => {
 
     if (kind === 'switch-no-value-exit') return complete({
         action: getObject(contract).action || 'retain',
+        rules: getObject(contract).rules || [],
         evidence: getObject(contract).evidence || []
     });
 
@@ -552,6 +478,7 @@ const getDestructuringAgreement = ({ entry = {} } = {}) => {
 
     if (kind === 'resolved-source-call') return complete({
         action: getObject(contract).action || 'retain',
+        rules: getObject(contract).rules || [],
         evidence: getObject(contract).evidence || []
     });
 
@@ -581,9 +508,7 @@ const ownsStaticRead = ({ agreement = {} } = {}) => {
         'exact-callback-projection',
         'guard-function-undefined',
         'guard-sort-capability',
-        'guard-tuple-content',
-        'guard-tuple-arity',
-        'exact-tuple-position',
+        'preserve-native-tuple',
         'exact-structural-field',
         'exact-provider-forward',
         'selected-model-read',
@@ -636,11 +561,7 @@ const getDefaultInitializer = ({ factory = {}, canonical = '', singleQuote = fal
 
     if (canonical === '[]') return factory.createArrayLiteralExpression([], false);
 
-    // This is not a family fallback. Closed structural-model and exact tuple
-    // agreements use it only where the source static read already produces
-    // `undefined` for an absent position/property while retaining the
-    // container's native failure behavior.
-    if (canonical === 'undefined') return factory.createIdentifier('undefined');
+    if (canonical === 'void 0') return factory.createVoidExpression(factory.createNumericLiteral(0));
 
     // eslint-disable-next-line resilient/prefer-falsey-returns -- Unknown canonical form omits the compiler initializer; false changes omitted-field identity.
     return undefined;
@@ -703,17 +624,15 @@ const emitBindingAgreement = ({
         action
     };
     const { name: recordName = '' } = record;
-    const defaultInitializer = action === 'default'
-        ? getDefaultInitializer({ factory, canonical, singleQuote })
-        : false;
-    const requiredInitializer = action === 'required'
-        ? getRequiredDefaultInitializer({
-            typescript,
-            factory,
-            name: recordName
-        })
-        : false;
-    const initializer = defaultInitializer || requiredInitializer;
+    let initializer;
+
+    if (action === 'default') initializer = getDefaultInitializer({ factory, canonical, singleQuote });
+
+    if (action === 'required') initializer = getRequiredDefaultInitializer({
+        typescript,
+        factory,
+        name: recordName
+    });
 
     // eslint-disable-next-line resilient/prefer-safe-transformations -- Shared Set publishes the exact returned record; copying loses caller-visible identity and order.
     if (action === 'preserve' && agreements instanceof Set) agreements.add(record);
@@ -721,10 +640,13 @@ const emitBindingAgreement = ({
     return { initializer, record };
 };
 
+// eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An omitted emitted initializer stays undefined at the compiler factory boundary.
+const getBindingInitializer = ({ initializer } = {}) => initializer;
+
 const getAgreementDefaultInitializer = ({
     typescript = {}, factory = {}, decision = {}, name = '', sourceName = '', propertyName = '', singleQuote = false
 } = {}) => {
-    const { initializer = undefined } = emitBindingAgreement({
+    const emitted = emitBindingAgreement({
         typescript,
         factory,
         decision,
@@ -734,14 +656,14 @@ const getAgreementDefaultInitializer = ({
         singleQuote
     });
 
-    return initializer;
+    return getBindingInitializer(emitted);
 };
 
 const annotateAgreementException = ({ typescript = {}, node = {}, reason = '' } = {}) => {
     const { SingleLineCommentTrivia = -1 } = getSyntaxKinds(typescript);
-    const { addSyntheticLeadingComment = false } = typescript;
+    const { addSyntheticLeadingComment } = typescript;
 
-    if (!reason || typeof addSyntheticLeadingComment !== 'function') return node;
+    if (!reason || !isFunction(addSyntheticLeadingComment)) return node;
 
     return typescript.addSyntheticLeadingComment(
         node,
@@ -754,16 +676,15 @@ const annotateAgreementException = ({ typescript = {}, node = {}, reason = '' } 
 export {
     annotateAgreementException,
     emitBindingAgreement,
+    getBindingInitializer,
     getBindingAgreement,
     getBindingContract,
-    getConsumerBindingAgreement,
-    getDirectCapabilityAgreement,
     getDestructuringAgreement,
+    getNativeFunctionAction,
     ownsStaticRead,
     getTupleConsumerAgreement,
     getBindingDecision,
     getAgreementDefaultInitializer,
     getDefaultInitializer,
-    getMemberParameterDefault,
-    getRequiredDefaultInitializer
+    getMemberParameterDefault
 };

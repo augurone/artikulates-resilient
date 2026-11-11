@@ -1,6 +1,7 @@
-import { getMemberAlias } from './member-access.js';
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds } from '../../utils/ast-boundary.js';
+import { getMemberAlias } from './member-access.js';
 
 const createIteratorPayloadBinding = ({
     typescript = {}, node = {}, contract = {}, agreement = {}, occupied = new Set(), context = {}
@@ -12,12 +13,12 @@ const createIteratorPayloadBinding = ({
     const { resultName = '', readRange = '' } = getObject(contract);
     const { action = '' } = agreement;
     const [first = {}] = statements;
-    const { getOriginalNode = false } = typescript;
+    const { getOriginalNode } = typescript;
     const { kind: firstKind = 0, declarationList = {}, modifiers = [] } = getObject(first);
     const { declarations = [] } = getObject(declarationList);
     const [declaration = {}] = declarations;
     const { name: localName = {}, initializer: localRead = {} } = getObject(declaration);
-    const originalLocalRead = typeof getOriginalNode === 'function'
+    const originalLocalRead = isFunction(getOriginalNode)
         ? getOriginalNode(localRead)
         : localRead;
     const { pos: localPos = -1, end: localEnd = -1 } = getObject(originalLocalRead);
@@ -45,7 +46,7 @@ const createIteratorPayloadBinding = ({
     let replaced = false;
     const alias = getMemberAlias({ objectName: resultName, propertyName: 'value', occupied });
     const replace = (child = {}) => {
-        const original = typeof getOriginalNode === 'function' ? getOriginalNode(child) : child;
+        const original = isFunction(getOriginalNode) ? getOriginalNode(child) : child;
         const { pos = -1, end = -1 } = getObject(original);
 
         if (`${pos}:${end}` === readRange) {

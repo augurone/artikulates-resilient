@@ -1,3 +1,7 @@
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
+import { getSyntaxKinds } from '../../utils/ast-boundary.js';
+import { hasTypeChecker } from '../../utils/compiler-shape.js';
 import { createSourceCensus } from './source-census.js';
 import {
     getCheckerContract,
@@ -6,9 +10,6 @@ import {
     getTypeMembers,
     getTypeText
 } from './type-evidence.js';
-import { getObject } from '../../../rules/support/object.js';
-import { getSyntaxKinds } from '../../utils/ast-boundary.js';
-import { hasTypeChecker } from '../../utils/compiler-shape.js';
 
 const getRuntimeReferences = ({ typescript = {}, sourceFile = {}, census = createSourceCensus({ typescript, sourceFile }) } = {}) => {
     let references = new Set();
@@ -50,6 +51,76 @@ const isTypeOnlyNamespace = ({ typescript = {}, node = {} } = {}) => {
 
         return statementKind === ModuleDeclaration && isTypeOnlyNamespace({ typescript, node: statement });
     });
+};
+
+const collectEmptyNamespaceImports = ({ typescript = {}, sourceFile = {}, checker = {}, program = {},
+    census = createSourceCensus({ typescript, sourceFile }) } = {}) => {
+    const imports = new Set();
+    const modules = new Map();
+    const { getSymbolAtLocation } = getObject(checker);
+    const { getSourceFile, isSourceFileFromExternalLibrary } = getObject(program);
+
+    if (!isFunction(getSymbolAtLocation) || !isFunction(getSourceFile) || !isFunction(isSourceFileFromExternalLibrary)) return imports;
+
+    const erasedStatement = (node) => {
+        if (typescript.isInterfaceDeclaration(node) || typescript.isTypeAliasDeclaration(node) ||
+            typescript.isImportDeclaration(node) || typescript.isEmptyStatement(node)) return true;
+
+        if (!typescript.isExportDeclaration(node)) return false;
+
+        const { isTypeOnly = false, exportClause = {} } = node;
+        const { elements = false } = exportClause;
+
+        return isTypeOnly || typescript.isNamedExports(exportClause) && Array.isArray(elements) &&
+            elements.every(({ isTypeOnly = false } = {}) => isTypeOnly);
+    };
+    const ownedSource = (node) => {
+        const { isDeclarationFile = false, fileName = '' } = getObject(node);
+
+        return typescript.isSourceFile(node) && !isDeclarationFile && getSourceFile.call(program, fileName) === node &&
+            !isSourceFileFromExternalLibrary.call(program, node);
+    };
+    const erasedModule = (symbol) => {
+        const { declarations = [] } = getObject(symbol);
+        const targets = declarations.filter(declaration => typescript.isSourceFile(declaration));
+        const [target = {}] = targets;
+        const { statements = false } = target;
+
+        // Runtime declarations can demand exported models. Only the actual
+        // source and owned, compiler-bound type-only augmentations close it.
+        if (targets.length !== 1 || !ownedSource(target) || !Array.isArray(statements)) return false;
+
+        const erasedDeclarations = declarations.every(declaration => declaration === target ||
+            typescript.isModuleDeclaration(declaration) && typescript.isExternalModuleAugmentation(declaration) &&
+            ownedSource(declaration.getSourceFile()) && isTypeOnlyNamespace({ typescript, node: declaration }));
+
+        // Bare imports preserve evaluation and failure without adding exports.
+        // The namespace specifier still owns its identity boundary.
+        return erasedDeclarations && statements.every(erasedStatement);
+    };
+    const { ImportDeclaration = -1 } = getSyntaxKinds(typescript);
+    census.select(ImportDeclaration).forEach((node) => {
+        const { importClause = {}, moduleSpecifier = {} } = node;
+        const { isTypeOnly = false, namedBindings = {} } = importClause;
+
+        if (isTypeOnly || !typescript.isNamespaceImport(namedBindings)) return;
+
+        const symbol = getSymbolAtLocation.call(checker, moduleSpecifier);
+
+        if (!symbol) return;
+
+        if (!modules.has(symbol)) {
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- Private symbol-identity memo computes each merged module's owned source and augmentation erasure once per transform.
+            modules.set(symbol, erasedModule(symbol));
+        }
+
+        if (modules.get(symbol)) {
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- Private evidence set records only the original namespace import owners proved to target an erased module.
+            imports.add(node);
+        }
+    });
+
+    return imports;
 };
 
 const getBindingNames = ({ typescript = {}, node = {} } = {}) => {
@@ -96,7 +167,7 @@ const isTypePosition = ({ typescript = {}, node = {} } = {}) => {
         SyntaxKind: {
             SourceFile: SourceFileKind3 = -1
         } = {},
-        isTypeNode = false
+        isTypeNode
     } = typescript;
     const { parent: initialParent = false } = getObject(node);
     let parent = initialParent;
@@ -107,7 +178,7 @@ const isTypePosition = ({ typescript = {}, node = {} } = {}) => {
 
         if (parentKind === SourceFileKind3) return false;
 
-        if (typeof isTypeNode === 'function' && isTypeNode(parent)) return true;
+        if (isFunction(isTypeNode) && isTypeNode(parent)) return true;
 
         parent = nextParent;
     }
@@ -132,9 +203,9 @@ const isTypeOnlyImportBinding = ({ typescript = {},
 
     if (nodeTypeOnly || clauseTypeOnly) return true;
 
-    const { getSymbolAtLocation = false, getExportSpecifierLocalTargetSymbol = false } = getObject(checker);
+    const { getSymbolAtLocation, getExportSpecifierLocalTargetSymbol } = getObject(checker);
 
-    if (typeof getSymbolAtLocation !== 'function') return false;
+    if (!isFunction(getSymbolAtLocation)) return false;
 
     const symbolTarget = (nodeNameObj && typeof nodeNameObj === 'object' && Object.keys(nodeNameObj).length) ? nodeNameObj : node;
     const symbol = getSymbolAtLocation.call(checker, symbolTarget);
@@ -158,7 +229,7 @@ const isTypeOnlyImportBinding = ({ typescript = {},
         if (childKind === ExportSpecifierKind2 &&
             !childTypeOnly &&
             !exportTypeOnly &&
-            typeof getExportSpecifierLocalTargetSymbol === 'function' &&
+            isFunction(getExportSpecifierLocalTargetSymbol) &&
             getExportSpecifierLocalTargetSymbol.call(checker, child) === symbol) runtimeUse = true;
 
         if (childKind === IdentifierKind4 &&
@@ -345,14 +416,13 @@ const getUnsupportedTypeDiagnostics = ({ typescript = {},
 };
 
 export {
+    collectEmptyNamespaceImports,
     getBindingNames,
-    getImportClause,
     getRuntimeNames,
     getRuntimeReferences,
     getUnsupportedTypeDiagnostics,
     hasMutationFor,
     isReferenceIdentifier,
     isTypeOnlyImportBinding,
-    isTypeOnlyNamespace,
-    isTypePosition
+    isTypeOnlyNamespace
 };

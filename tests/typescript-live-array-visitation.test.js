@@ -291,7 +291,14 @@ try {
         ruleId === 'resilient/prefer-safe-transformations'
     ));
 
-    assert.equal(rejectedSafety.length, 2, JSON.stringify(rejectedMutationLint.messages));
+    assert.equal(rejectedSafety.length, 1, JSON.stringify(rejectedMutationLint.messages));
+    const [{ messageId: rejectedId = '', message: rejectedMessage = '' } = {}] = rejectedSafety;
+    assert.equal(rejectedId, 'mutation');
+    assert.match(rejectedMessage, /output/u, 'The nested fresh-array mutation remains unsupported.');
+    const retainedSourceUpdates = rejectedMutationLint.suppressedMessages.filter(({ ruleId = '', message = '' } = {}) => (
+        ruleId === 'resilient/prefer-safe-transformations' && message.includes('values')
+    ));
+    assert.equal(retainedSourceUpdates.length, 1, 'The borrowed input native push retains source identity and live visitation without an immutable reconstruction.');
 
     const reject = async (name, rejectedSource) => {
         const rejectedFile = path.join(directory, `${name}.ts`);

@@ -1,0 +1,386 @@
+[
+  {
+    "name": "accumulator identity through opaque effects",
+    "source": " const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; state.set(head, tail); return state; }; ",
+    "required": [
+      false,
+      false
+    ]
+  },
+  {
+    "name": "identity survives referent escape without claiming its fields",
+    "source": " const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; external(state); return state; }; ",
+    "required": [
+      false,
+      false
+    ]
+  },
+  {
+    "name": "result alias",
+    "source": " const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; const saved = state; effect(); return saved; }; ",
+    "required": [
+      false,
+      false
+    ]
+  },
+  {
+    "name": "failure alias",
+    "source": " const fold = (state, tuple) => { const saved = state; if (!isArray(tuple) || tuple.length < 2) return saved; const [head, tail] = tuple; return state; }; ",
+    "required": [
+      false,
+      false
+    ]
+  },
+  {
+    "name": "local forwarding shares return identity",
+    "source": "const pass = value => value; const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; return pass(state); }; ",
+    "required": [
+      false,
+      false
+    ]
+  },
+  {
+    "name": "renamed formals and operations",
+    "source": " const combine = (memory, entry) => { if (!isArray(entry) || entry.length < 2) return memory; const [head, tail] = entry; memory.store(head, tail); return memory; }; ",
+    "required": [
+      false,
+      false
+    ]
+  },
+  {
+    "name": "shadowed return value",
+    "source": " const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; { const state = []; return state; } }; ",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "shadowed predicate has no tuple evidence",
+    "source": "const isArray = value => true; const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; return state; }; ",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "written accumulator",
+    "source": " const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; state = external; return state; }; ",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "closure can reassign accumulator",
+    "source": " const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; register(() => { state = external; }); return state; }; ",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "unknown return alternative",
+    "source": " const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; if (head) return external; return state; }; ",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "incompatible return alternative",
+    "source": " const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; if (head) return []; return {}; }; ",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "fallthrough is a distinct absent result",
+    "source": " const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; state.set(head, tail); }; ",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "finalizer replaces identity",
+    "source": " const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; try { return state; } finally { return []; } }; ",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "effectful finalizer preserves captured return identity",
+    "source": " const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; try { return state; } finally { notify(state); } }; ",
+    "required": [
+      false,
+      false
+    ]
+  },
+  {
+    "name": "known failure is not a normal result",
+    "source": " const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; throw head; }; ",
+    "required": [
+      false,
+      false
+    ]
+  },
+  {
+    "name": "caller equality cannot prove generic parameter equality",
+    "source": " const fold = (state, tuple, other) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; return other; }; const value = []; fold(value, [1, 2], value);",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "unknown source in local forwarding",
+    "source": "const pass = value => value || external; const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; return pass(state); }; ",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "logical identity preserves every surviving alternative",
+    "source": " const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; return head ? state : state; }; ",
+    "required": [
+      false,
+      false
+    ]
+  },
+  {
+    "name": "guard cannot survive a preceding initializer",
+    "source": " const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const removed = tuple.pop(), [head, tail] = tuple; return state; }; ",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "guard cannot survive intervening effect",
+    "source": " const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; mutate(tuple); const [head, tail] = tuple; return state; }; ",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "guard cannot survive an escaped tuple",
+    "source": " const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; escape(tuple); const [head, tail] = tuple; return state; }; ",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "effectful parameter initialization is opaque",
+    "source": " const fold = (state, tuple, option = mutate(tuple)) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; return state; }; ",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "defaulted parameter is not an accumulator contract",
+    "source": " const fold = (state = [], tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; return state; }; ",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "captured value is not a formal identity",
+    "source": "const state = []; const fold = (tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; return state; }; ",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "loop returns are outside completed proof",
+    "source": " const fold = (state, tuple) => { if (!isArray(tuple) || tuple.length < 2) return state; const [head, tail] = tuple; for (const value of head) { if (value) return []; } return state; }; ",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "lifted member names do not prove correspondence",
+    "source": "const transform = carrier => tuple => { if (!isArray(tuple) || tuple.length < 2) return carrier.of([]); const [head, tail] = tuple; return carrier.map(head(), value => [value, tail]); };",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "renamed opaque carrier operations have identical limits",
+    "source": "const transform = protocol => tuple => { if (!isArray(tuple) || tuple.length < 2) return protocol.wrap([]); const [head, tail] = tuple; return protocol.transform(head(), value => [value, tail]); };",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "same method with nonliteral returned input is still opaque",
+    "source": "const transform = carrier => tuple => { if (!isArray(tuple) || tuple.length < 2) return carrier.of([]); const [head, tail] = tuple; return carrier.of(head); };",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "different receiver cannot supply correspondence",
+    "source": "const transform = (carrier, other) => tuple => { if (!isArray(tuple) || tuple.length < 2) return carrier.of([]); const [head, tail] = tuple; return other.map(head(), value => [value, tail]); };",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "known caller carrier cannot redefine generic body",
+    "source": "const transform = carrier => tuple => { if (!isArray(tuple) || tuple.length < 2) return carrier.of([]); const [head, tail] = tuple; return carrier.map(head(), value => [value, tail]); }; transform({ of: value => [], map: () => 42 })([1, 2]);",
+    "required": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "intrinsic undefined initializer",
+    "source": " const run = (input) => { const read = ({ value = undefined }) => value; const { action } = input;  if (typeof action !== \"function\") return []; return action(read(input)); };",
+    "required": [
+      false,
+      false
+    ]
+  },
+  {
+    "name": "void literal initializer",
+    "source": " const run = (input) => { const read = ({ value = void 0 }) => value; const { action } = input;  if (typeof action !== \"function\") return []; return action(read(input)); };",
+    "required": [
+      false,
+      false
+    ]
+  },
+  {
+    "name": "nested inert void initializer",
+    "source": " const run = (input) => { const read = ({ value = void (void []) }) => value; const { action } = input;  if (typeof action !== \"function\") return []; return action(read(input)); };",
+    "required": [
+      false,
+      false
+    ]
+  },
+  {
+    "name": "renamed fields do not affect initializer proof",
+    "source": " const run = (input) => { const read = ({ payload = undefined }) => payload; const { callback } = input;  if (typeof callback !== \"function\") return []; return callback(read(input)); };",
+    "required": [
+      false,
+      false
+    ]
+  },
+  {
+    "name": "shadowed undefined formal",
+    "source": " const run = (input, undefined) => { const read = ({ value = undefined }) => value; const { action } = input;  if (typeof action !== \"function\") return []; return action(read(input)); };",
+    "required": [
+      false,
+      false
+    ],
+    "reason": "The stable callback is guarded and selected before argument initialization. Its body-use proof does not infer the initializer value or successful completion."
+  },
+  {
+    "name": "later parameter shadows undefined in its TDZ",
+    "source": " const run = (input) => { const read = ({ value = undefined }, undefined) => value; const { action } = input;  if (typeof action !== \"function\") return []; return action(read(input)); };",
+    "required": [
+      false,
+      false
+    ],
+    "reason": "The stable callback is guarded and selected before argument initialization. Its body-use proof does not infer the initializer value or successful completion."
+  },
+  {
+    "name": "outer binding shadows intrinsic",
+    "source": "const undefined = external; const run = (input) => { const read = ({ value = undefined }) => value; const { action } = input;  if (typeof action !== \"function\") return []; return action(read(input)); };",
+    "required": [
+      false,
+      false
+    ],
+    "reason": "The stable callback is guarded and selected before argument initialization. Its body-use proof does not infer the initializer value or successful completion."
+  },
+  {
+    "name": "import shadows intrinsic",
+    "source": "import { value as undefined } from \"external\"; const run = (input) => { const read = ({ value = undefined }) => value; const { action } = input;  if (typeof action !== \"function\") return []; return action(read(input)); };",
+    "required": [
+      false,
+      false
+    ],
+    "reason": "The stable callback is guarded and selected before argument initialization. Its body-use proof does not infer the initializer value or successful completion."
+  },
+  {
+    "name": "body binding does not shadow parameter environment",
+    "source": " const run = (input) => { const read = ({ value = undefined }) => { const undefined = external; return value; }; const { action } = input;  if (typeof action !== \"function\") return []; return action(read(input)); };",
+    "required": [
+      false,
+      false
+    ]
+  },
+  {
+    "name": "void effect retains opaque initialization",
+    "source": " const run = (input) => { const read = ({ value = void mutate() }) => value; const { action } = input;  if (typeof action !== \"function\") return []; return action(read(input)); };",
+    "required": [
+      false,
+      false
+    ],
+    "reason": "The stable callback is guarded and selected before argument initialization. Its body-use proof does not infer the initializer value or successful completion."
+  },
+  {
+    "name": "void unresolved read can throw",
+    "source": " const run = (input) => { const read = ({ value = void missing }) => value; const { action } = input;  if (typeof action !== \"function\") return []; return action(read(input)); };",
+    "required": [
+      false,
+      false
+    ],
+    "reason": "The stable callback is guarded and selected before argument initialization. Its body-use proof does not infer the initializer value or successful completion."
+  },
+  {
+    "name": "member read can invoke getter",
+    "source": " const run = (input) => { const read = ({ value = void input.value }) => value; const { action } = input;  if (typeof action !== \"function\") return []; return action(read(input)); };",
+    "required": [
+      false,
+      false
+    ],
+    "reason": "The stable callback is guarded and selected before argument initialization. Its body-use proof does not infer the initializer value or successful completion."
+  },
+  {
+    "name": "initializer assignment can mutate a captured callback",
+    "source": " const run = (input) => { const read = ({ value = void (action = external) }) => value; const { action } = input;  if (typeof action !== \"function\") return []; return action(read(input)); };",
+    "required": [
+      false,
+      true
+    ]
+  },
+  {
+    "name": "unknown default alternative is not inert",
+    "source": " const run = (input) => { const read = ({ value = flag ? undefined : mutate() }) => value; const { action } = input;  if (typeof action !== \"function\") return []; return action(read(input)); };",
+    "required": [
+      false,
+      false
+    ],
+    "reason": "The stable callback is guarded and selected before argument initialization. Its body-use proof does not infer the initializer value or successful completion."
+  },
+  {
+    "name": "written callback cannot borrow initialization proof",
+    "source": " const run = (input) => { const read = ({ value = undefined }) => value; const { action } = input; action = external; if (typeof action !== \"function\") return []; return action(read(input)); };",
+    "required": [
+      false,
+      true
+    ]
+  },
+  {
+    "name": "unguarded callback remains a finding",
+    "source": " const run = (input) => { const read = ({ value = undefined }) => value; const { action } = input;   return action(read(input)); };",
+    "required": [
+      false,
+      true
+    ]
+  }
+]

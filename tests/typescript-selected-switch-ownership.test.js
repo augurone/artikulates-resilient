@@ -13,8 +13,8 @@ import { collectDestructuringAgreements } from '../transforms/typescript/policy/
 import { collectPlacementEvidence } from '../transforms/typescript/understand/placement-evidence.js';
 import { collectSelectedModelContracts } from '../transforms/typescript/understand/type-evidence.js';
 
-const variant = 'type E = { _tag: "Left"; left: unknown } | { _tag: "Right"; right: unknown };';
-const selection = 'switch(v._tag) { case "Left": if(accept(v.left)) return true; break; case "Right": if(accept(v.right)) return true; break; }';
+const variant = 'type E = { category: "Inbound"; inbound: unknown } | { category: "Outbound"; outbound: unknown };';
+const selection = 'switch(v.category) { case "Inbound": if(accept(v.inbound)) return true; break; case "Outbound": if(accept(v.outbound)) return true; break; }';
 const cases = [
     { name: 'local', source: `export function probe(items: Set<E>, accept: (value: unknown) => boolean) { for (const v of items) { ${selection} } return false; }`, boundaries: 0 },
     { name: 'method', source: `export function probe(accept: (value: unknown) => boolean) { return { run(v: E) { ${selection} return false; } }; }`, boundaries: 2 },
@@ -43,7 +43,7 @@ const lint = new ESLint({ overrideConfigFile: true, overrideConfig: [{
 }] });
 const transpile = (source = '') => typescript.transpileModule(source, { compilerOptions }).outputText.replace(/\bexport /gu, '');
 
-await Promise.all(cases.map(async ({ name = '', boundaries = 0 } = {}) => {
+await Promise.all(cases.map(async ({ name = '' } = {}) => {
     const sourceFile = program.getSourceFile(`${name}-switch-ownership.ts`);
     const selectedModelContracts = collectSelectedModelContracts({ typescript, sourceFile, checker });
     const evidence = collectPlacementEvidence({ typescript, sourceFile, checker });
@@ -54,7 +54,12 @@ await Promise.all(cases.map(async ({ name = '', boundaries = 0 } = {}) => {
         ? { ...evidence, facts: new Map([...facts].map(([node = {}, fact = {}] = []) => [node, { ...fact, symbol: false }])) }
         : evidence;
     const destructuringAgreements = compileDestructuringDecisions(collectDestructuringAgreements({ selectedModelContracts }));
-    assert.equal(selectedModelContracts.size, 2);
+    assert.equal(selectedModelContracts.size, 3);
+    assert.deepEqual([...selectedModelContracts.values()].map(({ operationRole = '', action = '' } = {}) => [operationRole, action]), [
+        ['discriminator-read', 'selected-model-read'],
+        ['selected-field-read', 'retain-source-phase-read'],
+        ['selected-field-read', 'retain-source-phase-read']
+    ]);
     const { transformed: [placed = sourceFile] = [], dispose = () => {} } = typescript.transform(sourceFile, [context => (root) => {
         const visit = (node) => {
             const visited = typescript.visitEachChild(node, visit, context);
@@ -68,25 +73,27 @@ await Promise.all(cases.map(async ({ name = '', boundaries = 0 } = {}) => {
     }]);
     const output = typescript.createPrinter().printFile(placed);
     dispose();
-    assert.equal(output.split('selected payload Get remains after tag selection').length - 1, boundaries, name);
+    assert.equal(output.split('selected payload Get remains after tag selection').length - 1, 0, name);
+    assert.match(output, /accept\(v\.inbound\)/u, name);
+    assert.match(output, /accept\(v\.outbound\)/u, name);
     const code = transpile(output);
     const [result = {}] = await lint.lintText(code, { filePath: `${name}-switch-ownership.js` });
     assert.deepEqual(result.messages.filter(({ ruleId = '' } = {}) => ruleId), [], name);
-    assert.equal(result.suppressedMessages.length, ['parameter', 'unknown', 'method'].includes(name) ? 2 : 0, name);
+    assert.equal(result.suppressedMessages.length, 0, name);
     const setup = [
         'const events = [];',
         'const accept = value => { events.push(["call", value]); return false; };',
-        'const make = (tag, fail) => ({ get _tag() { events.push("tag"); return tag; },',
-        'get left() { events.push("left"); if(fail) throw new TypeError("payload"); return undefined; },',
-        'get right() { events.push("right"); if(fail) throw new TypeError("payload"); return 4; } });'
+        'const make = (tag, fail) => ({ get category() { events.push("tag"); return tag; },',
+        'get inbound() { events.push("inbound"); if(fail) throw new TypeError("payload"); return undefined; },',
+        'get outbound() { events.push("outbound"); if(fail) throw new TypeError("payload"); return 4; } });'
     ].join('\n');
-    ['Left', 'Right'].forEach((tag) => {
+    ['Inbound', 'Outbound'].forEach((tag) => {
         [false, true].forEach((fail) => {
             let call = 'probe(input, accept)';
 
             if (name === 'local') call = 'probe(new Set([input]), accept)';
 
-            if (name === 'shadowed') call = 'probe(make("Right", true), new Set([input]), accept)';
+            if (name === 'shadowed') call = 'probe(make("Outbound", true), new Set([input]), accept)';
 
             if (name === 'method') call = 'probe(accept).run(input)';
 

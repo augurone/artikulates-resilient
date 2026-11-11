@@ -1,46 +1,12 @@
 # prefer-async-await
 
-Warn when a promise `.then(...)` callback chain is used where `async` and
-`await` usually make sequencing and failure flow easier to inspect.
+This rule is implemented in [the current package](../../analysis/eslint/prefer-async-await.js).
+Its implementation uses syntax and lexical ownership.
 
-## What this finding means
+The current supported behavior and boundary cases are verified by:
 
-A callback chain can scatter sequencing and failure flow across nested
-functions, making the actual operation order harder to inspect. The warning
-encourages the native sequential form where it improves the contract without
-pretending that every promise chain has equivalent timing or ownership.
+- [promise-ownership.test.js](../../tests/promise-ownership.test.js)
+- [rule-canary.test.js](../../tests/rule-canary.test.js)
 
-```javascript
-// Warning
-const getName = () => fetchUser().then(({ name = '' } = {}) => name);
-
-// Preferred
-const getName = async () => {
-    const { name = '' } = await fetchUser();
-    return name;
-};
-```
-
-This is a warning, not an error, and it has no autofix. Converting a chain can
-change timing, returned values, `this`, or error behavior. Promise APIs remain
-valid: use `Promise.all` for independent work, sequential `await` for ordered
-work, and `Promise.allSettled` when every outcome matters.
-
-`.catch(...)` and `.finally(...)` are not themselves discouraged. If a chain is
-required by an API, a stream-like interface, or a deliberate contract, explain
-the exception immediately before the `.then` member:
-
-```javascript
-// eslint-disable-next-line resilient/prefer-async-await -- Required by the stream adapter.
-stream.then(handleChunk).catch(reportError);
-```
-
-## Boundaries and non-goals
-
-This is a warning because conversion can change timing, receiver, return, and
-failure behavior. A required chain remains valid with a narrow reasoned exception.
-
-## Repair recipes
-
-Use `await` for ordered work, `Promise.all` for independent work, and
-`Promise.allSettled` when every outcome matters.
+[Language policy](../reference/policy.md) remains normative. Unsupported analysis
+remains unknown; no legacy analyzer is used to fill gaps.

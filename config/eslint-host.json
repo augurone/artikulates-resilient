@@ -1,0 +1,8 @@
+{
+  "kind": "local-product-verification",
+  "root": ".",
+  "customRuleOwner": "eslint-plugin-resilient/eslint",
+  "independentChecker": "Retired by user direction on 2026-11-06; no legacy runtime loaded.",
+  "policyEvidence": "tests/fixtures/development-policy.json",
+  "migration": "docs/engineering/feature-review.md"
+}

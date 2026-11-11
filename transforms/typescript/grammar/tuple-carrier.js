@@ -3,25 +3,7 @@
 // arbitrary generic member required.
 const TUPLE_CARRIER_VALUE = 'values';
 
-const createTupleCarrier = ({
-    source = {},
-    containerAgreement = {},
-    owner = 'external',
-    placement = 'statement',
-    positions = []
-} = {}) => ({ source, containerAgreement, owner, placement, positions });
-
-// `fallback` is a position record, never an agreement; a caller that wants the
-// agreement destructures it from the returned position.
-const getTuplePosition = ({ carrier = {}, index = -1, fallback = {} } = {}) => {
-    const { positions = [] } = carrier;
-
-    if (!Number.isInteger(index) || index < 0) return fallback;
-
-    const [position = fallback] = positions.slice(index, index + 1);
-
-    return position;
-};
+const createTupleCarrier = ({ source = {} } = {}) => ({ source });
 
 // The emitted carrier is an ordinary value with one stable field.  It gives
 // the rule a falsifiable, local proof that `values` exists without claiming
@@ -44,9 +26,7 @@ const createTupleCarrierPattern = ({ factory = {}, elements = [] } = {}) => fact
 ]);
 
 export {
-    TUPLE_CARRIER_VALUE,
     createTupleCarrier,
     createTupleCarrierExpression,
-    createTupleCarrierPattern,
-    getTuplePosition
+    createTupleCarrierPattern
 };

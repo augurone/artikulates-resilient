@@ -1,109 +1,14 @@
 # signature-contract-call-site
 
-Reports known call-site values that contradict a function's destructured
-signature contract.
+This rule is implemented in [the current package](../../analysis/eslint/signature-contract-call-site.js).
+Its implementation uses the shared analyzer and source-owned evidence.
 
-## What this finding means
+The current supported behavior and boundary cases are verified by:
 
-A call site that supplies a known incompatible value breaks the boundary
-contract before the function can do useful work. Reporting the contradiction
-at the call preserves the source of the error while leaving unknown values for
-runtime validation.
+- [calls-completions.test.js](../../tests/calls-completions.test.js)
+- [callback-revisions.test.js](../../tests/callback-revisions.test.js)
+- [predicate-modules.test.js](../../tests/predicate-modules.test.js)
+- [rule-canary.test.js](../../tests/rule-canary.test.js)
 
-```javascript
-const render = ({
-    title = ''
-} = {}) => title.trim();
-
-render({ title: 42 }); // reported
-render({ title: value }); // unknown values are left alone
-```
-
-All known function parameters are checked in argument order, including
-primitive parameters:
-
-```javascript
-const getValue = (title = '', count = 0) => count;
-
-getValue('', 'count'); // reported: argument[1] is string-like, not number-like
-```
-
-Nested defaults are analyzed recursively:
-
-```javascript
-const getName = ({
-    config: {
-        name = ''
-    } = {}
-} = {}) => name;
-
-getName({ config: { name: null } }); // reported
-```
-
-Known array elements are also checked against inline callback signatures:
-
-```javascript
-const inspect = () => {
-    const items = [{ title: 42 }];
-
-    return items.map(({ title = '' } = {}) => title.trim());
-    // reported: map.callback.title expects string-like, but this call supplies
-    // number-like
-};
-```
-
-The same boundary applies to named callback functions passed to `map`,
-`filter`, `some`, `find`, `reduce`, and `forEach` when both the callback
-signature and receiver element are known.
-
-Function values retain the same treatment when they are returned or stored on
-known objects:
-
-```javascript
-const makeReader = () => (title = '') => title.trim();
-const api = { read: makeReader() };
-
-api.read(42); // reported at the member call
-```
-
-A known function-valued property may use a rest parameter; the fixed
-parameters remain checked while additional arguments pass through the rest
-element.
-
-When a local higher-order function invokes a callback parameter, the callback's
-known signature is carried through that call stack as well. This includes
-callback arity, inline callback values, and function-valued properties. Unknown
-callback values and spread arguments remain unknown.
-
-The rule does not report missing defaulted properties or values whose runtime
-contents cannot be inferred statically. It also checks known local function
-arity: calls with too few non-defaulted parameters or too many parameters
-without a rest parameter are reported. Spread arguments remain unknown.
-
-A function may retain its native parameter list while explicitly handling a
-shorter call through a first `switch (arguments.length)`. A numeric case with
-its own return establishes that exact argument count when the case tests are
-side-effect-free and the return does not read an omitted parameter or the
-current call's `arguments` object. Other
-counts, pre-dispatch work, arrow functions with inherited `arguments`, a
-shadowed `arguments` binding, and uncertain case expressions retain the
-ordinary arity check. This applies to local and imported functions alike.
-
-Direct object literals are checked for excess properties when the expected
-object contract is closed. An object rest element is an explicit passthrough
-boundary: `{ title = '', ...rest }` leaves the residual object open, so extra
-direct-literal properties are accepted and remain available through `rest`.
-Missing properties are not treated as errors here: Resilient defaults are the
-normal absence contract, and intentionally absent function-valued fields may
-use `undefined` to mean “not provided.” Variables and object spreads remain
-open because their complete runtime shape is not established by this rule.
-
-## Boundaries and non-goals
-
-Only known local evidence is checked. Unknown values, spreads, and unresolved
-boundaries remain unknown rather than becoming guessed errors.
-
-## Repair recipes
-
-Correct the supplied value, add the required default at the provider boundary,
-or inspect evidence with the [diagnostic guide](../guide/diagnostic-explanations.md).
+[Language policy](../reference/policy.md) remains normative. Unsupported analysis
+remains unknown; no legacy analyzer is used to fill gaps.

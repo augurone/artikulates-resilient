@@ -1,245 +1,290 @@
 import { execFileSync } from 'node:child_process';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
+import { lstatSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const rootDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const packagePath = path.join(rootDirectory, 'package.json');
-const packageLockPath = path.join(rootDirectory, 'package-lock.json');
-const changelogPath = path.join(rootDirectory, 'CHANGELOG.md');
-const indexPath = path.join(rootDirectory, 'index.js');
+import { parse } from 'espree';
 
-const read = filePath => fs.readFileSync(filePath, 'utf8');
-const write = (filePath, contents) => fs.writeFileSync(filePath, contents);
+const root = fileURLToPath(new URL('../', import.meta.url));
+const owners = ['package.json', 'package-lock.json', 'index.js', 'analysis/eslint/index.js', 'CHANGELOG.md'];
+const usage = 'Usage: npm run release -- [major | minor | patch | <version>] [--dry-run] | --check';
+const read = file => readFileSync(file, 'utf8');
+const json = value => `${JSON.stringify(value, null, 2)}\n`;
+const parseVersion = (version = '') => {
+    const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?$/u.exec(version);
 
-const run = (command, args = []) => {
-    execFileSync(command, args, {
-        cwd: rootDirectory,
-        stdio: 'inherit'
+    if (!match) throw new Error(`Invalid semantic version: ${version}`);
+
+    const [, major = '', minor = '', patch = '', suffix = ''] = match;
+    const parts = [major, minor, patch].map(Number);
+    const prerelease = suffix ? suffix.split('.') : [];
+
+    if (parts.some(part => !Number.isSafeInteger(part)) || prerelease.some(part => !part || /^0\d+$/u.test(part))) {
+        throw new Error(`Invalid semantic version: ${version}`);
+    }
+
+    return { parts, prerelease };
+};
+const compareIdentifier = (left = '', right = '') => {
+    if (left === right) return 0;
+
+    if (!left) return -1;
+
+    if (!right) return 1;
+
+    const numericLeft = /^\d+$/u.test(left);
+    const numericRight = /^\d+$/u.test(right);
+
+    if (numericLeft !== numericRight) return numericLeft ? -1 : 1;
+
+    if (numericLeft && left.length !== right.length) return left.length - right.length;
+
+    return left < right ? -1 : 1;
+};
+const compareVersions = (left, right) => {
+    const { parts: a = [], prerelease: before = [] } = parseVersion(left);
+    const { parts: b = [], prerelease: after = [] } = parseVersion(right);
+    const different = a.findIndex((part, index) => part !== b.at(index));
+
+    if (different >= 0) return a.at(different) - b.at(different);
+
+    if (!before.length || !after.length) return Number(!before.length) - Number(!after.length);
+
+    const index = Array.from({ length: Math.max(before.length, after.length) }, (_, index) => index)
+        .find(index => before.at(index) !== after.at(index));
+
+    return Number.isInteger(index) ? compareIdentifier(before.at(index), after.at(index)) : 0;
+};
+const incrementVersion = (version, kind) => {
+    const { parts: [major = 0, minor = 0, patch = 0] = [] } = parseVersion(version);
+    const next = { major: `${major + 1}.0.0`, minor: `${major}.${minor + 1}.0`, patch: `${major}.${minor}.${patch + 1}` };
+    const { [kind]: selected = '' } = next;
+
+    parseVersion(selected);
+
+    return selected;
+};
+const propertyValue = ({ type = '', properties = [] } = {}, selected = '') => {
+    const found = properties.filter(({ type = '', key: { name = '', value = '' } = {}, computed = false } = {}) => (
+        type === 'Property' && !computed && (name || value) === selected
+    ));
+
+    if (type !== 'ObjectExpression' || found.length !== 1) throw new Error(`Expected one static plugin ${selected} property`);
+
+    const [{ value = {} } = {}] = found;
+
+    return value;
+};
+const pluginVersion = ({ file = '', before = '' } = {}) => {
+    const { body = [] } = parse(before, { ecmaVersion: 'latest', sourceType: 'module', range: true });
+    const declarations = body.flatMap(({ type = '', declarations = [] } = {}) => type === 'VariableDeclaration' ? declarations : [])
+        .filter(({ id: { type = '', name = '' } = {} } = {}) => type === 'Identifier' && name === 'plugin');
+
+    if (declarations.length !== 1) throw new Error(`Expected one plugin metadata owner in ${file}`);
+
+    const [{ init = {} } = {}] = declarations;
+    const { type = '', arguments: args = [], callee: { object: { name = '' } = {}, property: { name: method = '' } = {} } = {} } = propertyValue(init, 'meta');
+
+    if (type !== 'CallExpression' || name !== 'Object' || method !== 'freeze' || args.length !== 1) throw new Error(`Expected frozen plugin metadata in ${file}`);
+
+    const { type: kind = '', value: version = '', range: [start = -1, end = -1] = [] } = propertyValue(args.at(0), 'version');
+
+    if (kind !== 'Literal' || typeof version !== 'string' || start < 0 || end <= start) throw new Error(`Expected a literal plugin version in ${file}`);
+
+    return { version, start, end };
+};
+const sectionsOf = (source) => {
+    const headings = [...source.matchAll(/^## ([^\r\n]+)/gmu)].map(({ 0: heading = '', 1: title = '', index = 0 } = {}) => ({ title, start: index, end: index + heading.length }));
+
+    return headings.map((heading, index) => {
+        const { end = 0 } = heading;
+        const { start = source.length } = headings.at(index + 1) ?? {};
+
+        return { ...heading, body: source.slice(end, start) };
     });
 };
+const acquire = () => {
+    const files = owners.map((file) => {
+        const path = join(root, file);
+        const status = lstatSync(path);
+        const { mode = 0 } = status;
 
-const fail = (message) => {
-    throw new Error(message);
-};
+        if (!status.isFile()) throw new Error(`Expected a regular release owner file: ${file}`);
 
-const parseVersion = (version = '') => {
-    const match = /^([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z.-]+))?$/.exec(version);
+        return { file, path, before: read(path), mode };
+    });
+    const [manifest = {}, lock = {}, index = {}, product = {}, changelog = {}] = files;
+    const { before: packageSource = '' } = manifest;
+    const { before: lockSource = '' } = lock;
+    const { before: history = '' } = changelog;
+    const packageData = JSON.parse(packageSource);
+    const lockData = JSON.parse(lockSource);
+    const { version = '' } = packageData;
+    const { version: lockVersion = '', packages: { '': { version: rootVersion = '' } = {} } = {} } = lockData;
+    const indexVersion = pluginVersion(index);
+    const productVersion = pluginVersion(product);
+    const { version: rootPluginVersion = '' } = indexVersion;
+    const { version: rulePluginVersion = '' } = productVersion;
 
-    if (!match) fail(`Invalid semantic version: ${version}`);
-
-    const [, majorText = '', minorText = '', patchText = '', prerelease = ''] = match;
-
-    return {
-        major: Number(majorText),
-        minor: Number(minorText),
-        patch: Number(patchText),
-        prerelease
-    };
-};
-
-const compareVersions = (left = '', right = '') => {
-    const a = parseVersion(left);
-    const b = parseVersion(right);
-
-    const differingComponent = ['major', 'minor', 'patch'].find((key = '') => {
-        const { [key]: leftValue = 0 } = a;
-        const { [key]: rightValue = 0 } = b;
-
-        return leftValue !== rightValue;
-    }) || '';
-
-    if (differingComponent) {
-        const { [differingComponent]: leftValue = 0 } = a;
-        const { [differingComponent]: rightValue = 0 } = b;
-
-        return leftValue - rightValue;
-    }
-
-    const { prerelease: leftPrerelease = '' } = a;
-    const { prerelease: rightPrerelease = '' } = b;
-
-    if (!leftPrerelease && rightPrerelease) return 1;
-
-    if (leftPrerelease && !rightPrerelease) return -1;
-
-    return leftPrerelease.localeCompare(rightPrerelease);
-};
-
-const incrementVersion = ({ version = '', releaseType = 'patch' } = {}) => {
-    const { major = 0, minor = 0, patch = 0 } = parseVersion(version);
-
-    if (releaseType === 'major') return `${major + 1}.0.0`;
-
-    if (releaseType === 'minor') return `${major}.${minor + 1}.0`;
-
-    return `${major}.${minor}.${patch + 1}`;
-};
-
-const getPackage = () => JSON.parse(read(packagePath));
-
-const setPackageVersion = ({ version = '' } = {}) => {
-    const packageJson = { ...getPackage(), version };
-    write(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`);
-
-    const sourcePackageLock = JSON.parse(read(packageLockPath));
-    const { packages: sourcePackages = {} } = sourcePackageLock;
-    const { packages: packageEntries = false } = sourcePackageLock;
-    const { '': rootPackageEntry = false } = sourcePackages;
-    const hasPackages = !!packageEntries;
-    const hasRootPackage = !!rootPackageEntry;
-    const packageLock = {
-        ...sourcePackageLock,
-        version,
-        ...(hasPackages && {
-            packages: {
-                ...sourcePackages,
-                ...(hasRootPackage && {
-                    '': {
-                        ...rootPackageEntry,
-                        version
-                    }
-                })
-            }
-        })
-    };
-    write(packageLockPath, `${JSON.stringify(packageLock, null, 2)}\n`);
-};
-
-const getPackageLockVersion = () => {
-    const packageLock = JSON.parse(read(packageLockPath));
-    const { packages = {} } = packageLock;
-    const { '': rootPackage = {} } = packages;
-    const { version = '' } = rootPackage;
-
-    return version;
-};
-
-const getIndexVersion = () => {
-    const match = /version:\s*['"]([^'"]+)['"]/.exec(read(indexPath));
-    const [, version = ''] = match ?? [];
-
-    return version;
-};
-
-const assertConsistency = () => {
-    const { version: packageVersion = '' } = getPackage();
-    const packageLockVersion = getPackageLockVersion();
-    const indexVersion = getIndexVersion();
-    const changelog = read(changelogPath);
-
-    if (!packageLockVersion) fail('Could not find the root package version in package-lock.json.');
-
-    if (packageVersion !== packageLockVersion) {
-        fail(`package.json (${packageVersion}) and package-lock.json (${packageLockVersion}) differ.`);
-    }
-
-    if (packageVersion !== indexVersion) {
-        fail(`package.json (${packageVersion}) and index.js (${indexVersion}) differ.`);
-    }
-
-    if (!changelog.includes(`## ${packageVersion}`)) {
-        fail(`CHANGELOG.md has no heading for ${packageVersion}.`);
-    }
-};
-
-const verify = () => {
-    assertConsistency();
-    run('npm', ['run', 'fixtures:check']);
-    run('npm', ['test']);
-    run('npm', ['run', 'lint']);
-    run('git', ['diff', '--check']);
-    run('npm', ['run', 'consumer:check']);
-
-    const temporaryCache = fs.mkdtempSync(path.join(os.tmpdir(), 'resilient-release-cache-'));
-    try {
-        run('npm', ['pack', '--dry-run', '--ignore-scripts', '--cache', temporaryCache]);
-    } finally {
-        fs.rmSync(temporaryCache, { recursive: true, force: true });
-    }
-};
-
-const getDate = () => new Date().toISOString().slice(0, 10);
-
-const getPromotedChangelog = ({ version = '' } = {}) => {
-    const changelog = read(changelogPath);
-    const match = /^(## (?:Unreleased|[0-9]+\.[0-9]+\.[0-9]+ — Unreleased))\s*\n\s*\n([\s\S]*?)(?=\n## |\s*$)/m.exec(changelog);
-    const [fullMatch = '', heading = '', unreleased = ''] = match ?? [];
-
-    if (!fullMatch || !String.prototype.trim.call(unreleased)) {
-        fail('CHANGELOG.md needs a non-empty "## Unreleased" or "## x.y.z — Unreleased" section before preparing a release.');
-    }
-
-    const release = `## ${version} — ${getDate()}\n\n${String.prototype.trim.call(unreleased)}\n\n`;
-    const replacement = heading === '## Unreleased'
-        ? `## Unreleased\n\n${release}`
-        : release;
-
-    const { replace = false } = changelog;
-
-    return replace.call(changelog, fullMatch, replacement);
-};
-
-const prepare = ({ version = '' } = {}) => {
-    const { version: currentVersion = '' } = getPackage();
     parseVersion(version);
 
-    if (compareVersions(version, currentVersion) <= 0) {
-        fail(`Release version ${version} must be greater than current version ${currentVersion}.`);
+    if ([lockVersion, rootVersion, rootPluginVersion, rulePluginVersion].some(owner => owner !== version)) {
+        throw new Error('Package, both root lock versions and both plugin metadata versions must agree');
     }
 
-    const promotedChangelog = getPromotedChangelog({ version });
-    setPackageVersion({ version });
+    const sections = sectionsOf(history);
+    const current = sections.filter(({ title = '' } = {}) => title === version || title === `${version} — Unreleased` ||
+        title.startsWith(`${version} — `) && /^\d{4}-\d{2}-\d{2}$/u.test(title.slice(version.length + 3)));
 
-    const index = read(indexPath);
-    const updatedIndex = index.replace(
-        /version:\s*(['"])[^'"]+\1/,
-        `version: '${version}'`
-    );
-    write(indexPath, updatedIndex);
-    write(changelogPath, promotedChangelog);
+    if (current.length !== 1) throw new Error(`CHANGELOG.md needs exactly one release heading for ${version}`);
 
-    verify();
+    return { files, version, packageData, lockData, metadata: [indexVersion, productVersion], sections };
 };
+const planFor = ({ files = [], version: currentVersion = '', packageData = {}, lockData = {}, metadata = [], sections = [] } = {}, requested = '') => {
+    const explicit = requested && !['major', 'minor', 'patch'].includes(requested);
+    const version = explicit ? requested : incrementVersion(currentVersion, requested || 'patch');
+    const comparison = compareVersions(version, currentVersion);
+    const pending = sections.filter(({ title = '' } = {}) => title === 'Unreleased' || title.endsWith(' — Unreleased'));
 
-const args = process.argv.slice(2);
-const main = () => {
-    const { length = 0 } = args;
-    const [first = ''] = args;
+    if (pending.length !== 1 || pending.at(0) !== sections.at(0)) throw new Error('CHANGELOG.md needs one first Unreleased section');
 
-    if (first === '--check') {
+    const [{ title = '', body = '', start = 0, end = 0 } = {}] = pending;
+
+    if (!body.trim()) throw new Error('CHANGELOG.md needs non-empty Unreleased notes');
+
+    if (title !== 'Unreleased' && title !== `${version} — Unreleased`) throw new Error(`Named Unreleased target differs from requested version ${version}`);
+
+    if (comparison < 0 || comparison === 0 && (!explicit || title !== `${currentVersion} — Unreleased`)) {
+        throw new Error(`Release version ${version} must increase, or explicitly finalize its matching versioned Unreleased section`);
+    }
+
+    if (sections.some(({ title: heading = '' } = {}) => heading !== title && (heading === version || heading.startsWith(`${version} — `)))) {
+        throw new Error(`CHANGELOG.md already contains release ${version}`);
+    }
+
+    const date = new Date().toISOString().slice(0, 10);
+    const heading = `## ${version} — ${date}`;
+    const { packages = {} } = lockData;
+    const { '': rootPackage = {} } = packages;
+    const replacements = [json({ ...packageData, version }), json({ ...lockData, version, packages: { ...packages, '': { ...rootPackage, version } } }),
+        ...metadata.map(({ start = 0, end = 0 } = {}, position) => {
+            const { before = '' } = files.at(position + 2);
+
+            return before.slice(0, start) + before.at(start) + version + before.at(start) + before.slice(end);
+        })];
+    const { before: history = '' } = files.at(4);
+    const newline = history.includes('\r\n') ? '\r\n' : '\n';
+    const promoted = history.slice(0, start) + (title === 'Unreleased' ? `## Unreleased${newline}${newline}` : '') + heading + history.slice(end);
+    const next = [...replacements, promoted];
+
+    return { version, files: files.map((file, index) => ({ ...file, after: next.at(index) })), preview: {
+        dryRun: true, currentVersion, targetVersion: version, date, changelog: { from: `## ${title}`, to: heading },
+        files: files.map(({ file = '', before = '' } = {}, index) => ({ file, from: currentVersion, to: version, changed: before !== next.at(index) })),
+        verification: ['npm run check', 'git diff --check']
+    } };
+};
+const verify = () => {
+    const { files = [] } = acquire();
+    const { execPath = '', env = {} } = process;
+    const { PATH = '' } = env;
+    const environment = { ...env, PATH: dirname(execPath) + delimiter + PATH };
+
+    [['npm', ['run', 'check']], ['git', ['diff', '--check']]].forEach(([command = '', args = []] = []) => (
+        execFileSync(command, args, { cwd: root, env: environment, stdio: 'inherit' })
+    ));
+    files.forEach(({ file = '', path = '', before = '' } = {}) => {
+        if (read(path) !== before) throw new Error(`Release owner changed during verification: ${file}`);
+    });
+};
+// The optional callback records only completed atomic publications. A cleanup
+// failure after rename must still leave that owner eligible for rollback.
+const publish = ({ path = '', mode = 0 } = {}, contents = '', onPublished) => {
+    const staging = mkdtempSync(join(dirname(path), '.resilient-release-'));
+
+    try {
+        const file = join(staging, 'content');
+
+        writeFileSync(file, contents, { mode });
+        renameSync(file, path);
+
+        if (typeof onPublished === 'function') onPublished();
+    } finally {
+        rmSync(staging, { recursive: true, force: true });
+    }
+};
+const prepare = ({ files = [], version = '' } = {}) => {
+    const changes = files.filter(({ before = '', after = '' } = {}) => before !== after);
+    const committed = [];
+
+    try {
+        files.forEach(({ file = '', path = '', before = '' } = {}) => {
+            if (read(path) !== before) throw new Error(`Release input changed before publication: ${file}`);
+        });
+        changes.forEach((row) => {
+            const { file = '', path = '', before = '', after = '' } = row;
+
+            if (read(path) !== before) throw new Error(`Release input changed before publication: ${file}`);
+
+            publish(row, after, () => {
+                // eslint-disable-next-line resilient/prefer-safe-transformations -- Record only this transaction's atomic publications so rollback cannot claim an uncommitted owner.
+                committed.push(row);
+            });
+        });
         verify();
+        files.forEach(({ file = '', path = '', after = '' } = {}) => {
+            if (read(path) !== after) throw new Error(`Release owner changed during verification: ${file}`);
+        });
+    } catch (error) {
+        const conflicts = committed.toReversed().flatMap((row) => {
+            const { file = '', path = '', before = '', after = '' } = row;
+
+            try {
+                if (read(path) !== after) return [`${file}: changed externally; left untouched`];
+
+                // eslint-disable-next-line resilient/signature-contract-call-site -- Rollback needs no journal entry; the guarded publication observer is intentionally absent.
+                publish(row, before);
+
+                return [];
+            } catch (failure) {
+                return [`${file}: ${failure.message}`];
+            }
+        });
+
+        throw new Error(`${error.message}${conflicts.length ? `\nRollback conflicts:\n${conflicts.join('\n')}` : '\nRelease changes rolled back.'}`, { cause: error });
+    }
+
+    process.stdout.write(`Prepared ${version}. No commit, tag, push or publish was performed.\n`);
+};
+export const main = (args = []) => {
+    if (args.length === 1 && args.at(0) === '--check') {
+        verify();
+        process.stdout.write('Release metadata and checks passed.\n');
 
         return;
     }
 
-    if (!length) {
-        const { version = '' } = getPackage();
-        prepare({ version: incrementVersion({ version }) });
+    const requested = args.filter(argument => argument !== '--dry-run');
+
+    if (requested.length > 1 || args.filter(argument => argument === '--dry-run').length > 1 || requested.some(argument => argument.startsWith('--'))) throw new Error(usage);
+
+    const plan = planFor(acquire(), requested.at(0) || '');
+    const { preview = {} } = plan;
+
+    if (args.includes('--dry-run')) {
+        process.stdout.write(json(preview));
 
         return;
     }
 
-    if (['major', 'minor', 'patch'].includes(first)) {
-        const { version = '' } = getPackage();
-        prepare({ version: incrementVersion({ version, releaseType: first }) });
-
-        return;
-    }
-
-    if (length === 1) {
-        prepare({ version: first });
-
-        return;
-    }
-
-    fail('Usage: npm run release -- [major | minor | patch | <new-version>]');
+    prepare(plan);
 };
 
-try {
-    main();
-} catch (error) {
-    process.stderr.write(`${error instanceof Error ? error.message : error}\n`);
-    process.exit(1);
+if (process.argv.at(1) && realpathSync(resolve(process.argv.at(1))) === fileURLToPath(import.meta.url)) {
+    try {
+        main(process.argv.slice(2));
+    } catch (error) {
+        process.stderr.write(`${error.message}\n`);
+        // eslint-disable-next-line resilient/prefer-safe-transformations -- The release CLI owns its native exit status and leaves queued diagnostics to flush normally.
+        process.exitCode = 1;
+    }
 }

@@ -17,6 +17,7 @@ import {
 } from '../transforms/typescript/understand/type-evidence.js';
 
 const directory = await mkdtemp(path.join(tmpdir(), 'resilient-nullish-result-'));
+await writeFile(path.join(directory, 'package.json'), '{"type":"module"}\n');
 
 try {
     const fileName = path.join(directory, 'declared-results.ts');
@@ -82,7 +83,15 @@ try {
     const [fixedResult = {}] = await fixed.lintText(generated.code, { filePath: 'declared-results.js' });
 
     [rawResult, fixedResult].forEach(({ errorCount = -1, messages = [] } = {}) => {
-        assert.equal(errorCount, 0, `${JSON.stringify(messages)}\n${generated.code}`);
+        // P-04: a declared union retains its authored returns; it does not
+        // discharge the shared producer rule's number/undefined conflict.
+        assert.equal(errorCount, 2, `${JSON.stringify(messages)}\n${generated.code}`);
+        assert.deepEqual(messages.filter(({ severity = 0 } = {}) => severity === 2).map(({ ruleId = '', message = '' } = {}) => ({ ruleId, message })), [
+            { ruleId: 'resilient/signature-contract-return-consistency',
+                message: 'This function returns number, but another return path produces undefined.' },
+            { ruleId: 'resilient/signature-contract-return-consistency',
+                message: 'This function returns undefined, but another return path produces number.' }
+        ]);
     });
 
     const rejectedFileName = path.join(directory, 'rejected.ts');
@@ -106,8 +115,8 @@ try {
     const { outputText: referenceCode = '' } = typescript.transpileModule(source, {
         compilerOptions: { module: typescript.ModuleKind.ESNext, target: typescript.ScriptTarget.ESNext }
     });
-    const referenceFile = path.join(directory, 'reference.mjs');
-    const generatedFile = path.join(directory, 'generated.mjs');
+    const referenceFile = path.join(directory, 'reference.js');
+    const generatedFile = path.join(directory, 'generated.js');
 
     await writeFile(referenceFile, referenceCode);
     await writeFile(generatedFile, generated.code);

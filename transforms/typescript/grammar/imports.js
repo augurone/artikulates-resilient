@@ -1,5 +1,27 @@
-import { getObject } from '../../../rules/support/object.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds } from '../../utils/ast-boundary.js';
+
+const annotateEmptyNamespaceImport = ({ typescript = {}, node = {}, imports = new Set(), authoredRules = new Set() } = {}) => {
+    if (!imports.has(typescript.getOriginalNode(node)) || authoredRules.has('import/namespace')) return node;
+
+    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Import factories require the actual module specifier and native absence for optional compiler fields.
+    const { importClause = {}, modifiers, moduleSpecifier, attributes } = node;
+    const { isTypeOnly = false, namedBindings = {} } = importClause;
+    const { factory = {} } = typescript;
+    const binding = namedBindings;
+
+    if (isTypeOnly || !typescript.isNamespaceImport(binding)) return node;
+
+    // The exact namespace specifier owns the finding and its scoped waiver.
+    const placed = typescript.setTextRange(factory.cloneNode(binding), binding);
+    const { MultiLineCommentTrivia = -1 } = getSyntaxKinds(typescript);
+    const documented = typescript.addSyntheticLeadingComment(placed, MultiLineCommentTrivia,
+        ' eslint-disable import/namespace -- Empty namespace retains identity and evaluation. ', false);
+    const closed = typescript.addSyntheticTrailingComment(documented, MultiLineCommentTrivia, ' eslint-enable import/namespace ', false);
+
+    return factory.updateImportDeclaration(node, modifiers,
+        factory.updateImportClause(importClause, false, getObject(importClause).name, closed), moduleSpecifier, attributes);
+};
 
 const updateTypeOnlyImport = ({ typescript = {},
     node = {},
@@ -10,18 +32,18 @@ const updateTypeOnlyImport = ({ typescript = {},
         NamespaceImport = -1
     } = getSyntaxKinds(typescript);
     const {
-        importClause = undefined,
-        modifiers: nodeModifiers = undefined,
-        moduleSpecifier: nodeModuleSpecifier = undefined,
-        attributes: nodeAttributes = undefined
+        importClause,
+        modifiers: nodeModifiers,
+        moduleSpecifier: nodeModuleSpecifier,
+        attributes: nodeAttributes
     } = getObject(node);
 
     if (!importClause) return node;
 
     const {
         isTypeOnly: clauseTypeOnly = false,
-        name: clauseName = undefined,
-        namedBindings = undefined
+        name: clauseName,
+        namedBindings
     } = getObject(importClause);
 
     // eslint-disable-next-line resilient/prefer-falsey-returns -- undefined removes a type-only import clause
@@ -58,4 +80,4 @@ const updateTypeOnlyImport = ({ typescript = {},
     );
 };
 
-export { updateTypeOnlyImport };
+export { annotateEmptyNamespaceImport, updateTypeOnlyImport };

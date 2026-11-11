@@ -1,93 +1,50 @@
 # prefer-safe-destructuring-defaults
 
-Requires destructured values to declare explicit defaults. The rule does not
-choose the default value; the author chooses the expected contract value.
+This rule is implemented in [the current package](../../analysis/eslint/prefer-safe-destructuring-defaults.js).
+Its implementation uses the shared analyzer and source-owned evidence.
 
-## What this finding means
+A local leaf extracted from a proved object with an open field contract may
+preserve natural absence. For example, when the shared engine proves the
+normalizer's passthrough contract, this is valid:
 
-A destructured binding without a default leaves the missing-value contract
-implicit and can produce an unstable value family downstream. The rule requires
-each destructured level to state the value that absence should produce.
-
-```javascript
-// Incorrect
-const timAllen = ({ timBurton } = {}) => timBurton;
-
-// Correct
-const timAllen = ({ timBurton = '' } = {}) => timBurton;
-const getItem = ([item = {}] = []) => item;
+```js
+const { typeArguments } = getObject(child);
 ```
 
-Rest elements are exempt because they always produce an array or object value.
-Guarded function-valued destructured bindings are also exempt; their
-absence contract belongs to `no-unguarded-callback-invocation`, which requires
-an `isFunction` or `typeof ... === 'function'` guard. `useState` tuple
-destructuring is also exempt: the setter is an external function and does not
-have a meaningful destructuring fallback.
+There is no helper-name exemption. The receiver must have complete object-family
+evidence and the field must have an unknown contribution without a known absent
+alternative. The field remains unknown; no value, default or family is invented.
+Nested patterns still need their own receiver and absence contracts. Unknown
+receivers and known missing fields retain their separate diagnostics. An
+explicit `= undefined` remains subject to `no-undefined-assignment`.
 
-## Generated model and discriminant boundaries
+An empty object default on an identifier value field (for example,
+`const { child = {} } = input`) declares an open field boundary under S-05.
+Explicitly supplied empty records, root parameter defaults and nested named
+patterns keep their separate evidence. Native-operation contradictions on the
+actual empty fallback remain visible.
 
-The TypeScript adapter may emit one direct model boundary where an object-family
-stage, a field capability guard, and a structural falsifier occur together:
+A field whose every source alternative is present and callable needs no
+synthetic default under S-04. Known missing or noncallable alternatives do not
+qualify, and the call still has its own invocation requirements.
 
-```javascript
-const { _tag = '', value } = isObject(input) ? input : {};
+Optional callables may use natural absence with `isFunction(onDone)` at their
+use. A recognized callable predicate can also be the entire consumer, such
+as `return isFunction(onDone)`. A guard-only consumer does not need a fabricated
+callback or a `false` default. If the value is also invoked or forwarded, the
+existing use proof remains required; a later guard cannot excuse an earlier
+unsafe use. The sibling field has its own contract.
+The existing local admission for unresolved `isFunction` syntax remains local;
+forwarded consumer proof still requires executable source evidence.
 
-if (!_tag) return { _tag, value };
+The destructuring contract rule consumes this same absence decision as an
+optional-field requirement. Its evidence still records an absent property;
+receiver mismatches and unsafe invocations retain their own diagnostics.
 
-return { ...input, _tag, value };
-```
+The current supported behavior and boundary cases are verified by:
 
-`value` remains generic and has no invented default. A known callback field
-uses `isFunction`; an object or array field uses its own family/content
-predicate. The failed path returns the structural model only, while the
-positive path preserves supplied attributes.
+- [absence-signatures.test.js](../../tests/absence-signatures.test.js)
+- [rule-canary.test.js](../../tests/rule-canary.test.js)
 
-The rule also accepts a generic payload only inside a static discriminant
-branch: `Left/left`, `Right/right`, `Some/value`, or `Both/left/right`.
-The guard must dominate the binding, or an opposite `Left`/`Right` branch must
-terminate first. Dynamic predicates, arbitrary `isX` helpers, wrong payload
-fields, and non-dominating guards remain findings.
-
-## Boundaries and non-goals
-
-Rest bindings, guarded callbacks, `useState` tuples, and documented
-model boundaries retain their own absence contracts. The rule never invents a default.
-
-## Repair recipes
-
-Put the chosen falsey default beside each destructured binding. For an optional
-callback, use [no-unguarded-callback-invocation](no-unguarded-callback-invocation.md).
-
-## Evidence for callable consumers
-
-A callable binding may omit a synthetic default when its use proves the
-capability: a dominating direct-call guard, a guarded static collection
-callback, or a resolved consumer whose corresponding parameter is invoked
-only under its own guards. Static collection methods are `map`, `filter`,
-`some`, `find`, `forEach`, and `reduce` in the binding's function. `sort` and
-`toSorted` also admit a captured comparator in a nested function, with exactly
-one argument and a guard at consumption.
-
-Local and imported consumers use lexical binding and resolved function-body
-evidence. Renaming a module or import, or adding an immutable identifier alias,
-does not change the proof. Importing `flow` from `./function` grants nothing
-by itself. An unguarded, unresolved, shadowed, reassigned, or escaping consumer
-cannot establish the exemption. Fixed identifier parameters are supported;
-rest, spread, defaulted and destructured consumer parameters, dynamic scope,
-and uses through `arguments` remain outside this admission. Consumer predicates must resolve to synchronous function bodies with direct
-`typeof` evidence; local aliases and imported or re-exported predicates retain
-that evidence. An unresolved predicate does not prove safety.
-
-A guard for one property never supplies evidence for a sibling property. The
-safe-default finding remains a request for an explicit absence contract, not
-a contract contradiction or permission to invent a no-op callback.
-
-The finite syntax facts remain distinct: arity-selected rest tuples, tuple
-carriers, guarded tuples (including same-receiver lifted failure), structural
-model payloads, dominating discriminant payloads, identity-only provider and
-selected-payload forwarding, exact map projections, fold-map identity, and
-terminating variant loops. Their full grammar and counterexamples are covered
-by `tests/prefer-safe-destructuring-defaults.test.js`. Cross-rule callable
-fixtures are `tests/fixtures/rule-evidence/consumers.valid.js` and
-`consumers.invalid.js`, verified by `tests/rule-evidence.test.js`.
+[Language policy](../reference/policy.md) remains normative. Unsupported analysis
+remains unknown; no legacy analyzer is used to fill gaps.

@@ -1,30 +1,20 @@
 import js from '@eslint/js';
-import eslintPlugin from 'eslint-plugin-eslint-plugin';
 import * as importPlugin from 'eslint-plugin-import-x';
 import nodePlugin from 'eslint-plugin-n';
 import globals from 'globals';
 
-import resilient from 'eslint-plugin-resilient';
+import resilient from 'eslint-plugin-resilient/eslint';
 
 export default [
     {
         // Reference prose is not executable source. Keep it out of every
         // repository lint invocation even if a future Markdown processor is
         // installed.
-        ignores: ['node_modules/**', 'docs/**', '**/*.md', 'tests/proofs/fp-ts/checkout/**']
+        ignores: ['node_modules/**', 'docs/**', '**/*.md', '.artifacts/**']
     },
     js.configs.recommended,
     {
-        files: ['rules/*.js'],
-        plugins: {
-            'eslint-plugin': eslintPlugin
-        },
-        rules: {
-            ...eslintPlugin.configs.recommended.rules
-        }
-    },
-    {
-        files: ['index.js', 'rules/**/*.js', 'eslint.config.js'],
+        files: ['index.js', 'eslint.config.js'],
         plugins: {
             n: nodePlugin
         },
@@ -36,11 +26,17 @@ export default [
     resilient.configs.contracts,
     resilient.configs.safety,
     {
+        name: 'resilient/local-policy',
+        settings: { resilient: { evidenceMessages: true } },
+        rules: { 'prefer-const': 'error', 'no-empty': ['error', { allowEmptyCatch: true }] },
+        linterOptions: { reportUnusedDisableDirectives: 'error', reportUnusedInlineConfigs: 'error' }
+    },
+    {
         files: ['**/*.js'],
         languageOptions: {
             ecmaVersion: 'latest',
             sourceType: 'module',
-            globals: { ...globals.node }
+            globals: { ...globals.nodeBuiltin }
         },
         plugins: {
             import: importPlugin

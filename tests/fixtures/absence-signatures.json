@@ -1,0 +1,2069 @@
+{
+  "cases": [
+    {
+      "rule": "no-null-assignment",
+      "source": "const value = undefined;",
+      "expected": []
+    },
+    {
+      "rule": "no-null-assignment",
+      "source": "const hasValue = value => !!value;",
+      "expected": []
+    },
+    {
+      "rule": "no-null-assignment",
+      "source": "const read = ({ value = '' } = {}) => ({ ...(!!(value) && { value }) });",
+      "expected": []
+    },
+    {
+      "rule": "no-null-assignment",
+      "source": "const read = (value = undefined) => value;",
+      "expected": []
+    },
+    {
+      "rule": "no-null-assignment",
+      "source": "const read = (value = getValue(null)) => value;",
+      "expected": []
+    },
+    {
+      "rule": "no-null-assignment",
+      "source": "const values = [,, \"ready\"];",
+      "expected": []
+    },
+    {
+      "rule": "no-null-assignment",
+      "source": "const value = [null, { other: null }];",
+      "expected": [
+        {
+          "ruleId": "resilient/no-null-assignment",
+          "severity": 2,
+          "message": "Do not assign null; respect contracts, set defaults '', {}, [], 0, false, or do not set",
+          "line": 1,
+          "column": 16,
+          "messageId": "nullAssignment",
+          "endLine": 1,
+          "endColumn": 20
+        }
+      ]
+    },
+    {
+      "rule": "no-null-assignment",
+      "source": "const value = (target = null);",
+      "expected": [
+        {
+          "ruleId": "resilient/no-null-assignment",
+          "severity": 2,
+          "message": "Do not assign null; respect contracts, set defaults '', {}, [], 0, false, or do not set",
+          "line": 1,
+          "column": 25,
+          "messageId": "nullAssignment",
+          "endLine": 1,
+          "endColumn": 29
+        },
+        {
+          "ruleId": "resilient/no-null-assignment",
+          "severity": 2,
+          "message": "Do not assign null; respect contracts, set defaults '', {}, [], 0, false, or do not set",
+          "line": 1,
+          "column": 25,
+          "messageId": "nullAssignment",
+          "endLine": 1,
+          "endColumn": 29
+        }
+      ]
+    },
+    {
+      "rule": "no-null-assignment",
+      "source": "const value = null;",
+      "expected": [
+        {
+          "ruleId": "resilient/no-null-assignment",
+          "severity": 2,
+          "message": "Do not assign null; respect contracts, set defaults '', {}, [], 0, false, or do not set",
+          "line": 1,
+          "column": 15,
+          "messageId": "nullAssignment",
+          "endLine": 1,
+          "endColumn": 19
+        }
+      ]
+    },
+    {
+      "rule": "no-null-assignment",
+      "source": "value = null;",
+      "expected": [
+        {
+          "ruleId": "resilient/no-null-assignment",
+          "severity": 2,
+          "message": "Do not assign null; respect contracts, set defaults '', {}, [], 0, false, or do not set",
+          "line": 1,
+          "column": 9,
+          "messageId": "nullAssignment",
+          "endLine": 1,
+          "endColumn": 13
+        }
+      ]
+    },
+    {
+      "rule": "no-null-assignment",
+      "source": "const value = enabled ? \"ready\" : null;",
+      "expected": [
+        {
+          "ruleId": "resilient/no-null-assignment",
+          "severity": 2,
+          "message": "Do not assign null; respect contracts, set defaults '', {}, [], 0, false, or do not set",
+          "line": 1,
+          "column": 35,
+          "messageId": "nullAssignment",
+          "endLine": 1,
+          "endColumn": 39
+        }
+      ]
+    },
+    {
+      "rule": "no-null-assignment",
+      "source": "const read = (value = null) => value;",
+      "expected": [
+        {
+          "ruleId": "resilient/no-null-assignment",
+          "severity": 2,
+          "message": "Do not assign null; respect contracts, set defaults '', {}, [], 0, false, or do not set",
+          "line": 1,
+          "column": 23,
+          "messageId": "nullAssignment",
+          "endLine": 1,
+          "endColumn": 27
+        }
+      ]
+    },
+    {
+      "rule": "no-null-assignment",
+      "source": "function read(value = null) { return value; }",
+      "expected": [
+        {
+          "ruleId": "resilient/no-null-assignment",
+          "severity": 2,
+          "message": "Do not assign null; respect contracts, set defaults '', {}, [], 0, false, or do not set",
+          "line": 1,
+          "column": 23,
+          "messageId": "nullAssignment",
+          "endLine": 1,
+          "endColumn": 27
+        }
+      ]
+    },
+    {
+      "rule": "no-null-assignment",
+      "source": "const { value = null } = data;",
+      "expected": [
+        {
+          "ruleId": "resilient/no-null-assignment",
+          "severity": 2,
+          "message": "Do not assign null; respect contracts, set defaults '', {}, [], 0, false, or do not set",
+          "line": 1,
+          "column": 17,
+          "messageId": "nullAssignment",
+          "endLine": 1,
+          "endColumn": 21
+        }
+      ]
+    },
+    {
+      "rule": "no-null-assignment",
+      "source": "const [first = null] = items;",
+      "expected": [
+        {
+          "ruleId": "resilient/no-null-assignment",
+          "severity": 2,
+          "message": "Do not assign null; respect contracts, set defaults '', {}, [], 0, false, or do not set",
+          "line": 1,
+          "column": 16,
+          "messageId": "nullAssignment",
+          "endLine": 1,
+          "endColumn": 20
+        }
+      ]
+    },
+    {
+      "rule": "no-null-assignment",
+      "source": "({ value = null } = data);",
+      "expected": [
+        {
+          "ruleId": "resilient/no-null-assignment",
+          "severity": 2,
+          "message": "Do not assign null; respect contracts, set defaults '', {}, [], 0, false, or do not set",
+          "line": 1,
+          "column": 12,
+          "messageId": "nullAssignment",
+          "endLine": 1,
+          "endColumn": 16
+        }
+      ]
+    },
+    {
+      "rule": "no-null-assignment",
+      "source": "const read = ({ value = enabled ? \"\" : null } = {}) => value;",
+      "expected": [
+        {
+          "ruleId": "resilient/no-null-assignment",
+          "severity": 2,
+          "message": "Do not assign null; respect contracts, set defaults '', {}, [], 0, false, or do not set",
+          "line": 1,
+          "column": 40,
+          "messageId": "nullAssignment",
+          "endLine": 1,
+          "endColumn": 44
+        }
+      ]
+    },
+    {
+      "rule": "no-null-assignment",
+      "source": "const { value = null } = { value: null };",
+      "expected": [
+        {
+          "ruleId": "resilient/no-null-assignment",
+          "severity": 2,
+          "message": "Do not assign null; respect contracts, set defaults '', {}, [], 0, false, or do not set",
+          "line": 1,
+          "column": 17,
+          "messageId": "nullAssignment",
+          "endLine": 1,
+          "endColumn": 21
+        },
+        {
+          "ruleId": "resilient/no-null-assignment",
+          "severity": 2,
+          "message": "Do not assign null; respect contracts, set defaults '', {}, [], 0, false, or do not set",
+          "line": 1,
+          "column": 35,
+          "messageId": "nullAssignment",
+          "endLine": 1,
+          "endColumn": 39
+        }
+      ]
+    },
+    {
+      "rule": "no-undefined-assignment",
+      "source": "const hasValue = value => !value;",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-assignment",
+      "source": "const value = null;",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-assignment",
+      "source": "const copy = undefined => { const value = undefined; return value; }; copy(\"ready\");",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-assignment",
+      "source": "const copy = (undefined, value) => { value = undefined; };",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-assignment",
+      "source": "const copy = () => { const undefined = \"ready\"; const value = undefined; };",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-assignment",
+      "source": "const copy = () => { const value = undefined; var undefined = \"ready\"; };",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-assignment",
+      "source": "const copy = ({ undefined }) => { const value = undefined; };",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-assignment",
+      "source": "import undefined from \"ordinary\"; const value = undefined;",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-assignment",
+      "source": "try { run(); } catch (undefined) { value = undefined; }",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-assignment",
+      "source": "var undefined = \"ready\"; const value = undefined;",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-assignment",
+      "source": "const value = undefined;",
+      "expected": [
+        {
+          "ruleId": "resilient/no-undefined-assignment",
+          "severity": 2,
+          "message": "Do not assign undefined, it is a state not a value. Respect contracts, set defaults '', {}, [], 0, false, or do not set",
+          "line": 1,
+          "column": 15,
+          "messageId": "undefinedAssignment",
+          "endLine": 1,
+          "endColumn": 24
+        }
+      ]
+    },
+    {
+      "rule": "no-undefined-assignment",
+      "source": "value = undefined;",
+      "expected": [
+        {
+          "ruleId": "resilient/no-undefined-assignment",
+          "severity": 2,
+          "message": "Do not assign undefined, it is a state not a value. Respect contracts, set defaults '', {}, [], 0, false, or do not set",
+          "line": 1,
+          "column": 9,
+          "messageId": "undefinedAssignment",
+          "endLine": 1,
+          "endColumn": 18
+        }
+      ]
+    },
+    {
+      "rule": "no-undefined-assignment",
+      "source": "const local = undefined => undefined; const value = undefined;",
+      "expected": [
+        {
+          "ruleId": "resilient/no-undefined-assignment",
+          "severity": 2,
+          "message": "Do not assign undefined, it is a state not a value. Respect contracts, set defaults '', {}, [], 0, false, or do not set",
+          "line": 1,
+          "column": 53,
+          "messageId": "undefinedAssignment",
+          "endLine": 1,
+          "endColumn": 62
+        }
+      ]
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "const isMissing = value => !value;",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "const isPresent = value => !!value;",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "const check = (undefined, value) => value === undefined; check(\"ready\", \"ready\");",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "const check = (undefined, value) => undefined !== value;",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "const check = value => { const undefined = \"ready\"; return value == undefined; };",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "const check = value => { return value != undefined; var undefined = \"ready\"; };",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "const check = ({ undefined }, value) => value === undefined;",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "import undefined from \"ordinary\"; const check = value => value === undefined;",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "try { run(); } catch (undefined) { value === undefined; }",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "var undefined = \"ready\"; value === undefined;",
+      "expected": []
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "const isMissing = value => value === undefined;",
+      "expected": [
+        {
+          "ruleId": "resilient/no-undefined-comparison",
+          "severity": 2,
+          "message": "Use !value or !!value only when all falsey values have the same consequence; otherwise preserve exact absence with a justified local resilient/no-undefined-comparison exception.",
+          "line": 1,
+          "column": 28,
+          "messageId": "undefinedComparison",
+          "endLine": 1,
+          "endColumn": 47
+        }
+      ]
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "const isPresent = value => typeof value === \"undefined\";",
+      "expected": [
+        {
+          "ruleId": "resilient/no-undefined-comparison",
+          "severity": 2,
+          "message": "Use !value or !!value only when all falsey values have the same consequence; otherwise preserve exact absence with a justified local resilient/no-undefined-comparison exception.",
+          "line": 1,
+          "column": 28,
+          "messageId": "undefinedComparison",
+          "endLine": 1,
+          "endColumn": 56
+        }
+      ]
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "const check = value => value !== undefined;",
+      "expected": [
+        {
+          "ruleId": "resilient/no-undefined-comparison",
+          "severity": 2,
+          "message": "Use !value or !!value only when all falsey values have the same consequence; otherwise preserve exact absence with a justified local resilient/no-undefined-comparison exception.",
+          "line": 1,
+          "column": 24,
+          "messageId": "undefinedComparison",
+          "endLine": 1,
+          "endColumn": 43
+        }
+      ]
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "const check = value => value == undefined;",
+      "expected": [
+        {
+          "ruleId": "resilient/no-undefined-comparison",
+          "severity": 2,
+          "message": "Use !value or !!value only when all falsey values have the same consequence; otherwise preserve exact absence with a justified local resilient/no-undefined-comparison exception.",
+          "line": 1,
+          "column": 24,
+          "messageId": "undefinedComparison",
+          "endLine": 1,
+          "endColumn": 42
+        }
+      ]
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "const check = value => value != undefined;",
+      "expected": [
+        {
+          "ruleId": "resilient/no-undefined-comparison",
+          "severity": 2,
+          "message": "Use !value or !!value only when all falsey values have the same consequence; otherwise preserve exact absence with a justified local resilient/no-undefined-comparison exception.",
+          "line": 1,
+          "column": 24,
+          "messageId": "undefinedComparison",
+          "endLine": 1,
+          "endColumn": 42
+        }
+      ]
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "const check = value => undefined === value;",
+      "expected": [
+        {
+          "ruleId": "resilient/no-undefined-comparison",
+          "severity": 2,
+          "message": "Use !value or !!value only when all falsey values have the same consequence; otherwise preserve exact absence with a justified local resilient/no-undefined-comparison exception.",
+          "line": 1,
+          "column": 24,
+          "messageId": "undefinedComparison",
+          "endLine": 1,
+          "endColumn": 43
+        }
+      ]
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "const check = value => \"undefined\" !== typeof value;",
+      "expected": [
+        {
+          "ruleId": "resilient/no-undefined-comparison",
+          "severity": 2,
+          "message": "Use !value or !!value only when all falsey values have the same consequence; otherwise preserve exact absence with a justified local resilient/no-undefined-comparison exception.",
+          "line": 1,
+          "column": 24,
+          "messageId": "undefinedComparison",
+          "endLine": 1,
+          "endColumn": 52
+        }
+      ]
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "const check = undefined => typeof undefined === \"undefined\";",
+      "expected": [
+        {
+          "ruleId": "resilient/no-undefined-comparison",
+          "severity": 2,
+          "message": "Use !value or !!value only when all falsey values have the same consequence; otherwise preserve exact absence with a justified local resilient/no-undefined-comparison exception.",
+          "line": 1,
+          "column": 28,
+          "messageId": "undefinedComparison",
+          "endLine": 1,
+          "endColumn": 60
+        }
+      ]
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "const check = () => typeof undeclared === \"undefined\";",
+      "expected": [
+        {
+          "ruleId": "resilient/no-undefined-comparison",
+          "severity": 2,
+          "message": "Use !value or !!value only when all falsey values have the same consequence; otherwise preserve exact absence with a justified local resilient/no-undefined-comparison exception.",
+          "line": 1,
+          "column": 21,
+          "messageId": "undefinedComparison",
+          "endLine": 1,
+          "endColumn": 54
+        }
+      ]
+    },
+    {
+      "rule": "no-undefined-comparison",
+      "source": "const local = undefined => undefined; const check = value => value === undefined;",
+      "expected": [
+        {
+          "ruleId": "resilient/no-undefined-comparison",
+          "severity": 2,
+          "message": "Use !value or !!value only when all falsey values have the same consequence; otherwise preserve exact absence with a justified local resilient/no-undefined-comparison exception.",
+          "line": 1,
+          "column": 62,
+          "messageId": "undefinedComparison",
+          "endLine": 1,
+          "endColumn": 81
+        }
+      ]
+    },
+    {
+      "rule": "no-destructuring-fallback",
+      "source": "const process = ({ data: { items = [] } = {} } = {}) => items;",
+      "expected": []
+    },
+    {
+      "rule": "no-destructuring-fallback",
+      "source": "const { items = [] } = data || {};",
+      "expected": [
+        {
+          "ruleId": "resilient/no-destructuring-fallback",
+          "severity": 2,
+          "message": "Do not use || as a destructuring fallback. Default the object in the function signature or declaration.",
+          "line": 1,
+          "column": 24,
+          "messageId": "destructuringFallback",
+          "endLine": 1,
+          "endColumn": 34
+        }
+      ]
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const read = ({ id = \"\" } = {}) => id;",
+      "expected": []
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const read = (user = {}) => { const { id = \"\" } = user; return id; };",
+      "expected": []
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const count = items => items.length;",
+      "expected": []
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const count = document => !document.content.length;",
+      "expected": []
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const size = collection => collection.items.size;",
+      "expected": []
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const count = (document, key) => document[key].length;",
+      "expected": []
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const count = (document, length) => document[length]();",
+      "expected": []
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const map = items => items.map(transform);",
+      "expected": []
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const read = request => request.headers.get(\"origin\");",
+      "expected": []
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const split = value => value.split(\"/\").filter(Boolean);",
+      "expected": []
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const merge = values => values.reduce((acc, value) => { acc.value = value; return acc; }, {});",
+      "expected": []
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const read = (value, length) => value[length];",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-destructured-member-access",
+          "severity": 2,
+          "message": "Destructure bound data before accessing it.",
+          "line": 1,
+          "column": 33,
+          "messageId": "staticMember",
+          "endLine": 1,
+          "endColumn": 46
+        }
+      ]
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const read = (value, length) => value.field[length];",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-destructured-member-access",
+          "severity": 2,
+          "message": "Destructure bound data before accessing it.",
+          "line": 1,
+          "column": 33,
+          "messageId": "staticMember",
+          "endLine": 1,
+          "endColumn": 44
+        }
+      ]
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const read = value => value[\"length\"];",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-destructured-member-access",
+          "severity": 2,
+          "message": "Destructure bound data before accessing it.",
+          "line": 1,
+          "column": 23,
+          "messageId": "staticMember",
+          "endLine": 1,
+          "endColumn": 38
+        }
+      ]
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const read = (value, size) => value[size];",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-destructured-member-access",
+          "severity": 2,
+          "message": "Destructure bound data before accessing it.",
+          "line": 1,
+          "column": 31,
+          "messageId": "staticMember",
+          "endLine": 1,
+          "endColumn": 42
+        }
+      ]
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const read = (value, size) => value.field[size];",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-destructured-member-access",
+          "severity": 2,
+          "message": "Destructure bound data before accessing it.",
+          "line": 1,
+          "column": 31,
+          "messageId": "staticMember",
+          "endLine": 1,
+          "endColumn": 42
+        }
+      ]
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const read = value => value[\"size\"];",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-destructured-member-access",
+          "severity": 2,
+          "message": "Destructure bound data before accessing it.",
+          "line": 1,
+          "column": 23,
+          "messageId": "staticMember",
+          "endLine": 1,
+          "endColumn": 36
+        }
+      ]
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const read = (user) => user.id;",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-destructured-member-access",
+          "severity": 2,
+          "message": "Destructure bound data before accessing it.",
+          "line": 1,
+          "column": 24,
+          "messageId": "staticMember",
+          "endLine": 1,
+          "endColumn": 31
+        }
+      ]
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const read = (user) => `${user.id}:${user.name}`;",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-destructured-member-access",
+          "severity": 2,
+          "message": "Destructure bound data before accessing it.",
+          "line": 1,
+          "column": 27,
+          "messageId": "staticMember",
+          "endLine": 1,
+          "endColumn": 34
+        },
+        {
+          "ruleId": "resilient/prefer-destructured-member-access",
+          "severity": 2,
+          "message": "Destructure bound data before accessing it.",
+          "line": 1,
+          "column": 38,
+          "messageId": "staticMember",
+          "endLine": 1,
+          "endColumn": 47
+        }
+      ]
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const headers = request => request.headers;",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-destructured-member-access",
+          "severity": 2,
+          "message": "Destructure bound data before accessing it.",
+          "line": 1,
+          "column": 28,
+          "messageId": "staticMember",
+          "endLine": 1,
+          "endColumn": 43
+        }
+      ]
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const read = ({ user = {} } = {}) => user.id;",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-destructured-member-access",
+          "severity": 2,
+          "message": "Destructure bound data before accessing it.",
+          "line": 1,
+          "column": 38,
+          "messageId": "staticMember",
+          "endLine": 1,
+          "endColumn": 45
+        }
+      ]
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const read = (user) => user[\"id\"];",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-destructured-member-access",
+          "severity": 2,
+          "message": "Destructure bound data before accessing it.",
+          "line": 1,
+          "column": 24,
+          "messageId": "staticMember",
+          "endLine": 1,
+          "endColumn": 34
+        }
+      ]
+    },
+    {
+      "rule": "prefer-destructured-member-access",
+      "source": "const read = () => { const source = { id: \"\" }; return source.id; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-destructured-member-access",
+          "severity": 2,
+          "message": "Destructure bound data before accessing it.",
+          "line": 1,
+          "column": 56,
+          "messageId": "staticMember",
+          "endLine": 1,
+          "endColumn": 65
+        }
+      ]
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const retain = input => { const { point = undefined } = input; return { point, read: key => input.read(key) }; };",
+      "expected": []
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const retain = input => { const { point = undefined } = input; return () => input.point; };",
+      "expected": []
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const retain = input => { const { point = undefined } = input; return function later() { return input[key]; }; };",
+      "expected": []
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const getName = user => { const { name = \"\" } = user; return () => user.id + name; };",
+      "expected": []
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const inspect = (node) => { const { type = \"\" } = node; sendNode(node); return type; };",
+      "expected": []
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const inspect = (node) => { const { type = \"\" } = node; sendNode({ node }); return type; };",
+      "expected": []
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const inspect = (node) => { const inspectType = () => { const { type = \"\" } = node; return type; }; return inspectType; };",
+      "expected": []
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const inspect = (node) => { const { type = \"\" } = node; return node; };",
+      "expected": []
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const inspect = (node) => { const { type = \"\" } = node; return { ...node, type }; };",
+      "expected": []
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const inspect = (context) => { const { name = \"\" } = context; return context[key] || name; };",
+      "expected": []
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const lift = (F, value) => { const { of: FOf } = F; if (!isFunction(FOf)) return; return FOf(value); };",
+      "expected": []
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const retain = input => { const { point = undefined } = input; return { point, read: input => input.read() }; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-signature-destructuring",
+          "severity": 2,
+          "message": "Destructure \"input\" in the function signature instead of inside the function body.",
+          "line": 1,
+          "column": 33,
+          "messageId": "preferSignature",
+          "endLine": 1,
+          "endColumn": 54,
+          "suggestions": [
+            {
+              "messageId": "moveToSignature",
+              "data": {
+                "name": "input"
+              },
+              "fix": {
+                "range": [
+                  15,
+                  62
+                ],
+                "text": "({ point = undefined }) => { "
+              },
+              "desc": "Move \"input\" destructuring to the function signature, preserving authored defaults."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const processUser = (user) => { const { name, age } = user; return `${name} (${age})`; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-signature-destructuring",
+          "severity": 2,
+          "message": "Destructure \"user\" in the function signature instead of inside the function body.",
+          "line": 1,
+          "column": 39,
+          "messageId": "preferSignature",
+          "endLine": 1,
+          "endColumn": 52,
+          "suggestions": [
+            {
+              "messageId": "moveToSignature",
+              "data": {
+                "name": "user"
+              },
+              "fix": {
+                "range": [
+                  21,
+                  59
+                ],
+                "text": "{ name, age }) => { "
+              },
+              "desc": "Move \"user\" destructuring to the function signature, preserving authored defaults."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const getTitle = (article = {}) => { const { title } = article; return title; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-signature-destructuring",
+          "severity": 2,
+          "message": "Destructure \"article\" in the function signature instead of inside the function body.",
+          "line": 1,
+          "column": 44,
+          "messageId": "preferSignature",
+          "endLine": 1,
+          "endColumn": 53,
+          "suggestions": [
+            {
+              "messageId": "moveToSignature",
+              "data": {
+                "name": "article"
+              },
+              "fix": {
+                "range": [
+                  18,
+                  63
+                ],
+                "text": "{ title } = {}) => { "
+              },
+              "desc": "Move \"article\" destructuring to the function signature, preserving authored defaults."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "function getMode(settings) { const { mode = \"\" } = settings; return mode; }",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-signature-destructuring",
+          "severity": 2,
+          "message": "Destructure \"settings\" in the function signature instead of inside the function body.",
+          "line": 1,
+          "column": 36,
+          "messageId": "preferSignature",
+          "endLine": 1,
+          "endColumn": 49,
+          "suggestions": [
+            {
+              "messageId": "moveToSignature",
+              "data": {
+                "name": "settings"
+              },
+              "fix": {
+                "range": [
+                  17,
+                  60
+                ],
+                "text": "{ mode = \"\" }) { "
+              },
+              "desc": "Move \"settings\" destructuring to the function signature, preserving authored defaults."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const getName = (user) => { sendUser(user); const { name = \"\" } = user; return name; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-signature-destructuring",
+          "severity": 2,
+          "message": "Destructure \"user\" in the function signature instead of inside the function body.",
+          "line": 1,
+          "column": 51,
+          "messageId": "preferSignature",
+          "endLine": 1,
+          "endColumn": 64
+        }
+      ]
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const getSettings = (config) => { const { theme = \"\" } = config; const { mode = \"\" } = config; return `${theme}:${mode}`; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-signature-destructuring",
+          "severity": 2,
+          "message": "Destructure \"config\" in the function signature instead of inside the function body.",
+          "line": 1,
+          "column": 41,
+          "messageId": "preferSignature",
+          "endLine": 1,
+          "endColumn": 55
+        },
+        {
+          "ruleId": "resilient/prefer-signature-destructuring",
+          "severity": 2,
+          "message": "Destructure \"config\" in the function signature instead of inside the function body.",
+          "line": 1,
+          "column": 72,
+          "messageId": "preferSignature",
+          "endLine": 1,
+          "endColumn": 85
+        }
+      ]
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const getName = (user) => { const { name = \"\" } = user; return `${user.id}:${name}`; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-signature-destructuring",
+          "severity": 2,
+          "message": "Destructure \"user\" in the function signature instead of inside the function body.",
+          "line": 1,
+          "column": 35,
+          "messageId": "preferSignature",
+          "endLine": 1,
+          "endColumn": 48
+        }
+      ]
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const getName = (user) => { log(\"inspect\"); const { name = \"\" } = user; return name; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-signature-destructuring",
+          "severity": 2,
+          "message": "Destructure \"user\" in the function signature instead of inside the function body.",
+          "line": 1,
+          "column": 51,
+          "messageId": "preferSignature",
+          "endLine": 1,
+          "endColumn": 64
+        }
+      ]
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const getName = (user, id) => { const { name = \"\" } = user; return `${user.id}:${name}:${id}`; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-signature-destructuring",
+          "severity": 2,
+          "message": "Destructure \"user\" in the function signature instead of inside the function body.",
+          "line": 1,
+          "column": 39,
+          "messageId": "preferSignature",
+          "endLine": 1,
+          "endColumn": 52
+        }
+      ]
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const getName = (user) => { const { name = \"\" } = user; const id = \"local\"; return `${user.id}:${name}:${id}`; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-signature-destructuring",
+          "severity": 2,
+          "message": "Destructure \"user\" in the function signature instead of inside the function body.",
+          "line": 1,
+          "column": 35,
+          "messageId": "preferSignature",
+          "endLine": 1,
+          "endColumn": 48
+        }
+      ]
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const getName = (user) => { const { name = \"\" } = user; function id() { return \"local\"; } return `${user.id}:${name}`; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-signature-destructuring",
+          "severity": 2,
+          "message": "Destructure \"user\" in the function signature instead of inside the function body.",
+          "line": 1,
+          "column": 35,
+          "messageId": "preferSignature",
+          "endLine": 1,
+          "endColumn": 48
+        }
+      ]
+    },
+    {
+      "rule": "prefer-signature-destructuring",
+      "source": "const lift = (F, value) => { const { of: FOf } = F; return FOf(value); };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-signature-destructuring",
+          "severity": 2,
+          "message": "Destructure \"F\" in the function signature instead of inside the function body.",
+          "line": 1,
+          "column": 36,
+          "messageId": "preferSignature",
+          "endLine": 1,
+          "endColumn": 47,
+          "suggestions": [
+            {
+              "messageId": "moveToSignature",
+              "data": {
+                "name": "F"
+              },
+              "fix": {
+                "range": [
+                  14,
+                  51
+                ],
+                "text": "{ of: FOf }, value) => { "
+              },
+              "desc": "Move \"F\" destructuring to the function signature, preserving authored defaults."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const run = ({ onDone } = {}) => { if (typeof onDone !== \"function\") return; return onDone({ onDone }); };",
+      "expected": []
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const getConfig = ({ config: { timBurton = \"\" } = {} } = {}) => timBurton;",
+      "expected": []
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const useState = value => [value, () => {}]; const [value, setValue] = useState(false);",
+      "expected": []
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const run = ({ onDone } = {}) => { if (isFunction(onDone)) onDone(); };",
+      "expected": []
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const run = ({ onDone } = {}) => { if (!isFunction(onDone)) return \"\"; return values.map(onDone).join(\", \"); };",
+      "expected": []
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const sort = ({ compare }) => values => { const sorted = values.slice(); if (!isFunction(compare)) return; return sorted.toSorted(compare); };",
+      "expected": []
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "function flow(first, ...args) { switch (arguments.length) { case 2: { const [second] = args; return first(second); } default: return first; } }",
+      "expected": []
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const flow = (value, stage) => () => typeof stage === 'function' && stage(value); const lift = ({ of }) => value => flow(value, of);",
+      "expected": []
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const map = tuple => { if (!isArray(tuple) || tuple.length < 2) { return []; } const [a, state] = tuple; return [a, state]; };",
+      "expected": []
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const first = tuple => { if (!hasArrayContent(tuple)) { return \"\"; } const [value] = tuple; return value; };",
+      "expected": []
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const run = M => value => M.chain(value, tuple => { if (!isArray(tuple) || tuple.length < 2) { return M.of([]); } const [a, state] = tuple; return M.of([a, state]); });",
+      "expected": []
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const { values: [first = \"\"] } = { values: tuple };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 17,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 29
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const forward = FWI => { return { reduce: (({ reduce: FWIReduce }) => FWIReduce)(FWI) }; };",
+      "expected": []
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const project = values => values.map(value => (({ baseValue: valueBaseValue }) => valueBaseValue)(value));",
+      "expected": []
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const Show = input => { const { show } = isObject(input) ? input : {}; if (!isFunction(show)) return { show }; return { ...input, show }; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 33,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 37
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const Available = (input = {}) => { const source = isObject(input) ? input : {}; if ((isObject(input) && Reflect.has(input, 'value')) === false) throw new TypeError('Missing required agreement for value'); const { value } = source; return { value }; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 215,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 220
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const join = (ma, f) => { const { value, forest = [] } = f(ma); const { concat } = A.getIdentityProvider(); if (!isFunction(concat)) return { value, forest: [] }; return { value, forest: concat(forest, ma.forest) }; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 35,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 40
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const combineAll = M => f => fa => { if (isInbound(fa)) { const { baseValue: MBaseValue } = M; return MBaseValue; } return f(fa.outbound); };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 78,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 88
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const Available = input => { const { category = '', value } = isObject(input) ? input : {}; if (!category) return { category, value }; return { ...input, category, value }; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 53,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 58
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = ei => { if (isInbound(ei)) { const { inbound } = ei; return inbound; } return ''; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 51,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 58
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = option => { if (isMissing(option)) return ''; const { value } = option; return value; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 68,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 73
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = ei => { if (_.isInbound(ei)) return ''; const { outbound } = ei; return outbound; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 62,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 70
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = ei => { if (ei.category === 'Inbound') { const { inbound } = ei; return inbound; } return ''; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 63,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 70
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = ei => { const { category: eiTag = '' } = ei; if (eiTag === 'Inbound') { const { inbound } = ei; return inbound; } return ''; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 94,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 101
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = ei => { const { category: eiTag = '' } = ei; if (eiTag === 'Inbound') return ''; const { outbound } = ei; return outbound; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 103,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 111
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = ei => { if (!isInbound(ei)) return ''; const { inbound } = ei; return inbound; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 61,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 68
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = (ei, other) => { if (isOutbound(ei)) return ''; if (isInbound(other)) { const { inbound } = ei; return inbound; } return ''; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 94,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 101
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = ei => isInbound(ei) ? (({ inbound }) => inbound)(ei) : '';",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 40,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 47
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = option => isMissing(option) ? '' : (({ value }) => value)(option);",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 53,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 58
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const tailRec = (start, f) => { let result = f(start); while (result.category === 'Inbound') { result = f(result.inbound); } const { outbound } = result; return outbound; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 134,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 142
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = ei => { if (isInbound(ei)) return ''; else { const { outbound } = ei; return outbound; } };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 67,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 75
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const getConfig = ({ config: { timBurton } = {} } = {}) => timBurton;",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 32,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 41
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const getConfig = ({ config } = {}) => config;",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 22,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 28
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const getFirst = ([item] = []) => item;",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 20,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 24
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const map = tuple => { if (!isArray(tuple)) return []; const [a, state] = tuple; return [a, state]; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 63,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 64
+        },
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 66,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 71
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const run = M => value => M.chain(value, tuple => { if (!isArray(tuple) || tuple.length < 2) return other.of([]); const [a, state] = tuple; return M.of([a, state]); });",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 122,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 123
+        },
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 125,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 130
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const run = ({ onDone }) => { const later = () => onDone(); return later; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 16,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 22
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const flow = (...args) => { const [first] = args; return first; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 36,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 41
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const source = {}; const { value } = source;",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 28,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 33
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const Available = input => { const { category = '', value } = isObject(input) ? input : {}; if (!category) return {}; return { category, value }; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 53,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 58
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = ei => { if (isInbound(ei)) { const { outbound } = ei; return outbound; } return ''; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 51,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 59
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = ei => { const { category: eiTag = '' } = ei; eiTag = 'Inbound'; if (eiTag === 'Inbound') { const { inbound } = ei; return inbound; } return ''; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 113,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 120
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = ei => { const { category: eiTag = '' } = ei; if (eiTag === 'Inbound') { const { outbound } = ei; return outbound; } return ''; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 94,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 102
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = ei => isInbound(ei) ? (({ outbound }) => outbound)(ei) : '';",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 40,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 48
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = ei => isInbound(ei) ? (({ inbound }) => other)(ei) : '';",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 40,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 47
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = ei => { if (isWhatever(ei)) { const { inbound } = ei; return inbound; } return ''; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 52,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 59
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = option => { if (isMissing(option)) { const { value } = option; return value; } return ''; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 59,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 64
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = ei => { if (!isInbound(ei)) return ''; const { outbound } = ei; return outbound; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 61,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 69
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const read = (ei, other) => { if (isOutbound(ei)) return ''; ei = other; if (isInbound(other)) { const { inbound } = ei; return inbound; } return ''; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 106,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 113
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const run = ({ onDone }) => onDone();",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 16,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 22
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const run = ({ onDone }) => values.map(onDone).join(\", \");",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 16,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 22
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const flow = (value, next) => next(value); const lift = ({ of }) => value => flow(value, of);",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 60,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 62
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "import { flow } from 'external-flow'; const lift = ({ of }) => value => flow(value, of);",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 55,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 57
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const forward = FWI => ({ reduce: (({ reduce: FWIReduce }) => FWIReduce)(FWI) });",
+      "expected": []
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const project = values => values.map(value => (({ baseValue: valueBaseValue }) => other)(value));",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 62,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 76
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const project = values => values.filter(value => (({ baseValue: valueBaseValue }) => valueBaseValue)(value));",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 65,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 79
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const forward = FWI => { return { reduce: (({ reduce: FWIReduce }) => other)(FWI) }; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 55,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 64
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const forward = FWI => { return { reduce: (({ reduce: FWIReduce, combineAll: FWICombineAll }) => FWIReduce)(FWI) }; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 55,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 64
+        },
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 78,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 91
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const notCombineAll = M => fa => { if (isInbound(fa)) { const { baseValue: MBaseValue } = M; return MBaseValue; } return fa; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 76,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 86
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const tailRec = (start, f) => { let result = f(start); while (result.category === 'Inbound') { result = f(result.inbound); } const { inbound } = result; return inbound; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 134,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 141
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const run = ({ onDone } = {}) => { if (isFunction(onDone)) return values[method](onDone); return \"\"; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 16,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 22
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const sort = ({ compare }) => values => { if (!isFunction(compare)) return; return values[method](compare); };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 17,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 24
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const run = ({ onDone } = {}) => { const output = values.map(onDone); if (!isFunction(onDone)) return \"\"; return output; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 16,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 22
+        }
+      ]
+    },
+    {
+      "rule": "prefer-safe-destructuring-defaults",
+      "source": "const join = (ma, f) => { const { value, forest = [] } = f(ma); const { concat } = A.getIdentityProvider(); if (!isFunction(concat)) return { value, forest: {} }; return { value, forest: concat(forest, ma.forest) }; };",
+      "expected": [
+        {
+          "ruleId": "resilient/prefer-safe-destructuring-defaults",
+          "severity": 2,
+          "message": "Provide an explicit default for this destructured value.",
+          "line": 1,
+          "column": 35,
+          "messageId": "safeDefault",
+          "endLine": 1,
+          "endColumn": 40
+        }
+      ]
+    }
+  ]
+}

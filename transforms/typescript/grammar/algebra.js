@@ -1,3 +1,4 @@
+import { isFunction } from '../../../analysis/host/function.js';
 // Algebra grammar assembles agreements that have already been proven by
 // Understand. It never selects a fallback: it only preserves a source-owned
 // identity at the source property-evaluation point.
@@ -26,8 +27,12 @@ const createProviderForwardExpression = ({
         undefined,
         member === alias ? undefined : factory.createIdentifier(member),
         factory.createIdentifier(alias),
-        canonical === 'undefined' ? factory.createIdentifier('undefined') : undefined
+        undefined
     );
+
+    if (canonical === 'undefined') Object.defineProperty(binding, '__resilientAgreement', { configurable: true,
+        value: 'Forwarded field retains its native absence.' });
+
     const parameter = factory.createParameterDeclaration(
         undefined,
         undefined,
@@ -42,7 +47,9 @@ const createProviderForwardExpression = ({
         [parameter],
         undefined,
         factory.createToken(EqualsGreaterThanToken),
-        factory.createIdentifier(alias)
+        canonical === 'undefined'
+            ? factory.createBlock([factory.createReturnStatement(factory.createIdentifier(alias))], true)
+            : factory.createIdentifier(alias)
     );
 
     return factory.createCallExpression(
@@ -87,57 +94,13 @@ const createCollectionAccumulatorRebind = ({
 const createFreshCollectionReconstruction = ({
     typescript = {}, collection = '', source = {}, arguments: args = [], method = ''
 } = {}) => {
-    const {
-        factory = {},
-        SyntaxKind: {
-            EqualsGreaterThanToken = -1,
-            EqualsEqualsEqualsToken = -1,
-            ExclamationEqualsEqualsToken = -1,
-            AmpersandAmpersandToken = -1,
-            BarBarToken = -1,
-            ExclamationToken = -1
-        } = {}
-    } = typescript;
+    const { factory = {} } = typescript;
     const isMap = collection === 'Map' && args.length === 2;
     const isSet = collection === 'Set' && args.length === 1;
-    const isMapDelete = collection === 'Map' && method === 'delete' && args.length === 1;
 
-    if (!(isMap || isSet || isMapDelete)) return false;
-
-    if (isMapDelete) {
-        const [key = {}] = args;
-        const entryKey = factory.createIdentifier('entryKey');
-        const sameValueZero = factory.createBinaryExpression(
-            factory.createBinaryExpression(entryKey, factory.createToken(EqualsEqualsEqualsToken), key),
-            factory.createToken(BarBarToken),
-            factory.createBinaryExpression(
-                factory.createBinaryExpression(entryKey, factory.createToken(ExclamationEqualsEqualsToken), entryKey),
-                factory.createToken(AmpersandAmpersandToken),
-                factory.createBinaryExpression(key, factory.createToken(ExclamationEqualsEqualsToken), key)
-            )
-        );
-        const entry = factory.createArrayBindingPattern([
-            factory.createBindingElement(undefined, undefined, entryKey, factory.createIdentifier('undefined'))
-        ]);
-        const predicate = factory.createArrowFunction(
-            undefined,
-            undefined,
-            [factory.createParameterDeclaration(undefined, undefined, entry)],
-            undefined,
-            factory.createToken(EqualsGreaterThanToken),
-            factory.createPrefixUnaryExpression(ExclamationToken, factory.createParenthesizedExpression(sameValueZero))
-        );
-        const entries = factory.createCallExpression(
-            factory.createPropertyAccessExpression(
-                factory.createArrayLiteralExpression([factory.createSpreadElement(source)], false),
-                factory.createIdentifier('filter')
-            ),
-            undefined,
-            [predicate]
-        );
-
-        return factory.createNewExpression(factory.createIdentifier('Map'), undefined, [entries]);
-    }
+    // Deletion keeps its native call: a predicate would replay the key and
+    // introduce a lexical scope around source arguments.
+    if (method === 'delete' || !(isMap || isSet)) return false;
 
     const entries = isMap
         ? [factory.createSpreadElement(source), factory.createArrayLiteralExpression(args, false)]
@@ -151,10 +114,10 @@ const createFreshCollectionReconstruction = ({
 };
 
 // A materialized traversal has already established its ownership and result
-// container in Understand. Grammar only creates the finite array reduction and
+// container in Understand. Grammar only creates the finite array traversal and
 // its one final Map/Set construction; it cannot approve a loop itself.
 const createMaterializedCollectionReduction = ({
-    typescript = {}, collection = '', source = {}, item = {}, accumulator = '',
+    typescript = {}, collection = '', source = {}, item = {},
     operation = '', value = {}, condition = {}, materialized = false
 } = {}) => {
     const {
@@ -168,23 +131,22 @@ const createMaterializedCollectionReduction = ({
     const needsCondition = ['filter', 'filter-map'].includes(operation);
     const acceptedOperation = ['map', 'filter', 'filter-map'].includes(operation);
 
-    if (!(isMap || isSet) || !source || !sourceKind || !item || !accumulator || !acceptedOperation ||
+    if (!(isMap || isSet) || !source || !sourceKind || !item || !acceptedOperation ||
         needsValue && !value || needsCondition && !condition) return false;
 
-    const arrayFrom = materialized
-        ? source
-        : factory.createCallExpression(
-            factory.createPropertyAccessExpression(factory.createIdentifier('Array'), factory.createIdentifier('from')),
-            undefined,
-            [source]
-        );
+    // Only a source-owned materialization admits finite reduction. Creating
+    // a snapshot here would consume the iterator before source callbacks run.
+    if (!materialized) return false;
+
+    const arrayFrom = source;
     // A filter may carry an explicit entry/value expression when its callback
     // parameter is destructured.  A Set filter can retain its direct item.
     const retainedValue = operation === 'filter' && !value ? item : value;
-    const nextValue = factory.createArrayLiteralExpression([
-        factory.createSpreadElement(factory.createIdentifier(accumulator)),
-        retainedValue
-    ], false);
+    // Each callback emits at most one item. flatMap appends these bounded
+    // arrays to its result once, instead of copying the growing prefix on
+    // every visit. Keep the condition and value in the same callback so
+    // guarded updates retain their source evaluation order.
+    const nextValue = factory.createArrayLiteralExpression([retainedValue], false);
     const body = operation === 'map'
         ? nextValue
         : factory.createConditionalExpression(
@@ -192,23 +154,28 @@ const createMaterializedCollectionReduction = ({
             factory.createToken(QuestionToken),
             nextValue,
             factory.createToken(ColonToken),
-            factory.createIdentifier(accumulator)
+            factory.createArrayLiteralExpression([], false)
         );
+    // Retain native iteration and short entries through parameter lowering.
+    // Mark a transform-owned copy so other sessions can reuse the source loop.
+    const callbackItem = isMap ? factory.cloneNode(item) : item;
+
+    if (isMap) Object.defineProperty(callbackItem, '__resilientNativeTuple', { configurable: true, value: true });
+
     const callback = factory.createArrowFunction(
         undefined,
         undefined,
         [
-            factory.createParameterDeclaration(undefined, undefined, factory.createIdentifier(accumulator), undefined, undefined),
-            factory.createParameterDeclaration(undefined, undefined, item, undefined, undefined)
+            factory.createParameterDeclaration(undefined, undefined, callbackItem, undefined, undefined)
         ],
         undefined,
         factory.createToken(EqualsGreaterThanToken),
         body
     );
     const reduced = factory.createCallExpression(
-        factory.createPropertyAccessExpression(arrayFrom, factory.createIdentifier('reduce')),
+        factory.createPropertyAccessExpression(arrayFrom, factory.createIdentifier('flatMap')),
         undefined,
-        [callback, factory.createArrayLiteralExpression([], false)]
+        [callback]
     );
 
     return factory.createNewExpression(factory.createIdentifier(collection), undefined, [reduced]);
@@ -225,7 +192,7 @@ const createCallableCapabilityGuard = ({ typescript = {}, alias = '', useFunctio
             SingleLineCommentTrivia = -1,
             EqualsEqualsEqualsToken = -1
         } = {},
-        addSyntheticLeadingComment = false
+        addSyntheticLeadingComment
     } = typescript;
 
     if (!alias) return false;
@@ -238,7 +205,7 @@ const createCallableCapabilityGuard = ({ typescript = {}, alias = '', useFunctio
             factory.createStringLiteral('function', true)
         );
     const bareReturn = factory.createReturnStatement();
-    const guardedReturn = typeof addSyntheticLeadingComment === 'function'
+    const guardedReturn = isFunction(addSyntheticLeadingComment)
         ? addSyntheticLeadingComment(
             bareReturn,
             SingleLineCommentTrivia,
@@ -276,10 +243,8 @@ const createDirectCapabilityStatements = ({
         undefined,
         member === alias ? undefined : factory.createIdentifier(member),
         factory.createIdentifier(alias),
-        // A missing required capability remains the exact falsifiable value
-        // for functions: undefined. This neither fabricates a callback nor
-        // normalizes a non-object provider.
-        factory.createIdentifier('undefined')
+        // The following executable guard owns the naturally absent capability.
+        undefined
     );
     const declaration = factory.createVariableStatement(
         undefined,

@@ -1,4 +1,5 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { updateFunction } from '../../utils/ast-boundary.js';
 import {
     createCallableCapabilityGuard,
@@ -15,9 +16,9 @@ const completeCapabilityReturnBoundaries = ({ typescript = {}, body = {} } = {})
     const { SyntaxKind: { ReturnStatement = -1, FunctionDeclaration = -1,
         FunctionExpression = -1, ArrowFunction = -1, MethodDeclaration = -1,
         GetAccessor = -1, SetAccessor = -1, Constructor = -1 } = {},
-    getSyntheticLeadingComments = false, setSyntheticLeadingComments = false } = typescript;
+    getSyntheticLeadingComments, setSyntheticLeadingComments } = typescript;
 
-    if (typeof getSyntheticLeadingComments !== 'function' || typeof setSyntheticLeadingComments !== 'function') return body;
+    if (!isFunction(getSyntheticLeadingComments) || !isFunction(setSyntheticLeadingComments)) return body;
 
     const functions = [FunctionDeclaration, FunctionExpression, ArrowFunction,
         MethodDeclaration, GetAccessor, SetAccessor, Constructor];
@@ -61,8 +62,8 @@ const getCapabilityAlias = ({ receiver = '', member = '', occupied = new Set() }
 };
 
 const getNodeKey = ({ typescript = {}, node = {} } = {}) => {
-    const { getOriginalNode = false } = typescript;
-    const original = typeof getOriginalNode === 'function' ? getOriginalNode(node) : node;
+    const { getOriginalNode } = typescript;
+    const original = isFunction(getOriginalNode) ? getOriginalNode(node) : node;
 
     return getConsumerContractKey(original);
 };
@@ -73,7 +74,7 @@ const getSortReceiverAlias = ({ occupied = new Set() } = {}) => {
     return candidates.find(candidate => !occupied.has(candidate)) || '_resilientSortedValue';
 };
 
-// The receiver of `toSorted` is evaluated before its comparator argument in
+// The source sorting receiver is evaluated before its comparator argument in
 // source. Stage only a non-identifier receiver so graceful capability
 // disagreement never skips Array.from(), slice(), or another source-owned
 // prerequisite expression.
@@ -91,9 +92,9 @@ const createSortConsumerStatements = ({
         SyntaxKind: { Identifier = -1, SingleLineCommentTrivia = -1 } = {},
         NodeFlags: { Const = 0 } = {},
         factory = {},
-        addSyntheticLeadingComment = false
+        addSyntheticLeadingComment
     } = typescript;
-    const { expression: callee = {}, arguments: args = [], typeArguments = undefined } = getObject(call);
+    const { expression: callee = {}, arguments: args = [], typeArguments } = getObject(call);
     const [callback = {}] = args;
     const {
         kind: callbackKind = 0,
@@ -149,7 +150,7 @@ const createSortConsumerStatements = ({
             ], Const)
         )
         : undefined;
-    const orderedBinding = capabilityBinding && sameFunctionProvider && typeof addSyntheticLeadingComment === 'function'
+    const orderedBinding = capabilityBinding && sameFunctionProvider && isFunction(addSyntheticLeadingComment)
         ? addSyntheticLeadingComment(
             capabilityBinding,
             SingleLineCommentTrivia,
@@ -171,8 +172,12 @@ const createSortConsumerStatements = ({
         [factory.createIdentifier(capabilityAlias)]
     );
 
-    const normalReturn = factory.createReturnStatement(replacement);
-    const annotatedReturn = typeof addSyntheticLeadingComment === 'function'
+    const sourceReturn = factory.createReturnStatement(replacement);
+    const normalReturn = getObject(name).text === 'sort' && isFunction(addSyntheticLeadingComment)
+        ? addSyntheticLeadingComment(sourceReturn, SingleLineCommentTrivia,
+            ' eslint-disable-next-line resilient/prefer-safe-transformations -- Source sort retains receiver identity and native mutation.', true)
+        : sourceReturn;
+    const annotatedReturn = isFunction(addSyntheticLeadingComment)
         ? addSyntheticLeadingComment(
             normalReturn,
             SingleLineCommentTrivia,
@@ -352,7 +357,7 @@ const lowerDirectCapabilityConsumers = ({
             SingleLineCommentTrivia = -1
         } = {},
         factory = {},
-        addSyntheticLeadingComment = false
+        addSyntheticLeadingComment
     } = typescript;
     const { kind = 0, body = {}, parameters = [] } = getObject(node);
     const functionKinds = [ArrowFunction, FunctionExpression, FunctionDeclaration];
@@ -377,7 +382,7 @@ const lowerDirectCapabilityConsumers = ({
     ]);
     const alias = getCapabilityAlias({ receiver, member, occupied });
     const replaceCall = (candidate = {}) => {
-        const { kind: candidateKind = 0, expression: callee = {}, arguments: args = [], typeArguments = undefined } = getObject(candidate);
+        const { kind: candidateKind = 0, expression: callee = {}, arguments: args = [], typeArguments } = getObject(candidate);
         const { kind: calleeKind = 0, expression: calleeReceiver = {}, name = {} } = getObject(callee);
         const { text: receiverText = '' } = getObject(calleeReceiver);
         const { text: memberText = '' } = getObject(name);
@@ -411,7 +416,7 @@ const lowerDirectCapabilityConsumers = ({
             const replacement = statementKind === ReturnStatement
                 ? factory.createReturnStatement(replaceCall(expression))
                 : factory.createExpressionStatement(replaceCall(expression));
-            const annotated = statementKind === ReturnStatement && typeof addSyntheticLeadingComment === 'function'
+            const annotated = statementKind === ReturnStatement && isFunction(addSyntheticLeadingComment)
                 ? addSyntheticLeadingComment(
                     replacement,
                     SingleLineCommentTrivia,
@@ -431,7 +436,7 @@ const lowerDirectCapabilityConsumers = ({
 
     if (bodyKind !== Block && getNodeKey({ typescript, node: body }) === callKey) {
         const returned = factory.createReturnStatement(replaceCall(body));
-        const annotated = typeof addSyntheticLeadingComment === 'function'
+        const annotated = isFunction(addSyntheticLeadingComment)
             ? addSyntheticLeadingComment(
                 returned,
                 SingleLineCommentTrivia,

@@ -17,6 +17,7 @@ import {
 } from '../transforms/typescript/understand/type-evidence.js';
 
 const directory = await mkdtemp(path.join(tmpdir(), 'resilient-detached-promise-'));
+await writeFile(path.join(directory, 'package.json'), '{"type":"module"}\n');
 
 try {
     const fileName = path.join(directory, 'deferred.ts');
@@ -112,8 +113,8 @@ try {
     const { outputText: referenceCode = '' } = typescript.transpileModule(source, {
         compilerOptions: { module: typescript.ModuleKind.ESNext, target: typescript.ScriptTarget.ESNext }
     });
-    const referenceFile = path.join(directory, 'reference.mjs');
-    const generatedFile = path.join(directory, 'generated.mjs');
+    const referenceFile = path.join(directory, 'reference.js');
+    const generatedFile = path.join(directory, 'generated.js');
 
     await writeFile(referenceFile, referenceCode);
     await writeFile(generatedFile, generated.code);

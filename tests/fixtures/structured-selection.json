@@ -1,0 +1,907 @@
+[
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const getRecord = value => value && typeof value === \"object\" ? value : {}; const { count = 0 } = getRecord({ count: 1 });",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const getValue = ({ value = {} } = {}) => { const { attr = \"\" } = value; return attr; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const getValue = () => ({ name: \"A\" }); const { missing = \"\" } = getValue();",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const getValue = () => ({ name: \"A\" }); const { name, ...rest } = getValue();",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const getValue = value => { const { name, ...rest } = value; return rest; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const getValue = ({ value = [] } = {}) => { const [first = {}] = value; return first; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const getValue = () => { const [{ attr = \"\" } = {}] = []; return attr; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const getValue = (items = []) => { const { [0]: value = {} } = items; return value; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const user = { name: \"A\" }; const propertyName = \"name\"; const { [propertyName]: name = \"\" } = user;",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const getValue = (value) => { const { attr = \"\" } = value; return attr; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "import * as API from './api.js'; const { read } = API; read;",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const getValue = ({ value = {} } = {}) => { if (Array.isArray(value)) return value.map(Boolean); return []; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const collect = source => { const output = new Map(); for (const [key, value] of source) output.set(key, value); return output; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const getValue = ({ value = [] } = {}) => { if (!Array.isArray(value)) return {}; const { attr = \"\" } = value; return attr; };",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-destructuring",
+        "severity": 2,
+        "message": "This array-like value is destructured as object-like.",
+        "line": 1,
+        "column": 105,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 110
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const getValue = () => ({ name: \"A\" }); const { nmae } = getValue();",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-destructuring",
+        "severity": 2,
+        "message": "Property nmae does not exist on this known object contract.",
+        "line": 1,
+        "column": 49,
+        "messageId": "missingProperty",
+        "endLine": 1,
+        "endColumn": 53
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const getValue = () => ({ profile: { name: \"A\" } }); const { profile: { nmae } } = getValue();",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-destructuring",
+        "severity": 2,
+        "message": "Property nmae does not exist on this known object contract.",
+        "line": 1,
+        "column": 73,
+        "messageId": "missingProperty",
+        "endLine": 1,
+        "endColumn": 77
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-destructuring",
+    "source": "const getValue = () => ({ profile: { name: \"A\" } }); const source = getValue(); const { profile: { nmae } } = source;",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-destructuring",
+        "severity": 2,
+        "message": "Property nmae does not exist on this known object contract.",
+        "line": 1,
+        "column": 100,
+        "messageId": "missingProperty",
+        "endLine": 1,
+        "endColumn": 104
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "const user = { name: \"A\" }; user.name;",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "const read = value => value.missing;",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "const read = (source = {}) => source.missing;",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "const read = ({ name = \"\", ...rest } = {}) => rest.missing;",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "const user = { name: \"A\" }; user.toString();",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "const isSlug = value => /^[a-z0-9/-]+$/.test(value);",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "const pattern = /^[a-z]+$/; pattern.test(value);",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "import * as E from './Outcome.js'; E.outbound;",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "const read = ({ variables: { ...variables } = {} } = {}) => variables.test;",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "const user = { name: \"A\" }; user.nmae;",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-property",
+        "severity": 2,
+        "message": "Property nmae does not exist on this known object contract.",
+        "line": 1,
+        "column": 29,
+        "messageId": "missingProperty",
+        "endLine": 1,
+        "endColumn": 38
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "const getUser = () => ({ name: \"A\" }); getUser().nmae;",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-property",
+        "severity": 2,
+        "message": "Property nmae does not exist on this known object contract.",
+        "line": 1,
+        "column": 40,
+        "messageId": "missingProperty",
+        "endLine": 1,
+        "endColumn": 54
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-property",
+    "source": "const getUser = () => ({ name: \"A\" }); const user = getUser(); user.nmae;",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-property",
+        "severity": 2,
+        "message": "Property nmae does not exist on this known object contract.",
+        "line": 1,
+        "column": 64,
+        "messageId": "missingProperty",
+        "endLine": 1,
+        "endColumn": 73
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const normalize = ({ title = \"\" } = {}) => title.trim();",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const getItems = ({ items = [] } = {}) => items; const mapItems = () => getItems({}).map(Boolean);",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const value = source.toUpperCase();",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const mapValue = ({ value = {} } = {}) => { if (Array.isArray(value)) return value.map(Boolean); return []; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const mapValue = ({ value = {} } = {}) => { if (Array.isArray(value)) { return value.map(Boolean); } return []; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const mapAlias = ({ value = {} } = {}) => { const items = value; if (Array.isArray(value)) return items.map(Boolean); return []; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const getItems = ({ items = [] } = {}) => items; const readItems = getItems; readItems({}).map(Boolean);",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const getItems = async ({ items = [] } = {}) => items; const inspect = async () => (await getItems({})).map(Boolean);",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const getItems = async ({ items = [] } = {}) => items; const inspect = async () => (await Promise.all([getItems({})])).map(Boolean);",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const fetchItems = async ({ items = [] } = {}) => items.length ? items : fetchItems({ items: [\"\"] }); const inspect = async () => { const items = await fetchItems(); return items.map(Boolean); };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = async () => { return; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const request = async () => ({ items: [] }); const load = async () => { const data = await request(); return data.items.map(Boolean); };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = () => { const items = [\"a\"]; return items.map(item => item.toUpperCase()).map(Boolean); };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const makeHandler = () => (value = \"\") => value.trim(); const handler = makeHandler(); handler(\"value\").toUpperCase();",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const api = { read: () => \"value\" }; api.read().toUpperCase();",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const api = { map: () => \"ok\" }; api.map().trim();",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const run = api => { const value = api.toUpperCase(); return value.map(Boolean); };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const Object = { entries: () => \"ok\" }; const value = Object.entries(); value.toUpperCase();",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const Promise = { resolve: () => \"ok\" }; const inspect = async () => (await Promise.resolve(1)).toUpperCase();",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const NativeArray = Array; const inspect = (value = {}) => NativeArray.isArray(value) ? value.map(Boolean) : [];",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const NativeString = String; NativeString(1).toUpperCase();",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const String = () => []; String().map(Boolean);",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "let NativeObject = Object; NativeObject = custom; const value = NativeObject.entries(); value.toUpperCase();",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "import * as E from './Outcome.js'; E.map(value, mapper);",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = () => { const items = [\"a\"]; return items.filter(item => item).map(Boolean); };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = () => { const items = [1]; const total = items.reduce((sum, item) => sum, 0); return total.toFixed(); };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = () => [1].reduce((sum, item) => sum.toUpperCase(), \"\");",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = () => [\"ready\", 42].map(item => String(item).toUpperCase());",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = () => Object.entries({ title: \"ready\" }).map(entry => entry);",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = () => [1].map(item => { if (typeof item === \"string\") return item.toUpperCase(); return \"\"; });",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = () => { const items = [\"a\"]; return items.find(item => item).toUpperCase(); };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const mapWithCondition = ({ value = {}, enabled = false } = {}) => { if (Array.isArray(value) && enabled) return value.map(Boolean); return []; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const mapAfterNegativeGuard = ({ value = {} } = {}) => { if (!Array.isArray(value)) return []; return value.map(Boolean); };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const trimValue = ({ value = {} } = {}) => { if (typeof value === \"string\") return value.trim(); return \"\"; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const trimValue = (value = null) => { if (value !== null) return value.toUpperCase(); return \"\"; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const trimValue = (value = {}) => { if (typeof value !== \"object\") return value.toUpperCase(); return \"\"; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const trimValue = (value = null) => { if (!(value === null)) return value.toUpperCase(); return \"\"; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const trimValue = (value = null) => { if (null !== value) return value.toUpperCase(); return \"\"; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const trimValue = value => { if (value != null) return value.toUpperCase(); return \"\"; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const trimValue = (value = \"\") => { if (\"string\" !== typeof value) return value.map(Boolean); return \"\"; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const mapAssigned = ({ value = {} } = {}) => { value = []; return value.map(Boolean); };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const mapInLoop = ({ value = {} } = {}) => { while (Array.isArray(value)) return value.map(Boolean); return []; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const mapInTry = ({ value = {} } = {}) => { try { if (typeof value === \"string\") return value.trim(); } catch (error) { return \"\"; } return \"\"; };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const mapAfterChoice = ({ family = \"\", items = [], source = {} } = {}) => {\nif (family === \"x\") { const count = items.length; return count ? 1 : 2; }\nconst has = Array.isArray(source); const list = has ? source : []; return list.map(Boolean); };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const mapProperty = ({ config = {} } = {}) => { config.items = []; return config.items.map(Boolean); };",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const reduceValue = ({ value = {} } = {}) => Object.entries(value).reduce((items, entry) => [...items, entry], []);",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = value => value.toUpperCase();",
+    "expected": []
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const NativeObject = Object; NativeObject.entries({}).toUpperCase();",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This array-like value cannot supply native .toUpperCase(), which requires string-like.",
+        "line": 1,
+        "column": 30,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 66
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const NativePromise = Promise; const inspect = async () => (await NativePromise.resolve([])).toUpperCase();",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This array-like value cannot supply native .toUpperCase(), which requires string-like.",
+        "line": 1,
+        "column": 60,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 105
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const Array = { isArray: value => !!value }; const inspect = (value = {}) => Array.isArray(value) ? value.map(Boolean) : [];",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This object-like value cannot supply native .map(), which requires array-like.",
+        "line": 1,
+        "column": 101,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 110
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const NativeString = String; NativeString(1).map(Boolean);",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This string-like value cannot supply native .map(), which requires array-like.",
+        "line": 1,
+        "column": 30,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 49
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const String = () => []; String().toUpperCase();",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This array-like value cannot supply native .toUpperCase(), which requires string-like.",
+        "line": 1,
+        "column": 26,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 46
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = ({ items = [] } = {}) => items.toUpperCase();",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This array-like value cannot supply native .toUpperCase(), which requires string-like.",
+        "line": 1,
+        "column": 42,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 59
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = ({ title = \"\" } = {}) => title.map(Boolean);",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This string-like value cannot supply native .map(), which requires array-like.",
+        "line": 1,
+        "column": 42,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 51
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const getItems = (page = { items: [] }) => { const { items = [] } = page; return items; }; getItems({}).toUpperCase();",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This array-like value cannot supply native .toUpperCase(), which requires string-like.",
+        "line": 1,
+        "column": 92,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 116
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = (enabled = false) => (enabled ? [] : \"\").toUpperCase();",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This array-like value cannot supply native .toUpperCase(), which requires string-like.",
+        "line": 1,
+        "column": 38,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 69
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = (enabled = false) => (enabled && []).map(Boolean);",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This boolean-like value cannot supply native .map(), which requires array-like.",
+        "line": 1,
+        "column": 38,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 57
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = ({ value = {} } = {}) => { if (Array.isArray(value)) return []; return value.map(Boolean); };",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This object-like value cannot supply native .map(), which requires array-like.",
+        "line": 1,
+        "column": 88,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 97
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = ({ config = {} } = {}) => { config.items = \"\"; return config.items.map(Boolean); };",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This string-like value cannot supply native .map(), which requires array-like.",
+        "line": 1,
+        "column": 71,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 87
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const getItems = ({ items = [] } = {}) => items; const readItems = getItems; readItems({}).toUpperCase();",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This array-like value cannot supply native .toUpperCase(), which requires string-like.",
+        "line": 1,
+        "column": 78,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 103
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const getItems = async ({ items = [] } = {}) => items; const inspect = async () => { const values = await getItems({}); return values.toUpperCase(); };",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This array-like value cannot supply native .toUpperCase(), which requires string-like.",
+        "line": 1,
+        "column": 128,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 146
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const request = async () => { const load = async () => ({ items: [] }); return load(); }; const inspect = async () => { const data = await request(); return data.items.toUpperCase(); };",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This array-like value cannot supply native .toUpperCase(), which requires string-like.",
+        "line": 1,
+        "column": 158,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 180
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const apply = (callback, value) => callback(value); const getItems = ({ items = [] } = {}) => items; const inspect = () => { const result = apply(getItems, { items: \"\" }); return result.map(Boolean); };",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This string-like value cannot supply native .map(), which requires array-like.",
+        "line": 1,
+        "column": 180,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 190
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const getItems = async ({ items = [] } = {}) => items; const inspect = async () => { const values = await Promise.all([getItems({ items: \"\" })]); return values.toUpperCase(); };",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This array-like value cannot supply native .toUpperCase(), which requires string-like.",
+        "line": 1,
+        "column": 154,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 172
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = () => { const items = [\"a\"]; return items.map(item => item.toUpperCase()).toUpperCase(); };",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This array-like value cannot supply native .toUpperCase(), which requires string-like.",
+        "line": 1,
+        "column": 53,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 102
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const api = { read: () => \"value\" }; api.read().map(Boolean);",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This string-like value cannot supply native .map(), which requires array-like.",
+        "line": 1,
+        "column": 38,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 52
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = () => { const items = [\"a\"]; return items.filter(item => item).toUpperCase(); };",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This array-like value cannot supply native .toUpperCase(), which requires string-like.",
+        "line": 1,
+        "column": 53,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 91
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = () => { const items = [1]; const total = items.reduce((sum, item) => sum, 0); return total.toUpperCase(); };",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This number-like value cannot supply native .toUpperCase(), which requires string-like.",
+        "line": 1,
+        "column": 102,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 119
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = () => { const items = [1]; const result = items.forEach(item => item); return result.map(Boolean); };",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This nullish value cannot supply native .map(), which requires array-like.",
+        "line": 1,
+        "column": 95,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 105
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = () => [\"a\", 1].map(item => item.toUpperCase());",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This number-like value cannot supply native .toUpperCase(), which requires string-like.",
+        "line": 1,
+        "column": 44,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 60
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = () => [1].reduce((sum, item) => item.toUpperCase(), \"\");",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This number-like value cannot supply native .toUpperCase(), which requires string-like.",
+        "line": 1,
+        "column": 49,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 65
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = () => [\"ready\", 42].map(item => String(item).map(Boolean));",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This string-like value cannot supply native .map(), which requires array-like.",
+        "line": 1,
+        "column": 49,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 65
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const inspect = () => Object.entries({}).trim();",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This array-like value cannot supply native .trim(), which requires string-like.",
+        "line": 1,
+        "column": 23,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 46
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const getPage = () => ({ title: \"ready\" }); getPage().title.map(Boolean);",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This string-like value cannot supply native .map(), which requires array-like.",
+        "line": 1,
+        "column": 45,
+        "messageId": "mismatch",
+        "endLine": 1,
+        "endColumn": 64
+      }
+    ]
+  },
+  {
+    "rule": "signature-contract-operation",
+    "source": "const mapAfterChoice = ({ family = \"\", items = [], source = {} } = {}) => {\nif (family === \"x\") { const count = items.length; return count ? 1 : 2; }\nreturn source.map(Boolean); };",
+    "expected": [
+      {
+        "ruleId": "resilient/signature-contract-operation",
+        "severity": 2,
+        "message": "This object-like value cannot supply native .map(), which requires array-like.",
+        "line": 3,
+        "column": 8,
+        "messageId": "mismatch",
+        "endLine": 3,
+        "endColumn": 18
+      }
+    ]
+  }
+]

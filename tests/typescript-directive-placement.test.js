@@ -9,7 +9,7 @@ import typescript from 'typescript';
 import resilient from 'eslint-plugin-resilient';
 import { createTypeScriptEmitTransformer, createTypeScriptTransformer } from 'eslint-plugin-resilient/typescript';
 
-import { getObject } from '../rules/support/object.js';
+import { getObject } from '../analysis/host/object.js';
 import { placeEmissionBoundaries, placeInlineEmissionBoundaries } from '../transforms/typescript/grammar/emission-layout.js';
 import { formatResilientOutput } from '../transforms/typescript/grammar/resolvers.js';
 import { annotateRetainedMutationBoundaries } from '../transforms/typescript/lowering/mutation-boundaries.js';
@@ -71,7 +71,7 @@ const groupingSettings = { linterOptions: { reportUnusedDisableDirectives: 'erro
     assert.deepEqual(suppressed.map(({ ruleId = '' }) => ruleId).toSorted(), ['no-alert', 'no-console']);
     assert.equal(suppressed.every(({ line = 0 }) => code.split('\n').at(line - 1).includes('target')), true);
     const unannotated = code.replace(/^\s*\/\/ eslint-disable-next-line[^\n]*\n/gmu, '');
-    assert.equal(groupingLinter.verify(unannotated, groupingSettings).length, 6, 'Both necessary target findings reappear.');
+    assert.equal(groupingLinter.verify(unannotated, groupingSettings).length, 6, 'Combined necessary target findings reappear.');
 });
 // A single unused rule remains visible: grouping cannot launder unnecessary
 // exceptions, absorb authored trivia, or widen a paired block boundary.
@@ -112,7 +112,7 @@ assert.match(print(joinedReasons), /\/\/ no-alert -- Alert timing\.\n\/\/ eslint
 separateReasons.dispose();
 const unnecessary = groupedCode.replace('no-alert, no-console --', 'no-alert, no-console, no-debugger --');
 assert.equal(groupingLinter.verify(unnecessary, { ...groupingSettings, rules: { ...groupingSettings.rules, 'no-debugger': 'error' } })
-    .filter(({ ruleId = undefined }) => ruleId === null).length, 1, 'Unused members remain proof failures.');
+    .filter(({ ruleId = '' }) => ruleId === null).length, 1, 'Unused members remain proof failures.');
 const { rules: { 'max-len': groupedLengthRule = [] } = {} } = await new ESLint().calculateConfigForFile('directive-length-proof.js');
 assert.deepEqual(groupedLengthRule, resilient.configs.recommended.rules['max-len'].map((value, index) => index === 0 ? 2 : value),
     'Repository and consumer profiles share the grouped-directive length exception.');
@@ -134,14 +134,14 @@ const examples = {
     computedProperty: 'export const record = (keys: PropertyKey[], args: number[], i: number) => ({ [keys[i]]: args[i], after: 1 });',
     restGrouped: 'export const ordered = (f: (a: number, b: number) => number) => (...args: number[]) => { if (args.length > 1) return f(args[1], args[0]); return 0; };',
     groupedTuple: [
-        'type Selection = { _tag: "None" } | { _tag: "Some"; value: [number, string] };',
+        'type Selection = { category: "Missing" } | { category: "Available"; value: [number, string] };',
         'export const replace = (found: Selection, source: Map<number, string>, next: string) => {',
-        'if (found._tag === "Some") { const out = new Map(source); out.set(found.value[0], next); return out; }',
+        'if (found.category === "Available") { const out = new Map(source); out.set(found.value[0], next); return out; }',
         'return source; };'
     ].join(' '),
     providerIndexed: [
-        'export const project = (providers: { add: (x: any, y: any) => any }[], left: any[], right: any[]) =>',
-        'providers.map((provider, i) => provider.add(left[i], right[i]));'
+        'export const project = (providers: { add: (x: any, y: any) => any }[], inbound: any[], outbound: any[]) =>',
+        'providers.map((provider, i) => provider.add(inbound[i], outbound[i]));'
     ].join(' '),
     blockIndexed: 'export function read(a: number[], b: number[], i: number) { return Math.min(a[i], b[i]); }',
     mixed: 'export const merge = (a: number[], b: number[], i: number, choose: boolean) => choose ? Math.min(a[i], b[i]) : b[i];',
@@ -156,12 +156,12 @@ const examples = {
     ].join('\n'),
     slice: 'export const drop = (n: number) => (as: number[]) => { if (n <= 0) return as; return n >= as.length ? [] : as.slice(n, as.length); };',
     chained: 'export const compare = (...tests: { equals: (a: number, b: number) => boolean }[]) => (first: number[], second: number[]) => tests.every((test, i) => test.equals(first[i], second[i]));',
-    following: 'export const read = (left: number[]) => Math.min(left.length, Math.random());',
-    tail: 'export const read = (left: number[]) => Math.min(left.length) + Math.random();',
-    authoredExtractor: '// eslint-disable-next-line no-undef -- Host source line.\nexport const read = (left: number[]) => Math.min(left.length);',
-    indexed: 'export const selectIndexed = (left: number[], right: number[], i: number) => Math.min(left[i], right[i]);',
-    rejected: 'export const complex = (left: number[], key: () => number) => Math.min(left[key()], 1);',
-    authored: '/* eslint-disable resilient/prefer-destructured-member-access -- Caller owns this scope. */\nexport const authored = (left: number[], i: number) => Math.min(left[i], 1);',
+    following: 'export const read = (inbound: number[]) => Math.min(inbound.length, Math.random());',
+    tail: 'export const read = (inbound: number[]) => Math.min(inbound.length) + Math.random();',
+    authoredExtractor: '// eslint-disable-next-line no-undef -- Host source line.\nexport const read = (inbound: number[]) => Math.min(inbound.length);',
+    indexed: 'export const selectIndexed = (inbound: number[], outbound: number[], i: number) => Math.min(inbound[i], outbound[i]);',
+    rejected: 'export const complex = (inbound: number[], key: () => number) => Math.min(inbound[key()], 1);',
+    authored: '/* eslint-disable resilient/prefer-destructured-member-access -- Caller owns this scope. */\nexport const authored = (inbound: number[], i: number) => Math.min(inbound[i], 1);',
     mutation: [
         'export const append = (outer: { map: (f: (box: { values: number[] }) => unknown) => unknown },',
         'inner: { map: (f: (item: number[]) => unknown) => unknown }) => outer.map(box => inner.map(item => { box.values.push(item.length); return box; }));'
@@ -183,7 +183,7 @@ const examples = {
     ].join('\n'),
     provider: 'export const read = (value: number) => value;',
 
-    scoped: 'export const select = (left: number[], right: number[]) => Math.min(left.length, right.length);',
+    scoped: 'export const select = (inbound: number[], outbound: number[]) => Math.min(inbound.length, outbound.length);',
     retained: 'export const before = (value: number) => later(value); export const later = (value: number) => value;',
     shadowed: "import { read as later } from './provider.js'; export const value = later(1); export function read() { return later(2); function later(value: number) { return value; } }"
 };
@@ -234,8 +234,8 @@ try {
     directiveProofCases = [...directiveProofCases, restGrouped.code];
     const groupedTuple = render('groupedTuple');
     assert.deepEqual(groupedTuple.diagnostics, []);
-    assert.match(groupedTuple.code, /eslint-disable-next-line resilient\/prefer-safe-destructuring-defaults, resilient\/prefer-signature-destructuring --/u);
-    assert.match(groupedTuple.code, /static tuple position[^\n]*\n\s*\/\/ eslint-disable-next-line[^\n]*selected branch[^\n]*\n\s*const \{ value:/u);
+    assert.match(groupedTuple.code, /eslint-disable-next-line resilient\/prefer-safe-destructuring-defaults --/u);
+    assert.match(groupedTuple.code, /static tuple position[\s\S]*?const \{ value:/u);
     assert.doesNotMatch(groupedTuple.code, /\/\/ eslint-disable-next-line[^\n]*\n\s*\/\/ eslint-disable-next-line/u);
     directiveProofCases = [...directiveProofCases, groupedTuple.code];
     assert.deepEqual(linter.verify(scoped.code, { plugins: { resilient }, rules: {
@@ -274,10 +274,10 @@ try {
             assert.equal(suppressed.length, 2, JSON.stringify(suppressed));
             assert.equal([...raw, ...suppressed].every(({ ruleId = '' }) => ruleId === rule), true);
             const lines = code.split('\n');
-            assert.equal(raw.every(({ line = 0 }) => /Neighbor/u.test(lines.at(line - 1))), true, 'Both neighboring boundaries stay visible.');
-            assert.equal(suppressed.every(({ line = 0 }) => /(?:left|right)Length/u.test(lines.at(line - 1))), true, 'Each pair owns only its argument extractor.');
+            assert.equal(raw.every(({ line = 0 }) => /Neighbor/u.test(lines.at(line - 1))), true, 'Combined neighboring boundaries stay visible.');
+            assert.equal(suppressed.every(({ line = 0 }) => /(?:inbound|outbound)Length/u.test(lines.at(line - 1))), true, 'Each pair owns only its argument extractor.');
             const unannotated = code.replace(/\/\* eslint-(?:disable|enable) resilient\/prefer-safe-destructuring-defaults[^*]*\*\//gu, '');
-            assert.equal(linter.verify(unannotated, settings).length, 4, 'Both required targets reappear without their boundaries.');
+            assert.equal(linter.verify(unannotated, settings).length, 4, 'Combined required targets reappear without their boundaries.');
             directiveProofCases = [...directiveProofCases, code];
         });
     });
@@ -286,12 +286,12 @@ try {
     const load = text => import(`data:text/javascript,${encodeURIComponent(text)}`);
     const { select = () => 0 } = await load(scoped.code);
     let projectionTrace = [];
-    assert.equal(select({ get length() { projectionTrace = [...projectionTrace, 'left'];
+    assert.equal(select({ get length() { projectionTrace = [...projectionTrace, 'inbound'];
 
-        return 4; } }, { get length() { projectionTrace = [...projectionTrace, 'right'];
+        return 4; } }, { get length() { projectionTrace = [...projectionTrace, 'outbound'];
 
         return 2; } }), 2);
-    assert.deepEqual(projectionTrace, ['left', 'right']);
+    assert.deepEqual(projectionTrace, ['inbound', 'outbound']);
     assert.throws(() => select(null, []), TypeError);
     const { select: originalSelect = () => 0 } = await load(typescript.transpileModule(examples.scoped, {
         compilerOptions: { target: typescript.ScriptTarget.ESNext, module: typescript.ModuleKind.ESNext }
@@ -306,7 +306,7 @@ try {
 
             if (phase === name) throw failure;
 
-            return name === 'left' ? 4 : 2;
+            return name === 'inbound' ? 4 : 2;
         } });
         Object.defineProperty(Math, 'min', { configurable: true, get() {
             events = [...events, 'callee'];
@@ -323,14 +323,14 @@ try {
             };
         } });
         try {
-            return { result: invoke(phase === 'null' ? null : argument('left'), argument('right')), events };
+            return { result: invoke(phase === 'null' ? null : argument('inbound'), argument('outbound')), events };
         } catch (error) {
             return { exactFailure: error === failure, nativeFailure: error instanceof TypeError, events };
         } finally {
             Object.defineProperty(Math, 'min', minDescriptor);
         }
     };
-    ['normal', 'callee', 'left', 'right', 'call', 'null'].forEach((phase) => {
+    ['normal', 'callee', 'inbound', 'outbound', 'call', 'null'].forEach((phase) => {
         assert.deepEqual(observe(select, phase), observe(originalSelect, phase), phase);
         assert.deepEqual(observe(directSelect, phase), observe(originalSelect, phase), phase);
     });
@@ -420,7 +420,7 @@ try {
     });
     directiveProofCases = [...directiveProofCases, computedProperty, neighborOutput];
     [directIndexed, indexed].forEach((body) => {
-        const neighbors = body.replace('(left, right, i)', '(left, right, i, before, after)').replace('Math.min(', 'Math.min(before.value, ').replace(/\);/u, ', after.value);');
+        const neighbors = body.replace('(inbound, outbound, i)', '(inbound, outbound, i, before, after)').replace('Math.min(', 'Math.min(before.value, ').replace(/\);/u, ', after.value);');
         const output = formatResilientOutput(neighbors, typescript);
         [output, linter.verifyAndFix(output, placementSettings).output].forEach((code) => {
             const raw = linter.verify(code, placementSettings);
@@ -491,12 +491,59 @@ try {
     assert.deepEqual(linter.verify(providerFixed, placementSettings).filter(({ severity = 0 }) => severity === 2), []);
     directiveProofCases = [...directiveProofCases, providerFixed];
     const { code: unrelated = '' } = render('unrelated');
-    assert.match(unrelated, /Argument Get keeps source timing and failure\.\n/u);
+    assert.doesNotMatch(unrelated, /Argument Get keeps source timing and failure\.\n/u);
+    assert.match(unrelated, /as\.slice\(n, as\.length\)/u,
+        'The conditional call retains its native callee, receiver and argument operations.');
     assert.match(unrelated, /eslint-disable-next-line resilient\/prefer-destructured-member-access -- Get order/u,
         'An unrelated line directive must not block a different source unit.');
     const { output: unrelatedFixed = '' } = linter.verifyAndFix(unrelated, placementSettings);
     assert.deepEqual(linter.verify(unrelatedFixed, placementSettings).filter(({ severity = 0 }) => severity === 2), []);
     directiveProofCases = [...directiveProofCases, unrelated, unrelatedFixed];
+    const { outputText: referenceUnrelated = '' } = typescript.transpileModule(examples.unrelated, {
+        compilerOptions: { target: typescript.ScriptTarget.ESNext, module: typescript.ModuleKind.ESNext }
+    });
+    const dropFunctions = await Promise.all([referenceUnrelated, unrelated, unrelatedFixed].map(async code => (await load(code)).drop));
+    const observeDrop = (invoke, phase) => {
+        let events = [];
+        const values = [1, 2, 3];
+        const receiver = new Proxy(values, { get(target, key, actualReceiver) {
+            if (key === 'length') events = [...events, `length:${target.length}`];
+
+            return Reflect.get(target, key, actualReceiver);
+        } });
+        /* eslint-disable resilient/signature-contract-return-consistency -- The authored callee getter deliberately alternates a callable and a noncallable to prove the native failure phase. */
+        Object.defineProperty(values, 'slice', { get() {
+            events = [...events, 'callee'];
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- The authored callee getter changes the real array length before the following argument Get.
+            values.length = 1;
+
+            if (phase === 'callee') throw failure;
+
+            if (phase === 'noncallable') return 0;
+
+            return function (...arguments_) {
+                events = [...events, 'call'];
+                assert.equal(this, receiver);
+
+                if (phase === 'call') throw failure;
+
+                return arguments_;
+            };
+        } });
+        /* eslint-enable resilient/signature-contract-return-consistency */
+        try {
+            return { result: invoke(1)(phase === 'null' ? null : receiver), events };
+        } catch (error) {
+            return { exactFailure: error === failure, nativeFailure: error instanceof TypeError, events };
+        }
+    };
+    const [referenceDrop = () => 0] = dropFunctions;
+    assert.deepEqual(observeDrop(referenceDrop, 'normal'), {
+        result: [1, 1], events: ['length:3', 'callee', 'length:1', 'call']
+    });
+    ['normal', 'callee', 'noncallable', 'call', 'null'].forEach((phase) => {
+        dropFunctions.slice(1).forEach(invoke => assert.deepEqual(observeDrop(invoke, phase), observeDrop(referenceDrop, phase), phase));
+    });
     const { code: mutation = '' } = render('mutation');
     assert.match(mutation, /eslint-disable-next-line resilient\/prefer-safe-transformations/u);
     assert.match(mutation, /eslint-disable resilient\/prefer-safe-destructuring-defaults/u);
@@ -562,7 +609,7 @@ try {
             };
         } });
         try {
-            return { identity: invoke(phase === 'null' ? null : argument('left'), argument('right'), key) === value, events };
+            return { identity: invoke(phase === 'null' ? null : argument('inbound'), argument('outbound'), key) === value, events };
         } catch (error) {
             return { exactFailure: error === failure, nativeFailure: error instanceof TypeError, events };
         } finally {
@@ -570,7 +617,7 @@ try {
         }
     };
     const [referenceIndexedFunction = () => 0] = indexedFunctions;
-    ['normal', 'callee', 'key1', 'left', 'key2', 'right', 'call', 'null'].forEach((phase) => {
+    ['normal', 'callee', 'key1', 'inbound', 'key2', 'outbound', 'call', 'null'].forEach((phase) => {
         indexedFunctions.slice(1).forEach(invoke => assert.deepEqual(observeIndexed(invoke, phase), observeIndexed(referenceIndexedFunction, phase), phase));
     });
     const { outputText: referenceMutation = '' } = typescript.transpileModule(examples.mutation, {
@@ -643,6 +690,7 @@ export { directiveProofCases };
         const linter = new Linter();
         const settings = { linterOptions: { reportUnusedDisableDirectives: 'error' }, plugins: { resilient }, rules: {
             'consistent-return': 'error',
+            'resilient/prefer-safe-transformations': 'error',
             'func-style': ['error', 'expression'],
             'resilient/prefer-safe-destructuring-defaults': 'error',
             'resilient/prefer-signature-destructuring': 'error',
@@ -652,7 +700,8 @@ export { directiveProofCases };
             const { code = '' } = transformer.transform({ code: source, fileName: path.join(capabilityDirectory, `${name}.ts`) });
             const messages = linter.verify(code, settings);
             const suppressed = linter.getSuppressedMessages().filter(({ ruleId = '' }) => ruleId === 'consistent-return');
-            const withoutCapability = code.replace(/^\s*\/\/ eslint-disable-next-line consistent-return -- Checked capability disagreement[^\n]*\n/gmu, '');
+            const withoutCapability = code.replaceAll('resilient/prefer-safe-transformations, consistent-return', 'resilient/prefer-safe-transformations')
+                .replace(/^\s*\/\/ eslint-disable-next-line consistent-return -- Checked capability disagreement[^\n]*\n/gmu, '');
             const bare = linter.verify(withoutCapability, settings).filter(({ ruleId = '' }) => ruleId === 'consistent-return');
 
             assert.deepEqual(messages.filter(({ ruleId = '' }) => !ruleId), [], JSON.stringify({ name, code, messages }));
@@ -713,7 +762,7 @@ export { directiveProofCases };
             const [{ ruleId = '', messageId = '', line = 0 } = {}] = messages;
 
             assert.equal(ruleId, 'resilient/signature-contract-call-site');
-            assert.equal(messageId, name === 'mismatch' ? 'mismatchWithEvidence' : 'arityWithEvidence');
+            assert.equal(messageId, name === 'mismatch' ? 'mismatch' : 'arity');
             assert.match(code.split('\n').at(line - 1), name === 'mismatch' ? /wrong/u : /neighbor/u);
         });
     } finally {
@@ -795,7 +844,10 @@ const operationPlacement = (source, names, reason, nested = false, repeat = [], 
     return code;
 };
 const executable = (code) => {
-    const tree = typescript.createSourceFile('tokens.js', code, 99, true, typescript.ScriptKind.JS);
+    // TypeScript 6 adds "use strict" by default; compare both sides after the
+    // same compiler emit so directive placement is the only variable.
+    const { outputText = '' } = typescript.transpileModule(code, { compilerOptions: { target: 99 } });
+    const tree = typescript.createSourceFile('tokens.js', outputText, 99, true, typescript.ScriptKind.JS);
     let tokens = [];
     const visit = (node) => {
         const { kind = 0 } = getObject(node);
@@ -932,7 +984,7 @@ assert.match(declarationOutput, /eslint-enable no-console, no-alert/u);
 assert.deepEqual(groupingLinter.verify(declarationOutput, groupingSettings).map(({ ruleId = '' }) => ruleId), ['no-alert', 'no-alert']);
 const unusedDeclaration = operationPlacement(repeatedDeclaration, ['no-console', 'no-debugger'], 'Native console timing.');
 assert.equal(groupingLinter.verify(unusedDeclaration, { ...groupingSettings, rules: { ...groupingSettings.rules, 'no-debugger': 'error' } })
-    .filter(({ ruleId = undefined }) => ruleId === null).length, 1);
+    .filter(({ ruleId = '' }) => ruleId === null).length, 1);
 
 const compoundReason = 'Getter phase; getter phase';
 const compoundDeclaration = operationPlacement(repeatedDeclaration, ['no-console'], compoundReason, false,
@@ -1055,8 +1107,8 @@ repeatAgain.dispose();
 repeatAuthored.dispose();
 firstAuthored.dispose();
 
-// A direct returned fresh-slice reversal has an existing single statement
-// line. The neighboring mutation remains visible; no grouping is fabricated.
+// A syntax-only annotator cannot establish a slice carrier or native receiver.
+// Both mutations stay visible without a completed source decision.
 const reverseSource = 'export function reverse(values) { values.reverse(); return values.slice().reverse(); }';
 const reverseTree = typescript.createSourceFile('reverse-line.js', reverseSource, 99, true);
 const reverseResult = group(reverseTree, root => annotateRetainedMutationBoundaries({ typescript, sourceFile: root }));
@@ -1068,8 +1120,8 @@ const reverseSettings = { plugins: { resilient }, linterOptions: { reportUnusedD
     rules: { 'resilient/prefer-safe-transformations': 'error' } };
 assert.doesNotMatch(reverseOutput, /eslint-disable-line/u);
 assert.deepEqual(executable(reverseOutput), executable(reverseSource));
-assert.equal(reverseLinter.verify(reverseOutput, reverseSettings).length, 1, reverseOutput);
-assert.equal(reverseLinter.getSuppressedMessages().length, 1);
+assert.equal(reverseLinter.verify(reverseOutput, reverseSettings).length, 2, reverseOutput);
+assert.equal(reverseLinter.getSuppressedMessages().length, 0);
 assert.equal(reverseLinter.verify(reverseOutput.replace(/^\s*\/\/ eslint-disable-next-line[^\n]*\n/gmu, ''), reverseSettings).length, 2);
 const reverseRuntime = await import(`data:text/javascript,${encodeURIComponent(reverseOutput)}`);
 const reverseValues = [1, 2, 3];

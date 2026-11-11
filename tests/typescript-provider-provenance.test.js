@@ -53,13 +53,14 @@ const cases = [
     { name: 'computed-consumer', code: 'declare const F: { accept: (value: unknown) => unknown }; function read(P: { compact: () => number }) { return F["accept"](P.compact); }' },
     { name: 'shadowed-consumer-absence', code: 'declare function accept(value: unknown): unknown; function read(P: { compact: () => number }, undefined: number) { return accept(P.compact); }' },
     { name: 'factory', code: 'function read(make: () => { compact: (value: number) => number }) { const { compact } = make(); return { compact }; }', count: 1 },
-    { name: 'selected', code: 'function read(M: { empty: string }, selected: boolean) { return selected ? M.empty : "value"; }', count: 1 },
-    { name: 'renamed', code: 'function read(provider: { empty: string }, selected: boolean) { return selected ? provider.empty : "value"; }', count: 1 },
-    { name: 'shadow', code: 'function read(M: { empty: string }, selected: boolean) { const other = (M: { empty: number }) => M.empty; return selected ? M.empty : "value"; }', count: 1 },
+    { name: 'selected', code: 'function read(M: { baseValue: string }, selected: boolean) { return selected ? M.baseValue : "value"; }', count: 1 },
+    { name: 'renamed', code: 'function read(provider: { baseValue: string }, selected: boolean) { return selected ? provider.baseValue : "value"; }', count: 1 },
+    { name: 'shadow',
+        code: 'function read(M: { baseValue: string }, selected: boolean) { const other = (M: { baseValue: number }) => M.baseValue; return selected ? M.baseValue : "value"; }', count: 1 },
     { name: 'optional', code: 'function read(P: { compact?: (value: number) => number }) { return P.compact; }' },
     { name: 'optional-syntax', code: 'function read(P: { compact: (value: number) => number }) { return P?.compact; }' },
     { name: 'invoked', code: 'function read(P: { compact: (value: number) => number }) { return P.compact(1); }' },
-    { name: 'wrong-result', code: 'function read(M: { empty: string }, selected: boolean) { return selected ? M.empty : 1; }' },
+    { name: 'wrong-result', code: 'function read(M: { baseValue: string }, selected: boolean) { return selected ? M.baseValue : 1; }' },
     { name: 'computed', code: 'function read(P: { compact: (value: number) => number }) { return P["compact"]; }' },
     { name: 'generic-return', code: 'function read<T>(P: { value: T }) { return P.value; }', count: 1 },
     { name: 'generic-constructor', code: 'const wrap = <T>(value: T) => ({ value }); function read<T>(P: { value: T }) { return wrap(P.value); }', count: 1 },
@@ -69,17 +70,17 @@ const cases = [
     { name: 'unknown-value', code: 'function read(P: { value: unknown }) { return P.value; }' },
     { name: 'generic-computed', code: 'function read<T>(P: { value: T }) { return P["value"]; }' },
     { name: 'deferred-owned', code: 'function read<T>(P: { value: T }, wrap: (value: T) => T) { return () => wrap(P.value); }' },
-    { name: 'variant-owned', code: 'function read<T>(P: { tag: "left"; value: T } | { tag: "right"; value: T }) { return P.value; }' },
+    { name: 'variant-owned', code: 'function read<T>(P: { tag: "inbound"; value: T } | { tag: "outbound"; value: T }) { return P.value; }' },
     { name: 'shadowed-absence', code: 'function read<T>(P: { value: T }, undefined: number) { return P.value; }' },
     { name: 'selected-generic', code: [
         'const isSelected = (input: { tag: boolean }) => input.tag;',
-        'function read<T>(P: { empty: T }, wrap: () => T, input: { tag: boolean }) { return isSelected(input) ? P.empty : wrap(); }'
+        'function read<T>(P: { baseValue: T }, wrap: () => T, input: { tag: boolean }) { return isSelected(input) ? P.baseValue : wrap(); }'
     ].join('\n'), count: 1 },
-    { name: 'selected-optional-syntax', code: 'function read(M: { empty: string }, selected: boolean) { return selected ? M?.empty : "value"; }' },
+    { name: 'selected-optional-syntax', code: 'function read(M: { baseValue: string }, selected: boolean) { return selected ? M?.baseValue : "value"; }' },
     { name: 'contextual-curried-generic', code: [
         'const isSelected = (input: { tag: boolean }) => input.tag;',
-        'const read: <T>(P: { empty: T }) => (wrap: () => T) => (input: { tag: boolean }) => T =',
-        'P => wrap => input => isSelected(input) ? P.empty : wrap();'
+        'const read: <T>(P: { baseValue: T }) => (wrap: () => T) => (input: { tag: boolean }) => T =',
+        'P => wrap => input => isSelected(input) ? P.baseValue : wrap();'
     ].join('\n'), count: 1 }
 ];
 const composeSource = [
@@ -143,7 +144,7 @@ const traces = [
     { name: 'optional-syntax-get', declaration: 'function read(P: { compact: (value: number) => number }) { return P?.compact; }',
         setup: 'const token = (value: number) => value; const provider = { get compact() { events = [...events, "get"]; return token; } };',
         probe: 'read(provider) === token' },
-    { name: 'selected-optional-null', declaration: 'function read(M: { empty: string }, selected: boolean) { return selected ? M?.empty : "value"; }',
+    { name: 'selected-optional-null', declaration: 'function read(M: { baseValue: string }, selected: boolean) { return selected ? M?.baseValue : "value"; }',
         setup: 'const provider = null;', probe: 'read(provider, true) === undefined' },
     { name: 'callable-identity', declaration: 'function read(P: { compact: (value: number) => number }) { return P.compact; }',
         setup: 'const token = (value: number) => value; const provider = { get compact() { events = [...events, "get"]; return token; } };',
@@ -168,12 +169,12 @@ const traces = [
     { name: 'factory-failure', declaration: 'function read(make: () => { compact: (value: number) => number }) { const { compact } = make(); return { compact }; }',
         setup: 'const failure = new Error("factory"); const make = () => { events = [...events, "factory"]; throw failure; };',
         probe: '(() => { try { read(make); } catch (error) { return error === failure; } })()' },
-    { name: 'selected-skipped', declaration: 'function read(M: { empty: string }, selected: boolean) { return selected ? M.empty : "value"; }',
-        setup: 'const provider = { get empty() { events = [...events, "get"]; return "identity"; } };', probe: 'read(provider, false)' },
-    { name: 'selected-missing', declaration: 'function read(M: { empty: string }, selected: boolean) { return selected ? M.empty : "value"; }',
+    { name: 'selected-skipped', declaration: 'function read(M: { baseValue: string }, selected: boolean) { return selected ? M.baseValue : "value"; }',
+        setup: 'const provider = { get baseValue() { events = [...events, "get"]; return "identity"; } };', probe: 'read(provider, false)' },
+    { name: 'selected-missing', declaration: 'function read(M: { baseValue: string }, selected: boolean) { return selected ? M.baseValue : "value"; }',
         setup: 'const provider = {};', probe: 'read(provider, true) === undefined' },
-    { name: 'selected-get', declaration: 'function read(M: { empty: string }, selected: boolean) { return selected ? M.empty : "value"; }',
-        setup: 'const provider = { get empty() { events = [...events, "get"]; return "identity"; } };', probe: 'read(provider, true)' },
+    { name: 'selected-get', declaration: 'function read(M: { baseValue: string }, selected: boolean) { return selected ? M.baseValue : "value"; }',
+        setup: 'const provider = { get baseValue() { events = [...events, "get"]; return "identity"; } };', probe: 'read(provider, true)' },
     { name: 'generic-value-identity', declaration: 'function read<T>(P: { value: T }) { return P.value; }',
         setup: 'const token = {}; const provider = { get value() { events = [...events, "get"]; return token; } };',
         probe: 'read(provider) === token' },
@@ -195,22 +196,22 @@ const traces = [
         name: `selected-generic-${selected}`,
         declaration: [
             'const isSelected = (input: { tag: boolean }) => input.tag;',
-            'function read<T>(P: { empty: T }, wrap: () => T, input: { tag: boolean }) { return isSelected(input) ? P.empty : wrap(); }'
+            'function read<T>(P: { baseValue: T }, wrap: () => T, input: { tag: boolean }) { return isSelected(input) ? P.baseValue : wrap(); }'
         ].join('\n'),
         setup: [
-            'const token = {}; const provider = { get empty() { events = [...events, "empty"]; return token; } };',
+            'const token = {}; const provider = { get baseValue() { events = [...events, "baseValue"]; return token; } };',
             `const input = { get tag() { events = [...events, "tag"]; return ${selected}; } };`,
             'const wrap = () => { events = [...events, "wrap"]; return token; };'
         ].join('\n'), probe: 'read(provider, wrap, input) === token'
     })),
     { name: 'selected-generic-missing', declaration: [
         'const isSelected = (input: { tag: boolean }) => input.tag;',
-        'function read<T>(P: { empty: T }, wrap: () => T, input: { tag: boolean }) { return isSelected(input) ? P.empty : wrap(); }'
+        'function read<T>(P: { baseValue: T }, wrap: () => T, input: { tag: boolean }) { return isSelected(input) ? P.baseValue : wrap(); }'
     ].join('\n'), setup: 'const provider = {};', probe: 'read(provider, () => 7, { tag: true }) === void 0' },
     { name: 'contextual-curried-missing', declaration: [
         'const isSelected = (input: { tag: boolean }) => input.tag;',
-        'const read: <T>(P: { empty: T }) => (wrap: () => T) => (input: { tag: boolean }) => T =',
-        'P => wrap => input => isSelected(input) ? P.empty : wrap();'
+        'const read: <T>(P: { baseValue: T }) => (wrap: () => T) => (input: { tag: boolean }) => T =',
+        'P => wrap => input => isSelected(input) ? P.baseValue : wrap();'
     ].join('\n'), setup: 'const provider = {};', probe: 'read(provider)(() => 7)({ tag: true }) === void 0' }
 ];
 const sources = new Map([
@@ -252,7 +253,7 @@ const [owned = {}] = nodesOfKind({ root: sourceFile, kind: typescript.SyntaxKind
 const contracts = collectExactProviderForwardContracts({ typescript, sourceFile, checker: program.getTypeChecker() });
 const agreements = collectDestructuringAgreements({ exactProviderForwards: contracts });
 const [contract = {}] = contracts.values();
-const unrelated = typescript.createSourceFile('unrelated.ts', 'const { empty } = unrelated;', typescript.ScriptTarget.ESNext, true);
+const unrelated = typescript.createSourceFile('unrelated.ts', 'const { baseValue } = unrelated;', typescript.ScriptTarget.ESNext, true);
 const [unrelatedElement = {}] = nodesOfKind({ root: unrelated, kind: typescript.SyntaxKind.BindingElement });
 const place = (node = {}, map = compileDestructuringDecisions(agreements)) => {
     const pattern = typescript.factory.createObjectBindingPattern([node]);
@@ -265,37 +266,37 @@ const place = (node = {}, map = compileDestructuringDecisions(agreements)) => {
     return element;
 };
 assert.equal(place(unrelatedElement), unrelatedElement, 'A member-only match cannot acquire another receiver\'s decision.');
-const factoryBinding = typescript.factory.createBindingElement(undefined, undefined, 'empty', undefined);
+const factoryBinding = typescript.factory.createBindingElement(undefined, undefined, 'baseValue', undefined);
 assert.equal(place(factoryBinding), factoryBinding, 'A rangeless factory binding has no source admission.');
 const ownedBinding = typescript.setOriginalNode(
-    typescript.factory.createBindingElement(undefined, undefined, 'empty', undefined), owned
+    typescript.factory.createBindingElement(undefined, undefined, 'baseValue', undefined), owned
 );
 const placedBinding = place(ownedBinding);
-const { initializer: { text: initializerText = '' } = {} } = placedBinding;
-assert.equal(initializerText, 'undefined', 'Existing original-node provenance admits the completed source owner.');
+assert.equal(placedBinding.initializer, undefined, 'The completed source owner retains natural absence without a default.');
+assert.match(placedBinding.__resilientAgreement, /native absence/u);
 assert.equal(typescript.getOriginalNode(placedBinding), owned);
 assert.equal(getDestructuringDecisionForNode({ typescript, node: placedBinding, destructuringAgreements: compileDestructuringDecisions(agreements),
     kinds: ['exact-provider-forward'] }).contract, contract);
 assert.equal(contracts.size, 1);
 
 // Original range wins; a rangeless original can use the existing direct range.
-const clone = typescript.setOriginalNode(typescript.factory.createPropertyAccessExpression('other', 'empty'), owned);
+const clone = typescript.setOriginalNode(typescript.factory.createPropertyAccessExpression('other', 'baseValue'), owned);
 typescript.setTextRange(clone, { pos: owned.pos + 1, end: owned.end });
 assert.equal(getDestructuringDecisionForNode({ typescript, node: clone, destructuringAgreements: compileDestructuringDecisions(agreements),
     kinds: ['exact-provider-forward'] }).contract, contract);
 const directRange = typescript.setOriginalNode(
-    typescript.setTextRange(typescript.factory.createPropertyAccessExpression('M', 'empty'), owned),
-    typescript.factory.createPropertyAccessExpression('other', 'empty')
+    typescript.setTextRange(typescript.factory.createPropertyAccessExpression('M', 'baseValue'), owned),
+    typescript.factory.createPropertyAccessExpression('other', 'baseValue')
 );
 assert.equal(getDestructuringDecisionForNode({ typescript, node: directRange, destructuringAgreements: compileDestructuringDecisions(agreements),
     kinds: ['exact-provider-forward'] }).contract, contract);
 const before = [...agreements];
 const collision = collectDestructuringAgreements({ sortCapabilityContracts: new Map([[getConsumerContractKey(owned), {
-    action: 'guard-sort-capability', receiver: 'M', member: 'empty'
+    action: 'guard-sort-capability', receiver: 'M', member: 'baseValue'
 }]]), exactProviderForwards: contracts });
 assert.ok(place(ownedBinding, compileDestructuringDecisions(collision)) === ownedBinding, 'Direct callable-consumer Policy keeps precedence over forwarding.');
 const projectionCollision = collectDestructuringAgreements({ exactProjections: new Map([[getConsumerContractKey(owned), {
-    action: 'exact-callback-projection', receiver: 'M', member: 'empty'
+    action: 'exact-callback-projection', receiver: 'M', member: 'baseValue'
 }]]), exactProviderForwards: contracts });
 assert.equal(place(ownedBinding, compileDestructuringDecisions(projectionCollision)), ownedBinding,
     'The completed callback projection retains its own placement and publication timing.');
@@ -338,8 +339,9 @@ assert.equal(ownedBranchBindings.length, 1, 'Branch construction preserves the o
 const [ownedBranchBinding = {}] = ownedBranchBindings;
 const { initializer: branchInitializer = false } = ownedBranchBinding;
 assert.equal(branchInitializer, false, 'Branch construction carries origin; existing provider placement owns the default and report publication.');
-const { initializer: { text: branchDefault = '' } = {} } = place(ownedBranchBinding, compileDestructuringDecisions(branchAgreements));
-assert.equal(branchDefault, 'undefined', 'Existing provider placement consumes the completed Policy by exact provenance, not a member-name fallback.');
+const retainedBranch = place(ownedBranchBinding, compileDestructuringDecisions(branchAgreements));
+assert.equal(retainedBranch.initializer, undefined, 'Provider placement consumes the exact source decision without adding a default.');
+assert.match(retainedBranch.__resilientAgreement, /native absence/u);
 assert.ok(branchContracts.has(getConsumerContractKey(typescript.getOriginalNode(ownedBranchBinding))));
 releaseBranch();
 
@@ -350,9 +352,9 @@ const capabilitySources = new Map([
         'function unrelated(F: Provider) { return F.of; }'
     ].join('\n')],
     ['sort.ts', [
-        'type Ord = { compare: (left: number, right: number) => number };',
-        'function sort(O: Ord, values: number[]) { return values.slice().sort(O.compare); }',
-        'function unrelated(O: Ord) { return O.compare; }'
+        'type Ordering = { compare: (inbound: number, outbound: number) => number };',
+        'function sort(O: Ordering, values: number[]) { return values.slice().sort(O.compare); }',
+        'function unrelated(O: Ordering) { return O.compare; }'
     ].join('\n')]
 ].map(([name = '', code = ''] = []) => [name, typescript.createSourceFile(
     name, code, typescript.ScriptTarget.ESNext, true

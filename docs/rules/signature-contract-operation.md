@@ -1,33 +1,12 @@
 # signature-contract-operation
 
-Reports known native operations that contradict an inferred value contract.
+This rule is implemented in [the current package](../../analysis/eslint/signature-contract-operation.js).
+Its implementation uses the shared analyzer and source-owned evidence.
 
-## What this finding means
+The current supported behavior and boundary cases are verified by:
 
-Calling a string operation on a collection, or a collection operation on a
-string, is a contract contradiction hidden behind otherwise valid JavaScript
-syntax. The rule reports the incompatible operation where the evidence makes
-the mistake knowable.
+- [structured-selection.test.js](../../tests/structured-selection.test.js)
+- [rule-canary.test.js](../../tests/rule-canary.test.js)
 
-```javascript
-const inspect = ({
-    items = []
-} = {}) => items.toUpperCase(); // reported
-```
-
-Known string operations include `trim`, `toLowerCase`, `toUpperCase`, and
-`replaceAll`. Known collection operations include `map`, `filter`, `some`,
-`find`, `reduce`, and `forEach`.
-
-Unknown values and methods outside the known operation table are left alone.
-This rule detects contradictions; it does not validate data at runtime.
-
-## Boundaries and non-goals
-
-Only operations with known receiver evidence and known native requirements are
-reported. Unknown and external values remain runtime-boundary concerns.
-
-## Repair recipes
-
-Use an operation that agrees with the known receiver family, or repair the
-producer. Inspect the source chain via the [diagnostic guide](../guide/diagnostic-explanations.md).
+[Language policy](../reference/policy.md) remains normative. Unsupported analysis
+remains unknown; no legacy analyzer is used to fill gaps.

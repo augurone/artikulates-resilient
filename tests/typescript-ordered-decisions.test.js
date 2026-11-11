@@ -137,10 +137,10 @@ try {
         '    effect();',
         '    return 3;',
         '};',
-        'export const selected = (value: { _tag: string, left: number, right: number }) =>',
-        '    value._tag === "Left"',
-        '        ? value._tag === "Both" ? value.left : value.right',
-        '        : value._tag === "Right" ? value.right : value.left;',
+        'export const selected = (value: { category: string, inbound: number, outbound: number }) =>',
+        '    value.category === "Inbound"',
+        '        ? value.category === "Combined" ? value.inbound : value.outbound',
+        '        : value.category === "Outbound" ? value.outbound : value.inbound;',
         ''
     ].join('\n');
 
@@ -163,7 +163,9 @@ try {
 
     assert.deepEqual(nestedDiagnostics, []);
     assert.match(nestedCode, /if \(!\(isWork\(value\)\)\)/);
-    assert.match(nestedCode, /no-nested-if, resilient\/prefer-destructured-member-access -- Nested decision and repeated Get retain branch and getter timing/);
+    assert.doesNotMatch(nestedCode, /Nested decision and repeated Get retain branch and getter timing/);
+    assert.match(nestedCode, /prefer-destructured-member-access -- repeated parameter Get: count, order, phase/);
+    assert.match(nestedCode, /value\.category === "Combined" \? value\.inbound : value\.outbound/);
 
     const [nestedRaw = {}] = await new ESLint({ overrideConfigFile: true,
         overrideConfig: eslintConfig }).lintText(nestedCode, { filePath: 'nested-generated.js' });
@@ -186,11 +188,12 @@ try {
     });
     const nestedSourceModule = await importCode(nestedJavaScript);
     const nestedGeneratedModule = await importCode(nestedCode);
+    const nestedFixedModule = await importCode(nestedFixed.output || nestedCode);
     const observeNested = (module, tag, operation) => {
         let trace = '';
-        const input = new Proxy({ _tag: tag, left: 0, right: 2 }, {
+        const input = new Proxy({ category: tag, inbound: 0, outbound: 2 }, {
             get(target, key) {
-                if (key !== '_tag') trace += String(key);
+                trace += String(key);
 
                 return Reflect.get(target, key);
             }
@@ -216,9 +219,13 @@ try {
     ['Skip', 'Work', 'Other'].forEach((tag) => {
         assert.deepEqual(observeNested(nestedGeneratedModule, tag, 'visit'),
             observeNested(nestedSourceModule, tag, 'visit'));
+        assert.deepEqual(observeNested(nestedFixedModule, tag, 'visit'),
+            observeNested(nestedSourceModule, tag, 'visit'));
     });
-    ['Left', 'Right', 'Both', 'Other'].forEach((tag) => {
+    ['Inbound', 'Outbound', 'Combined', 'Other'].forEach((tag) => {
         assert.deepEqual(observeNested(nestedGeneratedModule, tag, 'selected'),
+            observeNested(nestedSourceModule, tag, 'selected'));
+        assert.deepEqual(observeNested(nestedFixedModule, tag, 'selected'),
             observeNested(nestedSourceModule, tag, 'selected'));
     });
 
@@ -416,6 +423,22 @@ try {
 
         assert.equal(runtimeFirst, sourceLast);
         assert.equal(runtimeLast, sourceFirst);
+    });
+    const { statements: queueStatements = [] } = typescript.createSourceFile('ordered-queue.ts', [
+        'const first = () => gate();',
+        'void 0;',
+        'const second = () => 0;',
+        'const third = () => gate() + second() + gate();',
+        'const gate = () => 0;',
+        'const tail = () => 0;',
+        'const cyclicFirst = () => cyclicSecond();',
+        'const cyclicSecond = () => cyclicFirst();'
+    ].join('\n'), typescript.ScriptTarget.ESNext, true);
+    const queueOrdered = orderRuntimeBindingStatements({ typescript, statements: queueStatements });
+
+    assert.equal(queueOrdered.length, queueStatements.length);
+    [2, 1, 4, 0, 3, 5, 6, 7].forEach((sourceIndex, orderedIndex) => {
+        assert.equal(queueOrdered[orderedIndex], queueStatements[sourceIndex]);
     });
     const { statements: generatedStatements = [] } = typescript.createSourceFile('generated-cycles.ts', [
         'const first = () => second();',

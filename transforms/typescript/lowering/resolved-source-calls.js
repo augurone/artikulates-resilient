@@ -1,4 +1,5 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds, wrapExpressionArrowBody } from '../../utils/ast-boundary.js';
 import { getDestructuringDecisionForNode } from '../policy/destructuring-agreements.js';
 
@@ -13,8 +14,8 @@ const annotateResolvedSourceCalls = ({
         Block = -1, CallExpression = -1, ReturnStatement = -1,
         ExpressionStatement = -1, VariableStatement = -1,
         SingleLineCommentTrivia = -1 } = getSyntaxKinds(typescript);
-    const { addSyntheticLeadingComment = false,
-        getSyntheticLeadingComments = false } = typescript;
+    const { addSyntheticLeadingComment,
+        getSyntheticLeadingComments } = typescript;
     const functions = [ArrowFunction, FunctionDeclaration, FunctionExpression];
     const statements = [ReturnStatement, ExpressionStatement, VariableStatement];
 
@@ -27,9 +28,9 @@ const annotateResolvedSourceCalls = ({
             ? getDestructuringDecisionForNode({
                 typescript, node, destructuringAgreements, kinds: ['resolved-source-call']
             }) : {};
-        const { action = '' } = getObject(agreement);
+        const { action = '', rules = [] } = getObject(agreement);
 
-        if (action === 'retain-overloaded-partial-call') {
+        if (action === 'retain-overloaded-partial-call' && (!annotationsOnly || rules.includes('resilient/signature-contract-call-site'))) {
             return 'checker-selected overload returns a callable with the supplied arguments';
         }
 
@@ -61,13 +62,13 @@ const annotateResolvedSourceCalls = ({
         return typescript.visitNode(sourceFile, visit);
     }
 
-    if (typeof addSyntheticLeadingComment !== 'function') return sourceFile;
+    if (!isFunction(addSyntheticLeadingComment)) return sourceFile;
 
     const visit = (node = {}) => {
         const { kind = 0, expression = {} } = getObject(node);
         const reason = statements.includes(kind)
             ? reasonFor(kind === VariableStatement ? node : expression) : '';
-        const comments = typeof getSyntheticLeadingComments === 'function'
+        const comments = isFunction(getSyntheticLeadingComments)
             ? getSyntheticLeadingComments(node) || [] : [];
         const alreadyAnnotated = comments.some(({ text = '' } = {}) => (
             text.includes('eslint-disable-next-line resilient/signature-contract-call-site')

@@ -1,4 +1,4 @@
-import { getObject } from '../../../rules/support/object.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds } from '../../utils/ast-boundary.js';
 
 const getIdentifierText = (node = {}) => {
@@ -10,7 +10,7 @@ const getIdentifierText = (node = {}) => {
 const getModuleBinding = ({ typescript = {}, statement = {} } = {}) => {
     const { ImportDeclaration = -1, NamespaceImport = -1 } = getSyntaxKinds(typescript);
     const { kind = 0, importClause = {}, moduleSpecifier = {} } = getObject(statement);
-    const { namedBindings = {}, name: defaultImport = undefined, isTypeOnly = false } = getObject(importClause);
+    const { namedBindings = {}, name: defaultImport, isTypeOnly = false } = getObject(importClause);
     const { kind: bindingKind = 0, name = {} } = getObject(namedBindings);
     const { text: moduleSpecifierText = '' } = getObject(moduleSpecifier);
     const namespace = getIdentifierText(name);
@@ -75,7 +75,7 @@ const getPatternBindings = ({ typescript = {}, declaration = {}, namespace = '' 
         const {
             kind = 0,
             dotDotDotToken = false,
-            initializer: fallback = undefined,
+            initializer: fallback,
             propertyName = {},
             name: localName = {}
         } = getObject(element);
@@ -202,7 +202,8 @@ const getReplacementStatements = ({ factory = {}, replacement = {} } = {}) => {
 };
 
 const getUpdatedImportStatements = ({ factory = {}, statement = {}, binding = {} } = {}) => {
-    const { defaultImport = undefined, moduleSpecifier = {}, records = [], unsupported = false } = binding;
+    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- The import factory requires native absence when there is no default import binding.
+    const { defaultImport, moduleSpecifier = {}, records = [], unsupported = false } = binding;
     const localBindings = records
         .filter(({ usage = '' } = {}) => ['local-alias', 'exported-local-alias'].includes(usage))
         .flatMap(({ bindings = [] } = {}) => bindings);
@@ -214,7 +215,7 @@ const getUpdatedImportStatements = ({ factory = {}, statement = {}, binding = {}
         imported === local ? undefined : factory.createIdentifier(imported),
         factory.createIdentifier(local)
     ));
-    const { modifiers = undefined, attributes = undefined } = getObject(statement);
+    const { modifiers, attributes } = getObject(statement);
     const clause = factory.createImportClause(false, defaultImport, factory.createNamedImports(specifiers));
 
     const namedImport = factory.updateImportDeclaration(statement, modifiers, clause, moduleSpecifier, attributes);
@@ -312,4 +313,4 @@ const lowerImportedNamespaceMemberAccess = ({ typescript = {}, sourceFile = {}, 
     return visitEachChild(updatedSource, visit, context);
 };
 
-export { getModuleBinding, lowerImportedNamespaceMemberAccess };
+export { lowerImportedNamespaceMemberAccess };

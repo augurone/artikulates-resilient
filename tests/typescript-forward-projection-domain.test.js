@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { runInNewContext } from 'node:vm';
 
 import typescript from 'typescript';
 
@@ -9,9 +8,11 @@ import {
     collectExactProjectionContracts,
     collectProviderForwardContracts
 } from '../transforms/typescript/understand/type-evidence.js';
+import { loadModule } from './support/module.js';
 
 // Each row crosses checker admission and the public placement path. The two
 // actions share a field-forwarding grammar constructor, not a source law.
+
 const cases = [
     { name: 'projection-array', projection: 1,
         code: 'export const use = (items: Array<{ value: number }>) => items.map(item => item.value);' },
@@ -115,20 +116,16 @@ cases.forEach(({ name = '', code = '', projection = 0, forwarded = 0 } = {}) => 
 
 const [{ code: twoFieldSource = '' } = {}] = cases.filter(({ name = '' } = {}) => name === 'forward-two-fields');
 const { code: twoFieldTarget = '' } = transform({ code: twoFieldSource, fileName: 'forward-two-fields.ts' });
-const execute = (code = '') => {
+const execute = async (code = '') => {
     const { outputText = '' } = typescript.transpileModule(code, {
-        compilerOptions: { module: typescript.ModuleKind.CommonJS, target: typescript.ScriptTarget.ESNext }
+        compilerOptions: { module: typescript.ModuleKind.ESNext, target: typescript.ScriptTarget.ESNext }
     });
-    const exports = {};
-
-    runInNewContext(outputText, { exports });
-
-    const { use = false } = exports;
+    const { use = false } = await loadModule(outputText);
 
     return use;
 };
-const observeForwarding = (code = '') => {
-    const use = execute(code);
+const observeForwarding = async (code = '') => {
+    const use = await execute(code);
     const left = value => value;
     const right = value => value;
     const failure = new Error('second getter');
@@ -169,10 +166,10 @@ const observeForwarding = (code = '') => {
     return { identity, missing, abruptIdentity, events };
 };
 
-assert.deepEqual(observeForwarding(twoFieldSource), {
+assert.deepEqual(await observeForwarding(twoFieldSource), {
     identity: true,
     missing: true,
     abruptIdentity: true,
     events: ['left', 'right', 'left', 'throw']
 });
-assert.deepEqual(observeForwarding(twoFieldTarget), observeForwarding(twoFieldSource));
+assert.deepEqual(await observeForwarding(twoFieldTarget), await observeForwarding(twoFieldSource));

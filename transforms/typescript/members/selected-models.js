@@ -1,18 +1,13 @@
-import { getObject } from '../../../rules/support/object.js';
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getSyntaxKinds, updateCallArguments, updateVariableDeclarationFields } from '../../utils/ast-boundary.js';
 import { getDestructuringDecisionForNode } from '../policy/destructuring-agreements.js';
-import { getPlacementPredicate, getPlacementFact } from '../policy/placement.js';
+import { getPlacementPredicate } from '../policy/placement.js';
 import { getBindingNames } from '../understand/imports.js';
-import {
-    getConsumerContractKey
-} from '../understand/type-evidence.js';
 
-// A direct discriminator comparison is an already-complete model selection:
-// the comparison owns one discriminant read and its literal decides the branch. The
-// TypeScript adapter makes that read visible as an object binding before the
-// branch, so subsequent member lowering can keep generic payload bindings in
-// their selected scope. This deliberately does not recognize guard functions,
-// computed tags, empty-tag comparisons, writes, or non-identifier receivers.
+// A completed source decision owns admission of a discriminator binding. The
+// actual partition remains source evidence; retention decisions and missing
+// decisions cannot be replaced by placement's union-property summaries.
 const lowerSelectedModelDiscriminators = ({
     typescript = {},
     node = {},
@@ -29,7 +24,6 @@ const lowerSelectedModelDiscriminators = ({
         ObjectBindingPattern = -1,
         BinaryExpression = -1,
         PropertyAccessExpression = -1,
-        ElementAccessExpression = -1,
         ArrayLiteralExpression = -1,
         ConditionalExpression = -1,
         CallExpression = -1,
@@ -46,14 +40,13 @@ const lowerSelectedModelDiscriminators = ({
     const {
         NodeFlags: { Const: ConstKind = 0 } = {},
         factory = {},
-        setOriginalNode = false,
-        getOriginalNode = false
+        setOriginalNode,
+        getOriginalNode
     } = typescript;
     // A selected tuple position that supplies an accepted collection update is
     // owned by collection placement.  Splitting it here would replace the
     // operation's one source-time read with an unrelated model binding before
     // collection grammar can reconstruct the update.
-    const { collectionTuplePositions = new Set() } = destructuringAgreements;
     const comparisons = new Set([
         EqualsEqualsToken,
         EqualsEqualsEqualsToken,
@@ -64,11 +57,6 @@ const lowerSelectedModelDiscriminators = ({
 
     if (!node || rootKind === -1) return node;
 
-    const isDiscriminatedUnion = ({ receiver = {}, property = '' } = {}) => {
-        const { unionProperties = [] } = getPlacementFact({ typescript, placement, node: receiver });
-
-        return unionProperties.includes(property);
-    };
     const getPredicateSelection = (expression = {}) => getPlacementPredicate({
         typescript,
         placement,
@@ -100,19 +88,23 @@ const lowerSelectedModelDiscriminators = ({
             const { kind: candidateKind = 0, expression: receiver = {}, name = {} } = getObject(candidate);
             const { kind: receiverKind = 0 } = getObject(receiver);
             const { text: property = '' } = getObject(name);
-            const { kind: literalKind = 0, text: literalText = '' } = getObject(other);
+            const { kind: literalKind = 0 } = getObject(other);
 
             return candidateKind === PropertyAccessExpression &&
                 receiverKind === Identifier &&
                 property &&
-                literalKind === StringLiteral &&
-                Boolean(literalText);
+                [StringLiteral, NumericLiteral, getSyntaxKinds(typescript).TrueKeyword, getSyntaxKinds(typescript).FalseKeyword].includes(literalKind);
         }) || [];
         const { expression: receiver = {}, name = {} } = getObject(member);
         const { text: receiverName = '' } = getObject(receiver);
         const { text: property = '' } = getObject(name);
 
-        return receiverName && property && isDiscriminatedUnion({ receiver, property })
+        const { agreement: { action = '' } = {}, contract: { operationRole = '' } = {} }
+            = getDestructuringDecisionForNode({
+                typescript, node: member, destructuringAgreements, kinds: ['selected-model-read']
+            });
+
+        return receiverName && property && action === 'selected-model-read' && operationRole === 'discriminator-read'
             ? { member, receiver, receiverName, property, expression }
             : {};
     };
@@ -143,7 +135,7 @@ const lowerSelectedModelDiscriminators = ({
             thenKind === Block && firstKind === ReturnStatement);
     };
     const blockTerminatingBranch = (statement = {}) => {
-        const { kind = 0, expression = {}, thenStatement = {}, elseStatement = undefined } = getObject(statement);
+        const { kind = 0, expression = {}, thenStatement = {}, elseStatement } = getObject(statement);
 
         const { kind: thenKind = 0 } = getObject(thenStatement);
 
@@ -156,13 +148,13 @@ const lowerSelectedModelDiscriminators = ({
             )
             : statement;
     };
-    const getSelectedPayloadReturn = ({ statement = {}, sources = new Set(), occupied = new Set() } = {}) => {
+    const getSelectedPayloadReturn = ({ statement = {}, occupied = new Set() } = {}) => {
         const { kind = 0, expression = {} } = getObject(statement);
         const { kind: expressionKind = 0, expression: receiver = {}, name = {} } = getObject(expression);
         const { kind: receiverKind = 0, text: receiverName = '' } = getObject(receiver);
         const { text: propertyName = '' } = getObject(name);
 
-        const { entry = {}, agreement = {} } = getDestructuringDecisionForNode({
+        const { agreement = {} } = getDestructuringDecisionForNode({
             typescript,
             node: expression,
             destructuringAgreements,
@@ -172,10 +164,10 @@ const lowerSelectedModelDiscriminators = ({
 
         if (kind !== ReturnStatement || expressionKind !== PropertyAccessExpression ||
             receiverKind !== Identifier || !propertyName ||
-            !sources.has(receiverName) || Object.keys(entry).length && action !== 'selected-model-read') return [statement];
+            action !== 'selected-model-read') return [statement];
 
         const alias = propertyName === 'value'
-            ? getAvailableAlias({ receiverName, occupied })
+            ? getAvailableAlias({ receiverName, property: 'value', occupied })
             : getAvailableName({
                 base: `${receiverName}${propertyName.slice(0, 1).toUpperCase()}${propertyName.slice(1)}`,
                 occupied
@@ -184,7 +176,7 @@ const lowerSelectedModelDiscriminators = ({
             undefined,
             factory.createIdentifier(propertyName),
             factory.createIdentifier(alias),
-            undefined
+            factory.createVoidExpression(factory.createNumericLiteral(0))
         );
         const declaration = factory.createVariableStatement(
             undefined,
@@ -197,6 +189,8 @@ const lowerSelectedModelDiscriminators = ({
                 )
             ], ConstKind)
         );
+
+        if (isFunction(setOriginalNode)) setOriginalNode(declaration, expression);
 
         return [declaration, factory.updateReturnStatement(statement, factory.createIdentifier(alias))];
     };
@@ -222,6 +216,13 @@ const lowerSelectedModelDiscriminators = ({
             calleeKind !== Identifier || args.length !== 1 || argumentKind !== PropertyAccessExpression ||
             receiverKind !== Identifier || !sources.has(receiverName) || !propertyName) return [statement];
 
+        const { agreement: sourceAgreement = {} } = getDestructuringDecisionForNode({ typescript,
+            node: argument, destructuringAgreements, kinds: ['selected-model-read'] });
+
+        const { action: sourceAction = '' } = sourceAgreement;
+
+        if (sourceAction !== 'selected-model-read') return [statement];
+
         const alias = getAvailableName({
             base: `${receiverName}${propertyName.slice(0, 1).toUpperCase()}${propertyName.slice(1)}`,
             occupied
@@ -234,7 +235,7 @@ const lowerSelectedModelDiscriminators = ({
                         undefined,
                         factory.createIdentifier(propertyName),
                         factory.createIdentifier(alias),
-                        factory.createIdentifier('undefined')
+                        factory.createVoidExpression(factory.createNumericLiteral(0))
                     )]),
                     undefined,
                     undefined,
@@ -273,6 +274,13 @@ const lowerSelectedModelDiscriminators = ({
         if (kind !== VariableStatement || declarations.length !== 1 || initializerKind !== ArrayLiteralExpression ||
             elements.length !== 1 || elementKind !== PropertyAccessExpression || receiverKind !== Identifier ||
             !sources.has(receiverName) || !propertyName) return [statement];
+
+        const { agreement: sourceAgreement = {} } = getDestructuringDecisionForNode({ typescript,
+            node: element, destructuringAgreements, kinds: ['selected-model-read'] });
+
+        const { action: sourceAction = '' } = sourceAgreement;
+
+        if (sourceAction !== 'selected-model-read') return [statement];
 
         const alias = getAvailableName({
             base: `${receiverName}${propertyName.slice(0, 1).toUpperCase()}${propertyName.slice(1)}`,
@@ -319,15 +327,15 @@ const lowerSelectedModelDiscriminators = ({
             const { kind: candidateKind = 0, expression: receiver = {}, name = {} } = getObject(candidate);
             const { kind: receiverKind = 0, text: receiverName = '' } = getObject(receiver);
             const { text: propertyName = '' } = getObject(name);
-            const { kind: literalKind = 0, text: literalText = '' } = getObject(value);
+            const { kind: literalKind = 0 } = getObject(value);
 
             return candidateKind === PropertyAccessExpression && receiverKind === Identifier && receiverName &&
-                propertyName && literalKind === StringLiteral && literalText;
+                propertyName && [StringLiteral, NumericLiteral, getSyntaxKinds(typescript).TrueKeyword, getSyntaxKinds(typescript).FalseKeyword].includes(literalKind);
         }) || [];
         const { expression: receiver = {}, name: tagMember = {} } = getObject(member);
         const { text: receiverName = '' } = getObject(receiver);
         const { text: tagProperty = '' } = getObject(tagMember);
-        const { text: tag = '' } = getObject(literal);
+
         const { kind: bodyKind = 0, statements = [] } = getObject(body);
         const [updateStatement = {}] = statements;
         const { kind: updateKind = 0, expression: update = {} } = getObject(updateStatement);
@@ -363,11 +371,23 @@ const lowerSelectedModelDiscriminators = ({
         const { ambiguous = false, node: payloadNode = {}, receiver: payloadReceiver = {}, propertyName = '' } = getObject(payload);
 
         if (kind !== WhileStatement || conditionKind !== BinaryExpression ||
-            ![EqualsEqualsToken, EqualsEqualsEqualsToken].includes(operatorKind) || !receiverName || !tag ||
-            !isDiscriminatedUnion({ receiver, property: tagProperty }) || bodyKind !== Block || statements.length !== 1 ||
+            ![EqualsEqualsToken, EqualsEqualsEqualsToken].includes(operatorKind) || !receiverName ||
+            bodyKind !== Block || statements.length !== 1 ||
             updateKind !== ExpressionStatement || updateExpressionKind !== BinaryExpression ||
             updateOperatorKind !== EqualsToken || targetKind !== Identifier || targetName !== receiverName ||
             ambiguous || !getObject(payloadNode).kind || !propertyName) return statement;
+
+        const { agreement: tagAgreement = {}, contract: { operationRole: tagRole = '' } = {} } = getDestructuringDecisionForNode({
+            typescript, node: member, destructuringAgreements, kinds: ['selected-model-read']
+        });
+        const { agreement: fieldAgreement = {}, contract: fieldContract = {} } = getDestructuringDecisionForNode({
+            typescript, node: payloadNode, destructuringAgreements, kinds: ['selected-model-read']
+        });
+        const { action: tagAction = '' } = tagAgreement;
+        const { action: fieldAction = '' } = fieldAgreement;
+        const { loopInput = false } = fieldContract;
+
+        if (tagAction !== 'selected-model-read' || tagRole !== 'discriminator-read' || fieldAction !== 'selected-model-read' || !loopInput) return statement;
 
         const tagAlias = getAvailableAlias({ receiverName, property: tagProperty, occupied });
         const payloadAlias = getAvailableName({
@@ -382,7 +402,7 @@ const lowerSelectedModelDiscriminators = ({
                         undefined,
                         factory.createIdentifier(tagProperty),
                         factory.createIdentifier(tagAlias),
-                        factory.createStringLiteral('')
+                        factory.createVoidExpression(factory.createNumericLiteral(0))
                     )]),
                     undefined,
                     undefined,
@@ -394,7 +414,7 @@ const lowerSelectedModelDiscriminators = ({
             factory.createBinaryExpression(
                 factory.createIdentifier(tagAlias),
                 factory.createToken(ExclamationEqualsEqualsToken),
-                factory.createStringLiteral(tag)
+                literal
             ),
             factory.createBreakStatement(),
             undefined
@@ -410,7 +430,7 @@ const lowerSelectedModelDiscriminators = ({
                         // A present-but-undefined payload remains exactly
                         // undefined. This default only records the native
                         // binding result; it does not normalize the model.
-                        factory.createIdentifier('undefined')
+                        factory.createVoidExpression(factory.createNumericLiteral(0))
                     )]),
                     undefined,
                     undefined,
@@ -418,6 +438,12 @@ const lowerSelectedModelDiscriminators = ({
                 )
             ], ConstKind)
         );
+
+        if (isFunction(setOriginalNode)) {
+            setOriginalNode(tagBinding, member);
+            setOriginalNode(payloadBinding, payloadNode);
+        }
+
         const replacePayload = (candidate = {}) => candidate === payloadNode
             ? factory.createIdentifier(payloadAlias)
             : typescript.visitEachChild(candidate, replacePayload, context);
@@ -430,7 +456,7 @@ const lowerSelectedModelDiscriminators = ({
             factory.createBlock([tagBinding, stop, payloadBinding, replacementUpdate], true)
         );
 
-        return typeof setOriginalNode === 'function'
+        return isFunction(setOriginalNode)
             ? setOriginalNode(loweredLoop, statement)
             : loweredLoop;
     };
@@ -470,7 +496,7 @@ const lowerSelectedModelDiscriminators = ({
         const { name: pattern = {}, initializer = {} } = getObject(declaration);
         const { kind: patternKind = 0, elements = [] } = getObject(pattern);
         const [element = {}] = elements;
-        const { propertyName = {}, name = {}, initializer: elementInitializer = undefined } = getObject(element);
+        const { propertyName = {}, name = {}, initializer: elementInitializer } = getObject(element);
         const { kind: initializerKind = 0, text: sourceName = '' } = getObject(initializer);
         const { text: propertyNameText = '' } = getObject(propertyName);
 
@@ -478,12 +504,18 @@ const lowerSelectedModelDiscriminators = ({
             elements.length !== 1 || initializerKind !== Identifier || !sources.has(sourceName) ||
             !propertyNameText || elementInitializer) return statement;
 
+        const { agreement: { action = '' } = {} } = getDestructuringDecisionForNode({
+            typescript, node: element, destructuringAgreements, kinds: ['selected-model-read']
+        });
+
+        if (action !== 'selected-model-read') return statement;
+
         const nextElement = factory.updateBindingElement(
             element,
             propertyName,
             getObject(element).dotDotDotToken,
             name,
-            factory.createIdentifier('undefined')
+            factory.createVoidExpression(factory.createNumericLiteral(0))
         );
         const nextPattern = factory.updateObjectBindingPattern(pattern, [nextElement]);
         const nextDeclaration = updateVariableDeclarationFields({
@@ -496,39 +528,7 @@ const lowerSelectedModelDiscriminators = ({
             factory.updateVariableDeclarationList(declarationList, [nextDeclaration])
         );
     };
-    const completeSelectedLoopPayloadReturn = ({ statement = {}, sources = new Set(), occupied = new Set() } = {}) => {
-        const { kind = 0, expression = {} } = getObject(statement);
-        const { kind: expressionKind = 0, expression: receiver = {}, name = {} } = getObject(expression);
-        const { kind: receiverKind = 0, text: receiverName = '' } = getObject(receiver);
-        const { text: propertyName = '' } = getObject(name);
-
-        if (kind !== ReturnStatement || expressionKind !== PropertyAccessExpression || receiverKind !== Identifier ||
-            !sources.has(receiverName) || !propertyName) return [statement];
-
-        const alias = getAvailableName({
-            base: `${receiverName}${propertyName.slice(0, 1).toUpperCase()}${propertyName.slice(1)}`,
-            occupied
-        });
-        const binding = factory.createBindingElement(
-            undefined,
-            factory.createIdentifier(propertyName),
-            factory.createIdentifier(alias),
-            factory.createIdentifier('undefined')
-        );
-        const declaration = factory.createVariableStatement(
-            undefined,
-            factory.createVariableDeclarationList([
-                factory.createVariableDeclaration(
-                    factory.createObjectBindingPattern([binding]),
-                    undefined,
-                    undefined,
-                    receiver
-                )
-            ], ConstKind)
-        );
-
-        return [declaration, factory.updateReturnStatement(statement, factory.createIdentifier(alias))];
-    };
+    const completeSelectedLoopPayloadReturn = ({ statement = {}, occupied = new Set() } = {}) => getSelectedPayloadReturn({ statement, occupied });
     // A checker-proven predicate conditional already selects the inner model.
     // Keep the predicate at its source position, and move only the selected
     // generic payload reads into their respective branches. This is purposely
@@ -564,7 +564,11 @@ const lowerSelectedModelDiscriminators = ({
 
             const [access = {}] = accesses;
 
-            return accesses.length === 1 ? access : {};
+            const { agreement: { action = '' } = {} } = getDestructuringDecisionForNode({
+                typescript, node: access, destructuringAgreements, kinds: ['selected-model-read']
+            });
+
+            return accesses.length === 1 && branch === access && action === 'selected-model-read' ? access : {};
         };
         const trueAccess = getSinglePayload({ branch: whenTrue });
         const falseAccess = getSinglePayload({ branch: whenFalse });
@@ -593,7 +597,7 @@ const lowerSelectedModelDiscriminators = ({
                         undefined,
                         factory.createIdentifier(property),
                         factory.createIdentifier(alias),
-                        factory.createIdentifier('undefined')
+                        factory.createVoidExpression(factory.createNumericLiteral(0))
                     )]),
                     undefined,
                     undefined,
@@ -657,10 +661,6 @@ const lowerSelectedModelDiscriminators = ({
         const { text: sourceName = '' } = getObject(source);
         const { text: outerProperty = '' } = getObject(outerMember);
         const { text: tagName = '' } = getObject(tagMember);
-        const { getOriginalNode = false } = typescript;
-        const originalInner = typeof getOriginalNode === 'function'
-            ? getOriginalNode(innerSource) || innerSource
-            : innerSource;
         let payloadReads = [];
         const collectPayload = (candidate = {}) => {
             const { kind: candidateKind = 0, expression: payloadInner = {}, name = {} } = getObject(candidate);
@@ -684,9 +684,18 @@ const lowerSelectedModelDiscriminators = ({
         const { name: payloadMember = {} } = getObject(payloadRead);
         const { text: payloadProperty = '' } = getObject(payloadMember);
 
+        const { agreement: { action: nestedTagAction = '' } = {}, contract: { operationRole: nestedTagRole = '' } = {} }
+            = getDestructuringDecisionForNode({
+                typescript, node: tagRead, destructuringAgreements, kinds: ['selected-model-read']
+            });
+        const { agreement: { action: nestedFieldAction = '' } = {} } = getDestructuringDecisionForNode({
+            typescript, node: payloadRead, destructuringAgreements, kinds: ['selected-model-read']
+        });
+
         if (kind !== ReturnStatement || expressionKind !== ConditionalExpression ||
             conditionKind !== BinaryExpression || ![EqualsEqualsToken, EqualsEqualsEqualsToken].includes(operatorKind) ||
-            !sourceName || !outerProperty || !isDiscriminatedUnion({ receiver: originalInner, property: tagName }) ||
+            !sourceName || !outerProperty || nestedTagAction !== 'selected-model-read' ||
+            nestedTagRole !== 'discriminator-read' || nestedFieldAction !== 'selected-model-read' ||
             payloadReads.length !== 1 || !payloadProperty) return [statement];
 
         const innerAlias = getAvailableName({
@@ -710,7 +719,7 @@ const lowerSelectedModelDiscriminators = ({
                         undefined,
                         factory.createIdentifier(outerProperty),
                         factory.createIdentifier(alias),
-                        factory.createIdentifier('undefined')
+                        factory.createVoidExpression(factory.createNumericLiteral(0))
                     )]),
                     undefined,
                     undefined,
@@ -742,7 +751,7 @@ const lowerSelectedModelDiscriminators = ({
                         undefined,
                         factory.createIdentifier(payloadProperty),
                         factory.createIdentifier(valueAlias),
-                        factory.createIdentifier('undefined')
+                        factory.createVoidExpression(factory.createNumericLiteral(0))
                     )]),
                     undefined,
                     undefined,
@@ -770,12 +779,11 @@ const lowerSelectedModelDiscriminators = ({
             factory.createReturnStatement(replacePayload(whenFalse))
         ];
     };
-    const getSelectedPayloadBranch = ({ statement = {}, receiverName = '', occupied = new Set() } = {}) => {
+    const getSelectedPayloadBranch = ({ statement = {}, occupied = new Set() } = {}) => {
         const { kind = 0, statements = [] } = getObject(statement);
-        const selected = new Set([receiverName]);
 
         if (kind === ReturnStatement) {
-            const lowered = getSelectedPayloadReturn({ statement, sources: selected, occupied });
+            const lowered = getSelectedPayloadReturn({ statement, occupied });
 
             return lowered.length > 1 ? factory.createBlock(lowered, true) : statement;
         }
@@ -785,93 +793,9 @@ const lowerSelectedModelDiscriminators = ({
         if (statements.length !== 1) return statement;
 
         const [onlyStatement = {}] = statements;
-        const lowered = getSelectedPayloadReturn({ statement: onlyStatement, sources: selected, occupied });
+        const lowered = getSelectedPayloadReturn({ statement: onlyStatement, occupied });
 
         return lowered.length > 1 ? factory.updateBlock(statement, lowered) : statement;
-    };
-    const getSelectedTupleStatement = ({ statement = {}, sources = new Set(), occupied = new Set() } = {}) => {
-        let accesses = [];
-        const collect = (candidate = {}) => {
-            const {
-                kind = 0, expression = {}, argumentExpression = {}
-            } = getObject(candidate);
-            const {
-                kind: valueKind = 0, expression: receiver = {}, name: valueName = {}
-            } = getObject(expression);
-            const { kind: receiverKind = 0, text: receiverName = '' } = getObject(receiver);
-            const { text: propertyName = '' } = getObject(valueName);
-            const { kind: indexKind = 0, text: indexText = '' } = getObject(argumentExpression);
-            const { parent: call = {} } = getObject(candidate);
-            const {
-                kind: callKind = 0,
-                expression: callReceiver = {},
-                arguments: callArguments = []
-            } = getObject(call);
-            const { kind: callReceiverKind = 0 } = getObject(callReceiver);
-            const index = Number(indexText);
-            const { getOriginalNode = false } = typescript;
-            const original = typeof getOriginalNode === 'function' ? getOriginalNode(candidate) : candidate;
-            const key = getConsumerContractKey(original);
-
-            const hasObservableCallReceiver = callKind === CallExpression &&
-                Array.isArray(callArguments) && callArguments.includes(candidate) &&
-                [PropertyAccessExpression, ElementAccessExpression].includes(callReceiverKind);
-
-            if (kind === ElementAccessExpression && valueKind === PropertyAccessExpression &&
-                receiverKind === Identifier && propertyName === 'value' && sources.has(receiverName) &&
-                indexKind === NumericLiteral && Number.isInteger(index) && index >= 0 &&
-                !collectionTuplePositions.has(key) && !hasObservableCallReceiver) {
-                accesses = [...accesses, { node: candidate, receiver, receiverName, index }];
-
-                return;
-            }
-
-            typescript.forEachChild(candidate, collect);
-        };
-        collect(statement);
-
-        if (!accesses.length) return [statement];
-
-        let aliases = new Map();
-        let available = new Set(occupied);
-        const declarations = accesses.map(({ node: access = {}, receiver = {}, receiverName = '', index = 0 } = {}) => {
-            const alias = getAvailableName({ base: `${receiverName}Value${index}`, occupied: available });
-            available = new Set([...available, alias]);
-            aliases = new Map([...aliases, [access, alias]]);
-            const positions = Array.from({ length: index + 1 }, (_, position) => (
-                position === index
-                    ? factory.createBindingElement(
-                        undefined,
-                        undefined,
-                        factory.createIdentifier(alias),
-                        factory.createIdentifier('undefined')
-                    )
-                    : factory.createOmittedExpression()
-            ));
-            const payload = factory.createBindingElement(
-                undefined,
-                factory.createIdentifier('value'),
-                factory.createArrayBindingPattern(positions),
-                undefined
-            );
-
-            return factory.createVariableStatement(
-                undefined,
-                factory.createVariableDeclarationList([
-                    factory.createVariableDeclaration(
-                        factory.createObjectBindingPattern([payload]),
-                        undefined,
-                        undefined,
-                        receiver
-                    )
-                ], ConstKind)
-            );
-        });
-        const replace = (candidate = {}) => aliases.has(candidate)
-            ? factory.createIdentifier(aliases.get(candidate))
-            : typescript.visitEachChild(candidate, replace, context);
-
-        return [...declarations, replace(statement)];
     };
     let rewrite = current => current;
     const rewriteBlock = (block = {}, selectedSources = new Set()) => {
@@ -900,7 +824,6 @@ const lowerSelectedModelDiscriminators = ({
             });
             const completedLoopReturn = completeSelectedLoopPayloadReturn({
                 statement: visited,
-                sources: loopTerminalSources,
                 occupied
             });
             const selectedConditionalReturn = getSelectedPayloadConditionalReturn({
@@ -933,15 +856,8 @@ const lowerSelectedModelDiscriminators = ({
             if (getObject(repeatedReadAgreement).action === 'retain-source-phase-read') return [visited];
 
             if (!receiverName) {
-                const tupleLowered = getSelectedTupleStatement({
-                    statement: visited,
-                    sources: selectedPayloadSources,
-                    occupied
-                });
-
                 const directLowered = getSelectedPayloadReturn({
                     statement: visited,
-                    sources: selectedPayloadSources,
                     occupied
                 });
                 const callLowered = getSelectedPayloadCallDeclaration({
@@ -960,10 +876,21 @@ const lowerSelectedModelDiscriminators = ({
                     sources: selectedPayloadSources,
                     occupied
                 });
-                const lowered = [tupleLowered, directLowered, callLowered, nestedLowered, arrayLowered]
+                const lowered = [directLowered, callLowered, nestedLowered, arrayLowered]
                     .find(candidate => candidate.length > 1) || arrayLowered;
 
                 return lowered;
+            }
+
+            if (predicate) {
+                const { thenStatement = {} } = getObject(visited);
+                const selectedThen = getSelectedPayloadBranch({ statement: thenStatement, occupied });
+                const selectedBranch = selectedThen === thenStatement ? visited : factory.updateIfStatement(
+                    visited, getObject(visited).expression, selectedThen, getObject(visited).elseStatement);
+
+                selectedPayloadSources = isTerminating(visited) ? new Set([...selectedPayloadSources, receiverName]) : selectedPayloadSources;
+
+                return [selectedBranch];
             }
 
             const alias = getAvailableAlias({ receiverName, property, occupied });
@@ -972,7 +899,7 @@ const lowerSelectedModelDiscriminators = ({
                 undefined,
                 factory.createIdentifier(property),
                 factory.createIdentifier(alias),
-                factory.createStringLiteral('')
+                factory.createVoidExpression(factory.createNumericLiteral(0))
             );
             const declaration = factory.createVariableStatement(
                 undefined,
@@ -1004,7 +931,6 @@ const lowerSelectedModelDiscriminators = ({
             const { thenStatement = {} } = getObject(rewritten);
             const selectedThen = getSelectedPayloadBranch({
                 statement: thenStatement,
-                receiverName,
                 occupied
             });
             const selectedBranch = selectedThen === thenStatement
@@ -1016,14 +942,16 @@ const lowerSelectedModelDiscriminators = ({
                     getObject(rewritten).elseStatement
                 );
 
-            if (typeof setOriginalNode === 'function' &&
-                typeof getOriginalNode === 'function') {
+            if (isFunction(setOriginalNode) &&
+                isFunction(getOriginalNode)) {
                 setOriginalNode(selectedBranch, getOriginalNode(visited));
             }
 
             if (isTerminating(selectedBranch)) {
                 selectedPayloadSources = new Set([...selectedPayloadSources, receiverName]);
             }
+
+            if (isFunction(setOriginalNode)) setOriginalNode(declaration, member);
 
             return [declaration, selectedBranch];
         });

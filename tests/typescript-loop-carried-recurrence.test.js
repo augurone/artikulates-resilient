@@ -103,18 +103,18 @@ try {
         ''
     ].join('\n'), 'sum', sum => sum(1, value => value < 4, value => value + 1));
     await prove('tagged', [
-        'type Step = { _tag: "Left"; left: number } | { _tag: "Right"; right: number };',
+        'type Step = { category: "Inbound"; inbound: number } | { category: "Outbound"; outbound: number };',
         'export const tail = (start: number, f: (value: number) => Step) => {',
         '    let result = f(start);',
-        '    while (result._tag === "Left") {',
-        '        result = f(result.left);',
+        '    while (result.category === "Inbound") {',
+        '        result = f(result.inbound);',
         '    }',
-        '    return result.right;',
+        '    return result.outbound;',
         '};',
         ''
     ].join('\n'), 'tail', tail => tail(1, value => value < 3
-        ? { _tag: 'Left', left: value + 1 }
-        : { _tag: 'Right', right: value }));
+        ? { category: 'Inbound', inbound: value + 1 }
+        : { category: 'Outbound', outbound: value }));
 
     const rejectedFile = path.join(directory, 'rejected.ts');
     await writeFile(rejectedFile,

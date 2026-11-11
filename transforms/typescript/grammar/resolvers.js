@@ -1,4 +1,4 @@
-import { getObject } from '../../../rules/support/object.js';
+import { getObject } from '../../../analysis/host/object.js';
 import {
     getSyntaxKinds,
     updateBindingInitializer
@@ -10,9 +10,8 @@ import {
     getAgreementDefaultInitializer
 } from '../policy/defaults.js';
 import { getDestructuringDecisionForNode } from '../policy/destructuring-agreements.js';
-import { hasGuardFor } from '../policy/guards.js';
 import { getBindingElementCanonical, getBindingAgreementReason, getBindingRuntimeGuardKind,
-    getPlacementTypeInfo, getPlacementReason } from '../policy/placement.js';
+    getPlacementTypeInfo, getPlacementReason, hasPlacementGuard } from '../policy/placement.js';
 import {
     getDeclaration,
     getIdentifierName,
@@ -65,10 +64,10 @@ const getGeneratedPropertyName = ({ typescript = {}, name = '' } = {}) => {
 // family has a real capability predicate. Generic payloads deliberately do not
 // appear here: they cross the model boundary unchanged for their consumer.
 const getObjectResolverGuardKinds = ({ properties = [] } = {}) => new Set(properties
-    .filter(({ optional = false, propertyName = '', agreement = {} } = {}) => {
+    .filter(({ optional = false, agreement = {} } = {}) => {
         const { kind = '' } = getObject(agreement);
 
-        return !optional && !['_tag', 'tag'].includes(propertyName) &&
+        return !optional &&
             ['function', 'array', 'object'].includes(kind);
     })
     .map(({ agreement = {} } = {}) => getObject(agreement).kind));
@@ -104,7 +103,7 @@ const getObjectResolverDeclaration = ({
             decision: getBindingDecision({ agreement: getBindingAgreement(agreement) }),
             name: propertyName,
             singleQuote: true
-        })
+        }) || factory.createVoidExpression(factory.createNumericLiteral(0))
     ));
     const inputParameter = factory.createParameterDeclaration(
         undefined,
@@ -155,8 +154,6 @@ const getObjectResolverDeclaration = ({
         const value = factory.createIdentifier(propertyName);
 
         if (optional) return false;
-
-        if (['_tag', 'tag'].includes(propertyName)) return value;
 
         if (kind === 'function') return factory.createCallExpression(
             factory.createIdentifier('isFunction'),
@@ -387,18 +384,10 @@ const getBindingPropertyName = ({ typescript = {}, node = {} } = {}) => {
 const updateObjectBinding = ({
     typescript = {},
     parameter = {},
-    body = {},
-    sourceFile = {},
     declarations = {},
     placement = {},
     destructuringAgreements = {}
 } = {}) => {
-    const {
-        SyntaxKind: {
-            Identifier: IdentifierKind3 = -1
-        } = {}
-    } = typescript;
-
     const { ObjectBindingPattern = -1 } = getSyntaxKinds(typescript);
     const { name: paramName = {}, type: paramType = false } = parameter;
     const { kind: paramNameKind = 0, elements: paramElements = [] } = paramName;
@@ -431,6 +420,15 @@ const updateObjectBinding = ({
 
         if (dotDotDotToken) return element;
 
+        const { agreement: sourceBinding = {} } = getDestructuringDecisionForNode({
+            typescript, node: element, destructuringAgreements, kinds: ['selected-model-read']
+        });
+
+        if (!elemInitializer && getObject(sourceBinding).action === 'exact-source-binding') return updateBindingInitializer({
+            factory: getObject(typescript).factory, element,
+            initializer: typescript.factory.createVoidExpression(typescript.factory.createNumericLiteral(0))
+        });
+
         const propertyName = getBindingPropertyName({ typescript, node: element });
         const member = memberMap.get(propertyName) || {};
         const { type: memberType = false, questionToken: memberQuestionToken = false } = member;
@@ -454,16 +452,7 @@ const updateObjectBinding = ({
             ? getPlacementReason({ typescript, placement, node: elemName, kind: infoKind })
             : '';
         let initializer;
-        const { kind: elemNameKind = 0, text: elemNameText = '' } = elemName;
-        const bindingName = elemNameKind === IdentifierKind3
-            ? elemNameText
-            : propertyName;
-        const guardedInBody = !elemInitializer && hasGuardFor({
-            typescript,
-            node: body,
-            sourceFile,
-            name: bindingName
-        });
+        const guardedInBody = !elemInitializer && hasPlacementGuard({ typescript, binding: elemName, placement });
 
         const guardedOptionalFunction = !elemInitializer &&
             infoKind === 'function' &&
@@ -484,9 +473,15 @@ const updateObjectBinding = ({
             name: propertyName
         });
 
+        const retainedAbsence = !elemInitializer && canonical === 'undefined';
+        const retainedElement = retainedAbsence && !initializer ? typescript.factory.cloneNode(element) : element;
         const nextElement = initializer
             ? updateBindingInitializer({ factory: getObject(typescript).factory, element, initializer })
-            : element;
+            : retainedElement;
+
+        if (retainedAbsence) Object.defineProperty(nextElement, '__resilientAgreement', {
+            configurable: true, value: 'Source field retains its natural absence.'
+        });
 
         if (guardedInBody && !initializer) return annotateAgreementException({
             typescript,
@@ -511,12 +506,9 @@ export {
     getBindingElementCanonical,
     getBindingPropertyName,
     getBindingRuntimeGuardKind,
-    getGeneratedExpression,
-    getGeneratedPropertyName,
     getObjectResolverDeclaration,
     getObjectResolverGuardKinds,
     getStandardImportDeclaration,
-    getSyntheticSourceFile,
     getUnionResolverDeclaration,
     updateObjectBinding
 };

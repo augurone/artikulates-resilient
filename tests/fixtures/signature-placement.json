@@ -1,0 +1,94 @@
+[
+  {
+    "source": "const retain = input => { const { point = undefined } = input; return { point, read: key => input.read(key) }; };",
+    "findings": 0
+  },
+  {
+    "source": "const retain = input => { const { point = undefined } = input; return () => input.point; };",
+    "findings": 0
+  },
+  {
+    "source": "const retain = input => { const { point = undefined } = input; return function later() { return input[key]; }; };",
+    "findings": 0
+  },
+  {
+    "source": "const getName = user => { const { name = \"\" } = user; return () => user.id + name; };",
+    "findings": 0
+  },
+  {
+    "source": "const inspect = (node) => { const { type = \"\" } = node; sendNode(node); return type; };",
+    "findings": 0
+  },
+  {
+    "source": "const inspect = (node) => { const { type = \"\" } = node; sendNode({ node }); return type; };",
+    "findings": 0
+  },
+  {
+    "source": "const inspect = (node) => { const inspectType = () => { const { type = \"\" } = node; return type; }; return inspectType; };",
+    "findings": 0
+  },
+  {
+    "source": "const inspect = (node) => { const { type = \"\" } = node; return node; };",
+    "findings": 0
+  },
+  {
+    "source": "const inspect = (node) => { const { type = \"\" } = node; return { ...node, type }; };",
+    "findings": 0
+  },
+  {
+    "source": "const inspect = (context) => { const { name = \"\" } = context; return context[key] || name; };",
+    "findings": 0
+  },
+  {
+    "source": "const lift = (F, value) => { const { of: FOf } = F; if (!isFunction(FOf)) return; return FOf(value); };",
+    "findings": 0
+  },
+  {
+    "source": "const retain = input => { const { point = undefined } = input; return { point, read: input => input.read() }; };",
+    "findings": 1
+  },
+  {
+    "source": "const processUser = (user) => { const { name, age } = user; return `${name} (${age})`; };",
+    "findings": 1
+  },
+  {
+    "source": "const getTitle = (article = {}) => { const { title } = article; return title; };",
+    "findings": 1
+  },
+  {
+    "source": "function getMode(settings) { const { mode = \"\" } = settings; return mode; }",
+    "findings": 1
+  },
+  {
+    "source": "const getName = (user) => { sendUser(user); const { name = \"\" } = user; return name; };",
+    "findings": 1
+  },
+  {
+    "source": "const getSettings = (config) => { const { theme = \"\" } = config; const { mode = \"\" } = config; return `${theme}:${mode}`; };",
+    "findings": 2
+  },
+  {
+    "source": "const getName = (user) => { const { name = \"\" } = user; return `${user.id}:${name}`; };",
+    "findings": 1
+  },
+  {
+    "source": "const getName = (user) => { log(\"inspect\"); const { name = \"\" } = user; return name; };",
+    "findings": 1
+  },
+  {
+    "source": "const getName = (user, id) => { const { name = \"\" } = user; return `${user.id}:${name}:${id}`; };",
+    "findings": 1
+  },
+  {
+    "source": "const getName = (user) => { const { name = \"\" } = user; const id = \"local\"; return `${user.id}:${name}:${id}`; };",
+    "findings": 1
+  },
+  {
+    "source": "const getName = (user) => { const { name = \"\" } = user; function id() { return \"local\"; } return `${user.id}:${name}`; };",
+    "findings": 1
+  },
+  {
+    "source": "const lift = (F, value) => { const { of: FOf } = F; return FOf(value); };",
+    "findings": 1
+  }
+]

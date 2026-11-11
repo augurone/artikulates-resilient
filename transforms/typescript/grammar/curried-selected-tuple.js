@@ -1,13 +1,14 @@
+import { isFunction } from '../../../analysis/host/function.js';
+import { getObject } from '../../../analysis/host/object.js';
 import { getMemberAlias } from './member-access.js';
-import { getObject } from '../../../rules/support/object.js';
 
 const createCurriedSelectedTupleBinding = ({
     typescript = {}, node = {}, contract = {}, occupied = new Set(), context = {}
 } = {}) => {
-    const { factory = {}, NodeFlags: { Const: ConstKind = 0 } = {}, getOriginalNode = false } = typescript;
+    const { factory = {}, NodeFlags: { Const: ConstKind = 0 } = {}, getOriginalNode } = typescript;
     const { callRange = '', readRange = '', receiverName = '', propertyName = '', index = -1 } = getObject(contract);
     const originalRange = (candidate = {}) => {
-        const original = typeof getOriginalNode === 'function' ? getOriginalNode(candidate) : candidate;
+        const original = isFunction(getOriginalNode) ? getOriginalNode(candidate) : candidate;
         const { pos = -1, end = -1 } = getObject(original);
 
         return `${pos}:${end}`;
@@ -19,7 +20,8 @@ const createCurriedSelectedTupleBinding = ({
 
         if (originalRange(child) === callRange && originalRange(read) === readRange) target = {
             call: child,
-            precedingCall
+            precedingCall,
+            read
         };
 
         typescript.forEachChild(child, find);
@@ -39,16 +41,20 @@ const createCurriedSelectedTupleBinding = ({
             factory.createVariableDeclaration(name, undefined, undefined, initializer)
         ], ConstKind));
     const stageCallee = declaration(factory.createIdentifier(calleeName), targetCallee);
-    const selectValue = declaration(factory.createObjectBindingPattern([
-        factory.createBindingElement(undefined, factory.createIdentifier(propertyName),
-            factory.createObjectBindingPattern([
-                factory.createBindingElement(undefined, factory.createNumericLiteral(index),
-                    factory.createIdentifier(valueName), factory.createVoidExpression(factory.createNumericLiteral(0)))
-            ]), undefined)
-    ]), factory.createIdentifier(receiverName));
+    const sourceRead = getObject(target).read || {};
+    const fieldElement = typescript.setOriginalNode(factory.createBindingElement(undefined, factory.createIdentifier(propertyName),
+        factory.createObjectBindingPattern([
+            factory.createBindingElement(undefined, factory.createNumericLiteral(index),
+                factory.createIdentifier(valueName), factory.createVoidExpression(factory.createNumericLiteral(0)))
+        ]), undefined), sourceRead);
+    const { expression: fieldRead = {} } = getObject(sourceRead);
+    const { expression: sourceReceiver = {} } = getObject(fieldRead);
+    const selectValue = typescript.setOriginalNode(declaration(factory.createObjectBindingPattern([
+        fieldElement
+    ]), typescript.setOriginalNode(factory.createIdentifier(receiverName), sourceReceiver)), sourceRead);
     const replace = (child = {}) => {
         if (originalRange(child) === callRange) {
-            const { typeArguments = undefined } = getObject(child);
+            const { typeArguments } = getObject(child);
 
             return factory.updateCallExpression(child, factory.createIdentifier(calleeName),
                 typeArguments, [factory.createIdentifier(valueName)]);

@@ -1,52 +1,12 @@
 # prefer-destructured-member-access
 
-Require bound data to be destructured before use.
-Signature placement is enforced separately by `prefer-signature-destructuring`.
+This rule is implemented in [the current package](../../analysis/eslint/prefer-destructured-member-access.js).
+Its implementation uses syntax and lexical ownership.
 
-## What this finding means
+The current supported behavior and boundary cases are verified by:
 
-Repeated member access leaves the data shape implicit at the point of use and
-scatters the boundary contract through the function body. Destructure
-application data once so the names, defaults, and selected shape are visible;
-platform receivers and prototype operations remain explicit exceptions.
+- [absence-signatures.test.js](../../tests/absence-signatures.test.js)
+- [rule-canary.test.js](../../tests/rule-canary.test.js)
 
-```javascript
-// Incorrect
-const getName = user => user.name;
-
-// Correct in the body
-const getName = (user = {}) => {
-    const { name = '' } = user;
-    return name;
-};
-
-// Preferred at the signature
-const getName = ({ name = '' } = {}) => name;
-```
-
-Collection `.length` and `.size` checks, plus chained prototype method access,
-remain valid because they express platform intent rather than application data
-selection. For example, `request.headers.get('origin')` and
-`document.content.map(transform)` do not require destructuring the intermediate
-receiver. Computed access is not an exception: `value[name]` is still a member
-lookup and must be destructured when `value` is a bound application object.
-Prototype method calls remain valid because they test the receiver's behavior
-rather than selecting application data.
-The first parameter of a `.reduce` callback is also exempt because it is the
-operation's accumulator, not static input data.
-
-## Boundaries and non-goals
-
-Platform receivers, prototype operations, dynamic forwarding, and reducer
-accumulators remain explicit boundaries rather than application-data reads.
-
-## Repair recipes
-
-Destructure stable application data once, preferably in the function signature.
-See [prefer-signature-destructuring](prefer-signature-destructuring.md).
-
-Bound-data and accumulator facts use lexical scope. A shadowed accumulator
-has its own contract, and a block-local declaration does not classify a
-same-spelled unresolved name outside the block. Defaulted identifier
-accumulators retain the reducer exception. Receiver chains and cardinality
-queries keep their existing timing and receive no rewrite from this rule.
+[Language policy](../reference/policy.md) remains normative. Unsupported analysis
+remains unknown; no legacy analyzer is used to fill gaps.

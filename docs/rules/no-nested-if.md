@@ -1,35 +1,13 @@
 # no-nested-if
 
-Disallows an `if` statement nested inside another `if` in the same function.
-Flatten conditions with guard clauses and early returns.
+This rule is implemented in [the current package](../../analysis/eslint/no-nested-if.js).
+Its implementation uses syntax and lexical ownership.
 
-## What this finding means
+The current supported behavior and boundary cases are verified by:
 
-Nested conditions make the reader and runtime carry multiple gates before the
-useful path can proceed. Guard clauses reject an inapplicable path early and
-keep branching, recursion, and loop work from accumulating unnecessary state.
+- [control-layout.test.js](../../tests/control-layout.test.js)
+- [native-absence.test.js](../../tests/native-absence.test.js)
+- [rule-canary.test.js](../../tests/rule-canary.test.js)
 
-```javascript
-// Incorrect
-if (isReady) {
-    if (hasContent) return content;
-}
-
-// Correct
-if (!isReady) return '';
-if (!hasContent) return '';
-return content;
-```
-
-An `if` inside a separate callback or nested function is a new function
-boundary and is allowed.
-
-## Boundaries and non-goals
-
-Nested functions establish new control-flow boundaries. Preserve returns,
-throws, and effects while moving an outer condition into a guard.
-
-## Repair recipes
-
-Reject the inapplicable path first and leave the useful path unindented. See
-the [migration playbook](../guide/migration-playbook.md) for staged repairs.
+[Language policy](../reference/policy.md) remains normative. Unsupported analysis
+remains unknown; no legacy analyzer is used to fill gaps.
