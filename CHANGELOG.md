@@ -1,7 +1,74 @@
 # Changelog
 
-## 0.7.6 — Unreleased
+## Unreleased
 
+- Preserve callable guards on returned values and accept choices between guarded
+  callback consumers and data-only consumers. Model ordinary rest parameters as
+  arrays of the remaining arguments, preserving their separate element evidence.
+  Reuse the same invocation occurrence under matching premises so successive
+  returned aliases do not multiply execution contexts across path queries.
+  Emit fixed rest-position reads as computed properties, preserving native
+  property reads without imposing a record contract or acquiring an iterator.
+
+- Preserve callable requirements through awaited results, stable result/selection aliases
+  and subsequent argument consumers. Accept executable downstream guards through
+  async calls, receiver protocols, spreads and rest/packed relays. Keep discarded
+  result requirements separate from producer effects, and preserve earlier
+  protocol lookups when a later write cannot recur after a proved loop exit.
+
+- Keep callable requirements when a receiver can escape before its `.call`
+  or `.apply` lookup. Recognize callback arguments to `every`, `flatMap`,
+  `reduceRight`, `findIndex`, `findLast`, and `findLastIndex`.
+  Preserve data forwarding through proved own methods and harmless receiver
+  operations. Reuse indexed function headers for observation checks.
+  Retire owned method evidence across receiver escapes and repeated writes,
+  and retain callable requirements when a resolved method forwards to an
+  unresolved consumer.
+
+- Use member-write evidence before resolving `.call` and `.apply`, retain
+  callable obligations through initializer writes, unresolved protocol chains,
+  and packed rest relays, and keep the native Promise executor requirement
+  wherever the native constructor remains possible. Preserve presence-guarded
+  forwarding through spreads whose reachable consumers use data, and retain
+  the obligation when a reachable consumer exposes the value.
+
+- Preserve callable requirements through effective `.call` and `.apply`
+  positions, tagged substitutions and native Promise executors. Keep constructor data evidence
+  from discharging a separate unguarded invocation.
+
+- Keep callable obligations through ambiguous argument positions, constructor
+  selections, namespace receivers, and packed array forwarding. Require
+  callable evidence for open fields that reach a callable use.
+
+- Track effective callback positions through literal spreads and selected
+  arrays, and preserve callable requirements through resolved constructor arguments.
+
+- Use local guard evidence for data reads in forwarded consumers and carry
+  constructor and tagged-template invocation requirements through forwarding.
+
+- Check every callback use before admitting natural absence. Preserve callback
+  requirements through selected values, literal collection method names, and
+  resolved fixed-parameter forwarding. Recognize presence established by
+  executable callable predicates and loop tests.
+
+- Share loop capability regions with observed data reads, preserve absence-safe
+  ordinary forwarding, and retain collection-callback requirements across
+  captures and trailing arguments. Verify composed uses with `isFunction` guards.
+
+- Include initializer reads and their parent contexts in absence analysis,
+  reject unguarded data escapes beside a guarded callback, and keep namespace
+  re-export names, imported names and meta-property labels separate from local
+  reads. Preserve per-use guard evidence outside cached binding facts.
+
+- Follow logical results to their consumers when checking natural absence;
+  preserve obligations for iterable spreads and exposed results while allowing
+  Boolean tests and object spreads. Record local exports as value escapes,
+  keeping public export names and re-export names separate from local bindings.
+
+## 0.7.7 — 2026-11-11
+- {...(test && {thing: val})} guards were not included in the undefined guards rules
+
+## 0.7.6 — 2026-11-10
 - Keep project lowering and proof execution ESM only: `.ts`/`.tsx` to `.js` in
   `"type": "module"` packages. Remove CommonJS emission, require hooks and alternate
   module-extension routing; repository fixtures and configuration use `.js`.
@@ -33,6 +100,10 @@ Ground-up rearchitecture of the JavaScript analyzer and agreement model since
 
 ### Analysis and rule behavior
 
+- Accept stable, presence-guarded destructured values without invented defaults,
+  including JSX `{...(studioUtils && { studioUtils })}`. Share the absence
+  decision with destructuring contracts while preserving producer absence,
+  unguarded-use obligations and independent callable requirements.
 - Rebuild JavaScript analysis around ESTree acquisition, lexical identities,
   shared demand evaluation and source-owned agreement. Keep requirements
   separate from actual values, and preserve known contradictions alongside
@@ -152,8 +223,6 @@ Ground-up rearchitecture of the JavaScript analyzer and agreement model since
 ## 0.7.4 — 2026-10-08
 
 ### Tools and public APIs
-
-
 
 - Added `resilient-measure` for read-only measurement using a consuming
   project's ESLint configuration. It reports active and suppressed findings,

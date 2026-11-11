@@ -616,6 +616,9 @@
           "peerDependencies": true,
           "packageDir": "./"
         }
+      ],
+      "resilient/no-falsifiable-property-key": [
+        2
       ]
     },
     "plugins": {
@@ -1375,6 +1378,9 @@
           "peerDependencies": true,
           "packageDir": "./"
         }
+      ],
+      "resilient/no-falsifiable-property-key": [
+        2
       ]
     },
     "plugins": {
@@ -2204,6 +2210,9 @@
           "peerDependencies": true,
           "packageDir": "./"
         }
+      ],
+      "resilient/no-falsifiable-property-key": [
+        2
       ]
     },
     "plugins": {

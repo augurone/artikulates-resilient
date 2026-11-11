@@ -893,3 +893,8 @@ const brokenOperator = 1
     +
     2;
 void brokenOperator;
+
+// no-falsifiable-property-key
+const unnamedField = { '': 'value' };
+
+void unnamedField;

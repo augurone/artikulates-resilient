@@ -175,7 +175,7 @@ test('the isolated lint configuration uses only the shipped product rules', asyn
     const { resilient = false } = plugins;
 
     strictEqual(resilient, plugin);
-    strictEqual(Object.keys(plugin.rules).length, 23);
+    strictEqual(Object.keys(plugin.rules).length, 24);
     ok(Object.keys(rules).every(rule => rule.startsWith('resilient/')));
 });
 

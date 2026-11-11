@@ -389,6 +389,7 @@ try {
     const observeProperty = (invoke, phase) => {
         let events = [];
         const failure = {};
+        // eslint-disable-next-line resilient/no-falsifiable-property-key -- This array-like key source records indexed Get before ToPropertyKey.
         const keys = { get 0() {
             events = [...events, 'key Get'];
 
@@ -402,6 +403,7 @@ try {
                 return 'selected';
             } };
         } };
+        // eslint-disable-next-line resilient/no-falsifiable-property-key -- This array-like value source records indexed Get after key conversion.
         const args = { get 0() {
             events = [...events, 'value Get'];
 
@@ -586,6 +588,7 @@ try {
 
             return 0;
         } };
+        // eslint-disable-next-line resilient/no-falsifiable-property-key -- This array-like argument records indexed Get order across computed projections.
         const argument = name => ({ get 0() {
             events = [...events, name];
 

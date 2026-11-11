@@ -7,16 +7,17 @@ const hasObservableReads = (property = {}) => {
     return kind !== 'init' || prototypeDefinition(property);
 };
 
-const closedProperty = ({ type = '', computed = false, value: { type: valueType = '' } = {} } = {}) => (
-    type === 'Property' && !computed && ['Literal', 'ArrowFunctionExpression'].includes(valueType)
-);
-
 export const ownsRecordFields = ({ type = '', properties = [] } = {}) => type === 'ObjectExpression' && !properties.some(hasObservableReads);
 
 // These source headers are acquisition scratch, shared by the actual record's
 // consumers. They establish eligibility and method names, never selected values.
-export const acquireRecordSources = () => {
+export const acquireRecordSources = (observesFunction = () => false) => {
     const sources = new WeakMap();
+    const closedMethod = (value = {}) => {
+        const { type = '' } = value;
+
+        return type === 'ArrowFunctionExpression' || (type === 'FunctionExpression' && observesFunction(value));
+    };
 
     return (node = {}) => {
         if (sources.has(node)) return sources.get(node);
@@ -26,14 +27,25 @@ export const acquireRecordSources = () => {
         if (type !== 'ObjectExpression') return false;
 
         const ownsFields = ownsRecordFields(node);
-        const methods = ownsFields && properties.every(closedProperty) ? new Set() : false;
+        const closed = ownsFields && properties.every(({ type = '', computed = false, key = {} } = {}) => {
+            const { known = false } = propertyName({ computed, key });
 
-        if (methods) properties.forEach(({ computed = false, key = {}, value: { type = '' } = {} } = {}) => {
+            return type === 'Property' && known;
+        });
+        const methods = ownsFields ? new Set() : false;
+
+        if (methods) properties.forEach(({ type = '', computed = false, key = {}, value = {} } = {}) => {
             const { known = false, name = '' } = propertyName({ computed, key });
 
-            if (!known) return;
+            // A spread or unknown name can overwrite any earlier method.
+            // Later explicit own data properties still establish their names.
+            if (type !== 'Property' || !known) {
+                methods.forEach(name => forget(methods, name));
 
-            if (type === 'ArrowFunctionExpression') {
+                return;
+            }
+
+            if (closedMethod(value)) {
                 retain(methods, name);
 
                 return;
@@ -42,7 +54,7 @@ export const acquireRecordSources = () => {
             forget(methods, name);
         });
 
-        return put(sources, node, Object.freeze({ ownsFields, methods }));
+        return put(sources, node, Object.freeze({ ownsFields, methods, closed }));
     };
 };
 

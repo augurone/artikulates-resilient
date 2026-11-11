@@ -197,6 +197,14 @@
         "tests/predicate-modules.test.js",
         "tests/rule-canary.test.js"
       ]
+    },
+    {
+      "name": "no-falsifiable-property-key",
+      "coverage": [
+        "docs/rules/no-falsifiable-property-key.md",
+        "tests/falsifiable-keys.test.js",
+        "tests/rule-canary.test.js"
+      ]
     }
   ]
 }

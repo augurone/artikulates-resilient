@@ -81,6 +81,7 @@ const observe = (module, mode = '') => {
 
         if (mode === 'factory-throw') throw failure;
 
+        // eslint-disable-next-line resilient/no-falsifiable-property-key -- The test phase label selects the native null result to verify factory failure behavior.
         if (['null', 'missing'].includes(mode)) return Reflect.get({ null: null, missing: {} }, mode);
 
         return { get operation() {

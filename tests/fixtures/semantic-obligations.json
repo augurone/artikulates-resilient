@@ -1,0 +1,393 @@
+[
+  {
+    "name": "toSpliced omitted start",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].toSpliced()[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (typeof cb === 'function') [cb].toSpliced()[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "unknown owned key",
+    "invalid": "const sink = { '': value => !value, invoke: value => value() };\nconst consume = (key, value) => sink[key](value);\nconst run = ({ cb } = {}) => {\n    if (cb) consume('invoke', cb);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const sink = { data: value => !value, invoke: value => value() };\nconst consume = (key, value) => sink[key](value);\nconst run = ({ cb } = {}) => {\n    if (typeof cb === 'function') consume('invoke', cb);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": [
+      {
+        "ruleId": "resilient/no-falsifiable-property-key",
+        "line": 1,
+        "column": 16
+      },
+      {
+        "ruleId": "resilient/prefer-safe-destructuring-defaults",
+        "line": 3,
+        "column": 16
+      }
+    ]
+  },
+  {
+    "name": "toSpliced empty spread",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].toSpliced(...[])[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [cb, () => 7].toSpliced(...[])[1]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "toSpliced nested empty spread",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].toSpliced(...[...[]])[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].toSpliced(...[0]).forEach(value => value());\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "toSpliced literal zero removal",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].toSpliced(0, 0)[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].toSpliced(0, 1).forEach(value => value());\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "toSpliced fractional removal",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].toSpliced(0, 0.9)[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].toSpliced(0, 1.9).forEach(value => value());\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "toSpliced negative removal",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].toSpliced(0, -1)[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].toSpliced(0).forEach(value => value());\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "toSpliced unknown removal",
+    "invalid": "const copy = (value, count) => [value].toSpliced(0, count);\nconst run = ({ cb } = {}) => {\n    if (cb) copy(cb, 0)[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const copy = (value, count) => [value].toSpliced(0, count);\nconst run = ({ cb } = {}) => {\n    if (cb) copy(cb, 0).forEach((value) => {\n        if (typeof value === 'function') value();\n    });\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 2,
+      "column": 16
+    }
+  },
+  {
+    "name": "toSpliced returned copy and downstream guard",
+    "invalid": "const copy = value => [value].toSpliced();\nconst consume = value => value();\nconst run = ({ cb } = {}) => {\n    if (cb) consume(copy(cb)[0]);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const copy = value => [value].toSpliced();\nconst consume = (value) => {\n    if (typeof value === 'function') value();\n};\nconst run = ({ cb } = {}) => {\n    if (cb) consume(copy(cb)[0]);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 3,
+      "column": 16
+    }
+  },
+  {
+    "name": "toSpliced data-only copy",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].toSpliced()[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].toSpliced().map(value => !value);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "toSpliced discarded copy",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].toSpliced()[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].toSpliced();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "slice omitted bounds",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].slice()[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].slice(0, 0).forEach(value => value());\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "concat omitted operands",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].concat()[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [cb, () => 7].concat()[1]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "with omitted index",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [() => 7, cb].with()[1]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [cb, () => 7].with()[1]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "fill omitted end",
+    "invalid": "const run = ({ cb } = {}) => {\n    // eslint-disable-next-line resilient/prefer-safe-transformations -- This fixture exercises native fill on a fresh array.\n    if (cb) [cb, () => 7].fill(() => 7, 1)[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    // eslint-disable-next-line resilient/prefer-safe-transformations -- This fixture exercises native fill on a fresh array.\n    if (cb) [cb, () => 7].fill(() => 7)[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "unknown key downstream guard",
+    "invalid": "const sink = { '': value => !value, invoke: value => value() };\nconst consume = (key, value) => sink[key](value);\nconst run = ({ cb } = {}) => {\n    if (cb) consume('invoke', cb);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const sink = { data: value => !value, invoke: value => value() };\nconst consume = (key, value) => {\n    if (typeof value === 'function') sink[key](value);\n};\nconst run = ({ cb } = {}) => {\n    if (cb) consume('invoke', cb);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": [
+      {
+        "ruleId": "resilient/no-falsifiable-property-key",
+        "line": 1,
+        "column": 16
+      },
+      {
+        "ruleId": "resilient/prefer-safe-destructuring-defaults",
+        "line": 3,
+        "column": 16
+      }
+    ]
+  },
+  {
+    "name": "unknown namespace key",
+    "invalid": "import * as sink from './semantic-key-exports.js';\n\nconst consume = (key, value) => sink[key](value);\nconst run = ({ cb } = {}) => {\n    if (cb) consume('invoke', cb);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "import * as sink from './semantic-key-exports.js';\n\nconst consume = (key, value) => sink[key](value);\nconst run = ({ cb } = {}) => {\n    if (typeof cb === 'function') consume('invoke', cb);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 4,
+      "column": 16
+    }
+  },
+  {
+    "name": "unknown lexical method escape",
+    "invalid": "const sink = { '': () => false, map: value => !value, change: () => {\n    // eslint-disable-next-line resilient/prefer-safe-transformations -- This fixture changes the owned receiver to test lookup invalidation.\n    sink.map = value => value();\n} };\nconst change = key => sink[key]();\n\nchange('change');\n\nconst run = ({ cb } = {}) => {\n    if (cb) sink.map(cb);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const sink = { data: () => false, map: value => !value, change: () => {\n    // eslint-disable-next-line resilient/prefer-safe-transformations -- This fixture changes the owned receiver to test lookup invalidation.\n    sink.map = value => value();\n} };\nconst change = key => sink[key]();\n\nchange('change');\n\nconst run = ({ cb } = {}) => {\n    if (typeof cb === 'function') sink.map(cb);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": [
+      {
+        "ruleId": "resilient/no-falsifiable-property-key",
+        "line": 1,
+        "column": 16
+      },
+      {
+        "ruleId": "resilient/prefer-safe-destructuring-defaults",
+        "line": 9,
+        "column": 16
+      }
+    ]
+  },
+  {
+    "name": "unknown computed consumer without an empty key",
+    "invalid": "const sink = { data: value => !value, invoke: value => value() };\nconst consume = (key, value) => sink[key](value);\nconst run = ({ cb } = {}) => {\n    if (cb) consume('invoke', cb);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const sink = { data: value => !value, invoke: value => value() };\nconst consume = (key, value) => sink[key](value);\nconst run = ({ cb } = {}) => {\n    if (typeof cb === 'function') consume('invoke', cb);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 3,
+      "column": 16
+    }
+  },
+  {
+    "name": "concat preserves nested argument contents",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [].concat([[cb]])[0][0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [].concat([[cb], [() => 1]])[1][0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "map preserves a packed element returned by identity",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [[cb]].map(value => value)[0][0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [[cb], [() => 1]].map(value => value)[1][0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "map keeps a returned array under its output slot",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].map(value => [value])[0][0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const consume = (value) => { if (typeof value === 'function') value(); };\nconst run = ({ cb } = {}) => {\n    if (cb) consume([cb].map(value => [value])[0][0]);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "flatMap removes one return level",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].flatMap(value => [[value]])[0][0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].flatMap(value => [[value]]);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "reduce carries its final packed callback result",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].reduce((acc, value) => [value], [])[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [cb].reduce((acc, value) => [value], []);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "callback array positions survive an ordinary return relay",
+    "invalid": "const wrap = value => [value].map(item => [item]);\nconst run = ({ cb } = {}) => {\n    if (cb) wrap(cb)[0][0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const wrap = value => [value].map(item => typeof item === \"function\" ? [item] : [() => 1]);\nconst run = ({ cb } = {}) => {\n    if (cb) wrap(cb)[0][0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 2,
+      "column": 16
+    }
+  },
+  {
+    "name": "reduction forwards packed results to the next accumulator",
+    "invalid": "const consume = value => value();\nconst run = ({ cb } = {}) => {\n    if (cb) [cb, 1].reduce((acc, item) => { consume(acc[0]);\n\n        return [item]; }, [() => 1]);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const consume = (value) => { if (typeof value === \"function\") value(); };\nconst run = ({ cb } = {}) => {\n    if (cb) [cb, 1].reduce((acc, item) => { consume(acc[0]);\n\n        return [item]; }, [() => 1]);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 2,
+      "column": 16
+    }
+  },
+  {
+    "name": "known computed own method takes precedence over native names",
+    "invalid": "const sink = { [\"concat\"]: value => value(), metadata: [] };\nconst run = ({ cb } = {}) => {\n    if (cb) sink.concat(cb);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const sink = { [\"concat\"]: value => !value, metadata: [] };\nconst run = ({ cb } = {}) => {\n    if (cb) sink.concat(cb);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 2,
+      "column": 16
+    }
+  },
+  {
+    "name": "non-array records do not acquire native transport",
+    "invalid": "const key = \"metadata\";\nconst sink = { [key]: [], concat: value => value() };\nconst run = ({ cb } = {}) => {\n    if (cb) sink.concat(cb);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const key = \"metadata\";\nconst sink = { [key]: [], concat: (value) => { if (typeof value === \"function\") value(); } };\nconst run = ({ cb } = {}) => {\n    if (cb) sink.concat(cb);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 3,
+      "column": 16
+    }
+  },
+  {
+    "name": "native copy reads positions after argument effects",
+    "invalid": "const run = ({ cb } = {}) => {\n    const items = [cb, () => 1];\n\n    // eslint-disable-next-line resilient/prefer-safe-transformations -- Exercise the copy method after its argument mutates the receiver.\n    if (cb) items.toSpliced(0, 1, items.reverse())[1]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const consume = (value) => { if (typeof value === \"function\") value(); };\nconst run = ({ cb } = {}) => {\n    const items = [cb, () => 1];\n\n    // eslint-disable-next-line resilient/prefer-safe-transformations -- Exercise the copy method after its argument mutates the receiver.\n    if (cb) consume(items.toSpliced(0, 1, items.reverse())[1]);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "at truncates a supplied fractional index",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [cb, () => 1].at(0.5)();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [() => 1, cb].at(0.5)();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "at resolves a negative index from the end",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [() => 1, cb].at(-1)();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [cb, () => 1].at(-1)();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "at defaults its omitted index to zero",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [cb, () => 1].at()();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [() => 1, cb].at()();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "pop selects the last position",
+    "invalid": "const run = ({ cb } = {}) => {\n    // eslint-disable-next-line resilient/prefer-safe-transformations -- Exercise the native pop result, including its effect on the receiver.\n    if (cb) [() => 1, cb].pop()();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    // eslint-disable-next-line resilient/prefer-safe-transformations -- Exercise the native pop result, including its effect on the receiver.\n    if (cb) [cb, () => 1].pop()();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "a reversed copy mirrors the selected position",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [() => 1, cb].toReversed()[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [cb, () => 1].toReversed()[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "slice coerces a supplied primitive start",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [cb, () => 1].slice(false)[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [cb, () => 1].slice(false)[1]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "a later reduction callback can return the packed accumulator",
+    "invalid": "const run = ({ cb } = {}) => {\n    if (cb) [1, cb].reduceRight((acc, item) => item === 1 ? acc : [item], [() => 1])[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ cb } = {}) => {\n    if (cb) [1, cb].reduceRight((acc, item) => item === 1 ? acc : [item], [() => 1]);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "toSpliced clamps insertion to a possibly shorter receiver",
+    "invalid": "const copy = (items, value) => items.toSpliced(5, 0, value);\nconst run = ({ cb } = {}) => {\n    if (cb) copy([], cb)[0]();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const copy = (items, value) => items.toSpliced(5, 0, value);\nconst consume = (value) => { if (typeof value === \"function\") value(); };\nconst run = ({ cb } = {}) => {\n    if (cb) consume(copy([], cb)[0]);\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 2,
+      "column": 16
+    }
+  }
+]

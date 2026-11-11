@@ -260,7 +260,6 @@ const dynamicImportSpecifier = ({ expression = {}, arguments: argumentsList = []
 };
 const runtimeSpecifier = (node) => {
     if (typescript.isImportDeclaration(node)) {
-        // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An absent compiler clause stays nullish until its record boundary; a boolean would expose prototype fields.
         const { importClause, moduleSpecifier = {} } = node;
         const clause = importClause ?? {};
         const { namedBindings = false, name = false, isTypeOnly = false } = clause;
@@ -418,7 +417,6 @@ const prepareProject = ({ project = '', outDir = '', report = '', manifest = '',
     const { compilerOptions: rawCompilerOptions = {}, resilient: selectedResilient = {} } = selectedConfig;
     const resilientConfig = getResilientConfig(selectedResilient);
     const { file: optionalConfigFile = '', config: optionalConfig = {} } = readOptionalProjectConfig(selectedProject);
-    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Optional project fields preserve omission so precedence and published configuration retain the authored shape.
     const { emit: optionalEmit, standard: optionalStandard, provider: configuredProvider = '', resolution: resolutionConfig = {} } = optionalConfig;
     const projectRoot = path.dirname(selectedProject);
     const providerFile = provider || (configuredProvider ? path.resolve(projectRoot, configuredProvider) : '');

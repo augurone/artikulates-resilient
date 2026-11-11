@@ -1,7 +1,7 @@
 # Resilient
 
 Resilient is an ESLint dialect and JavaScript analyzer. The
-`eslint-plugin-resilient` package owns the agreement engine, 23 ESLint rules,
+`eslint-plugin-resilient` package owns the agreement engine, 24 ESLint rules,
 project resolution, and lint/fix, measurement, inventory and inspection commands.
 Implementation, tests and required tooling are self-contained in this repository.
 
@@ -214,7 +214,7 @@ Keep your application's own tests as a separate CI step.
 | --- | --- |
 | `analysis/agreement/` | Source-owned evidence, requirements and judgments. |
 | `analysis/analyzer/` | JavaScript acquisition, execution evidence and public analysis. |
-| `analysis/eslint/` | The 23 rule implementations using that analyzer. |
+| `analysis/eslint/` | The 24 rule implementations using that analyzer. |
 | `analysis/host/` | Shared host utilities. |
 | `index.js`, `integrations/`, `config/production.js` | Plugin, presets, project resolution and consumer configuration. |
 | `scripts/check-eslint.js`, `scripts/audit-eslint-exceptions.js` | Shipped lint/fix command and exception enforcement. |

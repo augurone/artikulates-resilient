@@ -54,6 +54,7 @@ try {
         project: path.join(project, 'tsconfig.json'), outDir: output, fixAll: false, eslintConfig: undefined, report: undefined,
         manifest: undefined, emit: [], inspect: false
     });
+    // eslint-disable-next-line resilient/no-falsifiable-property-key -- This deliberate array-like CLI input verifies indexed access without acquiring array methods.
     const argumentObject = { 0: '--project', 1: 'project/tsconfig.json', length: 2,
         get at() { throw new Error('CLI indexing must not acquire an array method.'); } };
     // eslint-disable-next-line resilient/signature-contract-call-site -- This deliberate array-like input verifies native indexed access without acquiring array methods.

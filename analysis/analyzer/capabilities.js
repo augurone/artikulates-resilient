@@ -26,7 +26,8 @@ const functionComparison = (node = {}, operators = new WeakMap()) => {
 // These are expression headers already owned by acquisition, not another walk.
 export const acquireCapabilities = ({ index = {}, callables = new Map() } = {}, contextFor) => {
     const { bindings = [], identities = new WeakMap(), callableResolutions = new WeakMap(), writes = new Set(), opaqueCapabilities = new Set(),
-        moduleOfExecution = new Map(), importTargets = new Map(), operators = new WeakMap(), parents = new WeakMap(), references = [] } = index;
+        moduleOfExecution = new Map(), importTargets = new Map(), operators = new WeakMap(), parents = new WeakMap(), references = [],
+        functionEntries = [] } = index;
     const subjects = new WeakMap();
     const changes = new WeakMap();
 
@@ -62,11 +63,13 @@ export const acquireCapabilities = ({ index = {}, callables = new Map() } = {}, 
 
         const alias = !destructured && subjects.get(identities.get(init));
         const { mutable: changing = false, optionalCallback: inherited = false } = alias ? alias : {};
+        const { type: initializer = '' } = init ?? {};
+        const result = ['CallExpression', 'AwaitExpression', 'ConditionalExpression', 'LogicalExpression', 'SequenceExpression'].includes(initializer);
 
-        if (!alias && !destructured && !parameterPattern) return;
+        if (!alias && !destructured && !parameterPattern && !result) return;
 
         put(subjects, binding, alias && !changing && !mutable ? alias : Object.freeze({ kind: 'capability', index: position, execution, location: locationOf(node), mutable,
-            filename: moduleOfExecution.get(execution) || '', optionalCallback: optionalCallback || inherited }));
+            filename: moduleOfExecution.get(execution) || '', optionalCallback: optionalCallback || inherited, result }));
     });
     const subjectFor = node => subjects.get(identities.get(node)) || false;
     const directTest = (node) => {
@@ -74,6 +77,46 @@ export const acquireCapabilities = ({ index = {}, callables = new Map() } = {}, 
         const capability = subject && subjectFor(subject);
 
         return { capability, positive };
+    };
+    const headers = new WeakMap(functionEntries.map((entry = {}) => {
+        const { node = {} } = entry;
+
+        return [node, entry];
+    }));
+    const helpers = new WeakMap();
+    const factsFor = (helper) => {
+        if (helpers.has(helper)) return helpers.get(helper);
+
+        const { params = [], body = {} } = headers.get(helper) ?? {};
+        const { async = false, generator = false } = helper;
+        const [parameter = {}] = params;
+        const { type: parameterType = '', name: parameterName = '' } = parameter;
+        const { type: bodyType = '', body: contents = [] } = body;
+        const statements = bodyType === 'BlockStatement' ? contents : [];
+        const [{ type: statementType = '', argument: returned = {} } = {}] = statements;
+        const expression = (bodyType === 'BlockStatement' && statements.length === 1 && statementType === 'ReturnStatement' ? returned : body) ?? {};
+        const { type: expressionType = '', left = {}, right = {}, argument = {} } = expression;
+        const operator = operators.get(expression) || '';
+        const { type: leftType = '', name: leftName = '' } = left;
+        const selected = expressionType === 'LogicalExpression' && operator === '&&' && leftType === 'Identifier' && leftName === parameterName ? right : expression;
+        const { subject = false, positive = false } = functionComparison(selected, operators);
+        const { type: subjectType = '', name: subjectName = '' } = subject;
+        const { type: operand = '', name: observed = '' } = argument;
+        const fixed = params.length === 1 && parameterType === 'Identifier';
+        const predicate = fixed && subjectType === 'Identifier' && parameterName === subjectName && (selected === expression || positive);
+        const empty = bodyType === 'BlockStatement' && !statements.length;
+        const scalar = expressionType === 'Literal' || (fixed && expressionType === 'UnaryExpression' && operand === 'Identifier' &&
+            observed === parameterName && ['!', 'typeof', 'void'].includes(operator));
+        const observes = !async && !generator && (predicate || ((fixed || !params.length) && (empty || scalar)));
+        const { name: resultName = '' } = expression;
+        const observesElements = observes || (!async && !generator && fixed && expressionType === 'Identifier' && resultName === parameterName);
+
+        return put(helpers, helper, { fixed, predicate, positive, subject, expressionType, observes, observesElements });
+    };
+    const observesFunction = (helper) => {
+        const { observes = false } = helper ? factsFor(helper) : {};
+
+        return observes;
     };
     const tests = new WeakMap();
     const acquireTest = (node = {}) => {
@@ -97,29 +140,19 @@ export const acquireCapabilities = ({ index = {}, callables = new Map() } = {}, 
         const helper = callables.get(callableResolutions.get(callee));
 
         // Unresolved syntax is a local policy admission, never consumer proof.
-        if (!helper && (!binding || (imported && !importTargets.has(binding))) && name === 'isFunction') return { capability, positive: true, syntaxOnly: true };
+        if (!helper && (!binding || (imported && !importTargets.has(binding))) && name === 'isFunction') {
+            return { capability, positive: true, syntaxOnly: true };
+        }
 
         if (!helper) return noTest;
 
-        const { params = [], body = {} } = helper ?? {};
-        const [parameter = {}] = params;
-        const { type: parameterType = '', name: parameterName = '' } = parameter;
-        const { type: bodyType = '', body: contents = [] } = body;
-        const statements = bodyType === 'BlockStatement' ? contents : [];
-        const [{ type: statementType = '', argument: returned = {} } = {}] = statements;
-        const expression = (bodyType === 'BlockStatement' && statements.length === 1 && statementType === 'ReturnStatement' ? returned : body) ?? {};
-        const { type: expressionType = '', left = {}, right = {} } = expression;
-        const operator = operators.get(expression) || '';
-        const { type: leftType = '', name: leftName = '' } = left;
-        const selected = expressionType === 'LogicalExpression' && operator === '&&' && leftType === 'Identifier' && leftName === parameterName ? right : expression;
-        const { subject = false, positive = false } = functionComparison(selected, operators);
-        const { type: subjectType = '', name: subjectName = '' } = subject;
+        const { fixed = false, predicate = false, positive = false, subject = false, expressionType = '' } = factsFor(helper);
 
         if (['Literal', 'ArrowFunctionExpression', 'FunctionExpression'].includes(expressionType)) return noTest;
 
-        if (params.length !== 1 || parameterType !== 'Identifier') return { capability, unsupported: true };
+        if (!fixed) return { capability, unsupported: true };
 
-        if (subjectType === 'Identifier' && parameterName === subjectName && (selected === expression || positive)) return { capability, positive };
+        if (predicate) return { capability, positive };
 
         if (subject || expressionType === 'UnaryExpression') return noTest;
 
@@ -127,6 +160,13 @@ export const acquireCapabilities = ({ index = {}, callables = new Map() } = {}, 
     };
 
     const testFor = node => tests.get(node) || put(tests, node, acquireTest(node));
+    const observesArgument = ({ callee = {} } = {}) => observesFunction(callables.get(callableResolutions.get(callee)));
+    const observesArrayElements = (helper) => {
+        const { observesElements = false } = helper ? factsFor(helper) : {};
 
-    return { subjectFor, testFor, subjects, count: new Set(bindings.map(binding => subjects.get(binding)).filter(Boolean)).size };
+        return observesElements;
+    };
+
+    return { subjectFor, testFor, observesArgument, observesFunction, observesArrayElements, subjects,
+        count: new Set(bindings.map(binding => subjects.get(binding)).filter(Boolean)).size };
 };

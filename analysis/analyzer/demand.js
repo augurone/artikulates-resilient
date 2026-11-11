@@ -38,6 +38,7 @@ const alternatives = ({ kind = '', operator = '', yes = false, no = false, left 
 const later = ({ execution = false, location: { range: [start = -1] = [] } = {} } = {},
     { execution: earlier = false, location: { range: [, end = -1] = [] } = {} } = {}) => execution === earlier && start >= 0 && end >= 0 && start >= end;
 const task = (expression, context, gate = 1) => ({ expression, context, gate,
+    point: `value:${indexOf(expression)}:${indexOf(context)}`,
     key: `${statementOf(expression) ? 'statement' : 'value'}:${indexOf(expression)}:${indexOf(context)}:${gate}` });
 const functionTask = (model, context) => ({ model, context, gate: 1, key: `function:${indexOf(model)}:${indexOf(context)}` });
 const conditionKey = (expression, context, kind) => `${kind}:${categoryOf(expression)}:${indexOf(expression)}:${indexOf(context)}`;
@@ -118,8 +119,10 @@ export const createDemand = ({ functions = [], root = {}, moduleRoots = [], deci
     const { empty = {}, continuation = {} } = outcomes;
     const values = new Map();
     const contexts = new Map();
+    const invocationContexts = new Map();
     const invocations = new WeakMap();
     const completedInvocation = Symbol('completed invocation');
+    const invocationContext = Symbol('invocation context');
     const generic = new Map();
     const capabilityContexts = new Map();
     const standalone = new Map();
@@ -434,9 +437,13 @@ export const createDemand = ({ functions = [], root = {}, moduleRoots = [], deci
 
             return { value: inert ? outcomes.complete(value) : opaque(expression, context, value) };
         };
+        const arrayValue = (slots, standardPrototype) => normalValue({ owner: nativeOwner('array'), slots, standardPrototype,
+            nativeTag: standardPrototype ? 'Array' : '', promise: 'none', truth: 1, absence: 'present' });
         const parameterStep = ({ expression = {}, context = {} } = {}) => {
-            const { position = -1, fallback = false } = expression;
-            const { arguments: inputs = false, defaults = false } = context;
+            const { position = -1, fallback = false, rest = false } = expression;
+            const { arguments: inputs = false, defaults = false, nativeAvailable = true } = context;
+
+            if (rest) return { value: outcomes.complete(arrayValue(inputs ? Object.freeze(inputs.slice(position)) : false, nativeAvailable)) };
 
             if (!inputs && defaults && fallback) return then(selectTask(fallback, context), value => ({ value }));
 
@@ -567,7 +574,7 @@ export const createDemand = ({ functions = [], root = {}, moduleRoots = [], deci
             return !incomplete && families.length && families.every(family => family === 'function')
                 ? unknownPromise : opaque(expression, context, promiseValue);
         };
-        const invokeStep = ({ expression = {}, context = {}, key = '', site = '' } = {}, { prefix = {}, arguments: inputs = [] } = {}) => {
+        const invokeStep = ({ expression = {}, context = {}, key = '', point = '', site = '' } = {}, { prefix = {}, arguments: inputs = [] } = {}) => {
             expose(expression, context);
             const { function: callee = {}, execute: allowed = true, requireInertPrefix = false, nativeAvailable: premise = true,
                 argumentFresh = [], argumentMetadata = [], module: callerModule = '' } = expression;
@@ -591,7 +598,15 @@ export const createDemand = ({ functions = [], root = {}, moduleRoots = [], deci
             const recursive = active.has(callee);
             const reusable = nativeAvailable && !promiseResult && signature && execute && !recursive;
             const previous = reusable && inputs.reduce((entries, value) => entries && entries.get(value), invocations.get(callee));
-            const shared = previous && previous.get(completedInvocation);
+            const completed = previous && previous.get(completedInvocation);
+            const occurrence = !completed && signature && execute && !recursive && `${point || key}:${nativeAvailable}:${normalOf(prefix)}:${effectsOf(prefix)}`;
+            // Path conditions can request the same source invocation twice.
+            // Equal input records at that occurrence share its execution;
+            // separate calls and collection iterations retain distinct points.
+            const targets = occurrence && (invocationContexts.get(occurrence) || put(invocationContexts, occurrence, new Map()));
+            const local = targets && inputs.reduce((entries, value) => entries.get(value) || put(entries, value, new Map()),
+                targets.get(callee) || put(targets, callee, new Map()));
+            const shared = (local && local.get(invocationContext)) || completed;
 
             if (shared && !contexts.has(key)) put(contexts, key, shared);
 
@@ -606,6 +621,8 @@ export const createDemand = ({ functions = [], root = {}, moduleRoots = [], deci
                 })),
                 origin: Object.freeze({ caller: context, invocation: expression })
             }));
+
+            if (local && !local.has(invocationContext)) put(local, invocationContext, contexts.get(key));
 
             const { location = {}, name = '', protocol = false } = expression;
             const call = signature && Object.freeze({ signature, protocol, eligible: true,
@@ -624,7 +641,7 @@ export const createDemand = ({ functions = [], root = {}, moduleRoots = [], deci
                 const { normal = 0, thrown = 0, uncertain = 0, effects = 0, unresolved = false } = entry;
                 const result = valueOf(entry);
                 const { constant = false } = result ? result : {};
-                const pure = reusable && !shared && normal === 1 && !thrown && !uncertain && !effects && !unresolved;
+                const pure = reusable && !completed && normal === 1 && !thrown && !uncertain && !effects && !unresolved;
                 const { origin = false, owner = false } = pure && result && !constant ? valueModel.evidenceFor(result, selection) : {};
                 const unchanged = origin && inputs.some((input) => {
                     const { origin: supplied = false } = valueModel.evidenceFor(input, selection);
@@ -665,8 +682,6 @@ export const createDemand = ({ functions = [], root = {}, moduleRoots = [], deci
                 return { dependencies: [] };
             });
         };
-        const arrayValue = (slots, standardPrototype) => normalValue({ owner: nativeOwner('array'), slots, standardPrototype,
-            nativeTag: standardPrototype ? 'Array' : '', promise: 'none', truth: 1, absence: 'present' });
         const arrayStep = current => argumentsStep(current, continuation, ({ prefix = {}, arguments: inputs = [] } = {}) => {
             const { expression = {}, context: { nativeAvailable = true } = {} } = current;
             const { holes = [], fixed = false, standardPrototype = false } = expression;
@@ -720,7 +735,7 @@ export const createDemand = ({ functions = [], root = {}, moduleRoots = [], deci
             });
         };
         const booleanStep = ({ expression = {}, context = {}, gate = 1 } = {}) => {
-            const { left = {}, right = {}, inert = false, operator = '' } = expression;
+            const { left = {}, right = {}, inert = false, operator = '', capabilityTest: { capability: { result: localResult = false } = {} } = {} } = expression;
 
             return then(selectTask(left, context, gate), (first) => {
                 if (!normalOf(first)) return { value: first };
@@ -743,7 +758,10 @@ export const createDemand = ({ functions = [], root = {}, moduleRoots = [], deci
                     const absentOperand = ['null', 'undefined'].includes(firstAbsence) || ['null', 'undefined'].includes(secondAbsence);
                     const nullishTest = ['==', '!='].includes(operator) && absentOperand;
                     const { truthGate = 0 } = base;
-                    const unknownMatch = typeTest && typeofNames.has(typeName) &&
+                    // A returned value can retain its producer identity while
+                    // this guard owns a distinct local binding capability.
+                    // Known families still select their actual type below.
+                    const unknownMatch = !(typeName === 'function' && localResult) && typeTest && typeofNames.has(typeName) &&
                         familyCondition(subject, typeName === 'object' ? 'typeof-object' : typeName, context, true) || (operator === '===' ? truthGate : not(truthGate));
                     const selectedNullish = ['null', 'undefined'].includes(firstAbsence) ? secondNullish : firstNullish;
                     const tested = nullishTest ? normalValue({ ...base, truthGate: operator === '==' ? selectedNullish : not(selectedNullish) }) : base;
@@ -858,7 +876,7 @@ export const createDemand = ({ functions = [], root = {}, moduleRoots = [], deci
         // Native collection protocols schedule ordinary invocations. Slots and
         // accumulator values belong to this caller, never the generic callback.
         const collectionStep = (current, { prefix = {}, arguments: inputs = [], effects: argumentEffects = 0 } = {}, method, receiver) => {
-            const { expression = {}, context = {}, key = '', site = '' } = current;
+            const { expression = {}, context = {}, key = '', point = '', site = '' } = current;
             const { slots = false, standardPrototype = false } = valueModel.evidenceFor(receiver, selection);
             const callback = inputs.at(0) || absentValue;
             const { owner = false, callableCases = [] } = valueModel.evidenceFor(callback, selection);
@@ -917,8 +935,8 @@ export const createDemand = ({ functions = [], root = {}, moduleRoots = [], deci
 
                 if (!functionModel) return { value: outcomes.restrict(opaque(expression, context), reach, selection) };
 
-                return invokeStep({ ...current, key: `${key}:item:${position}:${index}`, site: site || key, expression: { ...expression, function: callable,
-                    protocol: method, name: `${method}.callback`, argumentMetadata: [] } },
+                return invokeStep({ ...current, key: `${key}:item:${position}:${index}`, point: `${point || key}:item:${position}:${index}`, site: site || key,
+                    expression: { ...expression, function: callable, protocol: method, name: `${method}.callback`, argumentMetadata: [] } },
                 { prefix: outcomes.restrict(continuation, reach, selection), arguments: argumentsList.map(value => valueModel.restrict(value, reach, selection)) });
             });
             const waiting = plans.flatMap(({ dependencies = [] } = {}) => dependencies);
@@ -1213,7 +1231,12 @@ export const createDemand = ({ functions = [], root = {}, moduleRoots = [], deci
             });
         };
         const handlers = new Map([
-            ['source', sourceStep], ['opaque', ({ expression = {}, context = {} } = {}) => ({ value: opaque(expression, context) })],
+            ['source', sourceStep], ['opaque', ({ expression = {}, context = {}, gate = 1 } = {}) => {
+                const { prefix = false } = expression;
+
+                return prefix ? then(selectTask(prefix, context, gate), entry => ({ value: outcomes.sequence(entry, opaque(expression, context), selection) }))
+                    : { value: opaque(expression, context) };
+            }],
             ['parameter', parameterStep], ['selection', selectionStep], ['link', linkStep], ['sequence', sequenceStep],
             ['conditional', branchStep], ['logical', branchStep], ['branch', branchStep],
             ['call', callStep], ['await', awaitStep], ['unary', unaryStep], ['boolean', booleanStep], ['effect', effectStep], ['return', abruptStep], ['throw', abruptStep], ['try', tryStep],

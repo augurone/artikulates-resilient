@@ -157,7 +157,6 @@ const evaluateParameter = ({ parameter = {}, argument = {}, callLocation = {}, o
     return obligations;
 };
 
-// eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Required query callbacks are forwarded to evaluateParameter, which guards their capabilities before consuming them.
 export const checkCall = ({ call = {}, summarize, observation = {}, readValue, defaultOwner } = {}) => {
     const { eligible = false, signature = {}, protocol = false, argumentsList = [], cause = {}, descriptor: { location = {}, callee = 'Function' } = {} } = call;
 

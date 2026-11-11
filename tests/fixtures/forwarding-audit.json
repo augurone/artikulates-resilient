@@ -1,0 +1,272 @@
+[
+  {
+    "name": "awaited result",
+    "invalid": "const pick = async cb => cb;\nconst run = async ({ func } = {}) => {\n    if (func) {\n        (await pick(func))();\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const pick = async cb => cb;\nconst run = async ({ func } = {}) => {\n    if (func) {\n        await pick(func);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 2,
+      "column": 22
+    }
+  },
+  {
+    "name": "aliased result",
+    "invalid": "const pick = cb => cb;\nconst relay = (cb) => { const result = pick(cb);\n\n    return result; };\nconst run = ({ func } = {}) => {\n    if (func) {\n        relay(func)();\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const pick = cb => cb;\nconst relay = (cb) => { const result = pick(cb);\n\n    return result; };\nconst run = ({ func } = {}) => {\n    if (func) {\n        relay(func);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 5,
+      "column": 16
+    }
+  },
+  {
+    "name": "result forwarded to consumer",
+    "invalid": "const pick = cb => cb;\nconst consume = cb => cb();\nconst run = ({ func } = {}) => {\n    if (func) {\n        consume(pick(func));\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const pick = cb => cb;\nconst observe = cb => !cb;\nconst run = ({ func } = {}) => {\n    if (func) {\n        observe(pick(func));\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 3,
+      "column": 16
+    }
+  },
+  {
+    "name": "async consumer",
+    "invalid": "const consume = async (cb) => { cb(); };\nconst run = async ({ func } = {}) => {\n    if (func) {\n        await consume(func);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const consume = async (cb) => { if (typeof cb === \"function\") cb(); };\nconst run = async ({ func } = {}) => {\n    if (func) {\n        await consume(func);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 2,
+      "column": 22
+    }
+  },
+  {
+    "name": "call protocol",
+    "invalid": "const consume = (cb) => { cb(); };\nconst run = ({ func } = {}) => {\n    if (func) {\n        consume.call({}, func);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const consume = (cb) => { if (typeof cb === \"function\") cb(); };\nconst run = ({ func } = {}) => {\n    if (func) {\n        consume.call({}, func);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 2,
+      "column": 16
+    }
+  },
+  {
+    "name": "apply protocol",
+    "invalid": "const consume = (cb) => { cb(); };\nconst run = ({ func } = {}) => {\n    if (func) {\n        consume.apply({}, [func]);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const consume = (cb) => { if (typeof cb === \"function\") cb(); };\nconst run = ({ func } = {}) => {\n    if (func) {\n        consume.apply({}, [func]);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 2,
+      "column": 16
+    }
+  },
+  {
+    "name": "unknown spread",
+    "invalid": "const consume = (cb) => { cb(); };\nconst run = ({ func } = {}, prefix = []) => {\n    if (func) {\n        consume(...prefix, func);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const consume = (cb) => { if (typeof cb === \"function\") cb(); };\nconst run = ({ func } = {}, prefix = []) => {\n    if (func) {\n        consume(...prefix, func);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 2,
+      "column": 16
+    }
+  },
+  {
+    "name": "rest relay",
+    "invalid": "const consume = (cb) => { cb(); };\nconst relay = (...args) => consume(...args);\nconst run = ({ func } = {}) => {\n    if (func) {\n        relay(func);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const consume = (cb) => { if (typeof cb === \"function\") cb(); };\nconst relay = (...args) => consume(...args);\nconst run = ({ func } = {}) => {\n    if (func) {\n        relay(func);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 3,
+      "column": 16
+    }
+  },
+  {
+    "name": "packed apply relay",
+    "invalid": "const consume = (cb) => { cb(); };\nconst relay = args => consume.apply({}, args);\nconst run = ({ func } = {}) => {\n    if (func) {\n        relay([func]);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const consume = (cb) => { if (typeof cb === \"function\") cb(); };\nconst relay = args => consume.apply({}, args);\nconst run = ({ func } = {}) => {\n    if (func) {\n        relay([func]);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 3,
+      "column": 16
+    }
+  },
+  {
+    "name": "ordinary construction",
+    "invalid": "const Consume = function(cb) { cb(); };\nconst run = ({ func } = {}) => {\n    if (func) {\n        new Consume(func);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const Consume = function(cb) { if (typeof cb === \"function\") cb(); };\nconst run = ({ func } = {}) => {\n    if (func) {\n        new Consume(func);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 2,
+      "column": 16
+    }
+  },
+  {
+    "name": "Promise executor forwarding",
+    "invalid": "const consume = (cb) => { return new Promise(cb); };\nconst run = async ({ func } = {}) => {\n    if (func) {\n        await consume(func);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const consume = (cb) => { if (typeof cb === \"function\") return new Promise(cb);\n\n    return Promise.resolve(0); };\nconst run = async ({ func } = {}) => {\n    if (func) {\n        await consume(func);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 2,
+      "column": 22
+    }
+  },
+  {
+    "name": "protocol write and loop exit",
+    "invalid": "const run = ({ func } = {}) => {\n    if (func) {\n        const consume = cb => !cb;\n        // eslint-disable-next-line resilient/prefer-prototype-methods -- The fixture preserves protocol writes between loop iterations.\n        for (const entry of [0, 1]) {\n            void entry;\n            consume.call({}, func);\n            // eslint-disable-next-line resilient/prefer-safe-transformations, resilient/prefer-destructured-member-access -- The fixture changes the owned function protocol to test lookup invalidation.\n            consume.call = (receiver, cb) => { void receiver; cb(); };\n        }\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ func } = {}) => {\n    if (func) {\n        const consume = cb => !cb;\n        // eslint-disable-next-line resilient/prefer-prototype-methods -- The fixture preserves protocol writes between loop iterations.\n        for (const entry of [0, 1]) {\n            void entry;\n            consume.call({}, func);\n            // eslint-disable-next-line resilient/prefer-safe-transformations, resilient/prefer-destructured-member-access -- The fixture changes the owned function protocol to test lookup invalidation.\n            consume.call = (receiver, cb) => { void receiver; cb(); };\n            break;\n        }\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "rest invocation",
+    "invalid": "const consume = (...args) => args[0]();\nconst run = ({ func } = {}) => {\n    if (func) {\n        consume(func);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const consume = (...args) => args[0]();\nconst run = ({ func } = {}) => {\n    if (typeof func === \"function\") {\n        consume(func);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 2,
+      "column": 16
+    }
+  },
+  {
+    "name": "packed invocation",
+    "invalid": "const consume = args => args[0]();\nconst run = ({ func } = {}) => {\n    if (func) {\n        consume([func]);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const consume = args => args[0]();\nconst run = ({ func } = {}) => {\n    if (func) {\n        consume([() => 7]);\n    }\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 2,
+      "column": 16
+    }
+  },
+  {
+    "name": "discarded guarded result retains other effects",
+    "invalid": "const consume = (cb) => {\n    cb();\n\n    return cb || false;\n};\nconst relay = cb => consume(cb);\nconst run = ({ func } = {}) => {\n    if (func) relay(func);\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const consume = (cb) => {\n    if (typeof cb === 'function') cb();\n\n    return cb || false;\n};\nconst relay = cb => consume(cb);\nconst run = ({ func } = {}) => {\n    if (func) relay(func);\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 7,
+      "column": 16
+    }
+  },
+  {
+    "name": "guarded result consumer",
+    "invalid": "const pick = cb => cb;\nconst consume = (cb) => { cb(); };\nconst run = ({ func } = {}) => {\n    if (func) consume(pick(func));\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const pick = cb => cb;\nconst consume = (cb) => { if (typeof cb === \"function\") cb(); };\nconst run = ({ func } = {}) => {\n    if (func) consume(pick(func));\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 3,
+      "column": 16
+    }
+  },
+  {
+    "name": "guarded result alias",
+    "invalid": "const pick = cb => cb;\nconst consume = (cb) => { const out = pick(cb); out(); };\nconst run = ({ func } = {}) => {\n    if (func) consume(func);\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const pick = cb => cb;\nconst consume = (cb) => { const out = pick(cb);\n\n    if (typeof out === \"function\") out(); };\nconst run = ({ func } = {}) => {\n    if (func) consume(func);\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 3,
+      "column": 16
+    }
+  },
+  {
+    "name": "guarded awaited alias",
+    "invalid": "const pick = async cb => cb;\nconst consume = async (cb) => { const out = await pick(cb); out(); };\nconst run = async ({ func } = {}) => {\n    if (func) await consume(func);\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const pick = async cb => cb;\nconst consume = async (cb) => { const out = await pick(cb);\n\n    if (typeof out === \"function\") out(); };\nconst run = async ({ func } = {}) => {\n    if (func) await consume(func);\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 3,
+      "column": 22
+    }
+  },
+  {
+    "name": "reviewer receiver escape",
+    "invalid": "const consume = payload => !payload;\n// eslint-disable-next-line resilient/prefer-safe-transformations -- This fixture deliberately installs an owned replacement protocol.\nObject.assign(consume, { call: (receiver, cb) => { void receiver; cb(); } });\nconst run = ({ func } = {}) => {\n    if (func) consume.call({}, func);\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const consume = payload => !payload;\n// eslint-disable-next-line resilient/prefer-safe-transformations -- This fixture deliberately installs an owned replacement protocol.\nObject.assign(consume, { call: (receiver, cb) => { void receiver; cb(); } });\nconst run = ({ func } = {}) => {\n    if (typeof func === \"function\") consume.call({}, func);\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 4,
+      "column": 16
+    }
+  },
+  {
+    "name": "reviewer native every",
+    "invalid": "const run = ({ func } = {}) => {\n    if (func) [1, 2].every(func);\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const run = ({ func } = {}) => {\n    if (typeof func === \"function\") [1, 2].every(func);\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 1,
+      "column": 16
+    }
+  },
+  {
+    "name": "chained receiver protocol",
+    "invalid": "const consume = cb => cb();\nconst run = ({ func } = {}) => {\n    if (func) consume.call.apply(consume, [{}, func]);\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const consume = cb => cb();\nconst run = ({ func } = {}) => {\n    if (typeof func === \"function\") consume.call.apply(consume, [{}, func]);\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 2,
+      "column": 16
+    }
+  },
+  {
+    "name": "selected result alias",
+    "invalid": "const pick = cb => cb;\nconst relay = (cb, select = true) => { const out = select ? pick(cb) : () => 0;\n\n    return out; };\nconst run = ({ func } = {}) => {\n    if (func) relay(func)();\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const pick = cb => cb;\nconst relay = (cb, select = true) => { const out = select ? pick(cb) : () => 0;\n\n    return out; };\nconst run = ({ func } = {}) => {\n    if (func) relay(func);\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 5,
+      "column": 16
+    }
+  },
+  {
+    "name": "packed returned value",
+    "invalid": "const pick = cb => cb;\nconst consume = args => args[0]();\nconst run = ({ func } = {}) => {\n    if (func) consume([pick(func)]);\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const pick = cb => cb;\nconst consume = ([value = 0] = []) => !value;\nconst run = ({ func } = {}) => {\n    if (func) consume([pick(func)]);\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 3,
+      "column": 16
+    }
+  },
+  {
+    "name": "shared producer distinct consumers",
+    "invalid": "const pick = cb => cb;\npick(() => 0)();\nconst run = ({ func } = {}) => {\n    if (func) pick(func)();\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const pick = cb => cb;\npick(() => 0)();\nconst run = ({ func } = {}) => {\n    if (func) pick(func);\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 3,
+      "column": 16
+    }
+  },
+  {
+    "name": "returned value unknown spread",
+    "invalid": "const pick = cb => cb;\nconst consume = cb => cb();\nconst run = ({ func } = {}, prefix = []) => {\n    if (func) consume(...prefix, pick(func));\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const pick = cb => cb;\nconst consume = (cb) => { if (typeof cb === \"function\") cb(); };\nconst run = ({ func } = {}, prefix = []) => {\n    if (func) consume(...prefix, pick(func));\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 3,
+      "column": 16
+    }
+  },
+  {
+    "name": "aliased return downstream guard",
+    "invalid": "const pick = cb => cb;\nconst relay = (cb) => { const out = pick(cb);\n\n    return out; };\nconst consume = cb => cb();\nconst run = ({ func } = {}) => {\n    if (func) consume(relay(func));\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const pick = cb => cb;\nconst relay = (cb) => { const out = pick(cb);\n\n    return out; };\nconst consume = (cb) => { if (typeof cb === \"function\") cb(); };\nconst run = ({ func } = {}) => {\n    if (func) consume(relay(func));\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 6,
+      "column": 16
+    }
+  },
+  {
+    "name": "selected local value",
+    "invalid": "const consume = (cb) => { const out = cb || false; out(); };\nconst run = ({ func } = {}) => {\n    if (func) consume(func);\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "valid": "const consume = (cb) => { const out = cb || false;\n\n    if (typeof out === \"function\") out(); };\nconst run = ({ func } = {}) => {\n    if (func) consume(func);\n};\n\nawait run({ func: 42 });\n\nexport {};\n",
+    "expected": {
+      "ruleId": "resilient/prefer-safe-destructuring-defaults",
+      "line": 2,
+      "column": 16
+    }
+  }
+]

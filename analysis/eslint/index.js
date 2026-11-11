@@ -1,5 +1,6 @@
 import noDestructuringFallback from './no-destructuring-fallback.js';
 import noElse from './no-else.js';
+import noFalsifiablePropertyKey from './no-falsifiable-property-key.js';
 import noLengthComparison from './no-length-comparison.js';
 import noNestedIf from './no-nested-if.js';
 import noNullAssignment from './no-null-assignment.js';
@@ -25,6 +26,7 @@ import signatureContractReturnConsistency from './signature-contract-return-cons
 const rules = Object.freeze({
     'no-destructuring-fallback': noDestructuringFallback,
     'no-else': noElse,
+    'no-falsifiable-property-key': noFalsifiablePropertyKey,
     'no-length-comparison': noLengthComparison,
     'no-nested-if': noNestedIf,
     'no-null-assignment': noNullAssignment,
@@ -51,7 +53,7 @@ const select = (names, severity = 'error') => Object.fromEntries(names.map(name 
 const contractNames = Object.keys(rules).filter(name => name.startsWith('signature-contract-'));
 const safetyNames = ['prefer-safe-transformations', 'no-silent-catch', 'no-unguarded-callback-invocation', 'no-unhandled-promise-chain'];
 const recommendedNames = Object.keys(rules).filter(name => ![...contractNames, ...safetyNames, 'prefer-async-await', 'operator-linebreak'].includes(name));
-const plugin = { meta: Object.freeze({ name: 'resilient', version: '0.7.6' }), rules };
+const plugin = { meta: Object.freeze({ name: 'resilient', version: '0.7.7' }), rules };
 const configs = {
     recommended: { plugins: { resilient: plugin }, rules: {
         ...select(recommendedNames), 'operator-linebreak': 'off',

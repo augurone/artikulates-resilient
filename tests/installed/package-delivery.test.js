@@ -20,7 +20,7 @@ test('the package exposes the one installed engine and its exact ESLint rules', 
 
     ok(packageVersion);
     strictEqual(plugin.rules, product.rules);
-    strictEqual(Object.keys(plugin.rules).length, 23);
+    strictEqual(Object.keys(plugin.rules).length, 24);
     strictEqual(typeof agreement.createOwner, 'function');
     strictEqual(typeof analyzer.createAnalysis, 'function');
     strictEqual(typeof createTypeScriptAnalysis, 'function');

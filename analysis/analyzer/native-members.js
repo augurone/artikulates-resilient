@@ -1,6 +1,10 @@
 import { receiver } from 'eslint-plugin-resilient/agreement';
 
 export const collectionMethods = new Set(['map', 'filter', 'reduce', 'some', 'find', 'forEach']);
+// Native non-callback array operations. Receiver lookup and returned element
+// transport remain separate contracts.
+export const arrayDataMethods = new Set(['at', 'concat', 'copyWithin', 'fill', 'includes', 'indexOf', 'join', 'keys', 'lastIndexOf',
+    'pop', 'push', 'reverse', 'shift', 'slice', 'splice', 'toLocaleString', 'toReversed', 'toSpliced', 'toString', 'unshift', 'with']);
 
 export const operationRequirements = new Map([
     'trim', 'toLowerCase', 'toUpperCase', 'replaceAll',
