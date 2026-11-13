@@ -141,6 +141,10 @@ and must be distinguished from native equivalence in behavior expectations.
 [compiler output](../../tests/compiler-output.test.js),
 [arity behavior](../../tests/typescript-dynamic-arguments.test.js).
 
+Fixed rest-position selection emits computed numeric properties. This preserves
+the source property Gets without acquiring an iterator and follows the array
+property-extraction contract in [Semantics S-04](../reference/semantics.md#s-04-value-contracts).
+
 ## Publication and acceptance
 
 The lowerer rejects input/output overlaps, escaping routes and destination

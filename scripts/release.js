@@ -120,6 +120,7 @@ const acquire = () => {
     const packageData = JSON.parse(packageSource);
     const lockData = JSON.parse(lockSource);
     const { version = '' } = packageData;
+    // eslint-disable-next-line resilient/no-falsifiable-property-key -- npm's package-lock schema identifies the root package with the empty-string key.
     const { version: lockVersion = '', packages: { '': { version: rootVersion = '' } = {} } = {} } = lockData;
     const indexVersion = pluginVersion(index);
     const productVersion = pluginVersion(product);
@@ -165,7 +166,9 @@ const planFor = ({ files = [], version: currentVersion = '', packageData = {}, l
     const date = new Date().toISOString().slice(0, 10);
     const heading = `## ${version} — ${date}`;
     const { packages = {} } = lockData;
+    // eslint-disable-next-line resilient/no-falsifiable-property-key -- npm's package-lock schema identifies the root package with the empty-string key.
     const { '': rootPackage = {} } = packages;
+    // eslint-disable-next-line resilient/no-falsifiable-property-key -- Preserve npm's required empty root-package key when updating lockfile versions.
     const replacements = [json({ ...packageData, version }), json({ ...lockData, version, packages: { ...packages, '': { ...rootPackage, version } } }),
         ...metadata.map(({ start = 0, end = 0 } = {}, position) => {
             const { before = '' } = files.at(position + 2);

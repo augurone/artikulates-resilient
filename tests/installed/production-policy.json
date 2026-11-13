@@ -186,7 +186,8 @@
             "selector": "ClassExpression",
             "message": "Classes are forbidden. Use function expressions instead."
           }
-        ]
+        ],
+        "resilient/no-falsifiable-property-key": "error"
       }
     },
     "contracts": {
@@ -915,6 +916,9 @@
               "peerDependencies": true,
               "packageDir": "./"
             }
+          ],
+          "resilient/no-falsifiable-property-key": [
+            2
           ]
         },
         "plugins": {
@@ -1675,6 +1679,9 @@
               "peerDependencies": true,
               "packageDir": "./"
             }
+          ],
+          "resilient/no-falsifiable-property-key": [
+            2
           ]
         },
         "plugins": {
@@ -2507,6 +2514,9 @@
               "peerDependencies": true,
               "packageDir": "./"
             }
+          ],
+          "resilient/no-falsifiable-property-key": [
+            2
           ]
         },
         "plugins": {
@@ -3337,6 +3347,9 @@
               "peerDependencies": true,
               "packageDir": "./"
             }
+          ],
+          "resilient/no-falsifiable-property-key": [
+            2
           ]
         },
         "plugins": {
@@ -4054,6 +4067,9 @@
               "peerDependencies": true,
               "packageDir": "./"
             }
+          ],
+          "resilient/no-falsifiable-property-key": [
+            2
           ]
         },
         "plugins": {
@@ -4766,6 +4782,9 @@
               "peerDependencies": true,
               "packageDir": "./"
             }
+          ],
+          "resilient/no-falsifiable-property-key": [
+            2
           ]
         },
         "plugins": {
@@ -5481,6 +5500,9 @@
               "peerDependencies": true,
               "packageDir": "./"
             }
+          ],
+          "resilient/no-falsifiable-property-key": [
+            2
           ]
         },
         "plugins": {
@@ -6193,6 +6215,9 @@
               "peerDependencies": true,
               "packageDir": "./"
             }
+          ],
+          "resilient/no-falsifiable-property-key": [
+            2
           ]
         },
         "plugins": {
@@ -6908,6 +6933,9 @@
               "peerDependencies": true,
               "packageDir": "./"
             }
+          ],
+          "resilient/no-falsifiable-property-key": [
+            2
           ]
         },
         "plugins": {
@@ -7620,6 +7648,9 @@
               "peerDependencies": true,
               "packageDir": "./"
             }
+          ],
+          "resilient/no-falsifiable-property-key": [
+            2
           ]
         },
         "plugins": {
@@ -8335,6 +8366,9 @@
               "peerDependencies": true,
               "packageDir": "./"
             }
+          ],
+          "resilient/no-falsifiable-property-key": [
+            2
           ]
         },
         "plugins": {
@@ -9047,6 +9081,9 @@
               "peerDependencies": true,
               "packageDir": "./"
             }
+          ],
+          "resilient/no-falsifiable-property-key": [
+            2
           ]
         },
         "plugins": {

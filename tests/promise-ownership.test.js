@@ -234,6 +234,116 @@ test('async predicates cannot validate a supplied callback through synchronous g
     const { required = false } = analysis.checkDeclaration({ index });
 
     strictEqual(required, true);
+    throws(() => runInNewContext(`${source}use({action:42});`), ({ name = '' } = {}) => name === 'TypeError');
+});
+
+test('async and generator consumers carry callable requirements to the forwarding site', async () => {
+    const guard = 'const isFunction=value=>typeof value==="function";';
+    const pending = 'async function consume(cb){cb();}const run=({action})=>{if(action)return consume(action);};';
+    const iterator = 'function* consume(cb){yield cb();}const run=({action})=>{if(action)consume(action).next();};';
+
+    [pending, iterator].forEach((source) => {
+        const requiredFor = (program) => {
+            const analysis = createAnalysis({ source: guard + program });
+            const { index = -1 } = analysis.declarations.find(({ name = '' } = {}) => name === 'action') ?? {};
+
+            return analysis.checkDeclaration({ index }).required;
+        };
+
+        strictEqual(requiredFor(source), true, source);
+        strictEqual(requiredFor(source.replace('if(action)', 'if(isFunction(action))')), false, source);
+    });
+    await rejects(runInNewContext(`${pending}run({action:42});`), ({ name = '' } = {}) => name === 'TypeError');
+    throws(() => runInNewContext(`${iterator}run({action:42});`), ({ name = '' } = {}) => name === 'TypeError');
+});
+
+[
+    ['an unknown apply spread', 'const prefix=[];async function consume(cb){cb();}'
+        + 'function Relay(...args){this.pending=consume.apply(...prefix,null,args);}'],
+    ['a chained receiver protocol', 'async function consume(cb){cb();}'
+        + 'function Relay(...args){this.pending=consume.call.apply(consume,[null,...args]);}'],
+    ['a replaced receiver protocol', 'const consume=cb=>{};consume.apply=async(receiver,cb)=>{cb();};'
+        + 'function Relay(...args){this.pending=consume.apply(null,...args);}'],
+    ['a tagged substitution', 'async function consume(parts,cb){cb();}'
+        + 'function Relay(cb){this.pending=consume`value=${cb}`;}']
+].forEach(([name = '', relay = ''] = []) => test(`constructor relays preserve an async consumer requirement through ${name}`, async () => {
+    const prefix = 'const isFunction=value=>typeof value==="function";' + relay;
+    const make = condition => `${prefix}const run=({action})=>{if(${condition})return new Relay(action).pending;};`;
+
+    [true, false].forEach((required) => {
+        const source = make(required ? 'action' : 'isFunction(action)');
+        const analysis = createAnalysis({ source });
+        const { index = -1 } = analysis.declarations.find(({ name = '' } = {}) => name === 'action') ?? {};
+
+        strictEqual(analysis.checkDeclaration({ index }).required, required, source);
+    });
+    await rejects(runInNewContext(`${make('action')}run({action:42});`), ({ name = '' } = {}) => name === 'TypeError');
+    strictEqual(runInNewContext(`${make('isFunction(action)')}run({action:42})===void 0;`), true);
+}));
+
+test('the native Promise executor keeps its callable requirement through construction and forwarding', () => {
+    const scenarios = [
+        ['', 'new Promise(action)'], ['', 'new Promise(...prefix,action)'],
+        ['const Build=Promise;', 'new Build(...[],action)'],
+        ['function Other(value){}', 'new (flag?Promise:Other)(action)'],
+        ['function Relay(...args){new Promise(...args);}', 'new Relay(action)']
+    ];
+    const prelude = 'const isFunction=value=>typeof value==="function";const prefix=[];const flag=true;';
+    const requiredFor = (source) => {
+        const analysis = createAnalysis({ source });
+        const { index = -1 } = analysis.declarations.find(({ name = '' } = {}) => name === 'action') ?? {};
+
+        return analysis.checkDeclaration({ index }).required;
+    };
+
+    scenarios.forEach(([definitions = '', use = ''] = []) => {
+        const make = condition => `${prelude}${definitions}const run=({action})=>{if(${condition})${use};};`;
+        const unguarded = make('action');
+
+        strictEqual(requiredFor(unguarded), true, unguarded);
+        strictEqual(requiredFor(make('isFunction(action)')), false, use);
+        throws(() => runInNewContext(`${unguarded}run({action:42});`), ({ name = '' } = {}) => name === 'TypeError');
+    });
+    strictEqual(requiredFor('function Promise(value){this.value=value;}const run=({action})=>{if(action)new Promise(action);};'), false);
+    const replacement = 'Promise=function(value){this.value=value;};';
+    const direct = replacement + 'const run=({action})=>{if(action)return new Promise(action);};';
+    const alias = 'const Build=Promise;';
+    const run = 'const run=({action})=>{if(action)return new Build(action);};';
+
+    strictEqual(requiredFor(direct), false);
+    strictEqual(runInNewContext(`${direct}run({action:42}).value;`), 42);
+    strictEqual(requiredFor(replacement + alias + run), false);
+    strictEqual(runInNewContext(`${replacement}${alias}${run}run({action:42}).value;`), 42);
+    strictEqual(requiredFor(alias + replacement + run), true);
+    throws(() => runInNewContext(`${alias}${replacement}${run}run({action:42});`), ({ name = '' } = {}) => name === 'TypeError');
+});
+
+test('only a proved Promise replacement retires the native executor requirement', async () => {
+    const helper = 'const isFunction=value=>typeof value==="function";';
+    const rules = { plugins: { resilient: plugin }, rules: { 'resilient/prefer-safe-destructuring-defaults': 'error' } };
+    const cases = [
+        ['const available=typeof Promise==="function";', 'run({action:resolve=>resolve(7)})'],
+        ['if(false)Promise=function(payload){this.value=payload;};const available=true;', 'run({action:resolve=>resolve(7)})'],
+        ['Promise.resolve=value=>value;const available=true;', 'run({action:resolve=>resolve(7)})'],
+        ['Promise=function(executor){this.value=executor();};const available=true;', 'run({action:()=>7}).value']
+    ];
+
+    await Promise.all(cases.map(async ([prefix = '', invoke = ''] = []) => {
+        const make = condition => `${helper}${prefix}const run=({action})=>{if(available&&${condition})return new Promise(action);};`;
+        const truthy = make('action');
+        const guarded = make('isFunction(action)');
+
+        strictEqual(new Linter().verify(truthy, rules).some(({ messageId = '' } = {}) => messageId === 'safeDefault'), true, prefix);
+        throws(() => runInNewContext(`${truthy}run({action:42});`), ({ name = '' } = {}) => name === 'TypeError');
+        deepStrictEqual(new Linter().verify(guarded, rules), [], prefix);
+        strictEqual(runInNewContext(`${guarded}run({action:42})===void 0;`), true);
+        strictEqual(await runInNewContext(`${guarded}${invoke};`), 7);
+    }));
+
+    const data = 'Promise=function(payload){this.value=payload;};const run=({action})=>{if(action)return new Promise(action);};';
+
+    deepStrictEqual(new Linter().verify(data, rules), []);
+    strictEqual(runInNewContext(`${data}run({action:42}).value;`), 42);
 });
 
 test('standalone result queries cannot overwrite enclosing guard and member proofs', async () => {

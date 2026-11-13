@@ -183,6 +183,7 @@ export const indexModules = ({ program = {}, filename = '', roots = [], resolveM
         })),
         initializerNames: new Map(records.flatMap(({ index: { initializerNames = new Map() } = {} } = {}) => [...initializerNames])),
         sourceMembers: records.flatMap(({ index: { memberAccesses = [] } = {} } = {}) => memberAccesses),
+        sourceArrays: records.flatMap(({ index: { arrayExpressions = [] } = {} } = {}) => arrayExpressions),
         sourcePatterns: records.flatMap(({ index: { destructurings = [] } = {} } = {}) => destructurings),
         sourceCalls: records.flatMap(({ index: { calls = [] } = {} } = {}) => calls),
         bindings: records.flatMap(({ index: { bindings = [] } = {} } = {}) => bindings),

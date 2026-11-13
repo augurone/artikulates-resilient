@@ -114,6 +114,11 @@
       "id": "operator-placement",
       "rule": "operator-linebreak",
       "anchor": "const brokenOperator = 1\n    +\n    2;"
+    },
+    {
+      "id": "falsifiable-property-name",
+      "rule": "no-falsifiable-property-key",
+      "anchor": "const unnamedField = { '': 'value' };"
     }
   ],
   "explanations": [

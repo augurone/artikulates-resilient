@@ -184,7 +184,6 @@ const createTypeScriptTransformer = ({
     program = {},
     resolvers = {},
     standard = {},
-    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Omission inherits the compiler target; zero is a valid explicit ScriptTarget and must stay distinct.
     target
 } = {}) => {
     const {

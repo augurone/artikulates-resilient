@@ -2693,6 +2693,7 @@ try {
     const { lookup = () => '', readEntry = () => [], readPair = () => [] } = await import(memberInitializerHref);
     assert.equal(lookup({ value: 'kept' }, 'value'), 'kept');
     assert.equal(lookup({ value: '' }, 'value'), '');
+    // eslint-disable-next-line resilient/no-falsifiable-property-key -- This adversarial runtime fixture preserves an incoming empty key through dynamic TypeScript lowering.
     assert.equal(lookup({ '': 'baseValue key' }, ''), 'baseValue key');
     assert.equal(lookup({}, 'missing'), undefined);
     assert.equal(lookup(Array(1), 0), undefined);

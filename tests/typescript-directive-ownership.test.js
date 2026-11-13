@@ -487,6 +487,7 @@ try {
     const observe = ({ nested = () => 0, direct = () => 0, guarded = () => 0, receiver = () => 0, chained = () => [], field = () => [], compare = () => [] }) => {
         let events = [];
         const failure = new Error('getter');
+        // eslint-disable-next-line resilient/no-falsifiable-property-key -- This array-like test receiver observes native indexed Get order and failures.
         const values = { get 0() { events = [...events, 'get'];
 
             return 7; }, get 1() { throw failure; } };
@@ -626,6 +627,7 @@ try {
     collisionFunctions.forEach(({ read = () => 0 } = {}) => {
         let events = [];
         const failure = new Error('authored collision Get');
+        // eslint-disable-next-line resilient/no-falsifiable-property-key -- This array-like test receiver preserves Get before an unresolved operand fails.
         const values = { get 0() { events = [...events, 'get'];
 
             return 7; }, get 1() { throw failure; } };
@@ -644,9 +646,12 @@ try {
         'An update nested in a sequence and parentheses is still the loop afterthought.');
     const { sequenceAfterthought: runSequence = () => [] } = await load(sequenceAfterthought);
     let sequenceEvents = [];
+    // eslint-disable-next-line resilient/no-falsifiable-property-key -- This array-like test receiver observes native indexed Get and Set ordering.
     const sequenceValues = { get 0() { sequenceEvents = [...sequenceEvents, 'get'];
 
-        return 7; }, set 0(value) { sequenceEvents = [...sequenceEvents, `set:${value}`]; } };
+        return 7; },
+    // eslint-disable-next-line resilient/no-falsifiable-property-key -- The index-zero setter records the original indexed update before its following effect.
+    set 0(value) { sequenceEvents = [...sequenceEvents, `set:${value}`]; } };
     assert.equal(runSequence(sequenceValues, 0, () => { sequenceEvents = [...sequenceEvents, 'effect']; }), sequenceValues);
     assert.deepEqual(sequenceEvents, ['get', 'set:8', 'effect']);
     const parenthesizedNeighbor = directPlacement('parenthesizedNeighbor');
@@ -690,6 +695,7 @@ try {
         assert.equal(optional(null, 0), undefined, 'The whole optional receiver chain retains nullish short-circuiting.');
         let events = [];
         const failure = new Error('optional Get');
+        // eslint-disable-next-line resilient/no-falsifiable-property-key -- This array-like test receiver observes optional indexed Get and nested property failures.
         const values = { get 0() { events = [...events, 'get'];
 
             return { get value() { events = [...events, 'value'];

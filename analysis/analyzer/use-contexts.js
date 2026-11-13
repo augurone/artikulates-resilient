@@ -9,11 +9,15 @@ export const acquireUseContexts = ({ parents = new WeakMap(), operators = new We
             if (contexts.has(current)) return;
 
             const parent = parents.get(current) ?? {};
-            const { type = '', test = false, callee = false, tag = false, left = false, argument = false, object = false, value = false, optional = false, computed = false } = parent;
+            const { type = '', test = false, callee = false, tag = false, left = false, right = false, init = false, argument = false,
+                object = false, value = false, optional = false, computed = false } = parent;
             const { control: priorControl = false, receiver: priorReceiver = false, mutation: priorMutation = false,
                 guarded: priorGuarded = false, repeated: priorRepeated = false, ordered: priorOrdered = false,
-                region: priorRegion = false, valueUse = { node: parent, value: current } } = contexts.get(parent) ?? {};
+                region: priorRegion = false, loop: priorLoop = false, breakTarget: priorBreak = false, inTry: priorTry = false,
+                valueUse = { node: parent, value: current } } = contexts.get(parent) ?? {};
             const boundary = ['Program', 'ArrowFunctionExpression', 'FunctionExpression', 'FunctionDeclaration'].includes(type);
+            const loop = ['WhileStatement', 'DoWhileStatement', 'ForStatement', 'ForInStatement', 'ForOfStatement'].includes(type);
+            const repeats = loop && current !== init && current !== right;
             const unsupported = ['WhileStatement', 'ForStatement', 'ForInStatement', 'ForOfStatement', 'SwitchStatement', 'WithStatement', 'ClassBody',
                 'NewExpression', 'TemplateLiteral', 'TaggedTemplateExpression', 'AssignmentExpression', 'AssignmentPattern', 'SequenceExpression',
                 'ChainExpression', 'CatchClause', 'SpreadElement', 'UpdateExpression'].includes(type) || optional || (type === 'MemberExpression' && computed);
@@ -27,8 +31,10 @@ export const acquireUseContexts = ({ parents = new WeakMap(), operators = new We
                 (type === 'RestElement' && argument === current) || ['ArrayPattern', 'ObjectPattern'].includes(type);
 
             put(contexts, current, {
-                region: boundary || ['WhileStatement', 'DoWhileStatement', 'ForStatement', 'ForInStatement', 'ForOfStatement'].includes(type)
-                    ? false : priorRegion || (type === 'IfStatement' ? parent : false),
+                region: boundary || loop ? false : priorRegion || (type === 'IfStatement' ? parent : false),
+                loop: !boundary && (repeats ? parent : priorLoop),
+                breakTarget: !boundary && (loop || type === 'SwitchStatement' ? parent : priorBreak),
+                inTry: !boundary && (type === 'TryStatement' || priorTry),
                 // A selected branch forwards its value to the enclosing use.
                 // Selection itself neither stores nor escapes that value.
                 valueUse: (type === 'ConditionalExpression' && test !== current) || type === 'LogicalExpression'

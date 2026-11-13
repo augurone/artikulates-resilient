@@ -1362,7 +1362,7 @@ const collectExactProviderForwardContracts = ({ typescript = {}, sourceFile = {}
     } = getObject(checker);
     let contracts = new Map();
 
-    if (!hasTypeChecker(checker) || !isFunction(getSymbolAtLocation)) return contracts;
+    if (!hasTypeChecker(checker) || !isFunction(getSymbolAtLocation) || !isFunction(getTypeAtLocation)) return contracts;
 
     const getName = (node = {}) => getObject(node).text || '';
     const getKey = (node = {}) => getConsumerContractKey(node);
@@ -1860,7 +1860,6 @@ const getVariantPartitions = ({ typescript = {}, checker = {}, type = {}, node =
     });
 };
 
-// eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An omitted declared compiler type selects the checker query; its value is an optional type object, never a boolean contract.
 const getSelectedVariantEvidence = ({ typescript = {}, checker = {}, receiver = {}, member = '', declaredType } = {}) => {
     const { kind = 0, parent = false } = getObject(receiver);
     const { Identifier = -1 } = getSyntaxKinds(typescript);
@@ -4369,7 +4368,7 @@ const collectIndexedOperationContracts = ({ typescript = {}, sourceFile = {}, ch
 
         const { kind: keyKind = 0 } = getObject(key);
         const dynamic = ![NumericLiteral, StringLiteral].includes(keyKind);
-        const receiverType = hasChecker && [ElementAccessExpression, PropertyAccessExpression].includes(kind)
+        const receiverType = isFunction(getTypeAtLocation) && [ElementAccessExpression, PropertyAccessExpression].includes(kind)
             ? getTypeAtLocation.call(checker, receiver) : {};
         const receiverSymbol = hasChecker && [ElementAccessExpression, PropertyAccessExpression].includes(kind)
             ? checker.getSymbolAtLocation(receiver) : {};
@@ -4395,7 +4394,7 @@ const collectIndexedOperationContracts = ({ typescript = {}, sourceFile = {}, ch
 
         if (sourceRange && (literalMemberUpdate || kind === ElementAccessExpression &&
             (dynamic || update || staticBinaryRead || dynamicArguments))) {
-            const checkerObserved = hasChecker && kind === ElementAccessExpression && Boolean(getTypeAtLocation.call(checker, receiver)) &&
+            const checkerObserved = isFunction(getTypeAtLocation) && kind === ElementAccessExpression && Boolean(getTypeAtLocation.call(checker, receiver)) &&
                 Boolean(getTypeAtLocation.call(checker, key));
             const sourceOperation = staticBinaryRead ? 'binary-read' : operation;
             const chain = census.ancestors(node).reduce((outer, candidate) => (

@@ -183,7 +183,7 @@ const coreRules = {
     ]
 };
 const plugin = {
-    meta: Object.freeze({ name: 'eslint-plugin-resilient', version: '0.7.6', namespace: 'resilient' }),
+    meta: Object.freeze({ name: 'eslint-plugin-resilient', version: '0.7.7', namespace: 'resilient' }),
     rules: product.rules,
     imports: createImportsConfig
 };

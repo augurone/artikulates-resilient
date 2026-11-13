@@ -43,7 +43,6 @@ const propertyValue = ({ value = false } = {}, acquire) => {
 
 // Own precisely the selected syntax before returning. Reduced structural
 // snapshots contain headers, never caller nodes, nested value nodes or metadata.
-// eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- propertyValue guards the forwarded callback; a fallback would fabricate child evidence.
 const snapshotNode = ({ node = {}, projection = '', acquire } = {}) => {
     const { type = '' } = node;
 

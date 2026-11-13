@@ -19,7 +19,11 @@ import { acquireSignature } from './signatures.js';
 import { unknownOwner } from './uncertainty.js';
 import { acquireUses } from './uses.js';
 
-const parameterOf = ({ index = -1, fallback = false, origin = {} } = {}) => ({ position: index, fallback, origin });
+const parameterOf = ({ index = -1, fallback = false, origin = {} } = {}) => {
+    const { type = '' } = origin;
+
+    return { position: index, fallback, origin, rest: type === 'RestElement' };
+};
 const nativePromiseConstructor = Object.freeze({ intrinsicPromise: true });
 const bindingDependencies = ({ init = false, parameter = {}, declaration: { destructured = false } = {} } = {}) => {
     if (destructured) return [];
@@ -89,14 +93,19 @@ export const acquireModel = ({ index = {}, callables = new Map(), callableSource
     const byFunction = new WeakMap(functionEntries.map(({ node = {} } = {}, position) => [node, functions.at(position)]));
     const namespaceExpressions = new WeakMap();
     const storage = createModelStorage();
-    const { own, ownStatement, absence, unknown } = storage;
+    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- createModelStorage always installs these local constructors as own properties of a fresh record.
+    const { own, ownStatement } = storage;
+    const { absence, unknown } = storage;
     const unknownAt = (common, code = 'unsupported-expression') => own({ ...unknown, ...common, owner: unknownOwner({ ...common, code }) });
     // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- The lexical index owns this required capability; acquisition checks it before use.
     const { contextFor } = index;
     const capabilities = acquireCapabilities({ index, callables }, contextFor);
     const { count: capabilitySubjects = 0 } = capabilities;
-    const uses = acquireUses({ index, capabilities, callables });
-    const members = acquireMemberBoundaries({ ...index, memberAccesses: sourceMembers }, contextFor);
+    const members = acquireMemberBoundaries({ ...index, memberAccesses: sourceMembers, callableSources,
+        observesReceiver: node => capabilities.observesArgument(node),
+        observesArrayElements: node => capabilities.observesArrayElements(node),
+        observesFunction: node => capabilities.observesFunction(node) }, contextFor);
+    const { exposedIntrinsics: nativeExposures = new Map() } = members;
     const intrinsicAt = (node) => {
         const intrinsic = members.intrinsicAt(node);
         const invalid = members.invalidFamiliesFor(node);
@@ -104,6 +113,11 @@ export const acquireModel = ({ index = {}, callables = new Map(), callableSource
 
         return members.supportsLookup(node) && !invalid.includes('all') && !invalid.includes(family) ? intrinsic : '';
     };
+    const uses = acquireUses(node => members.promiseTargetFor(node), { index, capabilities, callables: callableSources, namespaces: namespaceBindings,
+        nativeArrays: !nativeExposures.has('all') && !nativeExposures.has('array'),
+        receiverFor: node => members.receiverFor(node), ownedMethodFor: node => members.ownedMethodFor(node),
+        arrayMethodFor: node => members.arrayMethodFor(node),
+        positionsSafe: (node, site) => members.positionsSafe(node, site) });
     const factoryFor = (node, name = '') => {
         const intrinsic = intrinsicAt(node);
         const factory = nativeFunctions.get(name ? `${intrinsic}.${name}` : intrinsic) || false;
@@ -139,7 +153,7 @@ export const acquireModel = ({ index = {}, callables = new Map(), callableSource
     const bindingKey = binding => bindingKeys.get(binding) || put(bindingKeys, binding, Symbol('stable value'));
     const valueDependencies = (node = {}) => {
         const { type = '', test = {}, consequent = {}, alternate = {}, left = {}, right = {}, argument = {}, arguments: args = [],
-            object = {}, callee = {}, properties = [], elements = [] } = node;
+            object = {}, callee = {}, tag = {}, quasi: { expressions: substitutions = [] } = {}, properties = [], elements = [] } = node;
 
         const { lifetime = false, call = false, prior = false } = node;
 
@@ -176,7 +190,9 @@ export const acquireModel = ({ index = {}, callables = new Map(), callableSource
             type === 'SpreadElement' ? [argument] : [...(computed ? [key] : []), value]
         ));
 
-        if (['CallExpression', 'NewExpression'].includes(type)) return [callee, ...args.filter(({ type: kind = '' } = {}) => kind !== 'SpreadElement')];
+        if (['CallExpression', 'NewExpression'].includes(type)) return [callee, ...args];
+
+        if (type === 'TaggedTemplateExpression') return [tag, ...substitutions];
 
         return [];
     };
@@ -240,19 +256,22 @@ export const acquireModel = ({ index = {}, callables = new Map(), callableSource
 
         if (destructured) return unknownAt({ ...common, location }, 'destructured-binding');
 
-        const { position = -1, fallback = false, origin = {} } = parameterOf(parameter);
+        const { position = -1, fallback = false, origin = {}, rest = false } = parameterOf(parameter);
         const { type: initializerType = '' } = init ? init : {};
 
         return put(bindingExpressions, binding, own({ ...common, location: position >= 0 ? locationOf(origin) : location,
             ...(position >= 0 ? { owner: unknownOwner({ code: 'parameter-input', location: locationOf(origin) }) } : {}),
             key: bindingKey(binding), capability: capabilities.subjectFor(origin), kind: position >= 0 ? 'parameter' : 'link',
             transfer: ['CallExpression', 'AwaitExpression'].includes(initializerType),
-            target: init ? read(init) : unknown, familyOnly: init ? read(init).familyOnly : true, position, fallback: fallback ? read(fallback) : false }));
+            target: init ? read(init) : unknown, familyOnly: init ? read(init).familyOnly : true, position, rest, fallback: fallback ? read(fallback) : false }));
     };
+    const prefixFor = (first, args, { execution = false, location = {} } = {}) => args.reduce(
+        (left, argument) => own({ kind: 'sequence', execution, location, left, right: read(argument) }), read(first));
     const compileCall = (node = {}, common) => {
         const { type: callType = '', callee = {}, optional = false, arguments: args = [] } = node;
-        const { type = '', name: calleeName = '', computed = false, object = {}, property: { name = '' } = {} } = callee;
-        const subject = type === 'MemberExpression' && !computed && ['call', 'apply'].includes(name) ? object : callee;
+        const { type = '', name: calleeName = '', object = {}, property: { name = '' } = {} } = callee;
+        const { method = '', replacement = false, uncertain = false } = members.receiverFor(callee);
+        const subject = method && !replacement && !uncertain ? object : callee;
         const invocation = capabilities.subjectFor(subject);
         const { guarded = false } = contextFor(node);
         const described = { ...common, invocation, guarded: guarded || controlExecutions.has(executionOf.get(node)),
@@ -261,7 +280,6 @@ export const acquireModel = ({ index = {}, callables = new Map(), callableSource
 
                 return type === 'ArrayExpression' || ownsRecordFields(argument);
             })),
-            capabilities: Object.freeze([...new Set(uses.forCall(node).map(({ capability = false } = {}) => capability))]),
             capabilityTest: capabilities.testFor(node), name: type === 'Identifier' ? calleeName : name,
             argumentMetadata: Object.freeze(args.map(argumentMetadata)), argumentOwned: Object.freeze(args.map(argument => ownsRecordFields(argument) || members.safe(argument, node))) };
         const direct = byFunction.get(callee);
@@ -279,13 +297,12 @@ export const acquireModel = ({ index = {}, callables = new Map(), callableSource
 
         if (optional) return unknownAt(described, 'optional-call');
 
-        if (args.some(({ type = '' } = {}) => type === 'SpreadElement')) return unknownAt(described, 'spread-call');
+        if (args.some(({ type = '' } = {}) => type === 'SpreadElement')) return unknownAt({ ...described, prefix: prefixFor(callee, args, common) }, 'spread-call');
 
         if (!available) return unknownAt(described, 'opaque-execution');
 
         if (callType === 'NewExpression') {
-            const invalid = members.invalidFamiliesFor(callee);
-            const promiseConstructor = members.intrinsicAt(callee) === 'Promise' && members.supportsLookup(callee) && !invalid.some(family => ['all', 'promise'].includes(family));
+            const promiseConstructor = intrinsicAt(callee) === 'Promise';
 
             return promiseConstructor ? own({ ...described, kind: 'call', function: nativePromiseConstructor, arguments: Object.freeze(args.map(read)) })
                 : own({ ...described, kind: 'member-call', construct: true, callee: read(callee), arguments: Object.freeze(args.map(read)),
@@ -302,14 +319,15 @@ export const acquireModel = ({ index = {}, callables = new Map(), callableSource
             function: model, arguments: Object.freeze(args.map(read)) });
     };
     const readBinding = (node, common) => {
-        const binding = compileBinding(node, common);
+        const { capabilities: observed = [], ...source } = common;
+        const binding = compileBinding(node, source);
         const { guarded = false } = common;
         const safe = namespaceBindings.has(bindingFor(node)) || members.safe(node);
         const lifetime = callableSources.has(bindingFor(node)) ? false : members.lifetimeFor(node);
 
         if (!safe && lifetime) return own({ ...common, kind: 'unowned', target: binding, lifetime: read(lifetime) });
 
-        if (guarded) return own({ ...common, kind: safe ? 'use' : 'unowned', target: binding });
+        if (guarded || observed.length) return own({ ...common, kind: safe ? 'use' : 'unowned', target: binding });
 
         return safe ? binding : unownedExpressions.get(binding) || put(unownedExpressions, binding, own({ ...common, kind: 'unowned', target: binding }));
     };
@@ -327,9 +345,9 @@ export const acquireModel = ({ index = {}, callables = new Map(), callableSource
 
         if (!parameter) return own({ ...common, kind: 'use', target: read(init), transfer: ['CallExpression', 'AwaitExpression'].includes(initializerType) });
 
-        const { position = -1, fallback: initial = false, origin = {} } = parameterOf(parameter);
+        const { position = -1, fallback: initial = false, origin = {}, rest = false } = parameterOf(parameter);
 
-        return own({ ...common, kind: 'parameter', key: bindingKey(origin), position,
+        return own({ ...common, kind: 'parameter', key: bindingKey(origin), position, rest,
             fallback: initial ? read(initial) : false, owner: unknownOwner({ ...common, code: 'parameter-input' }) });
     };
     const compile = (node = {}) => {
@@ -340,11 +358,13 @@ export const acquireModel = ({ index = {}, callables = new Map(), callableSource
         if (patternValue) return compileSelection(node);
 
         const { type = '', test = {}, consequent = {}, alternate = {}, left = {}, right = {}, argument = {},
-            elements = [], properties = [], regex = false, object = {}, computed = false, property = {}, optional = false } = node;
+            elements = [], properties = [], regex = false, object = {}, computed = false, property = {}, optional = false, tag = {},
+            quasi: { expressions: substitutions = [] } = {} } = node;
         const operator = operators.get(node) || '';
         const execution = executionOf.get(node);
         const { guarded = false } = contextFor(node);
-        const common = { execution, module: moduleOfExecution.get(execution), location: locationOf(node), truth: -1, guarded: guarded || controlExecutions.has(execution) };
+        const common = { execution, module: moduleOfExecution.get(execution), location: locationOf(node), truth: -1, guarded: guarded || controlExecutions.has(execution),
+            capabilities: Object.freeze([...new Set(uses.forCall(node).map(({ capability = false } = {}) => capability))]) };
         const observations = Object.freeze(uses.forContainer(node).map(read));
 
         if (type === 'ObjectExpression') {
@@ -440,6 +460,8 @@ export const acquireModel = ({ index = {}, callables = new Map(), callableSource
 
         if (['CallExpression', 'NewExpression'].includes(type)) return compileCall(node, { ...common, observations });
 
+        if (type === 'TaggedTemplateExpression') return unknownAt({ ...common, observations, prefix: prefixFor(tag, substitutions, common) });
+
         if (type === 'AwaitExpression') return own({ ...common, kind: 'await', argument: read(argument), owner: unknownOwner({ ...common, code: 'unresolved-settlement' }) });
 
         return unknownAt({ ...common, observations });
@@ -481,13 +503,16 @@ export const acquireModel = ({ index = {}, callables = new Map(), callableSource
         Object.freeze(model);
     });
     const [root = {}] = moduleRoots;
-    sourceCalls.forEach(({ node = {} } = {}) => {
+    const registerCapabilityRegion = (node) => {
         const expression = expressionFor(node);
         const { repeated = false, region = false } = contextFor(node);
         const flow = region && statementFlows.get(region);
 
         if (repeated && flow) put(capabilityRegions, expression, flow);
-    });
+    };
+
+    sourceCalls.forEach(({ node = {} } = {}) => registerCapabilityRegion(node));
+    uses.observedNodes.forEach(registerCapabilityRegion);
     const externalExecutions = new Set();
     const discardedValues = new WeakMap();
     const transparent = (node) => {

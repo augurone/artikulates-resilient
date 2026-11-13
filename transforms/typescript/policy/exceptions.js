@@ -169,7 +169,8 @@ const annotateCyclicRuntimeBindingReferences = ({
 
         if (hasDisable) return node;
 
-        if (!boundaryKinds.includes(getObject(node).kind) || !isFunction(addSyntheticLeadingComment)) {
+        if (!boundaryKinds.includes(getObject(node).kind) || !isFunction(addSyntheticLeadingComment) ||
+            !isFunction(getSyntheticTrailingComments) || !isFunction(setSyntheticTrailingComments)) {
             return addSyntheticTrailingComment(
                 node,
                 MultiLineCommentTrivia,
@@ -1212,6 +1213,8 @@ const annotateRetainedStaticMemberAccess = ({
         return complete && reads > 0 && directOwner;
     };
     const isolateCompletedRead = (node = {}, reason = '') => {
+        if (!isFunction(addSyntheticTrailingComment)) return node;
+
         const rule = 'resilient/prefer-destructured-member-access';
         const read = addSyntheticLeadingComment(node, MultiLineCommentTrivia,
             ` eslint-disable ${rule} -- ${reason}\n`, true);

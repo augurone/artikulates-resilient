@@ -21,11 +21,11 @@ const opaquePatterns = (params, observe) => {
         const { type = '', right = {}, key = {}, computed = false } = node;
         const computedKey = type === 'Property' && computed;
 
-        if (type === 'AssignmentPattern' && typeof observe === 'function') observe(right);
+        if (type === 'AssignmentPattern' && typeof observe === 'function') observe(right, node);
 
         if (computedKey) retain(opaque, node);
 
-        if (computedKey && typeof observe === 'function') observe(key);
+        if (computedKey && typeof observe === 'function') observe(key, node);
 
         return patternChildren(node);
     } }));
@@ -83,6 +83,7 @@ export const indexBindings = ({ program = {}, operations = new Map(), registry =
     const references = [];
     const contextFor = acquireUseContexts({ parents, operators });
     const memberAccesses = [];
+    const arrayExpressions = [];
     const expressionStatements = [];
     const initializers = [];
     const initializerNames = new Map();
@@ -219,14 +220,49 @@ export const indexBindings = ({ program = {}, operations = new Map(), registry =
 
         append(effects.get(execution) || put(effects, execution, []), { node, position });
     };
-    const observeInitializer = (node, scope = {}, nested = []) => {
-        const { execution = false, identifiers = [], writes: assigned = [] } = scope;
+    const collectIdentity = ({ node = {}, parent = {}, scope: { identifiers = [] } = {}, execution = false } = {}) => {
+        const { type = '' } = node;
+
+        if (!['Identifier', 'JSXIdentifier'].includes(type)) return;
+
+        const { type: parentType = '', computed = false, key = false, value = false, property = false, object = false, name: tag = false, local = false } = parent;
+        const { type: namespaceOwner = '' } = parentType === 'JSXNamespacedName' ? parents.get(parent) ?? {} : {};
+        // JSX lowering belongs to the host. Tag roots may consume a lexical
+        // binding; attribute names and member suffixes do not identify that root.
+        const unsupported = type === 'JSXIdentifier' && ((['JSXOpeningElement', 'JSXClosingElement'].includes(parentType) && tag === node) ||
+            (parentType === 'JSXMemberExpression' && object === node) ||
+            (parentType === 'JSXNamespacedName' && ['JSXOpeningElement', 'JSXClosingElement'].includes(namespaceOwner)));
+
+        if (type !== 'Identifier' && !unsupported) return;
+
+        if (['LabeledStatement', 'BreakStatement', 'ContinueStatement'].includes(parentType)) return;
+
+        if (['ExportAllDeclaration', 'MetaProperty'].includes(parentType)) return;
+
+        const { source = false } = parentType === 'ExportSpecifier' ? parents.get(parent) ?? {} : {};
+
+        if ((parentType === 'ExportSpecifier' && (local !== node || source)) || (parentType === 'ImportSpecifier' && local !== node)) return;
+
+        if (!computed && ((parentType === 'Property' && key === node && value !== node) || (parentType === 'MemberExpression' && property === node))) return;
+
+        append(identifiers, node);
+        append(references, { node, parent, execution, unsupported });
+    };
+    const collectExpression = (node, parent, execution, conditional) => {
+        const { type = '' } = node;
+
+        if (type === 'MemberExpression') append(memberAccesses, { node, parent, execution, conditional });
+
+        if (type === 'ArrayExpression') append(arrayExpressions, node);
+    };
+    const observeInitializer = (node, parent, scope = {}, nested = []) => {
+        const { execution = false, writes: assigned = [] } = scope;
         append(initializers, { node, execution });
         const names = initializerNames.get(execution) || put(initializerNames, execution, new Set());
         // Acquisition resolves inert reads and records hidden dynamic lookup.
         // Nested function bodies own separate executions; opaque expressions
         // are recorded here without interpreting their values or effects.
-        traverse(node, { enter: (current = {}) => {
+        traverse({ node, parent }, { enter: ({ node: current = {}, parent: owner = {}, chain = false } = {}) => {
             const { type = '', operator = '', name = '', left = false, argument = false } = current;
 
             if (['AssignmentExpression', 'UpdateExpression'].includes(type)) {
@@ -234,20 +270,23 @@ export const indexBindings = ({ program = {}, operations = new Map(), registry =
             }
 
             if (type === 'Identifier') {
-                append(identifiers, current);
                 retain(names, name);
             }
 
+            if (owner) put(parents, current, owner);
+
             put(executionOf, current, execution);
+            collectIdentity({ node: current, parent: owner, scope, execution });
+            collectExpression(current, owner, execution, chain);
             observeDynamic(current, execution);
 
             if (operator) put(operators, current, operator);
 
             observeEffect(current, execution);
 
-            if (functions.includes(type)) append(nested, { node: current, scope, variable: scope });
+            if (functions.includes(type)) append(nested, { node: current, parent: owner, scope, variable: scope });
 
-            return functions.includes(type) ? [] : childrenOf(current);
+            return functions.includes(type) ? [] : childrenOf(current).map(child => ({ node: child, parent: current, chain: chain || type === 'ChainExpression' }));
         } });
     };
     const enterFunction = ({ node = {}, scope = {} } = {}) => {
@@ -261,7 +300,7 @@ export const indexBindings = ({ program = {}, operations = new Map(), registry =
         put(executionParents, execution, parentExecution);
         put(argumentOwners, execution, type === 'ArrowFunctionExpression' ? argumentOwners.get(parentExecution) : execution);
 
-        if (opaquePatterns(params, node => observeInitializer(node, own, nested))) retain(opaqueExecutions, execution);
+        if (opaquePatterns(params, (node, parent) => observeInitializer(node, parent, own, nested))) retain(opaqueExecutions, execution);
 
         append(functionEntries, { node, params, body, execution, index: functionOffset + functionEntries.length });
 
@@ -288,31 +327,9 @@ export const indexBindings = ({ program = {}, operations = new Map(), registry =
         // handler body. Its effects are not owned by this completion slice.
         if (param) declare({ scope: own, pattern: param });
 
-        if (param && (opaquePatterns([param], node => observeInitializer(node, own)) || destructured(param))) retain(opaqueExecutions, execution);
+        if (param && (opaquePatterns([param], (node, parent) => observeInitializer(node, parent, own)) || destructured(param))) retain(opaqueExecutions, execution);
 
         return [{ node: body, parent: node, scope: own, variable, chain }];
-    };
-    const collectIdentity = ({ node = {}, parent = {}, scope: { identifiers = [] } = {}, execution = false } = {}) => {
-        const { type = '' } = node;
-
-        if (!['Identifier', 'JSXIdentifier'].includes(type)) return;
-
-        const { type: parentType = '', computed = false, key = false, value = false, property = false, object = false, name: tag = false } = parent;
-        const { type: namespaceOwner = '' } = parentType === 'JSXNamespacedName' ? parents.get(parent) ?? {} : {};
-        // JSX lowering belongs to the host. Tag roots may consume a lexical
-        // binding; attribute names and member suffixes do not identify that root.
-        const unsupported = type === 'JSXIdentifier' && ((['JSXOpeningElement', 'JSXClosingElement'].includes(parentType) && tag === node) ||
-            (parentType === 'JSXMemberExpression' && object === node) ||
-            (parentType === 'JSXNamespacedName' && ['JSXOpeningElement', 'JSXClosingElement'].includes(namespaceOwner)));
-
-        if (type !== 'Identifier' && !unsupported) return;
-
-        if (['LabeledStatement', 'BreakStatement', 'ContinueStatement'].includes(parentType)) return;
-
-        if (!computed && ((parentType === 'Property' && key === node && value !== node) || (parentType === 'MemberExpression' && property === node))) return;
-
-        append(identifiers, node);
-        append(references, { node, parent, execution, unsupported });
     };
     const enter = ({ node = {}, parent = false, scope = root, variable = root, functionBody = false, chain = false } = {}) => {
         const { type = '', id = false, discriminant = false, cases = [] } = node;
@@ -404,7 +421,7 @@ export const indexBindings = ({ program = {}, operations = new Map(), registry =
 
         if (type === 'CallExpression') collectCall({ node, chain });
 
-        if (type === 'MemberExpression') append(memberAccesses, { node, parent, execution, conditional: chain });
+        collectExpression(node, parent, execution, chain);
 
         if (type === 'ExpressionStatement') append(expressionStatements, node);
 
@@ -532,7 +549,7 @@ export const indexBindings = ({ program = {}, operations = new Map(), registry =
     const { execution: rootExecution = false, names: rootBindings = new Map() } = root;
 
     return { bindings, declarations: declarationsList, invocations, candidates, destructurings, calls: [...calls, ...selectedCalls], identities, callableResolutions, executionOf, parents,
-        references, memberAccesses, expressionStatements, contextFor, effects, argumentOwners, controlExecutions,
+        references, memberAccesses, arrayExpressions, expressionStatements, contextFor, effects, argumentOwners, controlExecutions,
         rootExecution, rootBindings, previousStatements, nextStatements, operators, initializerNames, initializerFacts, dynamicExecutions,
         functionEntries, executionParents, writes, opaqueExecutions, opaqueCapabilities, counts: { ...Object.fromEntries(counts), bindings: bindings.length } };
 };

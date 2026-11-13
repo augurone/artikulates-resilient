@@ -149,7 +149,7 @@ export const createSession = ({ prepared = [], patterns = [], properties = [], c
 
         const { owner: source = false, expression = false, site = expression, required = '', optional = false, declaration = -1, consumer: label = '' } = entries.at(index);
         const owner = expression ? demand.useValue(expression, site, observation) : source;
-        const { required: present = true } = optional && declaration >= 0 ? declarationChecks.checkCallable({ index: declaration, ...observation }) : {};
+        const { required: present = true } = optional && declaration >= 0 ? declarationChecks.checkPresence({ index: declaration, ...observation }) : {};
 
         demand.ensure(owner, observation);
 
