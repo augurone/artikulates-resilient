@@ -4,7 +4,7 @@
       "name": "no-destructuring-fallback",
       "coverage": [
         "docs/rules/no-destructuring-fallback.md",
-        "tests/absence-signatures.test.js",
+        "tests/signature-policy.test.js",
         "tests/rule-canary.test.js"
       ]
     },
@@ -12,8 +12,8 @@
       "name": "no-else",
       "coverage": [
         "docs/rules/no-else.md",
-        "tests/control-layout.test.js",
-        "tests/native-absence.test.js",
+        "tests/rule-contracts.test.js",
+        "tests/absence-contracts.test.js",
         "tests/rule-canary.test.js"
       ]
     },
@@ -21,8 +21,8 @@
       "name": "no-length-comparison",
       "coverage": [
         "docs/rules/no-length-comparison.md",
-        "tests/control-layout.test.js",
-        "tests/native-absence.test.js",
+        "tests/rule-contracts.test.js",
+        "tests/absence-contracts.test.js",
         "tests/rule-canary.test.js"
       ]
     },
@@ -30,8 +30,8 @@
       "name": "no-nested-if",
       "coverage": [
         "docs/rules/no-nested-if.md",
-        "tests/control-layout.test.js",
-        "tests/native-absence.test.js",
+        "tests/rule-contracts.test.js",
+        "tests/absence-contracts.test.js",
         "tests/rule-canary.test.js"
       ]
     },
@@ -39,7 +39,7 @@
       "name": "no-null-assignment",
       "coverage": [
         "docs/rules/no-null-assignment.md",
-        "tests/absence-signatures.test.js",
+        "tests/signature-policy.test.js",
         "tests/rule-canary.test.js"
       ]
     },
@@ -47,7 +47,7 @@
       "name": "no-silent-catch",
       "coverage": [
         "docs/rules/no-silent-catch.md",
-        "tests/error-handling-policy.test.js",
+        "tests/rule-contracts.test.js",
         "tests/rule-canary.test.js"
       ]
     },
@@ -55,7 +55,7 @@
       "name": "no-undefined-assignment",
       "coverage": [
         "docs/rules/no-undefined-assignment.md",
-        "tests/absence-signatures.test.js",
+        "tests/signature-policy.test.js",
         "tests/rule-canary.test.js"
       ]
     },
@@ -63,7 +63,7 @@
       "name": "no-undefined-comparison",
       "coverage": [
         "docs/rules/no-undefined-comparison.md",
-        "tests/absence-signatures.test.js",
+        "tests/signature-policy.test.js",
         "tests/rule-canary.test.js"
       ]
     },
@@ -71,9 +71,8 @@
       "name": "no-unguarded-callback-invocation",
       "coverage": [
         "docs/rules/no-unguarded-callback-invocation.md",
-        "tests/calls-completions.test.js",
-        "tests/callback-revisions.test.js",
-        "tests/predicate-modules.test.js",
+        "tests/completion-contracts.test.js",
+        "tests/signature-policy.test.js",
         "tests/rule-canary.test.js"
       ],
       "boundary": "Stable optional object-parameter bindings, direct calls, executable typeof predicates, immutable aliases and supported guarded closure creation. Writes, loops, async bodies and general predicate resolution remain unknown."
@@ -82,7 +81,7 @@
       "name": "no-unhandled-promise-chain",
       "coverage": [
         "docs/rules/no-unhandled-promise-chain.md",
-        "tests/promise-ownership.test.js",
+        "tests/promise-contracts-public.test.js",
         "tests/rule-canary.test.js"
       ],
       "boundary": "Shared syntactic chain ownership and source-owned promise results from local async callables, stable aliases, bounded synchronous forwarding and unshadowed native Promise factories. Async fulfillment and general thenables remain unknown."
@@ -91,8 +90,8 @@
       "name": "operator-linebreak",
       "coverage": [
         "docs/rules/operator-linebreak.md",
-        "tests/control-layout.test.js",
-        "tests/native-absence.test.js",
+        "tests/rule-contracts.test.js",
+        "tests/absence-contracts.test.js",
         "tests/rule-canary.test.js"
       ]
     },
@@ -100,7 +99,7 @@
       "name": "prefer-async-await",
       "coverage": [
         "docs/rules/prefer-async-await.md",
-        "tests/promise-ownership.test.js",
+        "tests/promise-contracts-public.test.js",
         "tests/rule-canary.test.js"
       ]
     },
@@ -108,7 +107,7 @@
       "name": "prefer-destructured-member-access",
       "coverage": [
         "docs/rules/prefer-destructured-member-access.md",
-        "tests/absence-signatures.test.js",
+        "tests/signature-policy.test.js",
         "tests/rule-canary.test.js"
       ]
     },
@@ -116,8 +115,8 @@
       "name": "prefer-falsey-returns",
       "coverage": [
         "docs/rules/prefer-falsey-returns.md",
-        "tests/control-layout.test.js",
-        "tests/native-absence.test.js",
+        "tests/rule-contracts.test.js",
+        "tests/absence-contracts.test.js",
         "tests/rule-canary.test.js"
       ]
     },
@@ -125,8 +124,7 @@
       "name": "prefer-prototype-methods",
       "coverage": [
         "docs/rules/prefer-prototype-methods.md",
-        "tests/mutation-policy.test.js",
-        "tests/syntax-policy.test.js",
+        "tests/rule-contracts.test.js",
         "tests/rule-canary.test.js"
       ]
     },
@@ -134,7 +132,7 @@
       "name": "prefer-safe-destructuring-defaults",
       "coverage": [
         "docs/rules/prefer-safe-destructuring-defaults.md",
-        "tests/absence-signatures.test.js",
+        "tests/signature-policy.test.js",
         "tests/rule-canary.test.js"
       ]
     },
@@ -142,7 +140,7 @@
       "name": "prefer-safe-transformations",
       "coverage": [
         "docs/rules/prefer-safe-transformations.md",
-        "tests/mutation-policy.test.js",
+        "tests/rule-contracts.test.js",
         "tests/rule-canary.test.js"
       ]
     },
@@ -150,7 +148,7 @@
       "name": "prefer-signature-destructuring",
       "coverage": [
         "docs/rules/prefer-signature-destructuring.md",
-        "tests/absence-signatures.test.js",
+        "tests/signature-policy.test.js",
         "tests/rule-canary.test.js"
       ]
     },
@@ -158,9 +156,8 @@
       "name": "signature-contract-call-site",
       "coverage": [
         "docs/rules/signature-contract-call-site.md",
-        "tests/calls-completions.test.js",
-        "tests/callback-revisions.test.js",
-        "tests/predicate-modules.test.js",
+        "tests/completion-contracts.test.js",
+        "tests/signature-policy.test.js",
         "tests/rule-canary.test.js"
       ]
     },
@@ -192,9 +189,16 @@
       "name": "signature-contract-return-consistency",
       "coverage": [
         "docs/rules/signature-contract-return-consistency.md",
-        "tests/calls-completions.test.js",
-        "tests/callback-revisions.test.js",
-        "tests/predicate-modules.test.js",
+        "tests/completion-contracts.test.js",
+        "tests/signature-policy.test.js",
+        "tests/rule-canary.test.js"
+      ]
+    },
+    {
+      "name": "no-falsifiable-property-key",
+      "coverage": [
+        "docs/rules/no-falsifiable-property-key.md",
+        "tests/rule-contracts.test.js",
         "tests/rule-canary.test.js"
       ]
     }

@@ -59,19 +59,21 @@ const lowerOrderedDecisions = ({
         if (kind !== Block) return visited;
 
         let changed = false;
-        const lowerStatements = (remaining = []) => {
-            const [statement = {}, ...suffix] = remaining;
+        const finalDecision = statements.findLastIndex(({ kind = 0 } = {}) => kind === IfStatement);
+        const terminalSuffix = statements.length > finalDecision + 1 && terminates(statements.at(-1));
+        let consumed = false;
+        const lowered = statements.flatMap((statement, index) => {
+            if (consumed) return [];
+
             const { kind: statementKind = 0, expression = {}, thenStatement = {},
                 elseStatement = {} } = getObject(statement);
-
-            if (!statementKind) return [];
 
             if (statementKind === IfStatement &&
                 getAction(statement) === 'flatten-terminated-nested-decision' &&
                 getNodeKind(thenStatement) === Block && terminates(thenStatement) &&
-                suffix.length && terminates(suffix.at(-1)) &&
-                !suffix.some(({ kind: suffixKind = 0 } = {}) => suffixKind === IfStatement)) {
+                index === finalDecision && terminalSuffix) {
                 changed = true;
+                consumed = true;
                 const { contract = {} } = getDecision(statement);
                 const { guardedSource = '' } = getObject(contract);
 
@@ -81,7 +83,7 @@ const lowerOrderedDecisions = ({
                     factory.createPrefixUnaryExpression(
                         ExclamationToken, factory.createParenthesizedExpression(expression)
                     ),
-                    factory.createBlock(suffix, true)
+                    factory.createBlock(statements.slice(index + 1), true)
                 ), thenStatement];
             }
 
@@ -91,12 +93,11 @@ const lowerOrderedDecisions = ({
                 changed = true;
 
                 return [factory.updateIfStatement(statement, expression, thenStatement, undefined),
-                    elseStatement, ...lowerStatements(suffix)];
+                    elseStatement];
             }
 
-            return [statement, ...lowerStatements(suffix)];
-        };
-        const lowered = lowerStatements(statements);
+            return [statement];
+        });
 
         return changed ? factory.updateBlock(visited, lowered) : visited;
     };

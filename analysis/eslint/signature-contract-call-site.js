@@ -6,10 +6,13 @@ const actualLabel = ({ family = '', absence = '' } = {}) => {
 
     return absence === 'undefined' ? 'undefined' : 'null or undefined';
 };
+const familiesFor = ({ families = [] } = {}) => families;
 const dataFor = ({ kind = 'mismatch', message = '', path = '', expected = '', absence = '', facts = [] } = {}) => {
+    if (kind === 'noncallable') return { path };
+
     if (kind !== 'mismatch') return { message, path };
 
-    const { families = [] } = facts.findLast(({ facet = '' } = {}) => facet === 'family');
+    const families = familiesFor(facts.findLast(({ facet = '' } = {}) => facet === 'family'));
 
     return { path, expected: label(expected), actual: families.filter(family => family !== expected).map(family => actualLabel({ family, absence })).join(' or ') };
 };
@@ -17,10 +20,13 @@ const dataFor = ({ kind = 'mismatch', message = '', path = '', expected = '', ab
 export default {
     meta: {
         type: 'problem',
-        docs: { description: 'Report established argument contradictions at supported direct local calls',
+        docs: { description: 'Report established callable and argument contradictions at supported calls',
             url: 'https://github.com/augurone/artikulates-resilient/blob/main/docs/rules/signature-contract-call-site.md' },
         schema: [],
-        messages: { mismatch: '{{path}} expects {{expected}}, but this call supplies {{actual}}.', arity: '{{message}}', excessProperty: 'This call supplies excess property {{path}}.' }
+        messages: { mismatch: '{{path}} expects {{expected}}, but this call supplies {{actual}}.',
+            noncallable: '{{path}} requires a callable value; this call has a known noncallable contribution.',
+            asyncCallback: '{{path}} requires a synchronous callback; forEach discards returned promises. Use a reasoned loop exception for ordered async work.',
+            arity: '{{message}}', excessProperty: 'This call supplies excess property {{path}}.' }
     },
     create(context = {}) {
         return createAnalysisListener(context, (analysis, report) => {

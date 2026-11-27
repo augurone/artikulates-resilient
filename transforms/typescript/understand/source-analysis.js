@@ -39,7 +39,7 @@ const sourceIdentity = ({ typescript = {}, program = false, sourceFile = {}, sou
 
     if (SourceFile < 0 || kind !== SourceFile) throw new TypeError('Expected an original compiler SourceFile');
 
-    if (![version, filename, revision, programRevision, compilerOptionsIdentity].every(value => typeof value === 'string' && value.length)) {
+    if (![version, filename, revision, programRevision, compilerOptionsIdentity].every(value => typeof value === 'string' && !!value.length)) {
         throw new TypeError('Expected explicit compiler, file, source revision, Program revision and options identities');
     }
 
@@ -86,6 +86,15 @@ const prepare = ({ typescript = {}, sourceFile = {}, source = {}, census = false
     const models = new WeakMap();
     const selections = new WeakMap();
     const aliases = new WeakMap();
+    const absenceInitializers = new WeakMap();
+    const naturalInitializer = (node) => {
+        const binding = identities.get(node);
+        const { naturalAbsence = false, locationNode: declared = {} } = binding ?? {};
+
+        if (!naturalAbsence) return false;
+
+        return absenceInitializers.get(binding) || put(absenceInitializers, binding, own({ ...common(declared), ...absence }));
+    };
     const bodies = [];
     const consumers = [];
     const functions = entries.map(({ node = {}, scope: { execution = false } = {}, parentExecution = false } = {}, index) => {
@@ -167,11 +176,6 @@ const prepare = ({ typescript = {}, sourceFile = {}, source = {}, census = false
         return kind === Identifier ? [localAlias(node, identities, scopes)].filter(Boolean) : syntaxChildren(node);
     };
     const literals = new Map([[NumericLiteral, 'number'], [StringLiteral, 'string'], [TrueKeyword, 'boolean'], [FalseKeyword, 'boolean'], [NullKeyword, 'nullish']]);
-    const literalValue = ({ kind = -1, text = '' } = {}) => {
-        if (kind === NumericLiteral) return Number(text);
-
-        return kind === StringLiteral ? text : kind === TrueKeyword;
-    };
     const read = node => acquired.get(node) || unknown;
     const compile = (node = {}) => {
         const { kind = -1, text = '', elements = [], expression = {}, arguments: args = [], questionDotToken = false } = node;
@@ -179,13 +183,20 @@ const prepare = ({ typescript = {}, sourceFile = {}, source = {}, census = false
         const lifetime = lifetimes.get(node) || false;
         const borrow = target => lifetime ? own({ ...facts, kind: 'unowned', target, lifetime }) : target;
         const binding = identities.get(node);
-        const { ambiguous = false, callable = false } = binding ?? {};
+        const { ambiguous = false, callable = false, stable = false, naturalAbsence = false,
+            locationNode: { end: declared = Infinity } = {}, execution = false } = binding ?? {};
+        const { execution: currentExecution = false } = facts;
+        const { pos = -1 } = node;
 
         if (callableCreation({ typescript, node })) return own({ ...facts, kind: 'source', inert: true, familyOnly: true,
             truth: 1, absence: 'present', promise: 'none', callable: models.get(node), closure: models.get(node),
             owner: createOwner({ evidence: familyEvidence({ name: 'function' }) }) });
 
         if (kind === Identifier && writes.has(binding)) return opaque(node, 'unstable-binding');
+
+        if (kind === Identifier && naturalAbsence && !ambiguous && execution === currentExecution && declared <= pos) {
+            return aliases.get(binding) || put(aliases, binding, own({ ...facts, kind: 'link', target: naturalInitializer(node), immutable: false, familyOnly: true }));
+        }
 
         if (kind === Identifier && !ambiguous && selections.has(binding)) {
             const { execution = false } = binding;
@@ -197,7 +208,7 @@ const prepare = ({ typescript = {}, sourceFile = {}, source = {}, census = false
         const initializer = kind === Identifier && localAlias(node, identities, scopes);
 
         if (initializer) return borrow(aliases.get(binding) || put(aliases, binding, own({ ...facts, kind: 'link', key: Symbol('local alias'),
-            target: read(initializer), familyOnly: read(initializer).familyOnly, transfer: false })));
+            target: read(initializer), immutable: stable, familyOnly: read(initializer).familyOnly, transfer: false })));
 
         if (kind === Identifier && !binding && text === 'undefined') return own({ ...absence, ...facts });
 
@@ -249,7 +260,7 @@ const prepare = ({ typescript = {}, sourceFile = {}, source = {}, census = false
             const { index: functionIndex = -1 } = model ?? {};
 
             const call = own({ ...facts, kind: 'member-call', callee: read(expression), functionIndex,
-                name, requireInertPrefix: true, arguments: Object.freeze(args.map(read)),
+                name, guardInputEffects: true, arguments: Object.freeze(args.map(read)),
                 argumentFresh: Object.freeze(args.map(({ kind = -1 } = {}) => [ArrayLiteralExpression, ObjectLiteralExpression].includes(kind))),
                 argumentMetadata: Object.freeze(args.map(argument => Object.freeze({ location: location(argument) }))),
                 owner: unknownOwner({ code: 'unresolved-call', location: location(node) }) });
@@ -259,14 +270,15 @@ const prepare = ({ typescript = {}, sourceFile = {}, source = {}, census = false
             const unsupported = calleeKind === 'member' ? own({ ...callee, supported: false }) : callee;
 
             return lifetime ? own({ ...facts, kind: 'conditional', functionIndex, name, test: lifetime, yes: call,
-                no: own({ ...call, callee: unsupported, nativeAvailable: false }), yesLocation: location(node), noLocation: location(node) }) : call;
+                no: own({ ...call, callee: unsupported }), yesLocation: location(node), noLocation: location(node) }) : call;
         }
 
         const family = literals.get(kind);
 
         if (!family) return opaque(node, kind === Identifier ? 'unresolved-binding' : 'unsupported-expression');
 
-        const value = literalValue(node);
+        const literal = kind === StringLiteral ? text : kind === TrueKeyword;
+        const value = kind === NumericLiteral ? Number(text) : literal;
 
         return own({ ...facts, kind: 'source', inert: true, familyOnly: true, truth: Number(Boolean(value)), absence: family === 'nullish' ? 'null' : 'present', promise: 'none',
             ...(family === 'nullish' ? {} : { constant: Object.freeze({ value }) }), owner: createOwner({ evidence: familyEvidence({ name: family }) }) });
@@ -297,7 +309,7 @@ const prepare = ({ typescript = {}, sourceFile = {}, source = {}, census = false
             binding: pattern, nativePattern: pattern, formalPattern: pattern, location: location(parameter) }));
         const prefix = sequenceFlow(initialization, ownFlow, ownFlow({ kind: 'continue' }));
         const body = expression ? ownFlow({ kind: 'return', argument: expressionFor(expression, sourceLifetime({ own, call: prefix })), location: location(expression) })
-            : acquireStatementFlow({ typescript, statements, initialization, own: ownFlow, expressionFor, location, absence });
+            : acquireStatementFlow({ typescript, statements, initialization, own: ownFlow, expressionFor, naturalInitializer, location, absence });
 
         completeCallable(model, expression ? sequenceFlow([prefix, body], ownFlow, ownFlow({ kind: 'continue' })) : body);
     });
@@ -307,7 +319,7 @@ const prepare = ({ typescript = {}, sourceFile = {}, source = {}, census = false
     const imported = statements.some(({ kind = -1, moduleSpecifier = false } = {}) => kind === ImportDeclaration || (kind === ExportDeclaration && moduleSpecifier));
     const initialization = imported ? [ownRoot({ kind: 'unsupported', owner: unknownOwner({ code: 'unsupported-statement', location: location(sourceFile) }) })] : [];
     const root = completeCallable({ functionModel: true, index: functions.length, execution, module, supported: !dynamic && !annexExecutions.has(execution), bodyLocation: location(sourceFile) },
-        acquireStatementFlow({ typescript, statements, initialization, own: ownRoot, expressionFor, location, absence }));
+        acquireStatementFlow({ typescript, statements, initialization, own: ownRoot, expressionFor, naturalInitializer, location, absence }));
     const slotsByFunction = new Map(consumers.map(({ descriptor: { functionIndex = -1, slots = [] } = {} } = {}) => [functionIndex, slots]));
     const callSelections = [];
     const calls = callNodes.map((node, index) => {

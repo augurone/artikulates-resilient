@@ -84,7 +84,7 @@ const lowerSelectedModelDiscriminators = ({
 
         if (expressionKind !== BinaryExpression || !comparisons.has(operatorKind)) return {};
 
-        const [member = {}] = candidates.find(([candidate = {}, other = {}] = []) => {
+        const discriminatorPair = candidates.find(([candidate = {}, other = {}] = []) => {
             const { kind: candidateKind = 0, expression: receiver = {}, name = {} } = getObject(candidate);
             const { kind: receiverKind = 0 } = getObject(receiver);
             const { text: property = '' } = getObject(name);
@@ -95,6 +95,7 @@ const lowerSelectedModelDiscriminators = ({
                 property &&
                 [StringLiteral, NumericLiteral, getSyntaxKinds(typescript).TrueKeyword, getSyntaxKinds(typescript).FalseKeyword].includes(literalKind);
         }) || [];
+        const [member = {}] = discriminatorPair;
         const { expression: receiver = {}, name = {} } = getObject(member);
         const { text: receiverName = '' } = getObject(receiver);
         const { text: property = '' } = getObject(name);
@@ -323,7 +324,7 @@ const lowerSelectedModelDiscriminators = ({
         const { kind: conditionKind = 0, left = {}, right = {}, operatorToken = {} } = getObject(condition);
         const { kind: operatorKind = 0 } = getObject(operatorToken);
         const candidates = [[left, right], [right, left]];
-        const [member = {}, literal = {}] = candidates.find(([candidate = {}, value = {}] = []) => {
+        const loopDiscriminatorPair = candidates.find(([candidate = {}, value = {}] = []) => {
             const { kind: candidateKind = 0, expression: receiver = {}, name = {} } = getObject(candidate);
             const { kind: receiverKind = 0, text: receiverName = '' } = getObject(receiver);
             const { text: propertyName = '' } = getObject(name);
@@ -332,6 +333,7 @@ const lowerSelectedModelDiscriminators = ({
             return candidateKind === PropertyAccessExpression && receiverKind === Identifier && receiverName &&
                 propertyName && [StringLiteral, NumericLiteral, getSyntaxKinds(typescript).TrueKeyword, getSyntaxKinds(typescript).FalseKeyword].includes(literalKind);
         }) || [];
+        const [member = {}, literal = {}] = loopDiscriminatorPair;
         const { expression: receiver = {}, name: tagMember = {} } = getObject(member);
         const { text: receiverName = '' } = getObject(receiver);
         const { text: tagProperty = '' } = getObject(tagMember);
@@ -464,7 +466,7 @@ const lowerSelectedModelDiscriminators = ({
         const { kind = 0, expression = {} } = getObject(statement);
         const { kind: expressionKind = 0, left = {}, right = {}, operatorToken = {} } = getObject(expression);
         const { kind: operatorKind = 0 } = getObject(operatorToken);
-        const [member = {}] = [[left, right], [right, left]].find(([
+        const variantDiscriminatorPair = [[left, right], [right, left]].find(([
             candidate = {}, value = {}
         ] = []) => {
             const { kind: candidateKind = 0, expression: receiver = {}, name = {} } = getObject(candidate);
@@ -475,6 +477,7 @@ const lowerSelectedModelDiscriminators = ({
             return candidateKind === PropertyAccessExpression && receiverKind === Identifier && receiverName &&
                 propertyName && valueKind === StringLiteral && valueText;
         }) || [];
+        const [member = {}] = variantDiscriminatorPair;
         const { expression: receiver = {}, name = {} } = getObject(member);
         const { text: receiverName = '' } = getObject(receiver);
         const { text: property = '' } = getObject(name);
@@ -642,7 +645,7 @@ const lowerSelectedModelDiscriminators = ({
         } = getObject(expression);
         const { kind: conditionKind = 0, left = {}, right = {}, operatorToken = {} } = getObject(condition);
         const { kind: operatorKind = 0 } = getObject(operatorToken);
-        const [tagRead = {}, tagLiteral = {}] = [[left, right], [right, left]].find(([
+        const tagDiscriminatorPair = [[left, right], [right, left]].find(([
             candidate = {}, literal = {}
         ] = []) => {
             const { kind: candidateKind = 0, expression: inner = {}, name = {} } = getObject(candidate);
@@ -656,6 +659,7 @@ const lowerSelectedModelDiscriminators = ({
                 outerKind === Identifier && sources.has(sourceName) && member && tagName &&
                 literalKind === StringLiteral && literalText;
         }) || [];
+        const [tagRead = {}, tagLiteral = {}] = tagDiscriminatorPair;
         const { expression: innerSource = {}, name: tagMember = {} } = getObject(tagRead);
         const { expression: source = {}, name: outerMember = {} } = getObject(innerSource);
         const { text: sourceName = '' } = getObject(source);

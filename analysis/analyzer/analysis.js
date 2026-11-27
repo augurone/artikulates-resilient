@@ -3,6 +3,7 @@ import { parse } from 'espree';
 import { all, createOwner, field, fromESTree, readFamily, request } from 'eslint-plugin-resilient/agreement';
 
 import { put } from '../collections.js';
+import { sourcePropertyName } from '../estree-properties.js';
 import { bindingSources, synchronousFunction } from './callables.js';
 import { prepareCalls, checkCall, callOutcome } from './calls.js';
 import { prepareDeclarations } from './declarations.js';
@@ -18,12 +19,14 @@ import { prepareSignaturePlacement } from './signature-placement.js';
 
 const presenceOnly = all();
 const noCauses = Object.freeze([]);
-const consistency = ({ families = [], incomplete = false } = {}, returns = []) => {
+const consistency = ({ families = [], incomplete = false } = {}, returns = [], unresolved = false) => {
     const absences = new Set(returns.flatMap(({ absences: kinds = [] } = {}) => kinds));
 
     if (families.length > 1 || absences.size > 1) return 'contradiction';
 
-    return incomplete ? 'unknown' : 'agreement';
+    // A surviving family does not complete an unresolved execution. Known
+    // conflicts above remain independent of that missing completion proof.
+    return incomplete || unresolved ? 'unknown' : 'agreement';
 };
 
 // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- The resolver is guarded; omitted limits stay absent until validation. Explicit Infinity is not omission.
@@ -43,11 +46,13 @@ const prepare = ({ program = {}, filename = '', roots = [], resolveModule, limit
     const callables = new Map([...callableSources].filter(([, node = {}] = []) => synchronousFunction(node)));
     const model = acquireModel({ index, callables, callableSources, namespaces, decisionLimit });
     const { expressionFor, functions = [], root = {}, moduleRoots = [], decisions = {}, absence = {}, unknown = {}, invocationSources = new Map(),
-        intrinsicExposures = new Map(), externalExecutions = new Set(), capabilityRegions = new Map() } = model;
+        capabilityRegions = new Map(), capabilityPrefixes = new Map(),
+        lexicalExecutions = new Set(), captureInputs = new WeakSet() } = model;
 
     if (typeof expressionFor !== 'function') throw new TypeError('Expected model expression acquisition');
 
-    const demand = createDemand({ functions, root, moduleRoots, decisions, absence, unknown, invocationSources, intrinsicExposures, externalExecutions, capabilityRegions, limit: demandLimit });
+    const demand = createDemand({ functions, root, moduleRoots, decisions, absence, unknown, invocationSources,
+        capabilityRegions, capabilityPrefixes, lexicalExecutions, captureInputs, limit: demandLimit });
     const expressions = new WeakMap();
     const records = new WeakSet(destructurings.filter(({ node = {}, pattern = {} } = {}) => requiredRecordFields({ node, pattern }).length).map(({ node = {} } = {}) => node));
     const ownerFor = (node) => {
@@ -59,10 +64,14 @@ const prepare = ({ program = {}, filename = '', roots = [], resolveModule, limit
         owner: ownerFor(node), required: operations.get(operation), consumer: `Receiver family assuming native ${operation}`,
         descriptor: Object.freeze({ index, operation, conditional, location: locationOf(node) })
     }));
-    const patterns = destructurings.map(({ node = {}, expected = '' } = {}, index) => ({
-        owner: ownerFor(node), expression: records.has(node) ? false : expressionFor(node), required: expected, consumer: `Destructuring as ${expected}`,
-        descriptor: Object.freeze({ index, expected, location: locationOf(node) })
-    }));
+    const patterns = destructurings.map(({ node = {}, expected = '' } = {}, index) => {
+        const expression = records.has(node) ? false : expressionFor(node);
+        const { nativeFunctionNamespace = false } = expression ? expression : {};
+        const required = expected === 'object' && nativeFunctionNamespace ? 'function' : expected;
+
+        return { owner: ownerFor(node), expression, required, consumer: `Destructuring as ${expected}`,
+            descriptor: Object.freeze({ index, expected, location: locationOf(node) }) };
+    });
     const fields = destructurings.flatMap(({ node = {}, pattern = {}, entries = [] } = {}) => entries.flatMap(({ node: selected = {} } = {}) => {
         const { type = '', properties = [] } = selected;
 
@@ -104,13 +113,14 @@ const prepare = ({ program = {}, filename = '', roots = [], resolveModule, limit
     const { counts: boundaryCounts = {} } = signaturePlacement;
     const { memberAccesses = [] } = index;
     const members = memberAccesses.map(({ node = {}, parent = {}, conditional = false } = {}, index) => {
-        const { computed = false, optional = false, property: { name = '' } = {} } = node;
+        const { computed = false, optional = false, property = {} } = node;
+        const { name = '' } = sourcePropertyName({ computed, key: property });
         const { type = '', operator = '', callee = false, left = false, argument = false } = parent;
         const writing = (type === 'AssignmentExpression' && left === node) || (type === 'UpdateExpression' && argument === node) ||
             (type === 'UnaryExpression' && operator === 'delete' && argument === node);
 
         return { expression: expressionFor(node), descriptor: Object.freeze({ index, name, call: type === 'CallExpression' && callee === node,
-            supported: !computed && !optional && !conditional && !writing, location: locationOf(node) }) };
+            supported: !optional && !conditional && !writing, location: locationOf(node) }) };
     });
     const promises = preparePromiseOwnership(index, expressionFor);
 
@@ -149,7 +159,7 @@ export const createSession = ({ prepared = [], patterns = [], properties = [], c
 
         const { owner: source = false, expression = false, site = expression, required = '', optional = false, declaration = -1, consumer: label = '' } = entries.at(index);
         const owner = expression ? demand.useValue(expression, site, observation) : source;
-        const { required: present = true } = optional && declaration >= 0 ? declarationChecks.checkCallable({ index: declaration, ...observation }) : {};
+        const { required: present = true } = optional && declaration >= 0 ? declarationChecks.checkPresence({ index: declaration, ...observation }) : {};
 
         demand.ensure(owner, observation);
 
@@ -177,7 +187,8 @@ export const createSession = ({ prepared = [], patterns = [], properties = [], c
         const results = selected.map((entry) => {
             const { descriptor: { site: origin = -1, filename: source = '' } = {} } = entry;
             const { obligations = [], ...result } = checkCall({ call: entry, summarize, observation,
-                readValue: owner => demand.ensure(owner, observation),
+                readValue: (owner, field) => demand.ensure(owner, observation, field),
+                readSlot: (owner, position) => demand.slotOwner(owner, position, observation),
                 defaultOwner: (owner, fallback) => {
                     const { owner: selected = false } = demand.defaulted(owner, fallback, observation);
 
@@ -189,9 +200,12 @@ export const createSession = ({ prepared = [], patterns = [], properties = [], c
             })) };
         });
         const statuses = results.map(({ status = '' } = {}) => status);
+        const callableObligations = demand.callabilityFor(expression, observation).map(({ path = '', location = {}, fact = false, kind = 'noncallable' } = {}) => Object.freeze({
+            kind, path, location, expected: 'function', status: 'contradiction', facts: Object.freeze(fact ? [summarize(fact)] : [])
+        }));
 
-        return Object.freeze({ status: callOutcome(statuses),
-            obligations: Object.freeze(results.flatMap(({ obligations = [] } = {}) => obligations)) });
+        return Object.freeze({ status: callableObligations.length ? 'contradiction' : callOutcome(statuses),
+            obligations: Object.freeze([...callableObligations, ...results.flatMap(({ obligations = [] } = {}) => obligations)]) });
     };
     const evaluateFunction = ({ index = -1, ...observation } = {}) => {
         if (!Number.isInteger(index) || index < 0 || index >= functionModels.length) throw new RangeError('Expected a function index in this analysis');
@@ -207,7 +221,7 @@ export const createSession = ({ prepared = [], patterns = [], properties = [], c
             return { ...site, absences, fact: summarize(result) };
         });
         const diagnostics = returnDiagnostics({ returns: completed });
-        const status = consistency(fact, completed);
+        const status = consistency(fact, completed, normal === 'unknown');
 
         return Object.freeze({ status: normal === false ? 'agreement' : status, completion: promiseResult ? 'fulfillment' : 'return', normal, thrown, returnedParameter, fact: summarize(fact),
             diagnostics,
@@ -250,19 +264,21 @@ export const createSession = ({ prepared = [], patterns = [], properties = [], c
     const evaluatePromiseUse = ({ index = -1, ...observation } = {}) => {
         if (!Number.isInteger(index) || index < 0 || index >= promiseUses.length) throw new RangeError('Expected a promise-use index in this analysis');
 
-        const { expression = false, descriptor: { ownership = '', chain = false, eligible = false } = {} } = promiseUses.at(index);
+        const { expression = false, boundary = expression, descriptor: { ownership = '', chain = false, eligible = false } = {} } = promiseUses.at(index);
 
         if (ownership !== 'dropped') return Object.freeze({ unhandled: false, reason: 'explicit-ownership', ownership });
 
-        if (chain) return Object.freeze({ unhandled: true, reason: 'unowned-chain', ownership });
+        if (chain && boundary === expression) return Object.freeze({ unhandled: true, reason: 'unowned-chain', ownership });
 
         if (!eligible) return Object.freeze({ unhandled: false, reason: 'outside-call-boundary', ownership });
 
-        const result = demand.checkPromise(expression, observation);
+        const { dropped = false, ...result } = demand.checkPromise(expression, observation, boundary);
         const { known = false, incomplete = false, normal = false } = result;
-        const reason = [known && 'dropped-promise', incomplete && 'unknown-result', !normal && 'no-normal-result', 'non-promise-result'].find(Boolean);
+        const unhandled = dropped || (chain && normal);
+        const reason = [chain && normal && 'unowned-chain', dropped && 'dropped-promise', known && 'existing-promise-owner',
+            incomplete && 'unknown-result', !normal && 'no-normal-result', 'non-promise-result'].find(Boolean);
 
-        return Object.freeze({ ...result, unhandled: known, reason, ownership });
+        return Object.freeze({ ...result, unhandled, reason, ownership });
     };
 
     return Object.freeze({
@@ -282,6 +298,7 @@ export const createSession = ({ prepared = [], patterns = [], properties = [], c
 
 // Like fromESTree, this boundary trusts valid parser nodes. It copies only the
 // evidence it consumes before returning; callers retain ownership of their AST.
+
 // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- The optional source resolver belongs to the host; preserving absence avoids fabricating module evidence.
 export const createProgramAnalysis = ({ program = {}, limits = {}, filename = '', roots = [], resolveModule } = {}) => {
     if (!program || typeof program !== 'object') throw new TypeError('Expected an ESTree Program');
@@ -295,6 +312,7 @@ export const createProgramAnalysis = ({ program = {}, limits = {}, filename = ''
 
 // Parsing is an external boundary: syntax errors propagate. A new source needs
 // a new session; old results never silently claim to describe an edited file.
+
 // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- The optional source resolver is forwarded unchanged to the program boundary; absence means local source only.
 export const createAnalysis = ({ source = '', sourceType = 'module', limits = {}, filename = '', roots = [], resolveModule } = {}) => {
     if (typeof source !== 'string') throw new TypeError('Expected JavaScript source text');

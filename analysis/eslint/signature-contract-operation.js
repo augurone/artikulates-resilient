@@ -22,7 +22,7 @@ export default {
             memberAccesses.forEach(({ index = -1, name = '', call = false, location = {} } = {}) => {
                 if (!call) return;
 
-                const { conflicts = [], expected = '', producers = [] } = analysis.checkMemberAccess({ index });
+                const { conflicts = [], expected = '', producers = [], violations = [] } = analysis.checkMemberAccess({ index });
 
                 if (!conflicts.length) return;
 
@@ -30,8 +30,10 @@ export default {
                     .map(({ module = '', location: { line = 0 } = {} } = {}) => `${module} at line ${line}`);
                 const producer = [...new Set(locations)].join('; ');
 
-                report({ location, messageId: producer ? 'sourceMismatch' : 'mismatch',
-                    data: { actual: conflicts.map(label).join(' or '), method: name, expected: label(expected), producer } });
+                (violations.length ? violations : [{ name, expected, conflicts }]).forEach(({ name = '', expected = '', conflicts = [] } = {}) => {
+                    report({ location, messageId: producer ? 'sourceMismatch' : 'mismatch',
+                        data: { actual: conflicts.map(label).join(' or '), method: name, expected: label(expected), producer } });
+                });
             });
         });
     }

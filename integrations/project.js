@@ -44,9 +44,10 @@ const normalizeAliases = (aliases = {}) => Object.entries(isObject(aliases) ? al
     .toSorted(([left = ''], [right = '']) => right.length - left.length);
 
 const getAliasBase = ({ source = '', aliases = [], projectDirectory = '' } = {}) => {
-    const [alias = '', target = ''] = aliases.find(([name = '']) => (
+    const matchedAlias = aliases.find(([name = '']) => (
         source === name || source.startsWith(`${name}/`)
     )) || [];
+    const [alias = '', target = ''] = matchedAlias;
 
     if (!alias) return '';
 

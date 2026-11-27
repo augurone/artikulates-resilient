@@ -15,14 +15,15 @@ const sharedIdentity = (values, name = 'identity') => {
     return values.every(value => Reflect.get(value, name) === identity) ? identity : false;
 };
 export const normalValue = ({ owner = false, memberOwner = owner, identity = false, identityContext = false, callable = false, constant = false,
-    typeOf = false, objectTagOf = false, nativeTag = '', unowned = false, promise = 'unknown',
-    settlement = false, standardPrototype = false, slots = false, plain = false, emptyDefault = false, emptyRecord = false, written = false, producer = false, borrowed = false,
-    truth = -1, absence = 'unknown', inputs = [], reach = 1,
+    typeOf = false, objectTagOf = false, nativeTag = '', unowned = false, promise = 'unknown', promiseIdentity = '', promiseOrigin = false,
+    settlement = false, protocolUnknown = false, suspensionSafe = false, standardPrototype = false, slots = false, plain = false,
+    emptyDefault = false, emptyRecord = false, written = false, producer = false, borrowed = false,
+    truth = -1, absence = 'unknown', inputs = [], reach = 1, literal = Boolean(constant),
     input = false, guard = 1, truthGate = truth === 1 ? reach : 0, nullishGate = ['null', 'undefined'].includes(absence) ? reach : 0,
     undefinedGate = absence === 'undefined' ? reach : 0, nullGate = absence === 'null' ? reach : 0 } = {}) => Object.freeze({
-    owner, memberOwner, identity, identityContext, callable, constant, typeOf, objectTagOf, nativeTag, unowned, promise, settlement,
+    owner, memberOwner, identity, identityContext, callable, constant, typeOf, objectTagOf, nativeTag, unowned, promise, promiseIdentity, promiseOrigin, settlement, protocolUnknown, suspensionSafe,
     standardPrototype, slots, plain, emptyDefault, emptyRecord, written, producer, borrowed,
-    truth, absence, inputs: Object.freeze(inputs), input, guard, reach, truthGate, nullishGate, undefinedGate, nullGate
+    truth, absence, inputs: Object.freeze(inputs), input, guard, reach, truthGate, nullishGate, undefinedGate, nullGate, literal
 });
 
 // Values retain guarded contribution links. Empty selection is no value, not an
@@ -36,12 +37,14 @@ export const createValues = ({ unknown = {}, decisions = {}, limit = Infinity } 
     const unknownValue = normalValue(unknown);
     const { owner: unresolvedOwner = false } = unknownValue;
     const unresolved = Object.freeze({ owner: unresolvedOwner, memberOwner: unresolvedOwner, identity: false, promises: Object.freeze(['unknown']),
-        callableCases: Object.freeze([{ callable: false, gate: 1 }]) });
+        contributions: Object.freeze({ callable: false, gate: 1 }) });
     const projections = new WeakMap();
+    const conditionProjections = new WeakMap();
     const replacements = new WeakMap();
     const guards = new WeakMap();
     const ownership = new WeakMap();
     const retired = new WeakMap();
+    const protocols = new WeakMap();
     const loans = new WeakMap();
     const familyOwners = new WeakMap();
     const typeSelections = new WeakMap();
@@ -52,16 +55,19 @@ export const createValues = ({ unknown = {}, decisions = {}, limit = Infinity } 
     const transfers = new WeakMap();
     const familyOwner = source => familyOwners.get(source) || put(familyOwners, source,
         createOwner({ evidence: reference({ owner: source, projection: 'family' }) }));
-    const retire = (value) => {
+    const retire = (value, { protocol = false } = {}) => {
         if (!value) return value;
 
-        const { unowned = false, constant = false } = value;
+        const { unowned = false, constant = false, protocolUnknown = false } = value;
 
         // Primitive literal payloads have no mutable member snapshot. An
         // already retired value must not gain a new identity on every transfer.
-        if (unowned || constant) return value;
+        if ((unowned && (!protocol || protocolUnknown)) || constant) return value;
 
-        return retired.get(value) || put(retired, value, normalValue({ ...value, owner: false, input: value, inputs: [], unowned: true }));
+        const cache = protocol ? protocols : retired;
+
+        return cache.get(value) || put(cache, value, normalValue({ ...value, owner: false, input: value, inputs: [], unowned: true,
+            protocolUnknown: protocol || protocolUnknown }));
     };
     const borrow = (value) => {
         const { borrowed = false } = value ? value : {};
@@ -77,7 +83,7 @@ export const createValues = ({ unknown = {}, decisions = {}, limit = Infinity } 
         const select = (entry) => {
             const { borrowed = false, producer: { module: origin = '', location: { range: [from = -1, to = -1] = [] } = {} } = {} } = entry;
 
-            if (mode === 'escape') return borrowed ? retire(entry) : false;
+            if (['escape', 'protocol-escape'].includes(mode)) return borrowed ? retire(entry, { protocol: mode === 'protocol-escape' }) : false;
 
             if (borrowed) return entry;
 
@@ -117,17 +123,17 @@ export const createValues = ({ unknown = {}, decisions = {}, limit = Infinity } 
 
         return read(value);
     };
-    const snapshot = ({ unowned = false } = {}, evidence, onVisit) => {
+    const snapshot = ({ unowned = false, protocolUnknown = false } = {}, evidence, onVisit) => {
         if (!unowned || !evidence) return evidence;
 
-        const { owner: source = false } = evidence;
+        const { owner: source = false, protocolUnknown: exposed = false } = evidence;
         const { owner: unknownSource = false } = unknownValue;
         const owner = familyOwner(source);
 
         const { families = [] } = readFamily({ owner, onWork: onVisit });
         const immutable = families.length && families.every(name => ['string', 'number', 'boolean', 'nullish'].includes(name));
 
-        return Object.freeze({ ...evidence, owner, memberOwner: immutable ? owner : unknownSource,
+        return Object.freeze({ ...evidence, owner, memberOwner: immutable ? owner : unknownSource, protocolUnknown: protocolUnknown || exposed,
             standardPrototype: immutable, nativeTag: '', slots: false, plain: false, emptyDefault: false });
     };
     const union = (items, name) => items.reduce((gate, item) => or(gate, Reflect.get(item, name)), 0);
@@ -148,6 +154,7 @@ export const createValues = ({ unknown = {}, decisions = {}, limit = Infinity } 
 
         return normalValue({ identity: identityContext && sharedIdentity(items), identityContext, owner: sources.length === 1 ? sources.at(0) : false,
             typeOf: sharedIdentity(items, 'typeOf'), objectTagOf: sharedIdentity(items, 'objectTagOf'),
+            literal: items.some(({ literal = false } = {}) => literal), suspensionSafe: items.every(({ suspensionSafe = false } = {}) => suspensionSafe),
             truth: truths.size === 1 ? truth : -1, absence: absences.size === 1 ? absence : 'unknown', inputs: items,
             reach: union(items, 'reach'), truthGate: union(items, 'truthGate'), nullishGate: union(items, 'nullishGate'),
             undefinedGate: union(items, 'undefinedGate'), nullGate: union(items, 'nullGate') });
@@ -187,6 +194,41 @@ export const createValues = ({ unknown = {}, decisions = {}, limit = Infinity } 
 
         return put(cached, gate, normalValue({ ...value, owner: false, input: value, inputs: [], guard: gate, reach,
             truthGate: and(truthGate, gate), nullishGate: and(nullishGate, gate), undefinedGate: and(undefinedGate, gate), nullGate: and(nullGate, gate) }));
+    };
+    const projectConditions = (value, projectGate, key, onVisit) => {
+        if (!value) return value;
+
+        if (typeof projectGate !== 'function') throw new TypeError('Expected a condition projection');
+
+        const conditions = ['guard', 'reach', 'truthGate', 'nullishGate', 'undefinedGate', 'nullGate'];
+        const structural = Object.keys(value).filter(name => !conditions.includes(name) && !['owner', 'input', 'inputs'].includes(name));
+        const cacheFor = entry => conditionProjections.get(entry) || put(conditionProjections, entry, new Map());
+        const read = entry => cacheFor(entry).get(key);
+
+        traverse(value, { enter: entry => cacheFor(entry).has(key) ? [] : valueInputs(entry), leave: (entry) => {
+            if (cacheFor(entry).has(key)) return;
+
+            if (typeof onVisit === 'function') onVisit();
+
+            const gates = Object.fromEntries(conditions.map(name => [name, projectGate(Reflect.get(entry, name))]));
+            const { input = false, inputs = [] } = entry;
+            const { reach = 0, guard = 1 } = gates;
+            const child = input && read(input);
+            const children = inputs.map(read).filter(Boolean);
+            const original = conditions.every(name => Reflect.get(entry, name) === Reflect.get(gates, name)) &&
+                (!input || child === input) && inputs.length === children.length && inputs.every((value, index) => value === children.at(index));
+            const restricted = child && structural.every(name => Reflect.get(entry, name) === Reflect.get(input, name)) && restrict(child, guard, onVisit);
+            // A guard-only wrapper whose private choices were projected away
+            // must not become another retained layer at every async return.
+            const unchanged = restricted && conditions.filter(name => name !== 'guard')
+                .every(name => Reflect.get(restricted, name) === Reflect.get(gates, name));
+            const projected = unchanged ? restricted : normalValue({ ...entry, ...gates, input: child, inputs: children });
+            const selected = reach && (original ? entry : projected);
+
+            put(cacheFor(entry), key, selected || false);
+        } });
+
+        return read(value);
     };
     const project = (value, mode, onVisit, gate = 1) => {
         const root = restrict(value, gate, onVisit);
@@ -257,7 +299,8 @@ export const createValues = ({ unknown = {}, decisions = {}, limit = Infinity } 
             if (typeof onVisit === 'function') onVisit();
 
             const { reach = 0, owner = false, memberOwner = owner, identity = false, identityContext = false, input = false, inputs = [], promise = 'unknown',
-                callable = false, standardPrototype = false, nativeTag = '', slots = false, plain = false, emptyDefault = false, producer = false, borrowed = false } = entry;
+                callable = false, standardPrototype = false, nativeTag = '', slots = false, plain = false, emptyDefault = false, producer = false, borrowed = false,
+                protocolUnknown = false, promiseIdentity = '', constant = false, absence = 'unknown' } = entry;
 
             if (!and(reach, gate)) {
                 put(cached, gate, false);
@@ -266,9 +309,13 @@ export const createValues = ({ unknown = {}, decisions = {}, limit = Infinity } 
             }
 
             if (owner && !input && !inputs.length) {
-                put(cached, gate, snapshot(entry, Object.freeze({ owner, memberOwner, identity, identityContext, origin: entry, standardPrototype, nativeTag, slots, plain, emptyDefault, borrowed,
+                const { capability: { absenceQuestion = false } = {} } = identity ? identity : {};
+
+                put(cached, gate, snapshot(entry, Object.freeze({ owner, memberOwner, identity, identityContext, origin: entry,
+                    standardPrototype, nativeTag, slots, plain, emptyDefault, borrowed, protocolUnknown, promiseIdentity,
                     producers: producer && Object.freeze({ source: producer, owner }),
-                    promises: Object.freeze([promise]), callableCases: Object.freeze([Object.freeze({ callable, gate: and(reach, gate) })]) }), onVisit));
+                    contributions: Object.freeze({ origin: absenceQuestion && entry, callable, constant, absence, gate: and(reach, gate) }),
+                    promises: Object.freeze([promise]) }), onVisit));
 
                 return [];
             }
@@ -288,60 +335,135 @@ export const createValues = ({ unknown = {}, decisions = {}, limit = Infinity } 
             const memberOwner = members.length === sources.length && members.every((member, index) => member === sources.at(index)) ? owner : combined;
 
             const promises = Object.freeze([...new Set(evidence.flatMap(({ promises = [] } = {}) => promises))]);
-            const cases = new Map();
-
-            evidence.forEach(({ callableCases = [] } = {}) => callableCases.forEach(({ callable = false, gate = 0 } = {}) => {
-                put(cases, callable, or(cases.get(callable) || 0, gate));
-            }));
-            const callableCases = Object.freeze([...cases].map(([callable = false, gate = 0] = []) => Object.freeze({ callable, gate })));
+            // These caller-owned links retain immediate guarded contributions,
+            // never a copied list of all origins/callees below every prefix.
+            const inputs = [...new Set(evidence.map(({ contributions = false } = {}) => contributions).filter(Boolean))];
+            const contributions = inputs.length === 1 ? inputs.at(0) : Object.freeze({ inputs: Object.freeze(inputs) });
             const standardPrototype = Boolean(evidence.length) && evidence.every(({ standardPrototype = false } = {}) => standardPrototype);
 
             const producers = [...new Set(evidence.map(({ producers = false } = {}) => producers).filter(Boolean))];
-            const { borrowed = false } = entry;
+            const { borrowed = false, protocolUnknown = false } = entry;
 
             const identityContext = sharedIdentity(evidence, 'identityContext');
 
-            put(cached, gate, snapshot(entry, evidence.length ? Object.freeze({ owner, memberOwner, identity: identityContext && sharedIdentity(evidence), identityContext,
-                nativeTag: sharedIdentity(evidence, 'nativeTag'), origin: sharedIdentity(evidence, 'origin') || entry,
+            put(cached, gate, snapshot(entry, evidence.length ? Object.freeze({ owner, memberOwner, identity: identityContext && sharedIdentity(evidence), identityContext, contributions,
+                nativeTag: sharedIdentity(evidence, 'nativeTag'), origin: sharedIdentity(evidence, 'origin') || entry, promiseIdentity: sharedIdentity(evidence, 'promiseIdentity'),
                 borrowed: borrowed || evidence.some(({ borrowed = false } = {}) => borrowed),
+                protocolUnknown: protocolUnknown || evidence.some(({ protocolUnknown = false } = {}) => protocolUnknown),
                 producers: producers.length === 1 ? producers.at(0) : producers.length && Object.freeze({ inputs: Object.freeze(producers) }),
                 emptyDefault: evidence.some(({ emptyDefault = false } = {}) => emptyDefault),
-                standardPrototype, slots: sharedIdentity(evidence, 'slots'), plain: evidence.every(({ plain = false } = {}) => plain), promises, callableCases }) : false, onVisit));
+                standardPrototype, slots: sharedIdentity(evidence, 'slots'), plain: evidence.every(({ plain = false } = {}) => plain), promises }) : false, onVisit));
         } });
 
         return read(root) || unresolved;
     };
+    // A consuming query owns this transient result and traversal scratch.
+    // Gates are already selected at each leaf by evidenceFor. Shared nodes can
+    // therefore be visited once; distinct gated leaves still merge with OR.
+    const casesFor = (value, name, onVisit) => {
+        const { contributions = {} } = evidenceFor(value, onVisit);
+        const visited = new Set();
+        const cases = new Map();
+
+        traverse(contributions, { enter: (entry = {}) => {
+            if (visited.has(entry)) return [];
+
+            retain(visited, entry);
+
+            if (visited.size > limit) throw new RangeError('Analysis value case limit exceeded');
+
+            if (typeof onVisit === 'function') onVisit();
+
+            const { inputs = [], gate = 0 } = entry;
+
+            if (inputs.length) return inputs;
+
+            const target = Reflect.get(entry, name) || false;
+
+            if (gate && (name === 'callable' || target)) put(cases, target, or(cases.get(target) || 0, gate));
+
+            return [];
+        } });
+
+        return Object.freeze([...cases].map(([target = false, gate = 0] = []) => Object.freeze({ [name]: target, gate })));
+    };
     // Type guards select existing guarded contributions at the use. They do
     // not replace producer families or add caller facts to a generic formal.
-    const typeGate = (value, name, unknownGate, onVisit, mode = 'typeof') => {
+    const typeGate = (value, name, unknownGate, onVisit, mode = 'typeof', { key = '', accepts = false } = {}) => {
         if (!value) return 0;
 
         if (mode === 'typeof' && !typeofNames.has(name)) return 0;
 
         const pair = (entry, retired = false) => {
-            const { unowned = false } = entry;
+            const { unowned = false, protocolUnknown = false } = entry;
+            const exposed = mode === 'protocol' && (retired || protocolUnknown);
 
-            return { entry, retired: ['tag', 'tag-inert', 'shape'].includes(mode) && (retired || unowned) };
+            return { entry, retired: exposed || (['tag', 'tag-inert', 'copy-inert', 'shape', 'contents'].includes(mode) && (retired || unowned)) };
         };
         const root = pair(value);
-        const keyFor = ({ retired = false } = {}) => `${mode}:${name}:${unknownGate}:${retired}`;
+        // Ownership is relative to this discarded use, not a global promise bit.
+        const keyFor = ({ retired = false } = {}) => `${mode}:${name}:${unknownGate}:${retired}${key ? ':' + key : ''}`;
         const cacheFor = entry => typeSelections.get(entry) || put(typeSelections, entry, new Map());
         const read = ({ entry = {}, ...selection } = {}) => cacheFor(entry).get(keyFor(selection));
-        const children = ({ entry = {}, retired = false } = {}) => valueInputs(entry).map(child => pair(child, retired));
+        const children = mode === 'contents' ? ({ entry = {}, retired = false } = {}) => {
+            const inputs = valueInputs(entry);
+            const { slots = false, standardPrototype = false } = entry;
+            const contents = !retired && standardPrototype && slots && (!accepts || accepts(false, entry)) && slots;
+
+            return (inputs.length ? inputs : contents || []).filter(Boolean).map(child => pair(child, retired));
+        } : ({ entry = {}, retired = false } = {}) => valueInputs(entry).map(child => pair(child, retired));
+        const contentsGate = ({ entry = {}, retired = false } = {}, selectedChildren = []) => {
+            const { promise = 'unknown', promiseOrigin = false, reach = 1, slots = false, standardPrototype = false, owner = false } = entry;
+
+            if (promise === name) return accepts && !accepts(promiseOrigin, entry) ? 0 : reach;
+
+            const nested = selectedChildren.reduce((gate, child) => or(gate, read(child)), 0);
+
+            if (name !== 'unknown' || (!retired && standardPrototype && slots)) return and(reach, nested);
+
+            const { families = [] } = readFamily({ owner, onWork: onVisit });
+
+            return or(and(reach, nested), families.includes('array') ? reach : 0);
+        };
 
         const select = (selection) => {
             const { entry = {}, retired = false } = selection;
             const { input = false, inputs = [], guard = 1, reach = 1, owner = false, absence = 'unknown', constant = false,
-                nativeTag = '', standardPrototype = false, plain = false } = entry;
+                nativeTag = '', standardPrototype = false, plain = false, promise = 'unknown' } = entry;
             const selectedChildren = children(selection);
 
             if (input || inputs.length) return and(reach, input ? and(read(selectedChildren.at(0)), guard)
                 : selectedChildren.reduce((gate, child) => or(gate, read(child)), 0));
 
+            if (mode === 'protocol') return (name === 'unsafe' ? retired || promise !== 'known' : !retired && promise === 'known') ? reach : 0;
+
+            if (mode === 'promise') return promise === name ? reach : 0;
+
+            if (mode === 'contents') return contentsGate(selection, selectedChildren);
+
+            if (mode === 'literal' && absenceTags.has(absence)) return 0;
+
+            if (mode === 'literal' && constant) return and(reach, Number(Reflect.get(constant, 'value') === name));
+
             const { families = [], incomplete = false } = readFamily({ owner, onWork: onVisit });
 
-            if (mode === 'tag-inert') return ((!retired && nativeTag && standardPrototype) || constant || absenceTags.has(absence) ||
-                (!incomplete && families.length && families.every(family => primitiveTags.has(family)))) ? reach : 0;
+            if (mode === 'primitive') {
+                const primitive = !incomplete && families.length && families.every(family => ['string', 'number', 'boolean', 'nullish'].includes(family));
+
+                return (name === 'unsafe' ? !primitive : primitive) ? reach : 0;
+            }
+
+            // Missing an exact constant does not erase an established family.
+            // An incomplete contribution can still contain the compared family.
+            if (mode === 'literal') return and(reach,
+                !incomplete && families.length && !families.includes(typeof name) ? 0 : unknownGate);
+
+            if (mode === 'tag-inert' || mode === 'copy-inert') {
+                const inert = Boolean((!retired && standardPrototype && (nativeTag || (mode === 'copy-inert' && plain))) || constant || absenceTags.has(absence) ||
+                    (!incomplete && families.length && families.every(family => primitiveTags.has(family) || (mode === 'copy-inert' && family === 'nullish'))));
+
+                return (mode === 'copy-inert' && name === 'unsafe' ? !inert : inert) ? reach : 0;
+            }
 
             if (mode === 'shape') return (incomplete && !families.length) ||
                 (!incomplete && families.length === 1 && families.at(0) === 'object' && (retired || !plain)) ? reach : 0;
@@ -551,7 +673,7 @@ export const createValues = ({ unknown = {}, decisions = {}, limit = Infinity } 
 
             if (cached.has(key)) return;
 
-            const { input = false, guard = 1, owner: source = false, truthGate = 0, reach = 1 } = entry;
+            const { input = false, guard = 1, truthGate = 0, reach = 1 } = entry;
             const children = childrenFor(selection);
 
             if (children.length && children.every((child) => {
@@ -565,6 +687,7 @@ export const createValues = ({ unknown = {}, decisions = {}, limit = Infinity } 
             }
 
             const replacement = () => {
+                const { owner: source = false } = evidenceFor(entry, onVisit);
                 const { families = [], incomplete = false } = readFamily({ owner: source, onWork: onVisit });
 
                 if (!reached || and(reached, not(tested)) || !incomplete || families.length) return entry;
@@ -601,8 +724,8 @@ export const createValues = ({ unknown = {}, decisions = {}, limit = Infinity } 
 
     // Select before combining evidence: distinct arrays can disagree at one
     // position, and an unknown alternative must not erase a known contribution.
-    const selectSlots = (value, select, unresolved, onVisit) => {
-        if (typeof select !== 'function' || typeof unresolved !== 'function') throw new TypeError('Expected native-slot selection and source-owned uncertainty');
+    const selectSource = (value, select, unresolved, onVisit, { fresh = false } = {}) => {
+        if (typeof select !== 'function' || typeof unresolved !== 'function') throw new TypeError('Expected value selection and source-owned uncertainty');
 
         if (!value) return unresolved();
 
@@ -624,7 +747,7 @@ export const createValues = ({ unknown = {}, decisions = {}, limit = Infinity } 
         }, leave: (entry) => {
             if (selected.has(entry)) return;
 
-            const { unowned = false, borrowed = false, input = false, inputs = [], guard = 1, reach = 1, slots = false, standardPrototype = false } = entry;
+            const { unowned = false, borrowed = false, input = false, inputs = [], guard = 1, reach = 1 } = entry;
             const fromSource = () => {
                 if (unowned) return unresolved();
 
@@ -632,20 +755,23 @@ export const createValues = ({ unknown = {}, decisions = {}, limit = Infinity } 
 
                 if (inputs.length) return joined(inputs.map(child => selected.get(child)));
 
-                return slots && standardPrototype ? select(slots) : unresolved();
+                return select(entry);
             };
             const result = restrict(fromSource(), reach, onVisit);
 
-            put(selected, entry, borrowed ? borrow(result) : result);
+            put(selected, entry, borrowed && !fresh ? borrow(result) : result);
         } });
 
         return selected.get(value);
     };
+    const selectSlots = (value, select, unresolved, onVisit) => selectSource(value, ({ slots = false, standardPrototype = false } = {}) => (
+        slots && standardPrototype ? select(slots) : unresolved()
+    ), unresolved, onVisit);
     const selectSlot = (value, position, absent, unresolved, onVisit) => selectSlots(value, slots => slots.at(position) || absent, unresolved, onVisit);
-    const escape = (value, onVisit) => {
+    const escape = (value, onVisit, { protocol = false } = {}) => {
         const { borrowed = false } = evidenceFor(value, onVisit);
 
-        return borrowed ? transfer(value, 'escape', {}, onVisit) : value;
+        return borrowed ? transfer(value, protocol ? 'protocol-escape' : 'escape', {}, onVisit) : value;
     };
     const borrowWithin = (value, scope, onVisit, observation = {}) => {
         const { owner = false } = evidenceFor(value, onVisit);
@@ -655,5 +781,6 @@ export const createValues = ({ unknown = {}, decisions = {}, limit = Infinity } 
         return immutable ? borrow(value) : transfer(value, 'borrow', scope, onVisit);
     };
 
-    return { unknownValue, joined, project, restrict, replace, evidenceFor, typeGate, normalizeShape, refine, retire, borrow, borrowWithin, escape, selectSlot, selectSlots };
+    return { unknownValue, joined, project, projectConditions, restrict, replace, evidenceFor, casesFor, typeGate, normalizeShape, refine, retire, borrow, borrowWithin, escape,
+        selectSource, selectSlot, selectSlots };
 };

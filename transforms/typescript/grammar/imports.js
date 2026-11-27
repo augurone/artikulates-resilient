@@ -25,6 +25,7 @@ const annotateEmptyNamespaceImport = ({ typescript = {}, node = {}, imports = ne
 
 const updateTypeOnlyImport = ({ typescript = {},
     node = {},
+    verbatimModuleSyntax = false,
     typeOnlyImports = new Set() } = {}) => {
     const { factory = {} } = typescript;
     const {
@@ -49,10 +50,16 @@ const updateTypeOnlyImport = ({ typescript = {},
     // eslint-disable-next-line resilient/prefer-falsey-returns -- undefined removes a type-only import clause
     if (clauseTypeOnly) return undefined;
 
-    const defaultImport = clauseName &&
-        !typeOnlyImports.has(importClause)
-        ? clauseName
-        : undefined;
+    // Under verbatim emit, unused value bindings still own module evaluation
+    // and link-time validation. Final transpilation erases explicit type
+    // specifiers; inferred type-only usage cannot remove this import.
+    if (verbatimModuleSyntax) return node;
+
+    let defaultImport;
+
+    if (clauseName &&
+        !typeOnlyImports.has(importClause)) defaultImport = clauseName;
+
     const { kind: bindingsKind = 0, elements: bindingElements = [] } = getObject(namedBindings);
     let nextBindings;
 

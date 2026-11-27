@@ -1,60 +1,6 @@
-import { traverse } from '../traversal.js';
+import { createAssignmentValueListeners } from './support/assignment-values.js';
 import { isNullLiteral } from './support/native-absence.js';
-import { isObject } from './support/object.js';
 import { createReporter } from './support/reporter.js';
-
-const getNullChildren = ({
-    type = '',
-    consequent = {},
-    alternate = {},
-    left = {},
-    right = {},
-    expressions = [],
-    properties = [],
-    elements = [],
-    value = {}
-} = {}) => {
-    if (type === 'ConditionalExpression') return [consequent, alternate];
-
-    if (type === 'LogicalExpression' || type === 'AssignmentExpression') return [left, right];
-
-    if (type === 'SequenceExpression') return expressions;
-
-    if (type === 'ObjectExpression') return properties;
-
-    if (type === 'ArrayExpression') return elements;
-
-    return type === 'Property' ? [value] : [];
-};
-
-const getNullLiteral = (node) => {
-    let nullNode = false;
-
-    traverse(node, { enter: (candidate = {}) => {
-        if (nullNode || !isObject(candidate)) return [];
-
-        if (isNullLiteral(candidate)) {
-            nullNode = candidate;
-
-            return [];
-        }
-
-        return getNullChildren(candidate);
-    } });
-
-    return nullNode;
-};
-
-const reportNullAssignment = (node, report) => {
-    const nullNode = getNullLiteral(node);
-
-    if (!nullNode) return;
-
-    report({
-        node: nullNode,
-        messageId: 'nullAssignment'
-    });
-};
 
 export default {
     meta: {
@@ -71,17 +17,6 @@ export default {
     create(context = {}) {
         const report = createReporter(context);
 
-        return {
-            VariableDeclarator({ init = {} } = {}) {
-                reportNullAssignment(init, report);
-            },
-            AssignmentExpression({ right = {} } = {}) {
-                reportNullAssignment(right, report);
-            },
-            // A default is an assignment: parameters, object and array patterns.
-            AssignmentPattern({ right = {} } = {}) {
-                reportNullAssignment(right, report);
-            }
-        };
+        return createAssignmentValueListeners({ report, isValue: isNullLiteral, messageId: 'nullAssignment' });
     }
 };

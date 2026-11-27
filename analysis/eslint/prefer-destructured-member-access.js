@@ -1,3 +1,4 @@
+import { memberTarget } from '../estree-patterns.js';
 import { getEnclosingFunction } from './support/ast-function.js';
 import { getBinding, getBindingDefinition } from './support/lexical-binding.js';
 import { getStaticPropertyName } from './support/member-chain.js';
@@ -68,6 +69,11 @@ export default {
 
         return {
             MemberExpression(node = {}) {
+                const { parent = {} } = node;
+                const { parent: grandparent = {} } = parent;
+
+                if (memberTarget({ node, parent, grandparent })) return;
+
                 if (!requiresDestructuring({ node, sourceCode })) return;
 
                 report({ node, messageId: 'staticMember' });

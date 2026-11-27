@@ -3,7 +3,8 @@ import { getObject } from '../../../analysis/host/object.js';
 import { getMemberAlias } from './member-access.js';
 
 // The completed agreement owns the argument sequence. Object binding reads
-// numeric properties without acquiring an iterator, unlike array binding.
+// computed numeric properties without acquiring an iterator, unlike array
+// binding. Computed selection retains the dialect's array/record distinction.
 // `void 0` records the exact absent-position result without a shadowable
 // `undefined` identifier or a newly invented container.
 const createRestArrayFixedSelection = ({ typescript = {}, node = {}, contract = {}, occupied = new Set() } = {}) => {
@@ -33,7 +34,7 @@ const createRestArrayFixedSelection = ({ typescript = {}, node = {}, contract = 
     const binding = factory.createObjectBindingPattern(selections.map(({ index = -1, alias = '' } = {}) => {
         return factory.createBindingElement(
             undefined,
-            factory.createNumericLiteral(index),
+            factory.createComputedPropertyName(factory.createNumericLiteral(index)),
             factory.createIdentifier(alias),
             factory.createVoidExpression(factory.createNumericLiteral(0))
         );
@@ -55,7 +56,7 @@ const createRestArrayFixedSelection = ({ typescript = {}, node = {}, contract = 
 };
 
 // The curried callee is produced before its argument is read. A source-derived
-// staging binding preserves that order, then numeric object binding performs
+// staging binding preserves that order, then computed numeric binding performs
 // the exact property Get without acquiring the rest array's iterator.
 const createRestArrayStagedSelection = ({ typescript = {}, node = {}, contract = {}, occupied = new Set() } = {}) => {
     const { factory = {}, NodeFlags: { Const: ConstKind = 0 } = {} } = typescript;
@@ -85,7 +86,7 @@ const createRestArrayStagedSelection = ({ typescript = {}, node = {}, contract =
     const selectedValue = declaration(factory.createObjectBindingPattern([
         factory.createBindingElement(
             undefined,
-            factory.createNumericLiteral(index),
+            factory.createComputedPropertyName(factory.createNumericLiteral(index)),
             factory.createIdentifier(valueName),
             factory.createVoidExpression(factory.createNumericLiteral(0))
         )

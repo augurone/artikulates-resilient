@@ -43,6 +43,16 @@
           "messageId": "nullAssignment",
           "endLine": 1,
           "endColumn": 20
+        },
+        {
+          "ruleId": "resilient/no-null-assignment",
+          "severity": 2,
+          "message": "Do not assign null; respect contracts, set defaults '', {}, [], 0, false, or do not set",
+          "line": 1,
+          "column": 31,
+          "messageId": "nullAssignment",
+          "endLine": 1,
+          "endColumn": 35
         }
       ]
     },
@@ -50,16 +60,6 @@
       "rule": "no-null-assignment",
       "source": "const value = (target = null);",
       "expected": [
-        {
-          "ruleId": "resilient/no-null-assignment",
-          "severity": 2,
-          "message": "Do not assign null; respect contracts, set defaults '', {}, [], 0, false, or do not set",
-          "line": 1,
-          "column": 25,
-          "messageId": "nullAssignment",
-          "endLine": 1,
-          "endColumn": 29
-        },
         {
           "ruleId": "resilient/no-null-assignment",
           "severity": 2,

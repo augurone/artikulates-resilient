@@ -659,6 +659,8 @@ const lowerDiscriminatedSwitchAccess = ({
         const sourceOwner = getSourceFunction(typescript.getOriginalNode(accessNode));
         const sameOwner = sourceOwner && sourceOwner === typescript.getOriginalNode(node);
 
+        const { signatureBoundary = false } = getObject(selectedContract);
+
         return {
             kind: 'object',
             propertyName,
@@ -672,7 +674,7 @@ const lowerDiscriminatedSwitchAccess = ({
             sourceNode: accessNode,
             canonical: infoCanonical || '',
             signatureBoundary: getObject(selectedAgreement).action === 'selected-model-read' &&
-                getObject(selectedContract).signatureBoundary === true &&
+                signatureBoundary === true &&
                 (!sameOwner || !receiverSymbol || parameterSymbols.has(false) || parameterSymbols.has(receiverSymbol)),
             agreementReason: !infoCanonical
                 ? getPlacementReason({ typescript, placement, node: accessNode, kind: infoKind })
@@ -957,12 +959,10 @@ const lowerDynamicArrayDestructuring = ({
 
         const info = getPlacementContract({ typescript, node: initializer, placement });
         const { canonical: infoCanonical = '' } = info;
-        const defaultInitializer = infoCanonical
-            ? getDefaultInitializer({
-                factory,
-                canonical: infoCanonical
-            })
-            : undefined;
+        const defaultInitializer = infoCanonical ? getDefaultInitializer({
+            factory,
+            canonical: infoCanonical
+        }) : false;
 
         // A dynamic array lookup is a value lookup, not a shape declaration.
         // Without a known element family, keep `items[index]` intact so the
@@ -1039,7 +1039,7 @@ const lowerLocalMemberAccess = ({
             (declListFlags & ConstKind6)) {
             childDecls
                 .filter((decl = {}) => {
-                    const { name = {}, initializer, kind: declarationKind = 0 } = getObject(decl);
+                    const { name = {}, initializer = false, kind: declarationKind = 0 } = getObject(decl);
                     const { kind: nameKind = 0 } = getObject(name);
 
                     return declarationKind === VariableDeclaration &&
@@ -1179,7 +1179,7 @@ const lowerLocalMemberAccess = ({
         if (guardedAfter.has(objectName)) return;
 
         const binding = bindings.find((candidate = {}) => {
-            const { name: candName = '', statement: candStmt = {}, symbol: candSymbol } = getObject(candidate);
+            const { name: candName = '', statement: candStmt = {}, symbol: candSymbol = false } = getObject(candidate);
             const { end: candEnd = -1 } = getObject(candStmt);
 
             return candName === objectName &&

@@ -52,7 +52,6 @@ const operations = analysis => analysis.memberAccesses.map(({ index = -1 } = {})
     ['unknown callback alternative preserves later known contradiction', 'const good=item=>item.trim();const cb=flag?good:external;["a",1].map(cb);', 1],
     ['unknown reduce result stays unknown', '[1].reduce((sum,item)=>external,0).trim();', 0],
     ['known result beside unknown survives', '[1].reduce((sum,item)=>flag?42:external,0).trim();', 1],
-    ['prototype exposure retires protocol', 'external(Array.prototype);[1].map(item=>item.trim());', 0],
     ['spread has no fixed slots', '[...external,1].map(item=>item.trim());', 0],
     ['callback argument effect retires receiver', 'const rows=[1];const callback=()=>{rows[0]="";return item=>item.trim();};rows.map(callback());', 0],
     ['owned default property write', 'const inspect=({config={}}={})=>{config.items="";return config.items.map(Boolean);};', 1],

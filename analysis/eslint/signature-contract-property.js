@@ -13,12 +13,12 @@ export default {
             const { memberAccesses = [] } = analysis;
 
             memberAccesses.forEach(({ index = -1, name = '', location = {} } = {}) => {
-                const { missing = false } = analysis.checkMemberAccess({ index });
+                const { missing = false, missingNames = [name] } = analysis.checkMemberAccess({ index });
 
                 if (!missing) return;
 
-                report({ location,
-                    messageId: 'missingProperty', data: { property: name } });
+                missingNames.forEach(property => report({ location,
+                    messageId: 'missingProperty', data: { property } }));
             });
         });
     }

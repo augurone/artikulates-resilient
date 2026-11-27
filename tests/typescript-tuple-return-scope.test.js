@@ -68,6 +68,7 @@ sources.forEach((code, index) => test(`tuple source ${index}: native values, abs
         assert.equal(outer.length, 1);
         assert.equal(Object.hasOwn(outer, 'prototype'), true);
         assert.deepEqual(outer([3]), [3]);
+        // eslint-disable-next-line resilient/no-undefined-assignment -- The tuple-return oracle retains the native undefined slot from an empty source tuple.
         assert.deepEqual(outer([]), [undefined]);
         assert.equal(Object.hasOwn(outer([]), 0), true);
         assert.throws(() => outer(), TypeError);

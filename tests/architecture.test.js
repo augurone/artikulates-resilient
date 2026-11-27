@@ -53,15 +53,15 @@ test('implementation modules form an acyclic graph contained in analysis', () =>
 });
 
 test('utilities and source ownership do not depend on consumer evaluation', () => {
-    const utilities = ['collections.js', 'traversal.js', 'agreement/causes.js', 'agreement/collections.js',
+    const utilities = ['collections.js', 'traversal.js', 'estree-properties.js', 'primitive-expressions.js', 'operations.js', 'agreement/causes.js', 'agreement/collections.js',
         'agreement/families.js', 'agreement/observation.js', 'agreement/estree.js', 'agreement/source-owners.js', 'agreement/validity.js'];
 
     modules.filter(({ name = '' } = {}) => utilities.includes(name))
         .forEach(({ name = '', dependencies = [] } = {}) => dependencies.forEach((url) => {
             const { name: dependency = '' } = byURL.get(url);
 
-            const allowed = ['collections.js', 'traversal.js', 'agreement/causes.js', 'agreement/collections.js', 'agreement/families.js',
-                'agreement/observation.js', 'agreement/estree.js', 'agreement/validity.js'];
+            const allowed = ['collections.js', 'traversal.js', 'estree-properties.js', 'primitive-expressions.js', 'operations.js',
+                'agreement/causes.js', 'agreement/collections.js', 'agreement/families.js', 'agreement/observation.js', 'agreement/estree.js', 'agreement/validity.js'];
 
             ok(allowed.includes(dependency), `${name} must not depend on domain evaluation through ${dependency}`);
         }));
@@ -74,8 +74,9 @@ test('the analyzer consumes the public agreement boundary and only the declared 
         dependencies.forEach((url) => {
             const { name = '' } = byURL.get(url);
 
-            ok(name.startsWith('analyzer/') || ['collections.js', 'traversal.js', 'estree-properties.js', 'estree-patterns.js', 'promise-chains.js'].includes(name),
-                'Analyzer modules cannot import agreement internals');
+            ok(name.startsWith('analyzer/') || ['collections.js', 'traversal.js', 'estree-properties.js', 'estree-patterns.js',
+                'promise-chains.js', 'primitive-expressions.js', 'operations.js'].includes(name),
+            'Analyzer modules cannot import agreement internals');
         });
         body.filter(({ type = '' } = {}) => type === 'ImportDeclaration').forEach(({ source: { value = '' } = {} } = {}) => {
             ok(value.startsWith('.') || ['espree', 'eslint-plugin-resilient/agreement'].includes(value), `Unexpected analyzer dependency: ${value}`);

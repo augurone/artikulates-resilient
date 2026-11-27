@@ -8,6 +8,7 @@ const runtimeFamilies = {
     array: 'array',
     object: 'object',
     function: 'function',
+    // eslint-disable-next-line resilient/no-falsifiable-property-key -- This compiler vocabulary key names the undefined family; it is not a synthesized default key.
     undefined: 'undefined',
     invalid: 'invalid',
     required: 'required',

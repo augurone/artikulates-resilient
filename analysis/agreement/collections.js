@@ -6,7 +6,7 @@ export const empty = Object.freeze([]);
 export const freezeItems = items => items.length ? Object.freeze(items) : empty;
 
 export const frameAt = (frames, index, frame) => {
-    // eslint-disable-next-line resilient/prefer-safe-transformations, resilient/prefer-destructured-member-access -- This indexed write updates a private traversal stack; destructuring cannot replace an assignment target.
+    // eslint-disable-next-line resilient/prefer-safe-transformations -- This indexed write updates a private traversal stack; destructuring cannot replace an assignment target.
     frames[index] = frame;
 };
 

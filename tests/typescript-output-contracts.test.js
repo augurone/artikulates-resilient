@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { runInNewContext } from 'node:vm';
 
 import { Linter } from 'eslint';
 import typescript from 'typescript';
@@ -11,7 +12,7 @@ const standard = Object.fromEntries(['object', 'array', 'function'].map(name => 
     [name, import.meta.resolve(`eslint-plugin-resilient/standard/${name}`)]
 )));
 const config = [plugin.configs.recommended, plugin.configs.contracts, plugin.configs.safety];
-const compile = (code) => {
+const compile = (code, { standard: modules = standard } = {}) => {
     const fileName = 'output-contracts.ts';
     const options = { strict: true, target: typescript.ScriptTarget.ESNext, module: typescript.ModuleKind.ESNext };
     const source = typescript.createSourceFile(fileName, code, typescript.ScriptTarget.ESNext, true);
@@ -20,7 +21,7 @@ const compile = (code) => {
         ...host,
         getSourceFile: (name, version, ...rest) => name === fileName ? source : host.getSourceFile(name, version, ...rest)
     });
-    const { code: output = '', diagnostics = [] } = createTypeScriptTransformer({ typescript, program, standard }).transform({ code, fileName });
+    const { code: output = '', diagnostics = [] } = createTypeScriptTransformer({ typescript, program, standard: modules }).transform({ code, fileName });
     const { outputText: native = '' } = typescript.transpileModule(code, { compilerOptions: options });
     const linter = new Linter();
     const messages = linter.verify(output, config);
@@ -38,6 +39,140 @@ const clean = ({ messages = [], fixedMessages = [] } = {}) => {
     assert.deepEqual(errors(messages), []);
     assert.deepEqual(fixedMessages, []);
 };
+
+test('public output: declared undefined retains absence, supplied values, Get effects and scalar arity', async () => {
+    const result = compile([
+        'type Absent = undefined;',
+        'export const required = ({value}: {value: undefined}) => value;',
+        'export const optional = ({value}: {value?: undefined}) => value;',
+        'export const aliased = ({value}: {value: Absent}) => value;',
+        'export const scalar = (value: undefined) => value;',
+        'export const optionalScalar = (value?: undefined) => value;'
+    ].join('\n'));
+    clean(result);
+    const modules = await versions(result);
+    // eslint-disable-next-line resilient/no-null-assignment, resilient/no-undefined-assignment -- This native boundary oracle retains supplied absence and falsy values rather than substituting a family default.
+    const inputs = [undefined, null, false, 0, '', 17, 'ready'];
+
+    modules.forEach(({ required, optional, aliased, scalar, optionalScalar } = {}) => {
+        if (typeof required !== 'function' ||
+            typeof optional !== 'function' ||
+            typeof aliased !== 'function' ||
+            typeof scalar !== 'function' ||
+            typeof optionalScalar !== 'function') throw new TypeError('Expected compiled callable exports');
+
+        [required, optional, aliased].forEach((read) => {
+            inputs.forEach(value => assert.equal(read({ value }), value));
+            assert.equal(read({}), undefined);
+            assert.throws(() => read(null), TypeError);
+            const failure = new Error('field Get');
+            let reads = 0;
+
+            assert.throws(() => read({ get value() { reads += 1; throw failure; } }), error => error === failure);
+            assert.equal(reads, 1);
+        });
+        [scalar, optionalScalar].forEach((read) => {
+            assert.equal(read.length, 1);
+            assert.equal(read(), undefined);
+            inputs.forEach(value => assert.equal(read(value), value));
+        });
+    });
+});
+
+test('public output: generated exact absence never waives authored absence or sibling defaults', async () => {
+    const result = compile([
+        'export const pair = <T>({absent, value = void 0}: {absent: undefined; value: T | undefined}) => [absent, value];',
+        'export const missing = <T>(source: {absent: undefined; value: T}) => { const {absent, value} = source; return [absent, value]; };'
+    ].join('\n'));
+    const { messages = [], fixedMessages = [] } = result;
+    const expected = [
+        'resilient/no-undefined-assignment',
+        'resilient/prefer-signature-destructuring',
+        'resilient/prefer-safe-destructuring-defaults',
+        'resilient/prefer-safe-destructuring-defaults'
+    ];
+    [messages, fixedMessages].forEach(messages => assert.deepEqual(errors(messages).map(({ ruleId = '' } = {}) => ruleId), expected));
+    const modules = await versions(result);
+
+    modules.forEach(({ pair, missing } = {}) => {
+        if (typeof pair !== 'function' || typeof missing !== 'function') throw new TypeError('Expected compiled callable exports');
+
+        // eslint-disable-next-line resilient/no-undefined-assignment -- Native provider fields and authored exact-absence defaults preserve both missing result slots.
+        const absent = [undefined, undefined];
+
+        assert.deepEqual(pair({}), absent);
+        assert.deepEqual(missing({}), absent);
+        assert.deepEqual(pair({ absent: 0, value: false }), [0, false]);
+        assert.deepEqual(missing({ absent: 0, value: false }), [0, false]);
+    });
+});
+
+test('public output: declared void slots retain own values, descriptors and tuple positions', async () => {
+    const result = compile([
+        'type Container<T> = { value: T };',
+        'export const record: Container<void> = {value: undefined};',
+        'export const make = (): Container<void> => ({value: undefined});',
+        'export const pair = (value: number): [void, number] => [undefined, value];'
+    ].join('\n'));
+
+    clean(result);
+    const modules = await versions(result);
+
+    modules.forEach(({ record = {}, make, pair } = {}) => {
+        if (typeof make !== 'function' || typeof pair !== 'function') throw new TypeError('Expected compiled callable exports');
+
+        [record, make()].forEach((value) => {
+            assert.deepEqual(Object.keys(value), ['value']);
+            // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- The native descriptor oracle must observe its exact absent value without inventing a replacement.
+            const { value: retained, enumerable = false, writable = false, configurable = false } = Object.getOwnPropertyDescriptor(value, 'value');
+
+            assert.equal(retained, undefined);
+            assert.equal(enumerable, true);
+            assert.equal(writable, true);
+            assert.equal(configurable, true);
+        });
+        const tuple = pair(42);
+
+        assert.equal(tuple.length, 2);
+        assert.deepEqual(Object.keys(tuple), ['0', '1']);
+        assert.equal(tuple.at(0), undefined);
+        assert.equal(tuple.at(1), 42);
+    });
+});
+
+test('public output: creation-slot grammar does not admit unproved or incompatible absence', async () => {
+    const result = compile([
+        'type Container<T> = {value: T};',
+        'export const mixed: {good: void; bad: string} = {good: undefined, bad: undefined as any};',
+        'export const tuple = (): [void, string] => [undefined, undefined as any];',
+        'export const inferred = {value: undefined};',
+        'export const generic = <T>(): Container<T> => ({value: undefined as any});',
+        'export const arbitrary: Container<any> = {value: undefined};',
+        'export const unknown: Container<unknown> = {value: undefined};',
+        'export const asserted = {value: undefined} as Container<void>;',
+        'const choose = <T>(first: () => T, second: T) => first;',
+        'export const neighbor = choose(() => ({value: undefined}), {value: (() => {})()});'
+    ].join('\n'));
+    const { messages = [], fixedMessages = [] } = result;
+    const expected = Array.from({ length: 7 }, () => 'resilient/no-undefined-assignment');
+
+    [messages, fixedMessages].forEach(messages => assert.deepEqual(errors(messages).map(({ ruleId = '' } = {}) => ruleId), expected));
+    const modules = await versions(result);
+
+    modules.forEach(({ mixed = {}, tuple, inferred = {}, generic, arbitrary = {}, unknown = {}, asserted = {} } = {}) => {
+        if (typeof tuple !== 'function' || typeof generic !== 'function') throw new TypeError('Expected compiled callable exports');
+
+        assert.deepEqual(Object.keys(mixed), ['good', 'bad']);
+        // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Native fields retain authored absence; only the declared void slot owns natural-absence grammar.
+        const { good, bad } = mixed;
+
+        assert.equal(good, undefined);
+        assert.equal(bad, undefined);
+        assert.deepEqual(Object.keys(tuple()), ['0', '1']);
+        // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- This native output comparison observes exact authored absence across the negative controls.
+        [inferred, generic(), arbitrary, unknown, asserted].forEach(({ value } = {}) => assert.equal(value, undefined));
+    });
+});
 
 test('public output: provider forwarding preserves missing fields, getters and shadowed undefined', async () => {
     const result = compile([
@@ -58,8 +193,11 @@ test('public output: provider forwarding preserves missing fields, getters and s
     assert.doesNotMatch(output, /= undefined|= void 0/u);
     const modules = await versions(result);
 
-    modules.forEach(({ read = false, pair = false, remap = false } = {}) => {
+    modules.forEach(({ read, pair, remap } = {}) => {
+        if (typeof read !== 'function' || typeof pair !== 'function' || typeof remap !== 'function') throw new TypeError('Expected compiled callable exports');
+
         assert.equal(read({}), undefined);
+        // eslint-disable-next-line resilient/no-undefined-assignment -- The emitted-output oracle preserves native short-tuple, missing-field and iterator-exhaustion undefined slots.
         assert.deepEqual(pair({}), [undefined, undefined, 99]);
         assert.throws(() => read(null), TypeError);
         assert.throws(() => pair(null), TypeError);
@@ -113,7 +251,9 @@ test('public output: materialized Map callbacks preserve short entries and itera
     assert.match(output, /\.flatMap\(/u);
     assert.doesNotMatch(output, /\b(?:key|value)\s*=/u);
     const modules = await versions(result);
-    const observe = ({ collect = false } = {}, mode = '') => {
+    const observe = ({ collect } = {}, mode = '') => {
+        if (typeof collect !== 'function') throw new TypeError('Expected compiled callable exports');
+
         let events = [];
         const failure = new Error('entry iteration');
         const entry = {
@@ -140,7 +280,7 @@ test('public output: materialized Map callbacks preserve short entries and itera
                 };
             }
         };
-        // eslint-disable-next-line resilient/no-null-assignment -- Explicit null is a supplied entry value in the native-versus-emitted observation.
+        // eslint-disable-next-line resilient/no-null-assignment, resilient/no-undefined-assignment -- Materialized entry fixtures preserve supplied null and undefined values, short entries and native iterator completion.
         const entries = mode ? [entry] : [[], ['short'], ['undefined', undefined], ['null', null], ['zero', 0]];
         const source = { entries: () => entries };
         const keyOf = (key) => {
@@ -178,8 +318,12 @@ test('public output: callback tuple obligations never authorize fabricated empty
     const modules = await versions(result);
     const provider = { map: (value, callback) => callback(value) };
 
-    modules.forEach(({ map = false } = {}) => {
+    modules.forEach(({ map } = {}) => {
+        if (typeof map !== 'function') throw new TypeError('Expected compiled callable exports');
+
+        // eslint-disable-next-line resilient/no-undefined-assignment -- The emitted-output oracle preserves native short-tuple, missing-field and iterator-exhaustion undefined slots.
         assert.deepEqual(map(provider, []), [undefined, undefined]);
+        // eslint-disable-next-line resilient/no-undefined-assignment -- The emitted-output oracle preserves native short-tuple, missing-field and iterator-exhaustion undefined slots.
         assert.deepEqual(map(provider, [0]), [0, undefined]);
         assert.deepEqual(map(provider, 'ab'), ['a', 'b']);
         assert.throws(() => map(provider), TypeError);
@@ -193,7 +337,9 @@ test('public output: required tuple carriers retain producer, closing and body f
     clean(result);
     const modules = await versions(result);
 
-    modules.forEach(({ read = false } = {}) => {
+    modules.forEach(({ read } = {}) => {
+        if (typeof read !== 'function') throw new TypeError('Expected compiled callable exports');
+
         let events = [];
         const failure = new Error('body call');
         const callback = () => {
@@ -250,7 +396,12 @@ test('public output: required tuple bindings keep the same iteration and absence
         .filter(({ ruleId = '' } = {}) => ruleId !== 'resilient/prefer-prototype-methods'), []));
     const modules = await versions(result);
 
-    modules.forEach(({ read = false, primitive = false, nested = false, fallback = false } = {}, version) => {
+    modules.forEach(({ read, primitive, nested, fallback } = {}, version) => {
+        if (typeof read !== 'function' ||
+            typeof primitive !== 'function' ||
+            typeof nested !== 'function' ||
+            typeof fallback !== 'function') throw new TypeError('Expected compiled callable exports');
+
         const payload = {};
         const failure = new Error('loop tuple phase');
         let failurePhase = '';
@@ -315,8 +466,11 @@ test('public output: required tuple bindings keep the same iteration and absence
                 ...phase === 'value' ? [] : ['close:2'], ...phase === 'body' ? ['visit'] : []
             ]);
         });
+        // eslint-disable-next-line resilient/no-undefined-assignment -- The emitted-output oracle preserves native short-tuple, missing-field and iterator-exhaustion undefined slots.
         assert.deepEqual(primitive(() => []), version ? [0, 0] : [undefined, undefined]);
+        // eslint-disable-next-line resilient/no-undefined-assignment -- The emitted-output oracle preserves native short-tuple, missing-field and iterator-exhaustion undefined slots.
         assert.deepEqual(nested(() => [payload, [payload]]), [payload, payload, undefined]);
+        // eslint-disable-next-line resilient/no-undefined-assignment -- The emitted-output oracle preserves native short-tuple, missing-field and iterator-exhaustion undefined slots.
         assert.deepEqual(fallback([]), [7, undefined]);
         // eslint-disable-next-line resilient/prefer-falsey-returns -- A null producer observes native required tuple initialization failure.
         assert.throws(() => read(() => null, visit), TypeError);
@@ -349,7 +503,12 @@ test('public output: a tuple boundary cannot exempt an unrelated object binding'
     const modules = await versions(result);
     const payload = {};
 
-    modules.forEach(({ read = false } = {}) => assert.deepEqual(read(() => [payload], {}), [payload, undefined, undefined]));
+    modules.forEach(({ read } = {}) => {
+        if (typeof read !== 'function') throw new TypeError('Expected compiled callable exports');
+
+        // eslint-disable-next-line resilient/no-undefined-assignment -- The emitted-output oracle preserves native short-tuple, missing-field and iterator-exhaustion undefined slots.
+        assert.deepEqual(read(() => [payload], {}), [payload, undefined, undefined]);
+    });
 });
 
 test('public output: unused tuple positions still perform IteratorValue before entering the body', async () => {
@@ -359,7 +518,9 @@ test('public output: unused tuple positions still perform IteratorValue before e
     assert.match(output, /\[ignored, value\][\s\S]*void ignored/u);
     const modules = await versions(result);
 
-    modules.forEach(({ second = false } = {}) => {
+    modules.forEach(({ second } = {}) => {
+        if (typeof second !== 'function') throw new TypeError('Expected compiled callable exports');
+
         assert.equal(second([]), undefined);
         [false, true].forEach((fail) => {
             let events = [];
@@ -411,9 +572,12 @@ test('public output: array rest consumes the remaining iterator without fabricat
     clean(result);
     const modules = await versions(result);
 
-    modules.forEach(({ read = false } = {}) => {
+    modules.forEach(({ read } = {}) => {
+        if (typeof read !== 'function') throw new TypeError('Expected compiled callable exports');
+
         assert.deepEqual(read([]), [7, []]);
         assert.deepEqual(read([0, 1, 2]), [0, [1, 2]]);
+        // eslint-disable-next-line resilient/no-undefined-assignment -- The emitted-output oracle preserves native short-tuple, missing-field and iterator-exhaustion undefined slots.
         assert.deepEqual(read(new Array(3)), [7, [undefined, undefined]]);
         assert.throws(() => read(null), TypeError);
         [false, true].forEach((fail) => {
@@ -470,7 +634,9 @@ test('public output: alias placement findings remain visible without moving cond
     });
     const modules = await versions(result);
 
-    modules.forEach(({ alias = false, guarded = false } = {}) => {
+    modules.forEach(({ alias, guarded } = {}) => {
+        if (typeof alias !== 'function' || typeof guarded !== 'function') throw new TypeError('Expected compiled callable exports');
+
         assert.equal(alias({ inner: { value: 7 } }), 7);
         assert.throws(() => alias({}), TypeError);
         assert.equal(guarded(null, false), 0);
@@ -495,7 +661,9 @@ test('public output: declared nullish returns preserve values and known producer
     ]));
     const modules = await versions(result);
 
-    modules.forEach(({ maybe = false, nullable = false, effect = false } = {}) => {
+    modules.forEach(({ maybe, nullable, effect } = {}) => {
+        if (typeof maybe !== 'function' || typeof nullable !== 'function' || typeof effect !== 'function') throw new TypeError('Expected compiled callable exports');
+
         assert.equal(maybe(true), 7);
         assert.equal(maybe(false), undefined);
         assert.equal(nullable(), null);
@@ -692,7 +860,9 @@ test('public output: a returned generic function retains its deferred provider G
     ].join('\n'));
     const modules = await versions(result);
 
-    modules.forEach(({ relocate = false } = {}) => {
+    modules.forEach(({ relocate } = {}) => {
+        if (typeof relocate !== 'function') throw new TypeError('Expected compiled callable exports');
+
         let trace = [];
         const position = { selected: true };
         const payload = { result: true };
@@ -709,7 +879,10 @@ test('public output: a returned generic function retains its deferred provider G
 
             return provided;
         } };
-        const { read: forwarded = false, position: forwardedPosition = false } = returned(source);
+        const { read: forwarded, position: forwardedPosition = false } = returned(source);
+
+        if (typeof forwarded !== 'function') throw new TypeError('Expected the forwarded callable');
+
         assert.equal(forwarded, provided);
         assert.equal(forwardedPosition, position);
         assert.equal(forwarded(), payload);
@@ -718,4 +891,115 @@ test('public output: a returned generic function retains its deferred provider G
         assert.throws(() => returned({ get read() { throw failure; } }), error => error === failure);
     });
     clean(result);
+});
+
+test('public output: generic creation slots preserve absence without claiming a generic family', async () => {
+    const result = compile([
+        'export const make = <T>(): {value: T} => ({value: undefined as any});',
+        'export const guarded = () => {const {value} = make<() => string>();return typeof value === "function" ? value() : "";};',
+        'export const unsafe = () => make<string>().value.trim();'
+    ].join('\n'));
+    const { output = '', messages = [], fixedMessages = [] } = result;
+
+    assert.equal(output.includes('eslint-disable-next-line resilient/no-undefined-assignment'), false);
+    [messages, fixedMessages].forEach(messages => assert.deepEqual(errors(messages).map(({ ruleId = '' } = {}) => ruleId), ['resilient/signature-contract-operation']));
+    const modules = await versions(result);
+
+    modules.forEach(({ make, guarded, unsafe } = {}) => {
+        if (typeof make !== 'function' || typeof guarded !== 'function' || typeof unsafe !== 'function') throw new TypeError('Expected compiled callable exports');
+
+        assert.deepEqual(Object.keys(make()), ['value']);
+        assert.equal(guarded(), '');
+        assert.throws(unsafe, TypeError);
+    });
+});
+
+test('public output: script-global dynamic lookup cannot mutate a generated absence binding', () => {
+    ['(0,eval)', 'Function'].forEach((invoke) => {
+        const call = invoke === 'Function' ? 'Function("__resilient_absent_1 = 42")()' : '(0,eval)("__resilient_absent_1 = 42")';
+        const result = compile(`${call};const result:{slot:void}={slot:undefined};Reflect.set(globalThis,"observed",result.slot);`, { standard: {} });
+        const { native = '', output = '', fixed = '', messages = [] } = result;
+
+        assert.equal(output.includes('let __resilient_absent'), false);
+        assert.ok(messages.some(({ ruleId = '' } = {}) => ruleId === 'resilient/no-undefined-assignment'));
+        [native, output, fixed].forEach(source => assert.equal(runInNewContext(`${source}\ntypeof Reflect.get(globalThis,"observed");`), 'undefined'));
+    });
+});
+
+test('public output: created absence composes with deferred payload reads in an expanded callback body', async () => {
+    const result = compile([
+        'type Variant = { category: "Missing" } | { category: "Value"; inbound: number };',
+        'type Result = {empty: void; value: number};',
+        'export const selected = (ta: Variant, run: (n: number, f: (n: number) => Result) => () => Result) => {',
+        '    if (ta.category === "Missing") return () => ({empty: (() => {})(), value: 0});',
+        '    return run(4, (n): Result => ({empty: undefined, value: ta.inbound + n}));',
+        '};'
+    ].join('\n'));
+    clean(result);
+    const modules = await versions(result);
+
+    modules.forEach(({ selected } = {}) => {
+        if (typeof selected !== 'function') throw new TypeError('Expected compiled callable exports');
+
+        let reads = 0;
+        let current = 3;
+        const value = { category: 'Value', get inbound() {
+            reads += 1;
+
+            return current;
+        } };
+        const deferred = selected(value, (n, callback) => () => callback(n));
+
+        assert.equal(reads, 0);
+        current = 8;
+        const first = deferred();
+
+        assert.equal(reads, 1);
+        assert.equal(Reflect.get(first, 'value'), 12);
+        assert.equal(Reflect.get(first, 'empty'), undefined);
+        assert.deepEqual(Object.keys(first), ['empty', 'value']);
+    });
+});
+
+test('public output: one absent slot preserves unrelated comparison, sort and projection owners', async () => {
+    const result = compile([
+        'export const slot: {value: void} = {value: undefined};',
+        'export const nullable = (fallback: string) => (value: unknown) => value == null ? fallback : value;',
+        'export const sorted = (order: {compare: (a: number, b: number) => number}) =>',
+        '    (input: Map<string, number>) => Array.from(input.values()).sort(order.compare);',
+        'export const fields = <A>(records: ReadonlyArray<{empty: A}>) => records.map(record => record.empty);'
+    ].join('\n'));
+    clean(result);
+    const modules = await versions(result);
+
+    modules.forEach(({ slot = {}, nullable, sorted, fields } = {}) => {
+        if (typeof nullable !== 'function' || typeof sorted !== 'function' || typeof fields !== 'function') throw new TypeError('Expected compiled callable exports');
+
+        assert.deepEqual(Object.keys(slot), ['value']);
+        assert.equal(Reflect.get(slot, 'value'), undefined);
+        assert.equal(nullable('missing')(), 'missing');
+        assert.equal(nullable('missing')(null), 'missing');
+        assert.equal(nullable('missing')(0), 0);
+        const input = new Map([['later', 2], ['earlier', 1]]);
+        let comparisons = 0;
+        const ordered = sorted({ compare: (left, right) => {
+            comparisons += 1;
+
+            return left - right;
+        } })(input);
+
+        assert.deepEqual(ordered, [1, 2]);
+        assert.deepEqual([...input.values()], [2, 1]);
+        assert.ok(comparisons > 0);
+        let reads = 0;
+        const payload = {};
+        const records = [{ get empty() {
+            reads += 1;
+
+            return payload;
+        } }];
+
+        assert.deepEqual(fields(records), [payload]);
+        assert.equal(reads, 1);
+    });
 });

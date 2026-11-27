@@ -58,7 +58,8 @@ const pack = (cwd, name) => {
 };
 const discovered = readdirSync(join(root, 'tests')).filter(file => file.endsWith('.test.js')).toSorted();
 const tests = discovered.filter((file) => {
-    if (['architecture.test.js', 'rule-inventory.test.js', 'eslint-configuration.test.js'].includes(file)) return false;
+    // Private graph retention assertions require workspace implementation access.
+    if (['architecture.test.js', 'eslint-configuration.test.js', 'record-field-laws.test.js'].includes(file)) return false;
 
     // Internal compiler-decision tests stay local. Public output contracts run
     // once through the installed transformer, shared rules and runtime helpers.

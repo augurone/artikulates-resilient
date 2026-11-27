@@ -1,0 +1,106 @@
+{
+  "carriers": [
+    [
+      "direct",
+      "const selected=original;"
+    ],
+    [
+      "spread",
+      "const selected={...original};"
+    ],
+    [
+      "rest",
+      "const {drop=0,...selected}=original;"
+    ],
+    [
+      "nested capture",
+      "const make=value=>()=>({...value});const selected=make(original)();"
+    ],
+    [
+      "returned closure",
+      "const wrap=value=>({get:()=>({...value})});const selected=wrap(original).get();"
+    ],
+    [
+      "conditional copy",
+      "const selected={...original,...(right?{extra:1}:{})};"
+    ],
+    [
+      "destructure rebuild",
+      "const {tag:carriedTag=\"\",@pattern@:carriedPayload=\"\"}=original;const selected={tag:carriedTag,[key]:carriedPayload};"
+    ],
+    [
+      "overwrite payload",
+      "const selected={...original,...(right?{[key]:false}:{})};"
+    ],
+    [
+      "overwrite tag",
+      "const selected={...original,...(right?{tag:\"number\"}:{})};"
+    ],
+    [
+      "rest restore",
+      "const {tag:carriedTag=\"\",...rest}=original;const selected={...rest,tag:carriedTag};"
+    ],
+    [
+      "independent captures",
+      "const make=value=>()=>({...value});const first=make(original);const second=make({tag:\"other\",[key]:false});const selected=right?first():second();"
+    ],
+    [
+      "map forwarding",
+      "const [selected={}]=[original].map(value=>({...value}));"
+    ]
+  ],
+  "sources": [
+    [
+      "record",
+      false,
+      "const original=left?{tag:\"number\",[key]:42}:{tag:\"string\",[key]:\"ok\"};"
+    ],
+    [
+      "defaulted record",
+      false,
+      "const value=left?{tag:\"number\",[key]:42}:{};const {@pattern@:item=\"ok\",tag:initialTag=\"string\"}=value;const original={tag:initialTag,[key]:item};"
+    ],
+    [
+      "all slot",
+      true,
+      "const [original={}]=await Promise.all([left?Promise.resolve({tag:\"number\",[key]:42}):Promise.resolve({tag:\"string\",[key]:\"ok\"})]);"
+    ],
+    [
+      "all arrays",
+      true,
+      "const [original={}]=await Promise.all(left?[Promise.resolve({tag:\"number\",[key]:42})]:[Promise.resolve({tag:\"string\",[key]:\"ok\"})]);"
+    ],
+    [
+      "settled payload",
+      true,
+      "const [item={}]=await Promise.allSettled([left?Promise.resolve({tag:\"number\",[key]:42}):Promise.reject({tag:\"string\",[key]:\"ok\"})]);const original=item.status===\"fulfilled\"?item.value:item.reason;"
+    ],
+    [
+      "captured return",
+      false,
+      "const sourceMake=value=>()=>()=>({...value});const original=sourceMake(left?{tag:\"number\",[key]:42}:{tag:\"string\",[key]:\"ok\"})()();"
+    ]
+  ],
+  "consumers": [
+    [
+      "value",
+      "return selected[key];"
+    ],
+    [
+      "discriminated",
+      "return selected.tag===\"number\"?selected[key]:0;"
+    ],
+    [
+      "destructured",
+      "const {tag=\"\",@pattern@:payload=\"\"}=selected;return tag===\"string\"?payload:\"other\";"
+    ],
+    [
+      "captured consumer",
+      "const get=value=>()=>{const copy={...value};return copy.tag===\"number\"?copy[key]:false;};return get(selected)();"
+    ],
+    [
+      "call consumer",
+      "const get=({tag=\"\",@pattern@:payload=\"\"}={})=>tag===\"number\"?payload:false;return get(selected);"
+    ]
+  ]
+}

@@ -1,7 +1,8 @@
 import { append, forget, put, retain } from '../../../analysis/collections.js';
 import { isFunction } from '../../../analysis/host/function.js';
 import { getObject } from '../../../analysis/host/object.js';
-import { getSourceRange, getSyntaxKinds, wrapExpressionArrowBody } from '../../utils/ast-boundary.js';
+import { traverse } from '../../../analysis/traversal.js';
+import { getSourceRange, getSyntaxKinds, updateFunction, wrapExpressionArrowBody } from '../../utils/ast-boundary.js';
 import { getDestructuringDecisionForNode } from '../policy/destructuring-agreements.js';
 import { createAuthoredRuleScope } from '../policy/exceptions.js';
 import { getPlacementSymbol, getExactUndefinedReason } from '../policy/placement.js';
@@ -171,7 +172,24 @@ const annotateCompletedReturnBoundaries = ({
 
         return found;
     };
-    const annotateArityReturns = (owner = {}, { selectorRange = '' } = {}) => {
+    const annotateArityReturns = (owner = {}, { selectorRange = '', valueFamily = '', continuationRanges = [], partialRanges = [] } = {}) => {
+        const continuations = new Set(continuationRanges);
+        const partials = new Set(partialRanges);
+        const prepare = (node) => {
+            const visited = typescript.visitEachChild(node, prepare, context);
+
+            if (!functions.includes(getObject(node).kind) || !partials.has(getSourceRange({ typescript, node }))) return visited;
+
+            const expanded = wrapExpressionArrowBody({ typescript, node: visited });
+            const { parameters = [], body = {} } = getObject(expanded);
+            const { statements = [] } = getObject(body);
+
+            // Constructor exceptions must not share a physical line with the
+            // partial function's independently owned return diagnostics.
+            return updateFunction({ typescript, node: expanded, parameters,
+                body: typescript.setOriginalNode(typescript.factory.createBlock(statements, true), typescript.getOriginalNode(body)) });
+        };
+        const prepared = partials.size ? prepare(owner) : owner;
         let selector = false;
         const findSelector = (node) => {
             if (selector) return;
@@ -184,29 +202,98 @@ const annotateCompletedReturnBoundaries = ({
 
             typescript.forEachChild(node, findSelector);
         };
-        findSelector(owner);
+        findSelector(prepared);
 
         if (!selector) return owner;
 
-        const families = new Set(returnKinds(selector, valueKinds));
+        const owned = new Set();
+        const ownReturns = new Set();
+        const returnedValues = new Set();
+        const completeValues = new Set();
+        const forwarding = new WeakSet();
+        const continuationReturns = new WeakSet();
+        const unwrap = (node = {}) => transparent.has(getObject(node).kind) ? unwrap(getObject(node).expression) : node;
 
-        if (!families.has('function') || families.size !== 2) return owner;
+        traverse(selector, { enter: (selected) => {
+            retain(owned, selected);
+            const continuation = forwarding.has(selected) || continuations.has(getSourceRange({ typescript, node: selected }));
+            const following = [];
 
-        const ownReturns = new Set(returnsOf(selector));
-        const annotate = (node) => {
-            if (node !== owner && functions.includes(getObject(node).kind) && node !== selector) return node;
+            returnsOf(selected).forEach((returned) => {
+                retain(ownReturns, returned);
 
-            const visited = typescript.visitEachChild(node, annotate, context);
+                if (continuation) retain(continuationReturns, returned);
 
-            if (!ownReturns.has(node) || !valueKinds(getObject(node).expression).length) return visited;
+                traverse(getObject(returned).expression, { enter: (expression = {}) => {
+                    const value = unwrap(expression);
+                    const { kind = 0, whenTrue = {}, whenFalse = {}, expression: target = {}, arguments: args = [] } = getObject(value);
 
-            const cloned = typescript.setOriginalNode(typescript.factory.cloneNode(visited), typescript.getOriginalNode(node));
+                    if (kind === ConditionalExpression) return [whenTrue, whenFalse];
+
+                    retain(returnedValues, value);
+
+                    if (continuations.has(getSourceRange({ typescript, node: value }))) append(following, value);
+
+                    const callee = unwrap(target);
+                    const { kind: callable = 0, parameters = [] } = getObject(callee);
+
+                    // Generated immediate wrappers and exact source forwarders
+                    // carry the partition; unrelated authored functions do not.
+                    const wrapper = kind === CallExpression && !args.length && callable === ArrowFunction && !parameters.length &&
+                        !getSourceRange({ typescript, node: callee });
+
+                    if (wrapper) append(following, callee);
+
+                    if (wrapper && value === unwrap(getObject(returned).expression)) retain(continuationReturns, returned);
+
+                    if (wrapper && continuation) retain(forwarding, callee);
+
+                    if (!wrapper && !continuation && !partials.has(getSourceRange({ typescript, node: value }))) retain(completeValues, value);
+
+                    return [];
+                } });
+            });
+
+            return following;
+        } });
+        const families = new Set([...returnedValues].flatMap(valueKinds));
+        const completeFamilies = new Set([...completeValues].flatMap(valueKinds));
+
+        if (completeFamilies.has('function') || completeFamilies.size > 1 ||
+            valueFamily && [...completeFamilies].some(family => family !== valueFamily)) return owner;
+
+        if (!families.has('function') || families.size > 2 || (families.size !== 2 && !valueFamily)) return owner;
+
+        const annotateReturn = (node, continuation = false) => {
+            const { expression = {} } = getObject(node);
+            const value = unwrap(expression);
+            const { kind = 0, condition = {}, whenTrue = {}, whenFalse = {} } = getObject(value);
+
+            if (kind === ConditionalExpression) {
+                const guard = typescript.setOriginalNode(typescript.factory.createIfStatement(condition,
+                    annotateReturn(typescript.factory.createReturnStatement(whenTrue), continuation)), typescript.getOriginalNode(node));
+
+                typescript.setSyntheticLeadingComments(guard, typescript.getSyntheticLeadingComments(node));
+
+                return typescript.factory.createBlock([guard, annotateReturn(typescript.factory.createReturnStatement(whenFalse), continuation)], true);
+            }
+
+            if (!continuation && !valueKinds(expression).length && (!valueFamily || kind === Identifier)) return node;
+
+            const cloned = typescript.setOriginalNode(typescript.factory.cloneNode(node), typescript.getOriginalNode(node));
 
             return addSyntheticLeadingComment(cloned, SingleLineCommentTrivia,
                 ' eslint-disable-next-line resilient/signature-contract-return-consistency -- Arity selects callable or value.', true);
         };
+        const annotate = (node) => {
+            if (node !== prepared && functions.includes(getObject(node).kind) && !owned.has(node)) return node;
 
-        return annotate(owner);
+            const visited = typescript.visitEachChild(node, annotate, context);
+
+            return ownReturns.has(node) ? annotateReturn(visited, continuationReturns.has(node)) : visited;
+        };
+
+        return annotate(prepared);
     };
     const authoredRules = createAuthoredRuleScope({ typescript, sourceFile, lineDirectives: true });
     const getSelectorAgreement = (test = {}) => {

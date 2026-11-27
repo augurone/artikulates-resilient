@@ -3,6 +3,7 @@ import { parse } from 'espree';
 import { append, put, retain } from '../collections.js';
 import { traverse } from '../traversal.js';
 import { indexBindings } from './bindings.js';
+import { createExportResolver } from './export-resolutions.js';
 import { patternNames } from './traversal.js';
 
 const specifierName = ({ type = '', name = '', value = '' } = {}) => type === 'Identifier' ? name : value;
@@ -10,9 +11,10 @@ const specifierName = ({ type = '', name = '', value = '' } = {}) => type === 'I
 // The host supplies source snapshots, never evaluated exports or inferred facts.
 // Each root session acquires a module once; a later session starts afresh.
 // The optional resolver is guarded; absence preserves unresolved imports without fabricating source.
-export const indexModules = ({ program = {}, filename = '', roots = [], resolveModule, operations = new Map() } = {}) => {
+export const indexModules = ({ program = {}, filename = '', roots = [], resolveModule, operations = new Map(), observation = {} } = {}) => {
     const registry = { identities: new WeakMap(), callableResolutions: new WeakMap(), executionOf: new WeakMap(), parents: new WeakMap(),
         writes: new Set(), opaqueExecutions: new Set(), opaqueCapabilities: new Set(), executionParents: new Map(), initializerFacts: new WeakMap(),
+        initializerTargets: new WeakMap(), opaqueInitializers: new Set(),
         previousStatements: new WeakMap(), nextStatements: new WeakMap(), operators: new WeakMap(), dynamicExecutions: new Set(), effects: new Map(),
         argumentOwners: new Map(), controlExecutions: new Set() };
     const records = [];
@@ -71,6 +73,7 @@ export const indexModules = ({ program = {}, filename = '', roots = [], resolveM
     } }));
     const importTargets = new Map();
     const imported = [];
+    const stars = new Map();
     const namespaces = new Map();
     const namespaceFor = (module) => {
         const { filename = '', program: { body = [] } = {} } = module;
@@ -91,24 +94,34 @@ export const indexModules = ({ program = {}, filename = '', roots = [], resolveM
 
                     const importedName = kind === 'ImportDefaultSpecifier' ? 'default' : specifierName(selected);
 
-                    append(imported, { binding: locals.get(name), module: dependency, name: kind === 'ImportNamespaceSpecifier' ? '*' : importedName });
+                    append(imported, { binding: locals.get(name), module: dependency, name: importedName, namespace: kind === 'ImportNamespaceSpecifier' });
                 });
 
                 return;
             }
 
             if (type === 'ExportDefaultDeclaration') {
-                const { type: kind = '', name = '', id = false } = declaration;
+                const { type: kind = '', id = false } = declaration;
 
-                const liveName = kind === 'Identifier' ? name : kind === 'FunctionDeclaration' && id && specifierName(id);
+                const liveName = kind === 'FunctionDeclaration' && id && specifierName(id);
+                // A default expression creates its own binding even when its
+                // value comes from an imported identifier. Callable/value
+                // acquisition can still follow that binding's initializer.
+                const target = kind === 'Identifier' ? { stable: true, immutable: true, init: declaration } : declaration;
 
-                put(exports, 'default', { target: liveName ? locals.get(liveName) : declaration });
+                put(exports, 'default', { target: liveName ? locals.get(liveName) : target });
 
                 return;
             }
 
             if (type === 'ExportAllDeclaration' && exported) {
                 put(exports, specifierName(exported), { target: dependency && namespaceFor(dependency) });
+
+                return;
+            }
+
+            if (type === 'ExportAllDeclaration') {
+                append(stars.get(exports) || put(stars, exports, []), dependency || false);
 
                 return;
             }
@@ -126,37 +139,37 @@ export const indexModules = ({ program = {}, filename = '', roots = [], resolveM
             });
         });
     });
-    const resolved = new Map();
-    const exportKey = ({ module: { id = -1 } = {}, name = '' } = {}) => `${id}:${name}`;
+    const importedBindings = new Map(imported.map((entry) => {
+        const { binding = false } = entry;
+
+        return [binding, entry];
+    }));
+    const executions = new Map(records.map(({ filename = '', index: { rootExecution = false } = {} } = {}) => [filename, rootExecution]));
+    const importProviders = new Map(imported.map(({ binding = false, module: { filename = '' } = {} } = {}) => [binding, executions.get(filename)]));
+    const exportKey = ({ module: { id = -1 } = {}, name = '', namespace = false } = {}) => namespace ? `namespace:${id}` : `export:${id}:${name}`;
+    const definition = ({ module = {}, name = '', namespace = false } = {}) => {
+        const { exports = new Map() } = module;
+
+        if (namespace) return [{ target: namespaceFor(module) }];
+
+        if (exports.has(name)) return [exports.get(name)];
+
+        return name === 'default' ? [] : (stars.get(exports) || []).map(module => ({ module, name }));
+    };
+    const resolveExport = createExportResolver({ observation, keyFor: exportKey, definition: entry => definition(entry)
+        .map(({ target = false, module = false, name = '' } = {}) => {
+            const imported = importedBindings.get(target);
+
+            if (imported) return { entry: imported };
+
+            if (target) return { target };
+
+            return module ? { entry: { module, name } } : { unresolved: true };
+        }) });
     const exportFor = (requested) => {
-        const visited = new Set();
-        const definition = ({ module = {}, name = '' } = {}) => {
-            const { exports = new Map() } = module;
+        const { target = false, ambiguous = false, unresolved = false } = resolveExport(requested);
 
-            return name === '*' ? { target: namespaceFor(module) } : exports.get(name) ?? {};
-        };
-
-        traverse(requested, { enter: (entry) => {
-            const key = exportKey(entry);
-
-            if (resolved.has(key) || visited.has(key)) return [];
-
-            retain(visited, key);
-            const { module = false } = definition(entry);
-
-            return module ? [definition(entry)] : [];
-        }, leave: (entry) => {
-            const key = exportKey(entry);
-
-            if (resolved.has(key)) return;
-
-            const target = definition(entry);
-            const { target: binding = false, module = false } = target;
-
-            put(resolved, key, binding || (module && resolved.get(exportKey(target))) || false);
-        } });
-
-        return resolved.get(exportKey(requested));
+        return !ambiguous && !unresolved && target;
     };
 
     imported.forEach(({ binding = false, ...entry } = {}) => {
@@ -165,9 +178,22 @@ export const indexModules = ({ program = {}, filename = '', roots = [], resolveM
         if (binding && target) put(importTargets, binding, target);
     });
     namespaces.forEach(({ fields = new Map() } = {}, module) => {
-        const { exports = new Map() } = module;
+        const visited = new Set();
+        const names = new Set();
 
-        exports.forEach((value, name) => put(fields, name, exportFor({ module, name })));
+        traverse(module, { enter: (current) => {
+            if (visited.has(current)) return [];
+
+            retain(visited, current);
+            const { exports = new Map() } = current;
+
+            exports.forEach((value, name) => {
+                if (name !== 'default' || current === module) retain(names, name);
+            });
+
+            return (stars.get(exports) || []).filter(Boolean);
+        } });
+        names.forEach(name => put(fields, name, exportFor({ module, name })));
     });
     const [{ index: main = {} } = {}] = records;
     const { functionEntries: ownFunctions = [] } = main;
@@ -177,12 +203,13 @@ export const indexModules = ({ program = {}, filename = '', roots = [], resolveM
         return [name, previous + count];
     })), {});
 
-    return { ...main, ...registry, importTargets, moduleOfExecution, counts: { ...counts, modules: records.length }, ownFunctionCount: ownFunctions.length,
+    return { ...main, ...registry, importTargets, importProviders, moduleOfExecution, counts: { ...counts, modules: records.length }, ownFunctionCount: ownFunctions.length,
         moduleEntries: records.map(({ filename = '', program = {}, links = new Map(), index: { rootExecution = false } = {} } = {}) => ({
             filename, program, execution: rootExecution, dependencies: [...new Set([...links.values()].map(({ filename = '' } = {}) => filename))]
         })),
         initializerNames: new Map(records.flatMap(({ index: { initializerNames = new Map() } = {} } = {}) => [...initializerNames])),
         sourceMembers: records.flatMap(({ index: { memberAccesses = [] } = {} } = {}) => memberAccesses),
+        sourceArrays: records.flatMap(({ index: { arrayExpressions = [] } = {} } = {}) => arrayExpressions),
         sourcePatterns: records.flatMap(({ index: { destructurings = [] } = {} } = {}) => destructurings),
         sourceCalls: records.flatMap(({ index: { calls = [] } = {} } = {}) => calls),
         bindings: records.flatMap(({ index: { bindings = [] } = {} } = {}) => bindings),

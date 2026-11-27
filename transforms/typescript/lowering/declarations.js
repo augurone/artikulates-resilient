@@ -130,7 +130,8 @@ const lowerScopeEntryVarDeclarations = ({ typescript = {}, sourceFile = {},
             return assignments.length ? annotateAssignment(lowered) : lowered;
         }
 
-        const [declaration = {}] = getObject(visitedList).declarations || [];
+        const declaredBindings = getObject(visitedList).declarations || [];
+        const [declaration = {}] = declaredBindings;
         const { name: target = {} } = getObject(declaration);
 
         return kind === ForInStatement

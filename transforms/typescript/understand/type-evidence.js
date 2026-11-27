@@ -8,6 +8,7 @@ import { traverse } from '../../../analysis/traversal.js';
 import { getNodeInitializer, getNodeKind, getSyntaxKinds } from '../../utils/ast-boundary.js';
 import { getChildren } from '../../utils/ast-traversal.js';
 import { getSymbolDeclaration, getSymbolDeclarations, isImplicitArgumentsSymbol, hasTypeChecker, isArrayLikeExpression } from '../../utils/compiler-shape.js';
+import { lexicalCapabilities } from './source-callables.js';
 import { createSourceCensus, collectBindingReferences } from './source-census.js';
 import {
     requireCompilerMember,
@@ -657,6 +658,7 @@ const collectSortCapabilityContracts = ({ typescript = {}, sourceFile = {}, chec
                 alias,
                 provider,
                 providerMember,
+                operation: member,
                 memberRange: getConsumerContractKey(argument)
             }
             : false;
@@ -697,7 +699,8 @@ const collectSortCapabilityContracts = ({ typescript = {}, sourceFile = {}, chec
 
         return knownUses.every((use = {}) => use === bindingNode ||
             getObject(use).parent === argument && getObject(argument).expression === use);
-    }).map(({ binding = {}, callKey = '', functionKey = '', placement = '', alias = '', provider = '', providerMember = '', memberRange = '' } = {}) => {
+    }).map(({ binding = {}, callKey = '', functionKey = '', placement = '', alias = '', provider = '', providerMember = '',
+        operation = '', memberRange = '' } = {}) => {
         const { sourceRange = '', member = '' } = binding;
         const resolvedMember = member || providerMember;
 
@@ -716,7 +719,7 @@ const collectSortCapabilityContracts = ({ typescript = {}, sourceFile = {}, chec
                 range: callKey,
                 prerequisites: ['evaluate-sort-receiver-once-before-callability-guard']
             },
-            dialectAnswer: { predicate: 'function', response: 'undefined', owner: 'consumer' },
+            dialectAnswer: { predicate: 'function', response: operation === 'sort' ? 'receiver' : 'undefined', owner: 'consumer' },
             translationLaw: 'static-collection-capability',
             grammarPlacement: placement,
             functionKey,
@@ -725,8 +728,10 @@ const collectSortCapabilityContracts = ({ typescript = {}, sourceFile = {}, chec
             guard: 'function',
             evidence: [
                 'checker proves a required callable provider field',
-                'checker proves a static array callback consumer',
-                'the bound capability has one static consumer and natural undefined disagreement ownership'
+                'checker requires an array receiver for a static callback consumer',
+                operation === 'sort'
+                    ? 'the sort consumer returns its original receiver when the capability is absent'
+                    : 'the bound capability has one static consumer and natural undefined disagreement ownership'
             ]
         }];
     }));
@@ -1362,7 +1367,7 @@ const collectExactProviderForwardContracts = ({ typescript = {}, sourceFile = {}
     } = getObject(checker);
     let contracts = new Map();
 
-    if (!hasTypeChecker(checker) || !isFunction(getSymbolAtLocation)) return contracts;
+    if (!hasTypeChecker(checker) || !isFunction(getSymbolAtLocation) || !isFunction(getTypeAtLocation)) return contracts;
 
     const getName = (node = {}) => getObject(node).text || '';
     const getKey = (node = {}) => getConsumerContractKey(node);
@@ -1860,7 +1865,6 @@ const getVariantPartitions = ({ typescript = {}, checker = {}, type = {}, node =
     });
 };
 
-// eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- An omitted declared compiler type selects the checker query; its value is an optional type object, never a boolean contract.
 const getSelectedVariantEvidence = ({ typescript = {}, checker = {}, receiver = {}, member = '', declaredType } = {}) => {
     const { kind = 0, parent = false } = getObject(receiver);
     const { Identifier = -1 } = getSyntaxKinds(typescript);
@@ -3156,7 +3160,7 @@ const collectCollectionReconstructionContracts = ({
 
         if (kind !== CallExpression || calleeKind !== PropertyAccessExpression || questionDotToken ||
             getObject(method).text !== 'reduce' || args.length !== 3 || !getNodeKind(input) ||
-            ![ArrowFunction, FunctionExpression].includes(callbackKind) || parameters.length < 1 ||
+            ![ArrowFunction, FunctionExpression].includes(callbackKind) || !parameters.length ||
             getNodeKind(accumulator) !== Identifier || bodyKind !== Block ||
             getNodeKind(lastStatement) !== ReturnStatement) return;
 
@@ -4369,7 +4373,7 @@ const collectIndexedOperationContracts = ({ typescript = {}, sourceFile = {}, ch
 
         const { kind: keyKind = 0 } = getObject(key);
         const dynamic = ![NumericLiteral, StringLiteral].includes(keyKind);
-        const receiverType = hasChecker && [ElementAccessExpression, PropertyAccessExpression].includes(kind)
+        const receiverType = isFunction(getTypeAtLocation) && [ElementAccessExpression, PropertyAccessExpression].includes(kind)
             ? getTypeAtLocation.call(checker, receiver) : {};
         const receiverSymbol = hasChecker && [ElementAccessExpression, PropertyAccessExpression].includes(kind)
             ? checker.getSymbolAtLocation(receiver) : {};
@@ -4395,7 +4399,7 @@ const collectIndexedOperationContracts = ({ typescript = {}, sourceFile = {}, ch
 
         if (sourceRange && (literalMemberUpdate || kind === ElementAccessExpression &&
             (dynamic || update || staticBinaryRead || dynamicArguments))) {
-            const checkerObserved = hasChecker && kind === ElementAccessExpression && Boolean(getTypeAtLocation.call(checker, receiver)) &&
+            const checkerObserved = isFunction(getTypeAtLocation) && kind === ElementAccessExpression && Boolean(getTypeAtLocation.call(checker, receiver)) &&
                 Boolean(getTypeAtLocation.call(checker, key));
             const sourceOperation = staticBinaryRead ? 'binary-read' : operation;
             const chain = census.ancestors(node).reduce((outer, candidate) => (
@@ -4824,7 +4828,8 @@ const collectDetachedPromiseForwardContracts = ({ typescript = {}, sourceFile = 
         // eslint-disable-next-line resilient/prefer-prototype-methods -- Promise-owner lookup preserves symbol query order and skips the matched executor parent Get.
         while (ancestor) {
             const executor = nativePromise(ancestor);
-            const [parameter = {}] = getObject(executor).parameters || [];
+            const executorParameters = getObject(executor).parameters || [];
+            const [parameter = {}] = executorParameters;
             const { name = {} } = getObject(parameter);
 
             if (executor && resolverSymbol && getSymbolAtLocation.call(checker, name) === resolverSymbol) {
@@ -4877,9 +4882,11 @@ const collectDetachedPromiseForwardContracts = ({ typescript = {}, sourceFile = 
 // of a producer agreement, and a value-family default would change behavior.
 const collectDeclaredNullishResultContracts = ({ typescript = {}, sourceFile = {}, checker = {}, census = createSourceCensus({ typescript, sourceFile }) } = {}) => {
     const { ArrowFunction = -1, FunctionExpression = -1, FunctionDeclaration = -1,
-        Block = -1, ReturnStatement = -1, Identifier = -1, NullKeyword = -1 } = getSyntaxKinds(typescript);
+        Block = -1, ReturnStatement = -1, Identifier = -1, NullKeyword = -1,
+        VariableDeclaration = -1, CallExpression = -1, Parameter = -1,
+        ObjectLiteralExpression = -1, ArrayLiteralExpression = -1, SourceFile = -1 } = getSyntaxKinds(typescript);
     const { TypeFlags: { Void = 0, Undefined = 0, Null = 0,
-        Any = 0, Unknown = 0 } = {} } = typescript;
+        Any = 0, Unknown = 0, TypeParameter = 0 } = {} } = typescript;
     const { getContextualType, getSignatureFromDeclaration,
         getReturnTypeOfSignature, getTypeAtLocation } = getObject(checker);
     let contracts = new Map();
@@ -4892,6 +4899,131 @@ const collectDeclaredNullishResultContracts = ({ typescript = {}, sourceFile = {
         const { flags = 0, types = [] } = getObject(type);
 
         return Boolean(flags & flag) || types.some((part = {}) => Boolean(getObject(part).flags & flag));
+    };
+    const functionKinds = [ArrowFunction, FunctionExpression, FunctionDeclaration];
+    const dynamic = census.select(CallExpression).some(({ expression = {} } = {}) => (
+        getObject(expression).kind === Identifier && getObject(expression).text === 'eval'
+    ));
+    const moduleScoped = typescript.isExternalModule(sourceFile);
+    const declaredPaths = new WeakMap();
+    const declaredResultPath = (node = {}) => {
+        if (declaredPaths.has(node)) return declaredPaths.get(node);
+
+        const { kind = 0, type = false, parent = false } = getObject(node);
+        const { kind: parentKind = 0, initializer = false, expression = false, body = false, type: parentType = false } = getObject(parent);
+        const declared = functionKinds.includes(kind) && type ||
+            parentKind === VariableDeclaration && initializer === node && parentType;
+
+        if (declared) return put(declaredPaths, node, true);
+
+        if (!parent) return put(declaredPaths, node, false);
+
+        if (typescript.isParenthesizedExpression(parent) ||
+            functionKinds.includes(parentKind) && body === node) return put(declaredPaths, node, declaredResultPath(parent));
+
+        if (parentKind !== ReturnStatement || expression !== node) return put(declaredPaths, node, false);
+
+        const enclosingFunction = (owner = {}) => {
+            const { kind: ownerKind = 0, parent: next = false } = getObject(owner);
+
+            if (functionKinds.includes(ownerKind)) return owner;
+
+            return next ? enclosingFunction(next) : false;
+        };
+        const owner = enclosingFunction(parent);
+
+        return put(declaredPaths, node, Boolean(owner && declaredResultPath(owner)));
+    };
+    const retainCreationSlot = ({ expression = {}, type = {}, owner = {}, declared = false } = {}) => {
+        const unwrap = (node = {}) => {
+            const { expression: inner = {} } = getObject(node);
+
+            return typescript.isAsExpression(node) || typescript.isTypeAssertionExpression(node) || typescript.isParenthesizedExpression(node)
+                ? unwrap(inner) : node;
+        };
+        const native = unwrap(expression);
+        const { kind = 0, text = '' } = getObject(native);
+        const { flags = 0 } = getObject(type);
+        const constraint = flags & TypeParameter && isFunction(getObject(checker).getBaseConstraintOfType)
+            ? checker.getBaseConstraintOfType(type) : false;
+        const generic = Boolean(flags & TypeParameter) && !constraint;
+        const empty = Boolean(flags & Undefined);
+        const ancestors = census.ancestors(expression);
+        const { kind: scopeKind = 0 } = ancestors.find(({ kind = 0 } = {}) => [SourceFile, Block, ...functionKinds].includes(kind)) ?? {};
+
+        if (dynamic || (!moduleScoped && scopeKind === SourceFile) || ancestors.some(({ kind = 0 } = {}) => kind === Parameter) ||
+            kind !== Identifier || text !== 'undefined' || !(declared && hasMember(type, Void) || generic || empty) ||
+            !isFunction(getObject(checker).getSymbolAtLocation)) return;
+
+        const { declarations = [] } = getObject(checker.getSymbolAtLocation(native));
+
+        if (declarations.length || !hasMember(getTypeAtLocation.call(checker, native), Undefined)) return;
+
+        const sourceRange = getConsumerContractKey(expression);
+        const contextualReason = empty ? 'the context retains the source slot as absent' : 'an authored container or producer declaration requires this void slot';
+
+        put(contracts, sourceRange, {
+            sourceRange,
+            containerRange: getConsumerContractKey(owner),
+            action: 'normalize-created-absence-slot',
+            result: 'undefined',
+            evidence: [generic ? 'an unconstrained generic slot establishes no supplied runtime family'
+                : contextualReason,
+            'native undefined initializes a fresh present slot without withdrawing a previous value']
+        });
+    };
+    const collectContainerSlots = ({ expression = {}, type = {}, declared = false } = {}) => {
+        if (typescript.isParenthesizedExpression(expression)) {
+            const { expression: inner = {} } = getObject(expression);
+
+            collectContainerSlots({ expression: inner, type, declared });
+
+            return;
+        }
+
+        const { isTupleType, getTypeArguments, getPropertyOfType, getTypeOfSymbolAtLocation } = getObject(checker);
+        const { elements = [] } = getObject(expression);
+
+        if (typescript.isArrayLiteralExpression(expression) && isFunction(isTupleType) && isFunction(getTypeArguments) &&
+            !elements.some(element => typescript.isSpreadElement(element))) {
+            const slots = isTupleType.call(checker, type) ? getTypeArguments.call(checker, type) : [];
+
+            elements.forEach((element, index) => retainCreationSlot({ expression: element,
+                type: slots.at(index) || (isFunction(getContextualType) ? getContextualType.call(checker, element) : {}), owner: expression, declared }));
+
+            return;
+        }
+
+        if (!typescript.isObjectLiteralExpression(expression) || !isFunction(getPropertyOfType) || !isFunction(getTypeOfSymbolAtLocation)) return;
+
+        const { properties = [] } = getObject(expression);
+
+        const seen = new Set();
+        let uncertain = false;
+
+        properties.forEach((entry = {}) => {
+            const { name = {}, initializer = {} } = entry;
+
+            if (!typescript.isIdentifier(name) && !typescript.isStringLiteral(name)) {
+                uncertain = true;
+
+                return;
+            }
+
+            const { text = '' } = getObject(name);
+            const overwritten = seen.has(text);
+
+            retain(seen, text);
+
+            if (uncertain || overwritten || text === '__proto__' || !typescript.isPropertyAssignment(entry)) return;
+
+            const property = getPropertyOfType.call(checker, type, text);
+
+            const contextual = !property && isFunction(getContextualType) ? getContextualType.call(checker, initializer) : {};
+            const slot = property ? getTypeOfSymbolAtLocation.call(checker, property, expression) : contextual;
+
+            retainCreationSlot({ expression: initializer, type: slot, owner: expression, declared });
+        });
     };
     const collectReturns = (body = {}) => {
         const { kind = 0 } = getObject(body);
@@ -4920,6 +5052,8 @@ const collectDeclaredNullishResultContracts = ({ typescript = {}, sourceFile = {
         if (resultFlags & (Any | Unknown)) return;
 
         collectReturns(body).forEach((expression = {}) => {
+            if (declaredResultPath(node)) collectContainerSlots({ expression, type: resultType, declared: true });
+
             const { kind: expressionKind = 0, text = '' } = getObject(expression);
             const isUndefined = expressionKind === Identifier && text === 'undefined' &&
                 hasMember(getTypeAtLocation.call(checker, expression), Undefined);
@@ -4953,6 +5087,14 @@ const collectDeclaredNullishResultContracts = ({ typescript = {}, sourceFile = {
     const visit = (node = {}) => {
         const { kind = 0, type = false, body = {} } = getObject(node);
 
+        if (kind === VariableDeclaration && type && isFunction(getObject(checker).getTypeFromTypeNode)) {
+            const { initializer = {} } = getObject(node);
+
+            collectContainerSlots({ expression: initializer, type: checker.getTypeFromTypeNode(type), declared: true });
+
+            return;
+        }
+
         if ([ArrowFunction, FunctionExpression, FunctionDeclaration].includes(kind)) {
             const contextual = isFunction(getContextualType)
                 ? getObject(getContextualType.call(checker, node)) : {};
@@ -4966,7 +5108,9 @@ const collectDeclaredNullishResultContracts = ({ typescript = {}, sourceFile = {
         }
     };
 
-    census.select(ArrowFunction, FunctionExpression, FunctionDeclaration).forEach(visit);
+    census.select(ArrowFunction, FunctionExpression, FunctionDeclaration, VariableDeclaration).forEach(visit);
+    census.select(ObjectLiteralExpression, ArrayLiteralExpression).forEach(expression => collectContainerSlots({ expression,
+        type: isFunction(getContextualType) ? getContextualType.call(checker, expression) || {} : {} }));
 
     return contracts;
 };
@@ -5858,9 +6002,12 @@ const collectArityReturnContracts = ({ typescript = {}, sourceFile = {}, checker
         FunctionDeclaration = -1, ArrowFunction = -1, FunctionExpression = -1,
         ReturnStatement = -1, IfStatement = -1, Block = -1,
         BinaryExpression = -1, ConditionalExpression = -1,
-        Identifier = -1, EqualsEqualsEqualsToken = -1, CallExpression = -1
+        Identifier = -1, PropertyAccessExpression = -1,
+        ObjectLiteralExpression = -1, ArrayLiteralExpression = -1, ClassExpression = -1, LiteralType = -1, NullKeyword = -1,
+        TypeOfExpression = -1, VoidExpression = -1, PrefixUnaryExpression = -1, ExclamationToken = -1,
+        VariableDeclaration = -1, VariableDeclarationList = -1, NamespaceImport = -1, AsyncKeyword = -1, EqualsEqualsEqualsToken = -1, CallExpression = -1
     } = {}, TypeFlags: { Any = 0, Unknown = 0, Undefined = 0, TypeParameter = 0 } = {} } = typescript;
-    const { getSymbolAtLocation, getTypeAtLocation } = getObject(checker);
+    const { getSymbolAtLocation, getTypeAtLocation, getAliasedSymbol } = getObject(checker);
 
     if (!isFunction(getSymbolAtLocation) || !isFunction(getTypeAtLocation)) return new Map();
 
@@ -5868,9 +6015,11 @@ const collectArityReturnContracts = ({ typescript = {}, sourceFile = {}, checker
     const { referencesOf = () => [], isWrite = () => false } = getDeclarationReferenceFacts({
         typescript, sourceFile, checker, census, bindingReferences
     });
-    const dynamic = census.select(CallExpression).some(({ expression = {} } = {}) => (
-        getNodeKind(expression) === Identifier && getObject(expression).text === 'eval'
-    ));
+    const dynamic = census.select(CallExpression).some(({ expression = {} } = {}) => {
+        const callee = typescript.skipOuterExpressions(expression);
+
+        return getNodeKind(callee) === Identifier && getObject(callee).text === 'eval';
+    });
     const getReturns = (owner = {}) => {
         const found = [];
         const visit = (node = {}) => {
@@ -5916,12 +6065,118 @@ const collectArityReturnContracts = ({ typescript = {}, sourceFile = {}, checker
             return Boolean(flags) && !(flags & (Any | Unknown | TypeParameter)) && hasCalls === callable;
         });
     };
+    // Exception permission comes from concrete source construction, not a type
+    // assertion. Inspect at most six producer edges, through immutable constants
+    // or unchanged local declarations with a sole return. Arguments and arbitrary
+    // call graphs are not interpreted; literal construction owns the result family.
+    const { NodeFlags: { Const: constantFlag = 0 } = {}, SymbolFlags: { Alias: aliasFlag = 0 } = {} } = typescript;
+    const literalFamilies = new WeakMap();
+    const producerBindings = new WeakMap();
+    const completedFamilies = new WeakMap();
+    const literalFamily = (expression = {}) => {
+        if (!getNodeKind(expression)) return '';
+
+        if (literalFamilies.has(expression)) return literalFamilies.get(expression);
+
+        const value = typescript.skipOuterExpressions(expression);
+        const { kind = 0, operator = -1, operatorToken = {}, whenTrue = {}, whenFalse = {} } = getObject(value);
+        const literal = getLiteralRuntimeKind({ typescript, node: { kind: LiteralType, literal: value } });
+        const direct = [[functionKinds.includes(kind) || kind === ClassExpression, 'function'],
+            [kind === ObjectLiteralExpression, 'object'], [kind === ArrayLiteralExpression, 'array'],
+            [kind === NullKeyword, 'null'], [kind === TypeOfExpression, 'string'], [kind === VoidExpression, 'undefined'],
+            [kind === PrefixUnaryExpression && operator === ExclamationToken, 'boolean'],
+            [kind === BinaryExpression && ['===', '!==', '==', '!=', '<', '>', '<=', '>=', 'in', 'instanceof']
+                .includes(typescript.tokenToString(getNodeKind(operatorToken))), 'boolean']].find(([selected = false] = []) => selected);
+        const left = kind === ConditionalExpression ? literalFamily(whenTrue) : '';
+        const right = kind === ConditionalExpression ? literalFamily(whenFalse) : '';
+
+        return put(literalFamilies, expression, literal || (direct ? direct.at(1) : '') || (left && left === right ? left : ''));
+    };
+    const producerFor = (expression = {}) => {
+        const value = typescript.skipOuterExpressions(expression);
+        const { kind = 0, expression: receiver = {} } = getObject(value);
+
+        if (kind !== Identifier && kind !== PropertyAccessExpression) return false;
+
+        const root = kind === PropertyAccessExpression ? typescript.skipOuterExpressions(receiver) : value;
+        const namespace = kind === PropertyAccessExpression && getNodeKind(root) === Identifier &&
+            getSymbolDeclarations(getSymbolAtLocation(root)).some(node => getNodeKind(node) === NamespaceImport);
+
+        if (kind === PropertyAccessExpression && !namespace) return false;
+
+        const symbol = getSymbolAtLocation(value);
+        const { flags = 0 } = getObject(symbol);
+        const selected = flags & aliasFlag && isFunction(getAliasedSymbol) ? checker.getAliasedSymbol(symbol) : symbol;
+
+        if (!selected) return false;
+
+        if (producerBindings.has(selected)) return producerBindings.get(selected);
+
+        const { valueDeclaration: firstDeclaration = {} } = getObject(selected);
+        const valueDeclaration = getNodeKind(firstDeclaration) === FunctionDeclaration
+            ? getSymbolDeclarations(selected).find(node => getNodeKind(node) === FunctionDeclaration && getObject(node).body) || firstDeclaration
+            : firstDeclaration;
+        const { kind: declaration = 0, parent = {}, initializer = false, body = false } = getObject(valueDeclaration);
+        const { kind: list = 0, flags: declarationFlags = 0 } = getObject(parent);
+        const declaringSource = typescript.getSourceFileOfNode(valueDeclaration);
+        const { isDeclarationFile = true } = getObject(declaringSource);
+        const constant = declaration === VariableDeclaration && list === VariableDeclarationList &&
+            !!(declarationFlags & constantFlag) && initializer;
+        const local = declaration === FunctionDeclaration && body && declaringSource === sourceFile &&
+            !referencesOf(selected).some(isWrite);
+
+        return put(producerBindings, selected, !isDeclarationFile && (constant || local) ? valueDeclaration : false);
+    };
+    const completeFamily = (expression = {}, invocations = 0, budget = 6) => {
+        if (!budget || !getNodeKind(expression)) return '';
+
+        const memo = completedFamilies.get(expression) || put(completedFamilies, expression, new Map());
+        const key = `${invocations}:${budget}`;
+
+        if (memo.has(key)) return memo.get(key);
+
+        const readFamily = () => {
+            const value = typescript.skipOuterExpressions(expression);
+            const { kind = 0, expression: callee = {}, whenTrue = {}, whenFalse = {}, body = {},
+                asteriskToken = false, modifiers = [] } = getObject(value);
+            const direct = invocations ? '' : literalFamily(value);
+
+            if (direct) return direct;
+
+            if (invocations && functionKinds.includes(kind)) {
+                const { kind: bodyKind = 0, statements = [] } = getObject(body);
+                const [only = {}] = statements;
+                const { kind: statement = 0, expression: returned = {} } = getObject(only);
+                const simple = bodyKind !== Block || statements.length === 1 && statement === ReturnStatement;
+
+                return simple && !asteriskToken && !modifiers.some(node => getNodeKind(node) === AsyncKeyword)
+                    ? completeFamily(bodyKind === Block ? returned : body, invocations - 1, budget) : '';
+            }
+
+            if (kind === CallExpression) return completeFamily(callee, invocations + 1, budget - 1);
+
+            if (kind === ConditionalExpression) {
+                const left = completeFamily(whenTrue, invocations, budget);
+
+                return left && left === completeFamily(whenFalse, invocations, budget) ? left : '';
+            }
+
+            const declaration = producerFor(value);
+            const { kind: declarationKind = 0, initializer = {} } = getObject(declaration);
+            const producer = declarationKind === FunctionDeclaration ? declaration : initializer;
+
+            return declaration ? completeFamily(producer, invocations, budget - 1) : '';
+        };
+
+        return put(memo, key, readFamily());
+    };
     const { statements: sourceStatements = [] } = getObject(sourceFile);
     const entries = sourceStatements.flatMap((statement = {}) => {
-        const { kind = 0, name = {}, body = {} } = getObject(statement);
+        const { kind = 0, name = {}, body = {}, asteriskToken = false, modifiers = [] } = getObject(statement);
         const { text: sourceName = '' } = getObject(name);
 
-        if (kind !== FunctionDeclaration || !sourceName || getNodeKind(body) !== Block) return [];
+        if (kind !== FunctionDeclaration || !sourceName || getNodeKind(body) !== Block || asteriskToken ||
+            modifiers.some(node => getNodeKind(node) === AsyncKeyword)) return [];
 
         const symbol = getSymbolAtLocation(name);
         const { declarations = [] } = getObject(symbol);
@@ -5937,7 +6192,7 @@ const collectArityReturnContracts = ({ typescript = {}, sourceFile = {}, checker
         const [returnedSelector = {}] = statements.filter(({ kind: partKind = 0 } = {}) => partKind === ReturnStatement);
         const { expression: returnedExpression = {} } = getObject(returnedSelector);
         const selector = functionKinds.includes(getNodeKind(returnedExpression)) ? returnedExpression : statement;
-        const { parameters = [], body: selectorBody = {} } = getObject(selector);
+        const { parameters = [], body: selectorBody = {}, asteriskToken: selectorGenerator = false, modifiers: selectorModifiers = [] } = getObject(selector);
         const [last = {}] = parameters.slice(-1);
         const { name: lastName = {}, questionToken = false } = getObject(last);
         const { kind: lastKind = 0, text: parameterName = '' } = getObject(lastName);
@@ -5945,7 +6200,8 @@ const collectArityReturnContracts = ({ typescript = {}, sourceFile = {}, checker
         const optionalType = lastKind === Identifier && questionToken ? getTypeAtLocation(lastName) : {};
         const { flags: optionalFlags = 0 } = getObject(optionalType);
 
-        if (dynamic || referencesOf(parameterSymbol).some(isWrite) ||
+        if (dynamic || selectorGenerator || selectorModifiers.some(node => getNodeKind(node) === AsyncKeyword) ||
+            referencesOf(parameterSymbol).some(isWrite) ||
             !parameterName || !questionToken || !optionalFlags || optionalFlags & (Any | Unknown) ||
             getNodeKind(selectorBody) !== Block) return [];
 
@@ -5992,6 +6248,27 @@ const collectArityReturnContracts = ({ typescript = {}, sourceFile = {}, checker
 
         const key = getConsumerContractKey(statement);
         const { expression: conditional = {} } = getObject(conditionalSelector);
+        const { whenFalse = {}, alternate = whenFalse, whenTrue = {}, consequent = whenTrue } = getObject(conditional);
+        const completeValues = conditionalPartition ? [getNodeKind(whenFalse) ? whenFalse : alternate]
+            : valueReturns.map(({ expression = {} } = {}) => expression);
+        const sourceFamilies = completeValues.map(expression => completeFamily(expression));
+        const valueFamily = sourceFamilies.length && sourceFamilies.every(value => value && value === sourceFamilies.at(0))
+            ? sourceFamilies.at(0) : '';
+
+        if (sourceFamilies.includes('function') || new Set(sourceFamilies.filter(Boolean)).size > 1) return [];
+
+        const partialValues = conditionalPartition ? [getNodeKind(whenTrue) ? whenTrue : consequent]
+            : selectorReturns.map(({ expression = {} } = {}) => expression).filter(expression => isKnownFamily(expression, true));
+        const partialConstructors = partialValues.map(expression => typescript.skipOuterExpressions(expression));
+        const partialRanges = partialConstructors.map(getConsumerContractKey);
+        const continuationRanges = partialConstructors.filter((expression = {}) => {
+            const { kind = 0, body = {}, modifiers = [] } = getObject(expression);
+            const { expression: callee = {} } = getObject(body);
+
+            return kind === ArrowFunction && !modifiers.some(node => getNodeKind(node) === AsyncKeyword) && getNodeKind(body) === CallExpression && getNodeKind(callee) === Identifier &&
+                getSymbolAtLocation(callee) === symbol;
+        }).map(getConsumerContractKey);
+
         const { condition = {}, test = condition } = getObject(conditional);
         const selectorTest = getNodeKind(partialSelector) ? getObject(partialSelector).expression : test;
         const selectorTestRange = getConsumerContractKey(selectorTest);
@@ -6001,13 +6278,16 @@ const collectArityReturnContracts = ({ typescript = {}, sourceFile = {}, checker
             sourceRange: key,
             sourceName,
             selectorRange: getConsumerContractKey(selector),
+            valueFamily,
+            continuationRanges,
+            partialRanges,
             selectorTestRange,
             action: 'retain-arity-return-partition',
             rules: ['resilient/signature-contract-return-consistency'],
             evidence: [
                 'checker overload declarations distinguish partial and complete invocation',
                 'optional final argument has an explicit undefined selector',
-                'partial return is callable and complete returns are known non-callable values'
+                'overloads identify expected callable and data entries; concrete source construction alone permits family exceptions'
             ]
         }]];
     });
@@ -6740,7 +7020,9 @@ const collectOrderedDecisionContracts = ({ typescript = {}, sourceFile = {}, che
 
     const { IfStatement = -1, Block = -1, ReturnStatement = -1,
         ThrowStatement = -1, ConditionalExpression = -1,
-        CallExpression = -1, Identifier = -1 } = getSyntaxKinds(typescript);
+        CallExpression = -1, Identifier = -1, VariableStatement = -1,
+        FunctionDeclaration = -1, ClassDeclaration = -1, EnumDeclaration = -1,
+        ModuleDeclaration = -1 } = getSyntaxKinds(typescript);
     const { TypeFlags: { Any = 0, Unknown = 0 } = {} } = typescript;
     let entries = [];
     const terminates = (statement = {}) => {
@@ -6800,6 +7082,10 @@ const collectOrderedDecisionContracts = ({ typescript = {}, sourceFile = {}, che
         if (kind === IfStatement && !getNodeKind(elseStatement) && nestedConditional &&
             terminates(thenStatement) && suffix.length && terminates(suffix.at(-1)) &&
             !suffix.some(({ kind: siblingKind = 0 } = {}) => siblingKind === IfStatement) &&
+            // Inversion puts the suffix in a new block. Its runtime bindings
+            // must not leave the original scope, including TDZ and captures.
+            !suffix.some(({ kind: siblingKind = 0 } = {}) => [VariableStatement,
+                FunctionDeclaration, ClassDeclaration, EnumDeclaration, ModuleDeclaration].includes(siblingKind)) &&
             guardedSource && hasKnownCondition && sourceRange) {
             entries = [...entries, [sourceRange, {
                 action: 'flatten-terminated-nested-decision',
@@ -7203,7 +7489,6 @@ const collectNativeFunctionContracts = ({ typescript = {}, sourceFile = {}, chec
     if (!hasTypeChecker(checker)) return new Map();
 
     const {
-        ArrowFunction = -1,
         AsyncKeyword = -1,
         CallExpression = -1,
         DefaultKeyword = -1,
@@ -7212,10 +7497,7 @@ const collectNativeFunctionContracts = ({ typescript = {}, sourceFile = {}, chec
         ExportSpecifier = -1,
         SourceFile = -1,
         FunctionDeclaration = -1,
-        Identifier = -1,
-        MetaProperty = -1,
-        NewKeyword = -1,
-        ThisKeyword = -1
+        Identifier = -1
     } = getSyntaxKinds(typescript);
     const declarations = census.select(FunctionDeclaration).filter(({ body = false } = {}) => Boolean(body));
     const { ownerOf = () => sourceFile, isWithin = () => false, isWrite = () => false,
@@ -7231,30 +7513,10 @@ const collectNativeFunctionContracts = ({ typescript = {}, sourceFile = {}, chec
     const getLexicalCapabilities = (declaration = {}) => {
         const { asteriskToken = false, modifiers = [] } = getObject(declaration);
         const asyncFunction = modifiers.some(({ kind = -1 } = {}) => kind === AsyncKeyword);
-        let capabilities = asyncFunction ? [] : ['construct', 'prototype'];
+        const kindCapabilities = asyncFunction ? [] : ['construct', 'prototype'];
 
-        if (asteriskToken) capabilities = ['prototype'];
-
-        const addCapability = (capability) => {
-            capabilities = [...new Set([...capabilities, capability])];
-        };
-        const visit = (node = {}) => {
-            const { kind = 0, keywordToken = -1, text = '' } = getObject(node);
-
-            if (kind !== ArrowFunction && typescript.isFunctionLike(node)) return;
-
-            if (kind === ThisKeyword) addCapability('dynamic-this');
-
-            if (kind === Identifier && text === 'arguments') addCapability('arguments');
-
-            if (kind === MetaProperty && keywordToken === NewKeyword) addCapability('new-target');
-
-            typescript.forEachChild(node, child => visit(child));
-        };
-
-        visit(getObject(declaration).body);
-
-        return capabilities;
+        return [...new Set([...(asteriskToken ? ['prototype'] : kindCapabilities),
+            ...lexicalCapabilities({ typescript, node: declaration })])];
     };
 
     return new Map(declarations.flatMap((node = {}) => {
@@ -7474,7 +7736,8 @@ const collectLiveOwnKeyEnumerationContracts = ({ typescript = {}, sourceFile = {
     let contracts = new Map();
     const inspectLiveOwnKeyUnit = (node = {}) => {
         const { kind = 0, initializer = {}, expression = {}, statement = {} } = getObject(node);
-        const [declaration = {}] = getObject(initializer).declarations || [];
+        const declaredLoopBindings = getObject(initializer).declarations || [];
+        const [declaration = {}] = declaredLoopBindings;
         const keyBinding = getObject(declaration).name || initializer;
 
         if (kind !== ForInStatement || getNodeKind(keyBinding) !== Identifier) return;
@@ -7639,7 +7902,7 @@ const collectLiveArrayVisitationContracts = ({ typescript = {}, sourceFile = {},
         const loopOwner = getEnclosingFunction({ typescript, node: loop });
         const declarationOwner = getEnclosingFunction({ typescript, node: declaration });
 
-        return declarationKind === VariableDeclaration && fresh && getNodeKind(loopOwner) &&
+        return declarationKind === VariableDeclaration && fresh && Boolean(getNodeKind(loopOwner)) &&
             loopOwner === declarationOwner;
     };
     const isOwnedAccumulatorMutation = ({ loop = {}, mutation = {} } = {}) => {
@@ -7659,7 +7922,8 @@ const collectLiveArrayVisitationContracts = ({ typescript = {}, sourceFile = {},
         if (kind === ForOfStatement && !awaitModifier &&
             isStandardArrayType({ typescript, checker, candidate: expression })) {
             const loopRange = getConsumerContractKey(node);
-            const [declaration = {}] = getObject(initializer).declarations || [];
+            const loopBindings = getObject(initializer).declarations || [];
+            const [declaration = {}] = loopBindings;
             const { name: binding = {} } = getObject(declaration);
             const nativeEntryBinding = getNodeKind(binding) === ArrayBindingPattern &&
                 (getObject(binding).elements || []).some((element = {}) => (
@@ -7842,12 +8106,14 @@ const collectNumericRangeBuilderContracts = ({ typescript = {}, sourceFile = {},
             return;
         }
 
-        const [update = {}] = getObject(statement).statements || [];
+        const builderStatements = getObject(statement).statements || [];
+        const [update = {}] = builderStatements;
         const { expression: pushCall = {} } = getObject(update);
         const { expression: member = {}, arguments: pushArguments = [] } = getObject(pushCall);
         const { expression: output = {}, name: method = {} } = getObject(member);
         const [produced = {}] = pushArguments;
-        const [argument = {}] = getObject(produced).arguments || [];
+        const producedArguments = getObject(produced).arguments || [];
+        const [argument = {}] = producedArguments;
         const outputSymbol = getNodeKind(output) === Identifier ? getSymbol(output) : false;
         const outputDeclaration = getSymbolDeclaration(outputSymbol) || {};
         const { statements: surrounding = [] } = getObject(getObject(node).parent);

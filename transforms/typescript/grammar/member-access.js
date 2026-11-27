@@ -8,7 +8,7 @@ import {
     getAgreementDefaultInitializer
 } from '../policy/defaults.js';
 
-const isStaticMemberRead = ({ typescript = {}, node = {}, parent: customParent = false } = {}) => {
+const isStaticMemberRead = ({ typescript = {}, node = {}, parent: customParent } = {}) => {
     const kinds = getSyntaxKinds(typescript);
     const {
         PropertyAccessExpression = -1, Identifier = -1,
@@ -145,14 +145,19 @@ const getMemberBindingPattern = ({
         const { evidence: agreementEvidence = [] } = agreement;
         const [contractReason = agreementReason || (canonical === 'undefined'
             ? 'Source Get retains absence and receiver failure.' : '')] = agreementEvidence;
-        const initializer = defaultInitializer || (guarded ? undefined : getAgreementDefaultInitializer({
+        let initializer;
+
+        if (defaultInitializer) initializer = defaultInitializer;
+
+        if (!defaultInitializer && !guarded) initializer = getAgreementDefaultInitializer({
             typescript,
             factory,
             decision: getBindingDecision({ agreement: agreement }),
             name: alias,
             sourceName,
             propertyName
-        }));
+        });
+
         const element = factory.createBindingElement(
             undefined,
             propertyKey,
@@ -225,6 +230,7 @@ const getMemberBindingPattern = ({
 
                 return buildElement({
                     member,
+                    // eslint-disable-next-line resilient/no-undefined-assignment -- The compiler requires absent propertyName for shorthand; a synthetic node changes the binding.
                     propertyKey: propertyName === alias ? undefined : factory.createIdentifier(propertyName),
                     propertyName
                 });
@@ -238,6 +244,7 @@ const getMemberBindingPattern = ({
 
         return buildElement({
             member,
+            // eslint-disable-next-line resilient/no-undefined-assignment -- The compiler requires absent propertyName for shorthand; a synthetic node changes the binding.
             propertyKey: propertyName === alias ? undefined : factory.createIdentifier(propertyName),
             propertyName
         });

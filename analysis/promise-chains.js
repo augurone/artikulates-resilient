@@ -32,6 +32,25 @@ const memberFor = (node) => {
 
     return type === 'ChainExpression' ? childFor(invoked) : invoked;
 };
+const failurePositions = new Map([['catch', 0], ['then', 1]]);
+
+// Select authored bodies only; an unknown handler or argument position supplies
+// no body evidence. Member spelling does not establish promise identity.
+export const failureBodyFor = (node = {}) => {
+    const { type = '', body = {}, arguments: args = [] } = node;
+
+    if (type === 'CatchClause') return body;
+
+    if (type !== 'CallExpression') return {};
+
+    const position = failurePositions.get(memberName(memberFor(node)));
+
+    if (typeof position !== 'number' || args.slice(0, position + 1).some(({ type: argumentType = '' } = {}) => argumentType === 'SpreadElement')) return {};
+
+    const { type: handlerType = '', body: handlerBody = {} } = args.at(position) ?? {};
+
+    return ['ArrowFunctionExpression', 'FunctionExpression'].includes(handlerType) ? handlerBody : {};
+};
 export const unhandledChain = ({ then = false, finally: final = false, catch: caught = false } = {}) => (then || final) && !caught;
 
 // One syntax owner serves parser acquisition and the ESLint host. Each caller

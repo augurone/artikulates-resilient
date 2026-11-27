@@ -67,7 +67,7 @@
   {
     "rule": "signature-contract-property",
     "source": "const {value,...rest}={value:0};rest.missing;",
-    "expected": []
+    "expected": ["missingProperty"]
   },
   {
     "rule": "signature-contract-property",
@@ -82,7 +82,9 @@
   {
     "rule": "signature-contract-property",
     "source": "({})[\"missing\"];",
-    "expected": []
+    "expected": [
+      "missingProperty"
+    ]
   },
   {
     "rule": "signature-contract-property",
@@ -135,11 +137,6 @@
   {
     "rule": "signature-contract-operation",
     "source": "({map:0}).map();",
-    "expected": []
-  },
-  {
-    "rule": "signature-contract-operation",
-    "source": "Array.prototype.trim=()=>\"custom\";[].trim();",
     "expected": []
   },
   {

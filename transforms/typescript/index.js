@@ -70,7 +70,7 @@ import {
 import { lowerIndexedLocalSelection } from './members/indexed-local-selection.js';
 import { lowerLiveIteratorPayloadSelection } from './members/iterator-payload.js';
 import { lowerMutableSelectedLoop } from './members/mutable-selected-loop.js';
-import { lowerImportedNamespaceMemberAccess } from './members/namespace.js';
+import { lowerNamespaceSnapshots } from './members/namespace.js';
 import { lowerProviderForwarding } from './members/provider-forwarding.js';
 import { lowerResidualMemberAccess } from './members/residual.js';
 import { lowerRestArrayFixedSelections } from './members/rest-array.js';
@@ -99,6 +99,7 @@ import { collectDestructuringAgreements } from './policy/source-agreements.js';
 import { getRuntimeGuardKinds } from './understand/binding-evidence.js';
 import {
     collectEmptyNamespaceImports,
+    collectNamespaceReferences,
     getBindingNames,
     getRuntimeNames,
     getRuntimeReferences,
@@ -184,7 +185,6 @@ const createTypeScriptTransformer = ({
     program = {},
     resolvers = {},
     standard = {},
-    // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Omission inherits the compiler target; zero is a valid explicit ScriptTarget and must stay distinct.
     target
 } = {}) => {
     const {
@@ -217,9 +217,10 @@ const createTypeScriptTransformer = ({
     if (!isObject(typescript)) throw new TypeError('A TypeScript compiler implementation is required.');
 
     const { getCompilerOptions } = getObject(program);
-    const programTarget = isFunction(getCompilerOptions)
-        ? program.getCompilerOptions().target
-        : undefined;
+    let programTarget;
+
+    if (isFunction(getCompilerOptions)) ({ target: programTarget } = program.getCompilerOptions());
+
     const targetScript = target ?? programTarget ?? defaultTarget;
 
     if (targetScript < minimumTarget) throw new RangeError(
@@ -286,6 +287,7 @@ const createTypeScriptTransformer = ({
             ? annotateEmptyNamespaceImport({ typescript, node, imports: emptyNamespaceImports,
                 authoredRules: authoredNamespaceRules(node, ['import/namespace']) }) : node;
         const bindingReferences = collectBindingReferences({ typescript, sourceFile, census, checker });
+        const namespaceReferences = collectNamespaceReferences({ typescript, census, bindingReferences });
         const { statements: runtimeBindingStatements = [] } = getObject(sourceFile);
         const runtimeBindingTargets = new Map(runtimeBindingStatements.flatMap(node => [...getRuntimeBindingIdentities({
             typescript, statements: [node], checker
@@ -299,6 +301,8 @@ const createTypeScriptTransformer = ({
         // acquisition. Broadening it would change programless emitted exceptions.
         const syntaxRequirements = census.select(FunctionDeclarationKind3).some(tupleCandidate);
         const { getSourceFile: readProgramSource } = program;
+        const compilerOptions = isFunction(getCompilerOptions) ? getCompilerOptions.call(program) : { target: targetScript };
+        const { verbatimModuleSyntax = false } = compilerOptions;
         const { text: originalText = '' } = sourceFile;
         // eslint-disable-next-line resilient/no-undefined-comparison -- Only actual code omission selects the owning Program text; null, false and an empty string cannot mask a source mismatch.
         const compilerText = typeof code === 'undefined' ? originalText : code;
@@ -306,7 +310,7 @@ const createTypeScriptTransformer = ({
             typescript, sourceFile, census, sourceText: compilerText, filename: resolve(fileName),
             program: isFunction(readProgramSource) ? program : false,
             revision: createHash('sha256').update(compilerText).digest('hex'), programRevision: randomUUID(),
-            compilerOptionsIdentity: getCompilerOptionsIdentity(isFunction(getCompilerOptions) ? getCompilerOptions.call(program) : { target: targetScript })
+            compilerOptionsIdentity: getCompilerOptionsIdentity(compilerOptions)
         }) : {};
         const { source: compilerSource = false } = sourceAnalysis;
         const consumerContracts = collectConsumerBindingContracts({
@@ -648,9 +652,8 @@ const createTypeScriptTransformer = ({
             .filter(([name = '', declaration = {}]) => {
                 const runtimeName = getRuntimeName(name);
                 const { getSourceFile } = getObject(declaration);
-                const declarationSource = isFunction(getSourceFile)
-                    ? declaration.getSourceFile()
-                    : undefined;
+                const declarationSource = isFunction(getSourceFile) ? declaration.getSourceFile() : false;
+
                 const { fileName: declFileName = '' } = getObject(declarationSource);
                 const isLocalDeclaration = !declarationSource || declFileName === sourceFileName;
 
@@ -804,11 +807,6 @@ const createTypeScriptTransformer = ({
         const transformedSource = diagnostics.length
             ? guardedSource
             : applyTransform(selectedBindingSource, [context => (root) => {
-                const moduleSource = lowerImportedNamespaceMemberAccess({
-                    typescript,
-                    sourceFile: root,
-                    context
-                });
                 const visit = (node) => {
                     const { kind: nodeKind = 0 } = node;
 
@@ -817,6 +815,7 @@ const createTypeScriptTransformer = ({
                     if (nodeKind === ImportDeclarationKind2) return updateTypeOnlyImport({
                         typescript,
                         typeOnlyImports,
+                        verbatimModuleSyntax,
                         node
                     });
 
@@ -877,9 +876,8 @@ const createTypeScriptTransformer = ({
                                 ElementAccessExpressionKind2
                             ];
                             const sourceNode = isArrayBinding && declInitializer &&
-                                reusableSourceKinds.includes(declInitKind)
-                                ? declInitializer
-                                : undefined;
+                                reusableSourceKinds.includes(declInitKind) ? declInitializer : false;
+
                             const {
                                 expression: tupleReceiver = {},
                                 name: tupleProperty = {}
@@ -1056,9 +1054,10 @@ const createTypeScriptTransformer = ({
 
                         if (isArrayBinding && (tupleConsumerAction === 'preserve-native-tuple' || getObject(paramName).__resilientNativeTuple)) return { parameter, binding: {} };
 
-                        const arraySourceNode = isArrayBinding
-                            ? factory.createUniqueName('_resilientArgs')
-                            : undefined;
+                        let arraySourceNode;
+
+                        if (isArrayBinding) arraySourceNode = factory.createUniqueName('_resilientArgs');
+
                         const normalizedName = requiredTupleAction === 'retain-required-tuple-binding' && isArrayBinding
                             ? paramName
                             : updateBindingPattern({
@@ -1087,9 +1086,9 @@ const createTypeScriptTransformer = ({
                                 : '{}'
                         );
                         const defaultInitializer = !paramInitializer && hasOptionalSignature &&
-                            !preservesUndefined && infoKind !== 'required'
+                            !preservesUndefined && infoKind !== 'required' && !['undefined', 'void 0'].includes(canonical)
                             ? getDefaultInitializer({ factory, canonical })
-                            : undefined;
+                            : false;
 
                         const nextInitializer = defaultInitializer || paramInitializer;
                         const hasArrayBinding = isArrayBinding && normalizedName !== paramName;
@@ -1235,7 +1234,7 @@ const createTypeScriptTransformer = ({
                     });
                 };
 
-                return visitNode(moduleSource, visit);
+                return visitNode(root, visit);
             }]).transformed[0];
         const keyedSource = diagnostics.length
             ? transformedSource
@@ -1279,16 +1278,9 @@ const createTypeScriptTransformer = ({
             : applyTransform(keyedSource, [context => root => lowerResidualMemberAccess({
                 typescript, sourceFile: root, placement, destructuringAgreements, standard, agreements, context
             })]).transformed[0];
-        // Residual lowering can introduce a bounded `const { member } = NS`
-        // alias after the first module pass. Re-run the same structural module
-        // conversion here so a resolved local namespace export becomes a named
-        // import instead of an unguarded object binding.
-        const importedNamespaceSource = diagnostics.length
-            ? residualSource
-            : applyTransform(residualSource, [context => root => lowerImportedNamespaceMemberAccess({
-                typescript,
-                sourceFile: root,
-                context
+        const namespaceSource = diagnostics.length ? residualSource
+            : applyTransform(residualSource, [context => root => lowerNamespaceSnapshots({
+                typescript, sourceFile: root, namespaceReferences, context
             })]).transformed[0];
         // Static ordering consumers are deliberately placed after all member
         // rewrites.  Earlier passes can turn `O.compare` into an alias, but
@@ -1296,8 +1288,8 @@ const createTypeScriptTransformer = ({
         // reconstructs the scoped extraction immediately before consumption.
         // No later member pass may hoist or discard that binding.
         const rewrittenSource = diagnostics.length || !sortCapabilityContracts.size
-            ? importedNamespaceSource
-            : applyTransform(importedNamespaceSource, [context => (root) => {
+            ? namespaceSource
+            : applyTransform(namespaceSource, [context => (root) => {
                 const functionKinds = [
                     FunctionDeclarationKind3,
                     FunctionExpressionKind2,
@@ -1341,16 +1333,13 @@ const createTypeScriptTransformer = ({
             node: statement,
             destructuringAgreements
         }));
-        const sourceImports = loweredStatements.filter(({ kind: statementKind = 0 } = {}) => {
-            return (
-                statementKind === ImportDeclarationKind2
-            );
-        }).map(annotateNamespace);
-        const runtimeStatements = loweredStatements.filter(({ kind: statementKind = 0 } = {}) => {
-            return (
-                statementKind !== ImportDeclarationKind2
-            );
-        });
+        // Imports and re-exports share one ordered dependency list. Moving an
+        // import ahead of a re-export can change effects, failure or cyclic
+        // initialization even though neither statement executes a body here.
+        const isModuleDependency = ({ kind = 0, moduleSpecifier = false } = {}) => kind === ImportDeclarationKind2 ||
+            (kind === ExportDeclarationKind2 && Boolean(moduleSpecifier));
+        const sourceDependencies = loweredStatements.filter(isModuleDependency).map(annotateNamespace);
+        const runtimeStatements = loweredStatements.filter(statement => !isModuleDependency(statement));
         const generatedRuntimeStatements = generatedStatements.filter(({ kind: statementKind = 0 } = {}) => {
             return (
                 statementKind !== ImportDeclarationKind2
@@ -1378,7 +1367,7 @@ const createTypeScriptTransformer = ({
         });
         const assembledSource = factory.updateSourceFile(transformedSource, [
             ...generatedImports,
-            ...sourceImports,
+            ...sourceDependencies,
             ...executableRuntimeStatements,
             ...exportStatements
         ]);
@@ -1556,7 +1545,8 @@ const createTypeScriptTransformer = ({
                 compilerOptions: {
                     target: targetScript,
                     module: esNextModule,
-                    jsx: jsxPreserve
+                    jsx: jsxPreserve,
+                    verbatimModuleSyntax
                 }
             });
         const { outputText = '' } = getObject(transpiled);
@@ -1580,7 +1570,7 @@ const createTypeScriptTransformer = ({
         }];
 
         return {
-            code: diagnostics.length ? '' : formatResilientOutput(placeInlineEmissionBoundaries(outputText, typescript, placedSource), typescript),
+            code: diagnostics.length ? '' : formatResilientOutput(placeInlineEmissionBoundaries(outputText, typescript, placedSource), typescript, placedSource),
             diagnostics,
             agreements: [...agreements],
             sourceEvidence,
@@ -1619,13 +1609,17 @@ const createTypeScriptEmitTransformer = ({
     const { getCompilerOptions = () => ({}) } = program;
     const { target: programTarget = defaultTarget } = getCompilerOptions();
     const targetScript = target ?? programTarget;
+    // Published reports belong to callers. The compiler callback retains only
+    // the completed emission decision, never the report's mutable collections.
+    const emissionFor = ({ code = '', diagnostics = [] } = {}) => ({ code, rejected: Boolean(diagnostics.length) });
     const prepare = ({ fileNames = [] } = {}) => {
         const results = fileNames.map((fileName) => {
-            const sourceFile = isFunction(getObject(program).getSourceFile) ? program.getSourceFile(fileName) : undefined;
+            const sourceFile = isFunction(getObject(program).getSourceFile) ? program.getSourceFile(fileName) : false;
+
             const { text = '' } = getObject(sourceFile);
             const result = transformer.transform({ code: text, fileName });
-            // eslint-disable-next-line resilient/prefer-safe-transformations -- Private Program cache retains each prepared result for the corresponding compiler callback.
-            prepared.set(fileName, result);
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- Private Program cache retains source-owned emission decisions for the corresponding compiler callback.
+            prepared.set(fileName, emissionFor(result));
 
             return { fileName, ...result };
         });
@@ -1637,13 +1631,49 @@ const createTypeScriptEmitTransformer = ({
     };
     const before = () => (sourceFile) => {
         const { fileName = '', text = '' } = sourceFile;
-        const result = prepared.get(fileName) || transformer.transform({ code: text, fileName });
+        const decision = prepared.get(fileName) || emissionFor(transformer.transform({ code: text, fileName }));
+        const { rejected = false, code = '' } = decision;
 
-        const { diagnostics = [], code = '' } = result;
+        if (rejected) return sourceFile;
 
-        if (diagnostics.length) return sourceFile;
+        const emitted = typescript.createSourceFile(fileName, code, targetScript, true, javascript);
+        const { NodeFlags: { Synthesized = 0 } = {} } = typescript;
 
-        return typescript.createSourceFile(fileName, code, targetScript, true, javascript);
+        if (!Synthesized) throw new TypeError('Expected the compiler synthesized-node flag');
+
+        const synthesize = (node) => {
+            // eslint-disable-next-line resilient/prefer-safe-transformations -- Mark the private artifact tree for emission; its nodes cannot supply original Program evidence.
+            node.flags |= Synthesized;
+            typescript.forEachChild(node, synthesize);
+        };
+
+        synthesize(emitted);
+        const { statements = [] } = emitted;
+        const { factory = {} } = typescript;
+        // These exports already survived source type erasure. Fresh parse nodes
+        // have no Program-owned alias symbols; do not let native emit erase them
+        // again. Synthesized statements retain ranges in their own emitted text.
+        const retained = statements.map((statement) => {
+            if (typescript.isExportDeclaration(statement)) {
+                // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Compiler export factories require native absence for optional syntax fields.
+                const { modifiers, isTypeOnly = false, exportClause, moduleSpecifier, attributes } = statement;
+
+                return typescript.setTextRange(factory.createExportDeclaration(
+                    modifiers, isTypeOnly, exportClause, moduleSpecifier, attributes
+                ), statement);
+            }
+
+            if (typescript.isExportAssignment(statement)) {
+                // eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- Compiler export factories require native absence for optional modifiers.
+                const { modifiers, isExportEquals = false, expression } = statement;
+
+                return typescript.setTextRange(factory.createExportAssignment(modifiers, isExportEquals, expression), statement);
+            }
+
+            return statement;
+        });
+
+        return factory.updateSourceFile(emitted, retained);
     };
 
     return { before, prepare };

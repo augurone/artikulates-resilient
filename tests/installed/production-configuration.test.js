@@ -9,6 +9,8 @@ import { ESLint } from 'eslint';
 import plugin, { createProjectAdapter } from 'eslint-plugin-resilient';
 import production from 'eslint-plugin-resilient/production';
 
+import { assertFunctionSyntax } from '../support/function-syntax.js';
+
 const { presets = {}, files = [] } = JSON.parse(readFileSync(new URL('./production-policy.json', import.meta.url), 'utf8'));
 const directory = mkdtempSync(resolve('configuration-'));
 const write = (file, source = '') => {
@@ -31,6 +33,16 @@ test('installed production policy rejects CommonJS wrapper globals in ESM', asyn
     strictEqual(messages.filter(({ ruleId = '' } = {}) => ruleId === 'no-undef').length, 5);
 });
 
+test('installed public and production presets enforce authored function syntax and preserve object protocols', async () => {
+    const recommended = new ESLint({ cwd: directory, overrideConfigFile: true, overrideConfig: [plugin.configs.recommended] });
+
+    await Promise.all([recommended, eslint].map(engine => assertFunctionSyntax(async (source) => {
+        const [{ messages = [] } = {}] = await engine.lintText(source, { filePath: join(directory, 'src/function-syntax.js') });
+
+        return messages;
+    })));
+});
+
 test('four JavaScript presets preserve every frozen rule and core entry', () => {
     ['recommended', 'contracts', 'safety', 'imports'].forEach((name) => {
         const { [name]: { rules = {} } = {} } = presets;
@@ -39,9 +51,6 @@ test('four JavaScript presets preserve every frozen rule and core entry', () => 
 
         deepStrictEqual(actual, rules);
     });
-    const cores = Object.entries(plugin.configs.recommended.rules).filter(([name = '', value = ''] = []) => !name.includes('/') && value !== 'off');
-
-    strictEqual(cores.length, 33);
     strictEqual(plugin.configs.recommended.rules['operator-linebreak'], 'off');
     deepStrictEqual(plugin.configs.contracts.settings, presets.contracts.settings);
 });

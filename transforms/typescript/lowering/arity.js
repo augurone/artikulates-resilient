@@ -56,11 +56,7 @@ const createCarrierBindings = ({ typescript = {}, carrierName = '', parameters =
         const pattern = factory.createObjectLiteralExpression([
             factory.createPropertyAssignment(
                 factory.createNumericLiteral(restIndex),
-                factory.createBinaryExpression(
-                    factory.createIdentifier(name),
-                    factory.createToken(EqualsToken),
-                    factory.createVoidExpression(factory.createNumericLiteral(0))
-                )
+                factory.createIdentifier(name)
             )
         ]);
         const selection = factory.createBinaryExpression(

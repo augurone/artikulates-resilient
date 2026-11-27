@@ -1,3 +1,4 @@
+import { operations } from '../operations.js';
 import { put } from './collections.js';
 import { families } from './families.js';
 
@@ -51,11 +52,9 @@ export const field = ({ name = false, required = false, optional = false } = {})
 
 // S-04: these are receiver-family obligations, not proofs about arguments,
 // prototype integrity, return values, effects, or successful invocation.
-const receiverFamilies = Object.freeze({
-    trim: 'string', toLowerCase: 'string', toUpperCase: 'string', replaceAll: 'string',
-    map: 'array', filter: 'array', reduce: 'array', some: 'array', find: 'array', forEach: 'array',
-    test: 'regexp', call: 'function'
-});
+const receiverFamilies = Object.freeze(Object.fromEntries([...operations]
+    .filter(([, { receiverQuestion = false } = {}] = []) => receiverQuestion)
+    .map(([name = '', { receiver = '' } = {}] = []) => [name, receiver])));
 
 export const receiver = ({ operation = '' } = {}) => {
     if (typeof operation !== 'string' || !Object.hasOwn(receiverFamilies, operation)) throw new TypeError('Unsupported receiver operation');

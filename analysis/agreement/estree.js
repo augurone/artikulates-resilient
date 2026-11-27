@@ -1,3 +1,5 @@
+import { sourcePropertyName } from '../estree-properties.js';
+import { primitiveLiteral } from '../primitive-expressions.js';
 import { traverse } from '../traversal.js';
 import { append, put } from './collections.js';
 
@@ -22,16 +24,11 @@ const projections = new Map([
 
 export const retainsFacet = ({ projection = 'complete', kind = '' } = {}) => projections.get(projection).includes(kind);
 
-const keyHeader = (key = {}) => {
-    const { type = '', name = '' } = key;
+const propertyHeader = ({ type = '', computed = false, method = false, shorthand = false, kind = 'init', key = {} } = {}) => {
+    const { known = false, name = '' } = sourcePropertyName({ computed, key });
 
-    if (type === 'Literal') return snapshotLiteral(key);
-
-    return type === 'Identifier' ? { type, name } : { type };
+    return { type, computed, method, shorthand, kind, key: known ? { type: 'Literal', value: name } : {} };
 };
-const propertyHeader = ({ type = '', computed = false, method = false, shorthand = false, kind = 'init', key = {} } = {}) => ({
-    type, computed, method, shorthand, kind, key: keyHeader(key)
-});
 const elementHeader = ({ type = '' } = {}) => ({ type });
 const propertyValue = ({ value = false } = {}, acquire) => {
     if (!value) return {};
@@ -43,11 +40,15 @@ const propertyValue = ({ value = false } = {}, acquire) => {
 
 // Own precisely the selected syntax before returning. Reduced structural
 // snapshots contain headers, never caller nodes, nested value nodes or metadata.
-// eslint-disable-next-line resilient/prefer-safe-destructuring-defaults -- propertyValue guards the forwarded callback; a fallback would fabricate child evidence.
 const snapshotNode = ({ node = {}, projection = '', acquire } = {}) => {
-    const { type = '' } = node;
+    const { type = '', operator = '' } = node;
 
     if (type === 'Literal') return snapshotLiteral(node);
+
+    const literal = primitiveLiteral(node, operator);
+    const { type: normalized = '' } = literal;
+
+    if (normalized === 'Literal') return snapshotLiteral(literal);
 
     if (type === 'Identifier') {
         const { name = '' } = node;
@@ -56,8 +57,6 @@ const snapshotNode = ({ node = {}, projection = '', acquire } = {}) => {
     }
 
     if (['UnaryExpression', 'BinaryExpression'].includes(type)) {
-        const { operator = '' } = node;
-
         return { type, operator };
     }
 

@@ -1,8 +1,65 @@
+import { append } from '../../../analysis/collections.js';
+import { traverse } from '../../../analysis/traversal.js';
+import { getChildren } from '../../utils/ast-traversal.js';
+
 // Callable creation and formal syntax are compiler acquisition. Return values,
 // invocation, callback protocols and completion belong to shared demand.
 export const callableCreation = ({ typescript: { SyntaxKind: { ArrowFunction = -1, FunctionExpression = -1 } = {} } = {}, node: { kind = -2 } = {} } = {}) => (
     kind === ArrowFunction || kind === FunctionExpression
 );
+
+const isScopeReference = (node, { kind = -2, name = false, propertyName = false, label = false } = {}, shorthand = -1) => (
+    kind === shorthand || (name !== node && propertyName !== node && label !== node)
+);
+
+// Computed names execute outside the nested callable; its parameters/body do
+// not. Arrows retain the enclosing lexical scope, and type nodes are erased.
+const scopeValues = ({ typescript = {}, node = {}, crossFunctions = false } = {}, read) => {
+    const { SyntaxKind: { ArrowFunction = -1 } = {} } = typescript;
+    const { parameters = [], body = false } = node;
+    const found = [];
+
+    [...parameters, ...(body ? [body] : [])].forEach(current => traverse({ current, parent: node }, { enter: ({ current = {}, parent = {} } = {}) => {
+        const { kind = -2, name = false } = current;
+
+        if (typescript.isTypeNode(current)) return [];
+
+        if (!crossFunctions && kind !== ArrowFunction && typescript.isFunctionLike(current))
+            return name && typescript.isComputedPropertyName(name) ? [{ current: name, parent: current }] : [];
+
+        read(current, parent).forEach(value => append(found, value));
+
+        return getChildren({ typescript, node: current }).map(child => ({ current: child, parent: current }));
+    } }));
+
+    return found;
+};
+
+export const getScopeReferences = ({ typescript = {}, node = {}, text = '', crossFunctions = false } = {}) => {
+    const { SyntaxKind: { Identifier = -1, ShorthandPropertyAssignment = -1 } = {} } = typescript;
+
+    return scopeValues({ typescript, node, crossFunctions }, (current = {}, parent = {}) => {
+        const { kind = -2, text: name = '' } = current;
+
+        return kind === Identifier && name === text && isScopeReference(current, parent, ShorthandPropertyAssignment) ? [current] : [];
+    });
+};
+
+// Parameters include runtime initializers and the TypeScript this formal.
+export const lexicalCapabilities = ({ typescript = {}, node = {} } = {}) => {
+    const { SyntaxKind: { Identifier = -1, MetaProperty = -1, NewKeyword = -1, Parameter = -1,
+        ShorthandPropertyAssignment = -1, ThisKeyword = -1 } = {} } = typescript;
+
+    return new Set(scopeValues({ typescript, node }, (current = {}, parent = {}) => {
+        const { kind = -2, keywordToken = -1, text = '', name: { kind: nameKind = -2, text: name = '' } = {} } = current;
+
+        return [
+            [kind === ThisKeyword || (kind === Parameter && nameKind === Identifier && name === 'this'), 'dynamic-this'],
+            [kind === Identifier && text === 'arguments' && isScopeReference(current, parent, ShorthandPropertyAssignment), 'arguments'],
+            [kind === MetaProperty && keywordToken === NewKeyword, 'new-target']
+        ].filter(([present = false] = []) => present).map(([, capability = ''] = []) => capability);
+    }));
+};
 
 export const callableParameters = ({ typescript = {}, node = {} } = {}) => {
     const { SyntaxKind: { FunctionDeclaration = -1, ArrowFunction = -1, FunctionExpression = -1, Identifier = -1,

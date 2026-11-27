@@ -34,7 +34,7 @@ test('defaults, unsafe uses, supplied arguments and inconsistent returns retain 
     }] });
     const source = [
         'const run = ({ done }) => done();',
-        'const label = (title = "") => title; label(42);',
+        'const label = function (title = "") { return title; }; label(42);',
         'const read = flag => flag ? [] : "";'
     ].join('\n');
     const [{ messages = [] } = {}] = await engine.lintText(source);

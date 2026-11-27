@@ -1,14 +1,6 @@
-import { createNativeUndefinedReader } from './support/native-absence.js';
+import { createAssignmentValueListeners } from './support/assignment-values.js';
+import { createExplicitUndefinedReader } from './support/native-absence.js';
 import { createReporter } from './support/reporter.js';
-
-const reportUndefinedAssignment = (node, report, isNativeUndefined) => {
-    if (!isNativeUndefined(node)) return;
-
-    report({
-        node,
-        messageId: 'undefinedAssignment'
-    });
-};
 
 export default {
     meta: {
@@ -25,18 +17,8 @@ export default {
     create(context = {}) {
         const { sourceCode = {} } = context;
         const report = createReporter(context);
-        const isNativeUndefined = createNativeUndefinedReader({ sourceCode });
+        const isExplicitUndefined = createExplicitUndefinedReader({ sourceCode });
 
-        return {
-            VariableDeclarator({ init = {} } = {}) {
-                reportUndefinedAssignment(init, report, isNativeUndefined);
-            },
-            AssignmentExpression({ right = {} } = {}) {
-                reportUndefinedAssignment(right, report, isNativeUndefined);
-            },
-            AssignmentPattern({ right = {} } = {}) {
-                reportUndefinedAssignment(right, report, isNativeUndefined);
-            }
-        };
+        return createAssignmentValueListeners({ report, isValue: isExplicitUndefined, messageId: 'undefinedAssignment' });
     }
 };

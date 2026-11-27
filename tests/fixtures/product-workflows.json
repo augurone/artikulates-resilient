@@ -1,0 +1,252 @@
+[
+  {
+    "name": "record-copy-invalid",
+    "invalid": "const normalize = () => ({ ...{ name: 42 } });\n\nconst { name = \"\" } = normalize();\n\nname.trim();\n\nexport {};\n",
+    "valid": "const normalize = () => ({ ...{ name: \"ok\" } });\n\nconst { name = \"\" } = normalize();\n\nname.trim();\n\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-operation"
+    ]
+  },
+  {
+    "name": "record-rest-invalid",
+    "invalid": "const normalize = () => {\n    const { ...record } = { name: 42 };\n\n    return record;\n};\n\nconst { name = \"\" } = normalize();\n\nname.trim();\n\nexport {};\n",
+    "valid": "const normalize = () => {\n    const { ...record } = { name: \"ok\" };\n\n    return record;\n};\n\nconst { name = \"\" } = normalize();\n\nname.trim();\n\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-operation"
+    ]
+  },
+  {
+    "name": "array-flatMap-invalid",
+    "invalid": "[1].flatMap(value => [value]).trim();\n\nexport {};\n",
+    "valid": "[1].flatMap(value => [value]).map(value => value);\n\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-operation"
+    ]
+  },
+  {
+    "name": "array-copy-invalid",
+    "invalid": "[1].slice().trim();\n\nexport {};\n",
+    "valid": "[1].slice().map(value => value);\n\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-operation"
+    ]
+  },
+  {
+    "name": "array-reduceRight-invalid",
+    "invalid": "[1].reduceRight(() => [], []).trim();\n\nexport {};\n",
+    "valid": "[1].reduceRight(() => [], []).map(value => value);\n\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-operation"
+    ]
+  },
+  {
+    "name": "arithmetic-invalid",
+    "invalid": "const count = () => 1 + 2;\n\ncount().trim();\n\nexport {};\n",
+    "valid": "const count = () => 1 + 2;\n\ncount() + 1;\n\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-operation"
+    ]
+  },
+  {
+    "name": "template-invalid",
+    "invalid": "const text = () => `ok`;\n\ntext().map(() => 1);\n\nexport {};\n",
+    "valid": "const text = () => `ok`;\n\ntext().trim();\n\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-operation"
+    ]
+  },
+  {
+    "name": "spread-call-invalid",
+    "invalid": "const read = ({ name = \"\" } = {}) => name.trim();\n\nread(...[{ name: 42 }]);\n\nexport {};\n",
+    "valid": "const read = ({ name = \"\" } = {}) => name.trim();\n\nread(...[{ name: \"ok\" }]);\n\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-operation",
+      "signature-contract-call-site"
+    ]
+  },
+  {
+    "name": "spread-call-empty-invalid",
+    "invalid": "const read = ({ name = \"\" } = {}) => name.trim();\n\nread(...[], { name: 42 });\n\nexport {};\n",
+    "valid": "const read = ({ name = \"\" } = {}) => name.trim();\n\nread(...[], { name: \"ok\" });\n\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-operation",
+      "signature-contract-call-site"
+    ]
+  },
+  {
+    "name": "protocol-call-invalid",
+    "invalid": "const read = ({ name = \"\" } = {}) => name.trim();\n\nread.call({}, { name: 42 });\n\nexport {};\n",
+    "valid": "const read = ({ name = \"\" } = {}) => name.trim();\n\nread.call({}, { name: \"ok\" });\n\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-operation",
+      "signature-contract-call-site"
+    ]
+  },
+  {
+    "name": "protocol-apply-invalid",
+    "invalid": "const read = ({ name = \"\" } = {}) => name.trim();\n\nread.apply({}, [{ name: 42 }]);\n\nexport {};\n",
+    "valid": "const read = ({ name = \"\" } = {}) => name.trim();\n\nread.apply({}, [{ name: \"ok\" }]);\n\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-operation",
+      "signature-contract-call-site"
+    ]
+  },
+  {
+    "name": "callback-concat-return",
+    "invalid": "const pick = value => [].concat([value])[0];\nconst run = ({ cb } = {}) => {\n    if (cb) pick(cb)();\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "valid": "const pick = value => [].concat([value])[0];\nconst consume = (value) => { if (typeof value === \"function\") value(); };\nconst run = ({ cb } = {}) => {\n    if (cb) consume(pick(cb));\n};\n\nawait run({ cb: 42 });\n\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "prefer-safe-destructuring-defaults"
+    ]
+  },
+  {
+    "name": "array-flatMap-contract",
+    "invalid": "[42].flatMap(({ name = \"\" } = {}) => [name]);\n\nexport {};\n",
+    "valid": "[{ name: \"ok\" }].flatMap(({ name = \"\" } = {}) => [name]);\n\nexport {};\n",
+    "runtime": 0,
+    "rules": [
+      "signature-contract-call-site"
+    ]
+  },
+  {
+    "name": "array-reduceRight-contract",
+    "invalid": "[42].reduceRight((acc, { name = \"\" } = {}) => [...acc, name], []);\n\nexport {};\n",
+    "valid": "[{ name: \"ok\" }].reduceRight((acc, { name = \"\" } = {}) => [...acc, name], []);\n\nexport {};\n",
+    "runtime": 0,
+    "rules": [
+      "signature-contract-call-site"
+    ]
+  },
+  {
+    "name": "negative-default-invalid",
+    "invalid": "const count = (value = -1) => value;\n\ncount(\"bad\");\n\nexport {};\n",
+    "valid": "const count = (value = -1) => value;\n\ncount(2);\n\nexport {};\n",
+    "runtime": 0,
+    "rules": [
+      "signature-contract-call-site"
+    ]
+  },
+  {
+    "name": "unary-default-invalid",
+    "invalid": "const count = (value = +1) => value;\n\ncount(\"bad\");\n\nexport {};\n",
+    "valid": "const count = (value = +1) => value;\n\ncount(2);\n\nexport {};\n",
+    "runtime": 0,
+    "rules": [
+      "signature-contract-call-site"
+    ]
+  },
+  {
+    "name": "template-default-invalid",
+    "invalid": "const text = (value = ``) => value;\n\ntext(42);\n\nexport {};\n",
+    "valid": "const text = (value = ``) => value;\n\ntext(\"ok\");\n\nexport {};\n",
+    "runtime": 0,
+    "rules": [
+      "signature-contract-call-site"
+    ]
+  },
+  {
+    "name": "owned copy reduction family",
+    "invalid": "const normalize = (tracks = []) => [...tracks].reduce((items, item) => [...items, item], []);\nnormalize(JSON.parse('[1]')).trim();\nexport {};\n",
+    "valid": "const normalize = (tracks = []) => [...tracks].reduce((items, item) => [...items, item], []);\nnormalize(JSON.parse('[1]')).map(value => value);\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-operation"
+    ]
+  },
+  {
+    "name": "async sequential reduction",
+    "invalid": "const normalize = async (groups = []) => await groups.reduce(async (pending, group = []) => [...(await pending), ...group], Promise.resolve([]));\nconst result = await normalize([[1], [2]]);\nresult.trim();\nexport {};\n",
+    "valid": "const normalize = async (groups = []) => await groups.reduce(async (pending, group = []) => [...(await pending), ...group], Promise.resolve([]));\nconst result = await normalize([[1], [2]]);\nresult.map(value => value);\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-operation"
+    ]
+  },
+  {
+    "name": "copied records retain later callback inputs",
+    "invalid": "const read = (tracks = []) => [...tracks].map(({ name = \"\" } = {}) => name.trim());\nread([{ name: \"ok\" }, { name: 42 }]);\nexport {};\n",
+    "valid": "const read = (tracks = []) => [...tracks].map(({ name = \"\" } = {}) => name.trim());\nread([{ name: \"ok\" }, { name: \"good\" }]);\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-call-site",
+      "signature-contract-operation"
+    ]
+  },
+  {
+    "name": "record normalization reduction",
+    "invalid": "const normalize = (tracks = []) => tracks.reduce((items, { name = \"\", ...track } = {}) => [...items, { ...track, name }], []);\nconst read = (items = []) => items.map(({ name = \"\" } = {}) => name.trim());\nread(normalize([{ name: 42, id: 1 }]));\nexport {};\n",
+    "valid": "const normalize = (tracks = []) => tracks.reduce((items, { name = \"\", ...track } = {}) => [...items, { ...track, name }], []);\nconst read = (items = []) => items.map(({ name = \"\" } = {}) => name.trim());\nread(normalize([{ name: \"ok\", id: 1 }]));\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-call-site",
+      "signature-contract-operation"
+    ]
+  },
+  {
+    "name": "borrowed-copy-truth",
+    "invalid": "const copy = value => ({ ...value });\nconst original = { flag: true };\nconst { flag = false } = copy(original);\n\n(flag ? 42 : \"ok\").trim();\n\nexport {};\n",
+    "valid": "const copy = value => ({ ...value });\nconst original = { flag: false };\nconst { flag = false } = copy(original);\n\n(flag ? 42 : \"ok\").trim();\n\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-operation"
+    ]
+  },
+  {
+    "name": "borrowed-copy-callable",
+    "invalid": "const copy = value => ({ ...value });\nconst original = { read: (value = \"\") => value.trim() };\nconst { read } = copy(original);\n\nread(42);\n\nexport {};\n",
+    "valid": "const copy = value => ({ ...value });\nconst original = { read: (value = \"\") => value.trim() };\nconst { read } = copy(original);\n\nread(\"ok\");\n\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-call-site",
+      "signature-contract-operation"
+    ]
+  },
+  {
+    "name": "conditional-primitive-copy-writer",
+    "invalid": "const copy = (flag = false) => ({ ...{ name: 42 }, ...(flag && { name: \"ok\" }) });\nconst { name = \"\" } = copy(false);\n\nname.trim();\n\nexport {};\n",
+    "valid": "const copy = (flag = false) => ({ ...{ name: 42 }, ...(flag && { name: \"ok\" }) });\nconst { name = \"\" } = copy(true);\n\nname.trim();\n\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-operation"
+    ]
+  },
+  {
+    "name": "primitive-record-copy-join",
+    "invalid": "const copy = (flag = false) => ({ ...{ name: 42 }, ...(flag ? false : { name: \"ok\" }) });\nconst { name = \"\" } = copy(JSON.parse(\"true\"));\n\nname.trim();\n\nexport {};\n",
+    "valid": "const copy = (flag = false) => ({ ...{ name: \"ok\" }, ...(flag ? false : { name: \"ok\" }) });\nconst { name = \"\" } = copy(JSON.parse(\"true\"));\n\nname.trim();\n\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-operation"
+    ]
+  },
+  {
+    "name": "callable-lifetime-recovery",
+    "invalid": "const read = () => {\n    const produce = () => 42;\n\n    produce.call(null);\n\n    return produce.apply(null, []);\n};\n\nread().trim();\n\nexport {};\n",
+    "valid": "const read = () => {\n    const produce = () => \"ok\";\n\n    produce.call(null);\n\n    return produce.apply(null, []);\n};\n\nread().trim();\n\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-operation"
+    ]
+  },
+  {
+    "name": "conditional-truth-observation",
+    "invalid": "const normalize = value => value ? { ...value } : {};\nconst { name = \"\" } = normalize({ name: 42 });\n\nname.trim();\n\nexport {};\n",
+    "valid": "const normalize = value => value ? { ...value } : {};\nconst { name = \"\" } = normalize({ name: \"ok\" });\n\nname.trim();\n\nexport {};\n",
+    "runtime": 1,
+    "rules": [
+      "signature-contract-operation"
+    ]
+  }
+]

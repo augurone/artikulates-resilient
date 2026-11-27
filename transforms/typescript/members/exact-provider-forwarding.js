@@ -52,7 +52,7 @@ const lowerExactProviderForwarding = ({
             destructuringAgreements,
             kinds: ['direct-capability', 'sort-capability', 'consumer', 'consumer-callback', 'exact-callback-projection']
         });
-        const directAction = getObject(directAgreement).action || '';
+        const { action: directAction = '' } = getObject(directAgreement);
         const { action = '', canonical = '' } = agreement;
 
         if (['guard-function', 'guard-function-undefined', 'guard-sort-capability', 'exact-callback-projection'].includes(directAction)) {

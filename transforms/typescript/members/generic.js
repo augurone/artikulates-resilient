@@ -142,7 +142,6 @@ const lowerGenericMemberAccess = ({
                 name,
                 symbol,
                 end: -1,
-                statement: undefined,
                 parameter: true
             }];
         });
@@ -327,7 +326,7 @@ const lowerGenericMemberAccess = ({
                 name: candName = "",
                 end: candEnd = -1,
                 parameter: candParam = false,
-                symbol: candSymbol
+                symbol: candSymbol = false
             } = getObject(candidate);
 
             return candName === objectName &&
@@ -521,9 +520,7 @@ const lowerGenericMemberAccess = ({
             parentKind === ElementAccessExpression &&
             parentExpr === child &&
             rewrites.has(getKey(childParent));
-        const referenceSymbol = symbols
-            ? getPlacementSymbol({ typescript, placement, node: child })
-            : undefined;
+        const referenceSymbol = symbols ? getPlacementSymbol({ typescript, placement, node: child }) : false;
         const symbolMatches = !groupSymbol || !referenceSymbol || referenceSymbol === groupSymbol;
         const isResidualParameter = !isPropertyName && symbolMatches && !isLoweredMember;
 
@@ -548,14 +545,14 @@ const lowerGenericMemberAccess = ({
     let insertions = new Map();
     [...groups.values()]
         .filter((group = {}) => {
-            const { parameter = false, statement } = getObject(group);
+            const { parameter = false, statement = false } = getObject(group);
 
             return !parameter && statement;
         })
         .forEach((group = {}) => {
             const {
                 guardStatement,
-                statement,
+                statement = false,
                 objectName: groupObj = "",
                 members: groupMbrs = []
             } = getObject(group);

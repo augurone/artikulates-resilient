@@ -3,6 +3,11 @@
 This rule is implemented in [the current package](../../analysis/eslint/no-unguarded-callback-invocation.js).
 Its implementation uses the shared analyzer and source-owned evidence.
 
+Natural absence from an ordinary unassigned `let` remains absent. A callable
+guard admits its supported invocation; no no-op callback or explicit undefined
+default is required. Known noncallable values reached through properties, results
+and native collection callback positions also receive call-site findings.
+
 The current supported behavior and boundary cases are verified by:
 
 - [calls-completions.test.js](../../tests/calls-completions.test.js)

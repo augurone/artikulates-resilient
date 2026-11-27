@@ -123,6 +123,33 @@ const collectEmptyNamespaceImports = ({ typescript = {}, sourceFile = {}, checke
     return imports;
 };
 
+// Reuse acquired symbol identity. Without a checker, admit only namespace names
+// with no other named declaration anywhere in the source; shadows stay unknown.
+const collectNamespaceReferences = ({ typescript = {}, census = {}, bindingReferences = new Map() } = {}) => {
+    const { NamespaceImport = -1, Identifier = -1, PropertyAccessExpression = -1 } = getSyntaxKinds(typescript);
+
+    if (bindingReferences.size) return new Set([...bindingReferences].flatMap(([symbol = {}, references = []] = []) => {
+        const { declarations = [] } = getObject(symbol);
+
+        return declarations.some(declaration => getObject(declaration).kind === NamespaceImport) ? references : [];
+    }));
+
+    const imports = census.select(NamespaceImport).filter(({ parent = {} } = {}) => !getObject(parent).isTypeOnly);
+    const names = new Set(imports.map(({ name = {} } = {}) => getObject(name).text));
+
+    if (!names.size) return new Set();
+
+    const identifiers = census.select(Identifier);
+    const shadowed = new Set(identifiers.filter((node = {}) => {
+        const { parent = {}, text = '' } = getObject(node);
+        const { kind = 0, name = {} } = getObject(parent);
+
+        return names.has(text) && name === node && ![NamespaceImport, PropertyAccessExpression].includes(kind);
+    }).map(({ text = '' } = {}) => text));
+
+    return new Set(identifiers.filter(({ text = '' } = {}) => names.has(text) && !shadowed.has(text)));
+};
+
 const getBindingNames = ({ typescript = {}, node = {} } = {}) => {
     const { Identifier = -1 } = getSyntaxKinds(typescript);
     let names = [];
@@ -379,8 +406,7 @@ const getUnsupportedTypeDiagnostics = ({ typescript = {},
         const { kind: nodeKind = 0, operator = 0 } = getObject(node);
         const { kind: parentKind = 0 } = getObject(parent);
         const checkerCandidate = unsupportedKinds.has(nodeKind) || nodeKind === IndexedAccessType || nodeKind === MappedType || (nodeKind === TypeOperator && operator === UniqueKeyword);
-        const checkerType = checkerCandidate && hasTypeChecker(activeChecker) ? activeChecker.getTypeAtLocation(node) : undefined;
-        const checkerEvidence = Boolean(checkerType);
+        const checkerEvidence = Boolean(checkerCandidate && hasTypeChecker(activeChecker) && activeChecker.getTypeAtLocation(node));
         const checkerContract = getCheckerContract({
             typescript,
             node,
@@ -417,6 +443,7 @@ const getUnsupportedTypeDiagnostics = ({ typescript = {},
 
 export {
     collectEmptyNamespaceImports,
+    collectNamespaceReferences,
     getBindingNames,
     getRuntimeNames,
     getRuntimeReferences,

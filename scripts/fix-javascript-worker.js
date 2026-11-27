@@ -87,6 +87,24 @@ const getProfile = async (filePath = '') => {
 
     return { ...JSON.parse(serialized), sha256: digest(serialized) };
 };
+const fixSource = async (id, message = {}) => {
+    const { code = '', filePath = '' } = message;
+    const fixing = fixAll;
+    const measuring = measure;
+    const checking = inspector;
+    const writing = fixer;
+    const profile = await getProfile(filePath);
+    let raw;
+
+    if (measuring || !fixing) raw = checkResult(await checking.lintText(code, { filePath }), filePath);
+
+    const result = fixing ? checkResult(await writing.lintText(code, { filePath }), filePath) : raw;
+    const { output: fixedOutput = code } = result;
+    const output = fixedOutput ?? code;
+    const fixed = fixing && measuring ? checkResult(await checking.lintText(output, { filePath }), filePath) : result;
+
+    respond(id, { output, raw, fixed, profile });
+};
 const disconnect = () => {
     if (isFunction(process.disconnect)) process.disconnect();
 };
@@ -120,15 +138,7 @@ process.on('message', async ({ id, type = '', ...message } = {}) => {
         }
 
         if (type === 'fix') {
-            const { code = '', filePath = '' } = message;
-            const profile = await getProfile(filePath);
-            const raw = measure || !fixAll ? checkResult(await inspector.lintText(code, { filePath }), filePath) : undefined;
-            const result = fixAll ? checkResult(await fixer.lintText(code, { filePath }), filePath) : raw;
-            const { output: fixedOutput = code } = result;
-            const output = fixedOutput ?? code;
-            const fixed = fixAll && measure ? checkResult(await inspector.lintText(output, { filePath }), filePath) : result;
-
-            respond(id, { output, raw, fixed, profile });
+            await fixSource(id, message);
 
             return;
         }

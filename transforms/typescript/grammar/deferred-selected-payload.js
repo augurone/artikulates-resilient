@@ -42,6 +42,16 @@ const createDeferredSelectedPayloadBinding = ({
             )
         ]), undefined, undefined, factory.createIdentifier(receiverName))
     ], ConstKind));
+    const { statements = [] } = getObject(nextBody);
+    const block = typescript.isBlock(nextBody);
+    const contents = block ? statements : [factory.createReturnStatement(nextBody)];
+    const first = contents.findIndex((statement = {}) => {
+        const { expression = {} } = statement;
+
+        return !typescript.isExpressionStatement(statement) || !typescript.isStringLiteral(expression);
+    });
+    const position = first < 0 ? contents.length : first;
+    const bodyStatements = [...contents.slice(0, position), binding, ...contents.slice(position)];
 
     return factory.updateArrowFunction(
         node,
@@ -50,7 +60,7 @@ const createDeferredSelectedPayloadBinding = ({
         parameters,
         type,
         getObject(node).equalsGreaterThanToken,
-        factory.createBlock([binding, factory.createReturnStatement(nextBody)], true)
+        block ? factory.updateBlock(nextBody, bodyStatements) : factory.createBlock(bodyStatements, true)
     );
 };
 

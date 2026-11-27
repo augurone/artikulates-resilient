@@ -1,4 +1,4 @@
-import { createNativeUndefinedReader } from './support/native-absence.js';
+import { createExplicitUndefinedReader } from './support/native-absence.js';
 import { createReporter } from './support/reporter.js';
 
 const isUndefinedLiteral = (node = {}) => {
@@ -25,9 +25,9 @@ const isUndefinedTypeofTest = ({ left = {}, right = {} } = {}) => (
     (isUndefinedTypeof(right) && isUndefinedLiteral(left))
 );
 
-const isUndefinedTest = ({ left = {}, right = {} } = {}, isNativeUndefined) => (
-    isNativeUndefined(left) ||
-    isNativeUndefined(right) ||
+const isUndefinedTest = ({ left = {}, right = {} } = {}, isExplicitUndefined) => (
+    isExplicitUndefined(left) ||
+    isExplicitUndefined(right) ||
     isUndefinedTypeofTest({ left, right })
 );
 
@@ -47,7 +47,7 @@ export default {
     create(context = {}) {
         const { sourceCode = {} } = context;
         const report = createReporter(context);
-        const isNativeUndefined = createNativeUndefinedReader({ sourceCode });
+        const isExplicitUndefined = createExplicitUndefinedReader({ sourceCode });
 
         return {
             BinaryExpression(node = {}) {
@@ -55,7 +55,7 @@ export default {
 
                 if (!['===', '!==', '==', '!='].includes(operator)) return;
 
-                if (!isUndefinedTest(node, isNativeUndefined)) return;
+                if (!isUndefinedTest(node, isExplicitUndefined)) return;
 
                 report({
                     node,
